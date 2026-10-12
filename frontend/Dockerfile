@@ -1,7 +1,7 @@
 # syntax=docker/dockerfile:1
 # Build context — repo ildizi (pnpm workspace lockfile u yerda).
 #   dev        — docker-compose.yml ishlatadi (Vite hot reload)
-#   production — oxirgi bosqich; Railway shuni yig'adi (frontend/railway.json)
+#   production — oxirgi bosqich; Railway shuni yig'adi (RAILWAY_DOCKERFILE_PATH=frontend/Dockerfile)
 
 FROM node:20-alpine AS base
 RUN corepack enable
