@@ -10,3 +10,5 @@ mobile/*
 !mobile/package.json
 **/coverage
 **/*.log
+.github
+**/*.md

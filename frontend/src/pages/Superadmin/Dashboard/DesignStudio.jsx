@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import { useState } from 'react'
 
 const SOLID_COLORS = [
   { id: 'oq', label: 'Oq', value: '#eef1f6' },

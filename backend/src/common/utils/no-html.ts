@@ -5,7 +5,7 @@ import { registerDecorator, ValidationOptions } from 'class-validator';
 const HTML_PATTERN = /[<>]|javascript:|data:text\/html|\bon\w+\s*=/i;
 // Ko'rinmas boshqaruv belgilari (\t va \n dan tashqari)
 // eslint-disable-next-line no-control-regex
-const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F​-‏‪-‮⁦-⁩]/g;
+const CONTROL_CHARS = /[\u0000-\u0008\u000B\u000C\u000E-\u001F\u007F\u200B-\u200F\u202A-\u202E\u2066-\u2069]/g;
 
 /** Matnli maydonlarda HTML/skript kodini qabul qilmaydi (stored XSS himoyasi) */
 export function NoHtml(options?: ValidationOptions) {

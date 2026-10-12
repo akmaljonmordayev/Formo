@@ -1,6 +1,7 @@
 import { session, SESSION_EXPIRED_EVENT } from './session';
 
-const BASE_URL = import.meta.env.VITE_API_URL || '';
+// Oxirgi "/" olib tashlanadi: "https://api.formo.uz/" + "/api" ikki slashli manzil bo'lib qolmasin
+const BASE_URL = (import.meta.env.VITE_API_URL || '').replace(/\/+$/, '');
 
 export class ApiError extends Error {
   constructor(message, status) {
