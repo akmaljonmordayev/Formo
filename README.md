@@ -89,6 +89,7 @@ Production'da uchta servis: **Postgres**, **backend** (NestJS, `backend/Dockerfi
    | backend | `SUPERADMIN_NAME` | ixtiyoriy |
    | backend | `RAILWAY_DOCKERFILE_PATH` | `backend/Dockerfile` |
    | backend | `PORT` | `3001` (domen ham shu portga ulanadi) |
+   | backend | `TRUST_PROXY` | `2` — Railway ikki bosqichli proxy; usiz rate-limit hamma foydalanuvchiga umumiy bo'lib qoladi |
    | frontend | `RAILWAY_DOCKERFILE_PATH` | `frontend/Dockerfile` |
    | frontend | `PORT` | `8080` |
    | frontend | `VITE_API_URL` | `https://${{backend.RAILWAY_PUBLIC_DOMAIN}}` (oxirida `/api` **yo'q**) |
@@ -104,7 +105,7 @@ Shundan keyin `main`ga har bir merge: GitHub Actions testlari → yashil bo'lsa 
 
 - Backend konteyneri har ishga tushganda `prisma migrate deploy` qiladi, keyin serverni ko'taradi. Migratsiya yiqilsa yoki `/api/health` (bazani ham tekshiradi) 200 qaytarmasa, Railway eski deployni trafikda qoldiradi.
 - Frontend `VITE_API_URL` build paytida JS ichiga yoziladi — backend manzili o'zgarsa frontendni qayta deploy qiling.
-- Backend proxy ortida ishlaydi: rate-limit haqiqiy klient IP'siga qarab ishlashi uchun productionda `trust proxy = 1` (boshqa infratuzilmada `TRUST_PROXY` bilan o'zgartiriladi).
+- Backend proxy ortida ishlaydi: rate-limit haqiqiy klient IP'siga qarab ishlashi uchun Railway'da `TRUST_PROXY=2` (Railway `X-Forwarded-For`ga klient va o'z edge manzilini yozadi). Tekshirish: superadmin tokeni bilan `GET /api/admin/diagnostics/request` — `ip` sizning haqiqiy IP'ingiz bo'lishi kerak. Oldiga yana proxy (masalan Cloudflare) qo'yilsa, shu endpoint bilan qayta o'lchang.
 - Swagger (`/api/docs`) productionda faqat `SWAGGER_ENABLED=true` bilan yoqiladi va login/parol so'raydi: `SWAGGER_USER` (standart `formo`), `SWAGGER_PASSWORD` (majburiy, kamida 10 belgi).
 - Mobil ilova uchun: `EXPO_PUBLIC_API_URL=https://<backend-domeni>/api`.
 
