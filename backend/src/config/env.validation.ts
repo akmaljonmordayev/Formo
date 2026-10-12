@@ -37,6 +37,16 @@ export function validateEnv(config: Record<string, unknown>) {
       if (bad.length) errors.push(`FRONTEND_URL noto'g'ri: ${bad.join(', ')} — https://domen ko'rinishida bo'lishi kerak`);
     }
 
+    // Productionda Swagger faqat parol bilan: API hujjati hammaga ochiq turmasin
+    if (str('SWAGGER_ENABLED') === 'true') {
+      const swaggerPassword = str('SWAGGER_PASSWORD');
+      if (!swaggerPassword) {
+        errors.push('SWAGGER_ENABLED=true uchun SWAGGER_PASSWORD berilishi shart');
+      } else if (PUBLIC_PASSWORDS.has(swaggerPassword.toLowerCase()) || swaggerPassword.length < MIN_PROD_PASSWORD_LENGTH) {
+        errors.push(`SWAGGER_PASSWORD kamida ${MIN_PROD_PASSWORD_LENGTH} belgidan iborat bo'lishi kerak (dev parollar mumkin emas)`);
+      }
+    }
+
     if (jwtSecret && PUBLIC_JWT_SECRETS.has(jwtSecret)) {
       errors.push("JWT_ACCESS_SECRET repodagi dev qiymati — yangi tasodifiy qiymat qo'ying (openssl rand -hex 32)");
     } else if (jwtSecret && jwtSecret.length < MIN_PROD_SECRET_LENGTH) {

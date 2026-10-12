@@ -105,7 +105,7 @@ Shundan keyin `main`ga har bir merge: GitHub Actions testlari → yashil bo'lsa 
 - Backend konteyneri har ishga tushganda `prisma migrate deploy` qiladi, keyin serverni ko'taradi. Migratsiya yiqilsa yoki `/api/health` (bazani ham tekshiradi) 200 qaytarmasa, Railway eski deployni trafikda qoldiradi.
 - Frontend `VITE_API_URL` build paytida JS ichiga yoziladi — backend manzili o'zgarsa frontendni qayta deploy qiling.
 - Backend proxy ortida ishlaydi: rate-limit haqiqiy klient IP'siga qarab ishlashi uchun productionda `trust proxy = 1` (boshqa infratuzilmada `TRUST_PROXY` bilan o'zgartiriladi).
-- Swagger productionda o'chiq (`SWAGGER_ENABLED=true` bilan yoqiladi).
+- Swagger (`/api/docs`) productionda faqat `SWAGGER_ENABLED=true` bilan yoqiladi va login/parol so'raydi: `SWAGGER_USER` (standart `formo`), `SWAGGER_PASSWORD` (majburiy, kamida 10 belgi).
 - Mobil ilova uchun: `EXPO_PUBLIC_API_URL=https://<backend-domeni>/api`.
 
 ## Architecture

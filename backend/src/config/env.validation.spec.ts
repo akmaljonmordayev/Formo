@@ -78,6 +78,17 @@ describe('validateEnv', () => {
       expect(() => validateEnv(prod({ FRONTEND_URL: 'https://a.example.com/, http://b.example.com:8080' }))).not.toThrow();
     });
 
+    it('Swagger yoqilsa parol majburiy', () => {
+      expect(() => validateEnv(prod({ SWAGGER_ENABLED: 'true' }))).toThrow(/SWAGGER_PASSWORD berilishi shart/);
+      expect(() => validateEnv(prod({ SWAGGER_ENABLED: 'true', SWAGGER_PASSWORD: 'admin123' }))).toThrow(/SWAGGER_PASSWORD kamida 10/);
+      expect(() => validateEnv(prod({ SWAGGER_ENABLED: 'true', SWAGGER_PASSWORD: 'short' }))).toThrow(/SWAGGER_PASSWORD kamida 10/);
+      expect(() => validateEnv(prod({ SWAGGER_ENABLED: 'true', SWAGGER_PASSWORD: STRONG_PASSWORD }))).not.toThrow();
+    });
+
+    it('Swagger o‘chiq bo‘lsa SWAGGER_PASSWORD talab qilinmaydi', () => {
+      expect(() => validateEnv(prod({ SWAGGER_ENABLED: 'false' }))).not.toThrow();
+    });
+
     it('bir nechta xato birga ko‘rsatiladi', () => {
       expect(() =>
         validateEnv(prod({ JWT_ACCESS_SECRET: 'change-me-access-secret', SUPERADMIN_PASSWORD: 'admin123' })),
