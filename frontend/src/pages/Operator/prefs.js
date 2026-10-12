@@ -70,9 +70,9 @@ export const initials = (name = '') =>
     .map((w) => w[0].toUpperCase())
     .join('') || '?';
 
-export const formatDateTime = (iso) =>
+export const formatDateTime = (iso, locale = 'uz-UZ') =>
   iso
-    ? new Date(iso).toLocaleString('uz-UZ', {
+    ? new Date(iso).toLocaleString(locale, {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',

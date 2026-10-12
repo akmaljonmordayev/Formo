@@ -3,16 +3,18 @@ import { Link } from 'react-router-dom';
 import { ArrowRight, Factory, ShieldOff, ShoppingBag, Store } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import { formatDate, prettyPhone, workshopsApi } from '../../../features/accounts/accountsApi';
+import { useT } from '../i18n';
 
-function greeting() {
+function greeting(t) {
   const h = new Date().getHours();
-  if (h < 12) return 'Xayrli tong';
-  if (h < 18) return 'Xayrli kun';
-  return 'Xayrli kech';
+  if (h < 12) return t('dash.morning');
+  if (h < 18) return t('dash.day');
+  return t('dash.evening');
 }
 
 export default function OperatorDashboard() {
   const { user } = useAuth();
+  const t = useT();
   const [stats, setStats] = useState(null);
   const [recent, setRecent] = useState(null);
   const [error, setError] = useState('');
@@ -48,45 +50,45 @@ export default function OperatorDashboard() {
       <div className="op-ph">
         <div>
           <h1>
-            {greeting()}
+            {greeting(t)}
             {firstName && `, ${firstName}`}
           </h1>
-          <p>Bugungi ish holati bir qarashda</p>
+          <p>{t('dash.subtitle')}</p>
         </div>
         <Link to="/operator/orders" className="op-b is-p">
           <ShoppingBag size={15} strokeWidth={1.8} aria-hidden="true" />
-          Buyurtmalarga o‘tish
+          {t('dash.toOrders')}
         </Link>
       </div>
 
       <div className="op-kp">
         <Link to="/operator/orders" className="op-k">
           <span>
-            <ShoppingBag size={14} aria-hidden="true" /> Buyurtmalar
+            <ShoppingBag size={14} aria-hidden="true" /> {t('menu.orders')}
           </span>
           <b>—</b>
-          <small>Modul hali ulanmagan</small>
+          <small>{t('dash.notConnected')}</small>
         </Link>
         <Link to="/operator/factories" className="op-k">
           <span>
-            <Factory size={14} aria-hidden="true" /> Tikuv sexlari
+            <Factory size={14} aria-hidden="true" /> {t('menu.factories')}
           </span>
           <b>{kpi(stats?.total)}</b>
-          <small>Jami hamkorlar</small>
+          <small>{t('dash.totalPartners')}</small>
         </Link>
         <Link to="/operator/factories" className="op-k">
           <span>
-            <Store size={14} aria-hidden="true" /> Faol sexlar
+            <Store size={14} aria-hidden="true" /> {t('dash.active')}
           </span>
           <b>{kpi(stats?.active)}</b>
-          <small>Buyurtma qabul qila oladi</small>
+          <small>{t('dash.activeHint')}</small>
         </Link>
         <Link to="/operator/factories" className="op-k">
           <span>
-            <ShieldOff size={14} aria-hidden="true" /> Bloklangan
+            <ShieldOff size={14} aria-hidden="true" /> {t('dash.blocked')}
           </span>
           <b>{kpi(stats?.blocked)}</b>
-          <small>Vaqtincha to‘xtatilgan</small>
+          <small>{t('dash.blockedHint')}</small>
         </Link>
       </div>
 
@@ -96,11 +98,11 @@ export default function OperatorDashboard() {
         <section className="op-cd" aria-labelledby="recent-ws">
           <div className="op-cd-hd">
             <div>
-              <h2 id="recent-ws">So‘nggi qo‘shilgan tikuv sexlari</h2>
-              <p>Oxirgi 5 ta hamkor</p>
+              <h2 id="recent-ws">{t('dash.recent')}</h2>
+              <p>{t('dash.recentHint')}</p>
             </div>
             <Link to="/operator/factories" className="op-b is-sm">
-              Barchasi <ArrowRight size={13} aria-hidden="true" />
+              {t('dash.all')} <ArrowRight size={13} aria-hidden="true" />
             </Link>
           </div>
           {recent === null ? (
@@ -116,8 +118,8 @@ export default function OperatorDashboard() {
           ) : recent.length === 0 ? (
             <div className="op-em">
               <Factory size={28} aria-hidden="true" />
-              <h3>Tikuv sexlari hali yo‘q</h3>
-              <p>Superadmin sex qo‘shganda ular shu yerda ko‘rinadi.</p>
+              <h3>{t('dash.noWs')}</h3>
+              <p>{t('dash.noWsHint')}</p>
             </div>
           ) : (
             recent.map((w) => (
@@ -135,7 +137,7 @@ export default function OperatorDashboard() {
                 </div>
                 <div style={{ flex: 'none', textAlign: 'right' }}>
                   <span className={`op-bd ${w.isActive ? 'is-ok' : 'is-off'}`}>
-                    {w.isActive ? 'Faol' : 'Bloklangan'}
+                    {t(w.isActive ? 'dash.wsActive' : 'dash.blocked')}
                   </span>
                   <div className="op-sub" style={{ marginTop: 2 }}>
                     {formatDate(w.createdAt)}
@@ -148,28 +150,28 @@ export default function OperatorDashboard() {
 
         <div className="op-stk">
           <section className="op-cd op-pd">
-            <h2>Buyurtmalar</h2>
+            <h2>{t('menu.orders')}</h2>
             <p className="op-sub" style={{ fontSize: 14 }}>
-              Buyurtmalar moduli backendga ulanganda bu yerda yangi va jarayondagi buyurtmalar ko‘rinadi.
+              {t('dash.ordersHint')}
             </p>
             <Link to="/operator/orders" className="op-b">
-              Ochish <ArrowRight size={14} aria-hidden="true" />
+              {t('dash.open')} <ArrowRight size={14} aria-hidden="true" />
             </Link>
           </section>
           <section className="op-cd op-pd">
-            <h2>Tezkor havolalar</h2>
+            <h2>{t('dash.quick')}</h2>
             <div className="op-row is-w">
               <Link to="/operator/factories" className="op-b is-sm">
-                Tikuv sexlari
+                {t('menu.factories')}
               </Link>
               <Link to="/operator/notifications" className="op-b is-sm">
-                Bildirishnomalar
+                {t('menu.notifications')}
               </Link>
               <Link to="/operator/profile" className="op-b is-sm">
-                Profil
+                {t('menu.profile')}
               </Link>
               <Link to="/operator/settings" className="op-b is-sm">
-                Sozlamalar
+                {t('menu.settings')}
               </Link>
             </div>
           </section>

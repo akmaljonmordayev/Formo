@@ -1,36 +1,38 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { BellOff } from 'lucide-react';
+import { useT } from '../i18n';
 
-const TABS = ['Barchasi', 'O‘qilmagan'];
+const TABS = ['notif.all', 'notif.unread'];
 
 // Bildirishnomalar API hali yo'q — bo'sh holat va sozlamalarga havola
 export default function OperatorNotifications() {
+  const t = useT();
   const [tab, setTab] = useState(TABS[0]);
 
   return (
     <>
       <div className="op-ph">
         <div>
-          <h1>Bildirishnomalar</h1>
-          <p>Buyurtmalar va tikuv sexlari bo‘yicha xabarlar</p>
+          <h1>{t('menu.notifications')}</h1>
+          <p>{t('notif.subtitle')}</p>
         </div>
         <Link to="/operator/settings" className="op-b">
-          Sozlash
+          {t('notif.configure')}
         </Link>
       </div>
 
       <div className="op-tabs" role="tablist">
-        {TABS.map((t) => (
+        {TABS.map((key) => (
           <button
-            key={t}
+            key={key}
             type="button"
             role="tab"
-            aria-selected={tab === t}
-            className={`op-tab${tab === t ? ' is-on' : ''}`}
-            onClick={() => setTab(t)}
+            aria-selected={tab === key}
+            className={`op-tab${tab === key ? ' is-on' : ''}`}
+            onClick={() => setTab(key)}
           >
-            {t}
+            {t(key)}
           </button>
         ))}
       </div>
@@ -38,8 +40,8 @@ export default function OperatorNotifications() {
       <section className="op-cd">
         <div className="op-em">
           <BellOff size={28} aria-hidden="true" />
-          <h3>{tab === TABS[0] ? 'Bildirishnomalar yo‘q' : 'Hammasi o‘qilgan'}</h3>
-          <p>Yangi buyurtma yoki sex holati o‘zgarganda xabar shu yerda paydo bo‘ladi.</p>
+          <h3>{t(tab === TABS[0] ? 'notif.none' : 'notif.allRead')}</h3>
+          <p>{t('notif.hint')}</p>
         </div>
       </section>
     </>

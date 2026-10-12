@@ -2,34 +2,23 @@ import { useState } from 'react';
 import { Eye, EyeOff, Monitor, Moon, Save, Sun } from 'lucide-react';
 import { api } from '../../../services/api';
 import { useAuth } from '../../../hooks/useAuth';
-import { ROLE_LABELS } from '../../../constants/roles';
 import { prettyPhone } from '../../../features/accounts/accountsApi';
 import { DEFAULT_PREFS, useOperator } from '../prefs';
+import { LANGS, translate, useT } from '../i18n';
 
-const NOTIFY = [
-  { key: 'newOrders', label: 'Yangi buyurtmalar', hint: 'Mijoz yangi buyurtma berganda' },
-  { key: 'orderStatus', label: 'Buyurtma holati', hint: 'Tikuv sexi holatni o‘zgartirganda' },
-  { key: 'workshops', label: 'Tikuv sexlari', hint: 'Yangi sex qo‘shilganda yoki bloklanganda' },
-  { key: 'system', label: 'Tizim xabarlari', hint: 'Texnik ishlar va yangilanishlar' },
-  { key: 'sound', label: 'Ovozli signal', hint: 'Yangi bildirishnomada qisqa ovoz' },
-];
+const NOTIFY = ['newOrders', 'orderStatus', 'workshops', 'system', 'sound'];
 
 const THEMES = [
-  { value: 'system', label: 'Tizim', icon: Monitor },
-  { value: 'light', label: 'Yorug‘', icon: Sun },
-  { value: 'dark', label: 'Qorong‘i', icon: Moon },
-];
-
-const LANGS = [
-  { value: 'uz', label: 'O‘zbekcha' },
-  { value: 'ru', label: 'Русский (tez orada)', disabled: true },
-  { value: 'en', label: 'English (tez orada)', disabled: true },
+  { value: 'system', icon: Monitor },
+  { value: 'light', icon: Sun },
+  { value: 'dark', icon: Moon },
 ];
 
 const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
 
 export default function OperatorSettings() {
   const { prefs, savePrefs, toast } = useOperator();
+  const t = useT();
   const [draft, setDraft] = useState(prefs);
   const dirty = !same(draft, prefs);
 
@@ -38,15 +27,16 @@ export default function OperatorSettings() {
 
   const save = () => {
     savePrefs(draft);
-    toast('Sozlamalar saqlandi');
+    // xabar yangi tanlangan tilda chiqadi
+    toast(translate(draft.lang, 'set.saved'));
   };
 
   return (
     <>
       <div className="op-ph">
         <div>
-          <h1>Sozlamalar</h1>
-          <p>Hisob, xavfsizlik va panel ko‘rinishi</p>
+          <h1>{t('menu.settings')}</h1>
+          <p>{t('set.subtitle')}</p>
         </div>
       </div>
 
@@ -56,13 +46,13 @@ export default function OperatorSettings() {
           <PasswordCard />
 
           <section className="op-cd op-pd" aria-labelledby="set-notify">
-            <h2 id="set-notify">Bildirishnomalar</h2>
-            <p className="op-sub">Qaysi hodisalar haqida xabar olishni tanlang</p>
-            {NOTIFY.map(({ key, label, hint }) => (
+            <h2 id="set-notify">{t('set.notify')}</h2>
+            <p className="op-sub">{t('set.notifyHint')}</p>
+            {NOTIFY.map((key) => (
               <label key={key} className="op-sw">
                 <span>
-                  {label}
-                  <small>{hint}</small>
+                  {t(`set.n.${key}`)}
+                  <small>{t(`set.n.${key}Hint`)}</small>
                 </span>
                 <span className="op-tg">
                   <input type="checkbox" role="switch" checked={draft.notify[key]} onChange={setNotify(key)} />
@@ -75,9 +65,9 @@ export default function OperatorSettings() {
 
         <div className="op-stk">
           <section className="op-cd op-pd" aria-labelledby="set-theme">
-            <h2 id="set-theme">Mavzu</h2>
+            <h2 id="set-theme">{t('set.theme')}</h2>
             <div className="op-seg" role="radiogroup" aria-labelledby="set-theme">
-              {THEMES.map(({ value, label, icon: Icon }) => (
+              {THEMES.map(({ value, icon: Icon }) => (
                 <label key={value}>
                   <input
                     type="radio"
@@ -87,22 +77,22 @@ export default function OperatorSettings() {
                     onChange={() => setDraft((d) => ({ ...d, theme: value }))}
                   />
                   <Icon size={18} strokeWidth={1.8} aria-hidden="true" />
-                  {label}
+                  {t(`set.t.${value}`)}
                 </label>
               ))}
             </div>
             <p className="op-sub" style={{ margin: '10px 0 0' }}>
-              “Tizim” — qurilmangiz sozlamasiga qarab avtomatik almashadi.
+              {t('set.themeHint')}
             </p>
           </section>
 
           <section className="op-cd op-pd" aria-labelledby="set-lang">
-            <h2 id="set-lang">Til</h2>
+            <h2 id="set-lang">{t('set.lang')}</h2>
             <label className="op-fld" style={{ marginBottom: 0 }}>
-              <span>Interfeys tili</span>
+              <span>{t('set.langLabel')}</span>
               <select value={draft.lang} onChange={(e) => setDraft((d) => ({ ...d, lang: e.target.value }))}>
                 {LANGS.map((l) => (
-                  <option key={l.value} value={l.value} disabled={l.disabled}>
+                  <option key={l.value} value={l.value}>
                     {l.label}
                   </option>
                 ))}
@@ -114,7 +104,7 @@ export default function OperatorSettings() {
 
       <div className={`op-save${dirty ? ' is-dirty' : ''}`}>
         <span className="op-sub" style={{ fontSize: 13 }}>
-          {dirty ? 'Saqlanmagan o‘zgarishlar bor' : 'Sozlamalar shu qurilmada saqlanadi'}
+          {t(dirty ? 'set.dirty' : 'set.local')}
         </span>
         <div className="op-row">
           <button
@@ -123,11 +113,11 @@ export default function OperatorSettings() {
             onClick={() => setDraft(dirty ? prefs : DEFAULT_PREFS)}
             disabled={!dirty && same(prefs, DEFAULT_PREFS)}
           >
-            {dirty ? 'Bekor qilish' : 'Standartga qaytarish'}
+            {t(dirty ? 'set.cancel' : 'set.reset')}
           </button>
           <button type="button" className="op-b is-p is-lg" onClick={save} disabled={!dirty}>
             <Save size={15} strokeWidth={1.8} aria-hidden="true" />
-            Saqlash
+            {t('set.save')}
           </button>
         </div>
       </div>
@@ -137,35 +127,37 @@ export default function OperatorSettings() {
 
 function PersonalCard() {
   const { user, role } = useAuth();
+  const t = useT();
   return (
     <section className="op-cd op-pd" aria-labelledby="set-personal">
-      <h2 id="set-personal">Shaxsiy ma’lumotlar</h2>
+      <h2 id="set-personal">{t('set.personal')}</h2>
       <div className="op-fg">
         <label className="op-fld">
-          <span>To‘liq ism</span>
+          <span>{t('set.fullName')}</span>
           <input value={user?.fullName ?? ''} readOnly />
         </label>
         <label className="op-fld">
-          <span>Telefon (login)</span>
+          <span>{t('set.phone')}</span>
           <input value={user?.phone ? prettyPhone(user.phone) : ''} readOnly />
         </label>
         <label className="op-fld">
-          <span>Rol</span>
-          <input value={ROLE_LABELS[role] ?? 'Operator'} readOnly />
+          <span>{t('profile.role')}</span>
+          <input value={t(`role.${role}`)} readOnly />
         </label>
         <label className="op-fld">
-          <span>Jamoa</span>
-          <input value="Formo operatorlari" readOnly />
+          <span>{t('profile.team')}</span>
+          <input value={t('team')} readOnly />
         </label>
       </div>
       <p className="op-sub" style={{ margin: 0 }}>
-        Ism va telefon raqamini faqat superadmin o‘zgartira oladi.
+        {t('set.personalNote')}
       </p>
     </section>
   );
 }
 
 function PasswordInput({ value, onChange, autoComplete, label, hint }) {
+  const t = useT();
   const [shown, setShown] = useState(false);
   return (
     <label className="op-fld">
@@ -180,7 +172,7 @@ function PasswordInput({ value, onChange, autoComplete, label, hint }) {
           minLength={autoComplete === 'new-password' ? 6 : undefined}
           maxLength={64}
         />
-        <button type="button" onClick={() => setShown((v) => !v)} aria-label={shown ? 'Yashirish' : 'Ko‘rsatish'}>
+        <button type="button" onClick={() => setShown((v) => !v)} aria-label={t(shown ? 'set.hide' : 'set.show')}>
           {shown ? <EyeOff size={15} /> : <Eye size={15} />}
         </button>
       </span>
@@ -191,6 +183,7 @@ function PasswordInput({ value, onChange, autoComplete, label, hint }) {
 
 function PasswordCard() {
   const { toast } = useOperator();
+  const t = useT();
   const empty = { currentPassword: '', newPassword: '', confirm: '' };
   const [form, setForm] = useState(empty);
   const [error, setError] = useState('');
@@ -200,8 +193,8 @@ function PasswordCard() {
   const submit = async (e) => {
     e.preventDefault();
     setError('');
-    if (form.newPassword !== form.confirm) return setError('Yangi parollar bir xil emas');
-    if (form.newPassword === form.currentPassword) return setError('Yangi parol eskisidan farq qilishi kerak');
+    if (form.newPassword !== form.confirm) return setError(t('set.pwMismatch'));
+    if (form.newPassword === form.currentPassword) return setError(t('set.pwSame'));
     setSaving(true);
     try {
       await api('/auth/password', {
@@ -209,7 +202,7 @@ function PasswordCard() {
         body: { currentPassword: form.currentPassword, newPassword: form.newPassword },
       });
       setForm(empty);
-      toast('Parol yangilandi. Boshqa qurilmalardan chiqarildingiz');
+      toast(t('set.pwDone'));
     } catch (err) {
       setError(err.message);
     } finally {
@@ -219,34 +212,34 @@ function PasswordCard() {
 
   return (
     <section className="op-cd op-pd" aria-labelledby="set-password">
-      <h2 id="set-password">Parolni o‘zgartirish</h2>
+      <h2 id="set-password">{t('set.pw')}</h2>
       <form onSubmit={submit}>
         {error && <div className="op-msg">{error}</div>}
         <PasswordInput
-          label="Joriy parol"
+          label={t('set.pwCurrent')}
           value={form.currentPassword}
           onChange={set('currentPassword')}
           autoComplete="current-password"
         />
         <div className="op-fg">
           <PasswordInput
-            label="Yangi parol"
+            label={t('set.pwNew')}
             value={form.newPassword}
             onChange={set('newPassword')}
             autoComplete="new-password"
-            hint="Kamida 6 belgi"
+            hint={t('set.pwNewHint')}
           />
           <PasswordInput
-            label="Yangi parolni tasdiqlang"
+            label={t('set.pwConfirm')}
             value={form.confirm}
             onChange={set('confirm')}
             autoComplete="new-password"
           />
         </div>
         <div className="op-row" style={{ justifyContent: 'space-between', flexWrap: 'wrap' }}>
-          <span className="op-sub">Parol o‘zgargach, boshqa qurilmalardagi sessiyalar yopiladi.</span>
+          <span className="op-sub">{t('set.pwNote')}</span>
           <button type="submit" className="op-b is-p" disabled={saving}>
-            {saving ? 'Saqlanmoqda...' : 'Parolni yangilash'}
+            {t(saving ? 'set.saving' : 'set.pwSubmit')}
           </button>
         </div>
       </form>

@@ -20,12 +20,12 @@ export const operatorRoutes = [
   { path: 'settings', element: <OperatorSettings /> },
 ];
 
-// group bo'yicha sidebar bo'limlarga ajratiladi (group yo'q bo'lsa — eng tepada)
+// label va group — i18n.js kalitlari; group bo'yicha sidebar bo'limlarga ajratiladi (group yo'q bo'lsa — eng tepada)
 export const operatorMenu = [
-  { to: BASE, label: 'Dashboard', end: true, icon: LayoutDashboard },
-  { to: `${BASE}/orders`, label: 'Buyurtmalar', icon: ShoppingBag, group: 'Operatsiyalar' },
-  { to: `${BASE}/factories`, label: 'Tikuv sexlari', icon: Factory, group: 'Operatsiyalar' },
-  { to: `${BASE}/notifications`, label: 'Bildirishnomalar', icon: Bell, group: 'Aloqa' },
-  { to: `${BASE}/profile`, label: 'Profil', icon: UserRound, group: 'Hisob' },
-  { to: `${BASE}/settings`, label: 'Sozlamalar', icon: Settings, group: 'Hisob' },
+  { to: BASE, label: 'menu.dashboard', end: true, icon: LayoutDashboard },
+  { to: `${BASE}/orders`, label: 'menu.orders', icon: ShoppingBag, group: 'group.ops' },
+  { to: `${BASE}/factories`, label: 'menu.factories', icon: Factory, group: 'group.ops' },
+  { to: `${BASE}/notifications`, label: 'menu.notifications', icon: Bell, group: 'group.comm' },
+  { to: `${BASE}/profile`, label: 'menu.profile', icon: UserRound, group: 'group.account' },
+  { to: `${BASE}/settings`, label: 'menu.settings', icon: Settings, group: 'group.account' },
 ];
