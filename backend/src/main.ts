@@ -10,7 +10,7 @@ async function bootstrap() {
 
   const port = process.env.PORT ?? 3001;
   await app.listen(port);
-  Logger.log(`API: http://localhost:${port}/api  ·  Swagger: http://localhost:${port}/api/docs`, 'Bootstrap');
+  Logger.log(`API ${port}-portda ishga tushdi (/api, holat: /api/health)`, 'Bootstrap');
 }
 bootstrap().catch((err) => {
   // Muhit sozlamalari yoki baza xatosi — aniq xabar bilan to'xtaymiz (Railway deploy logida ko'rinadi)

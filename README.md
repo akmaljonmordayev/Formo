@@ -94,11 +94,11 @@ Production'da uchta servis: **Postgres**, **backend** (NestJS, `backend/Dockerfi
    | frontend | `VITE_API_URL` | `https://${{backend.RAILWAY_PUBLIC_DOMAIN}}` (oxirida `/api` **yo'q**) |
 
    `NODE_ENV=production` image ichida o'rnatilgan. Xato yoki dev qiymatlar bilan backend ishga tushmaydi va sababini deploy logida yozadi.
-5. Avtomatik deploy uchun: Railway **Project Settings → Tokens** dan `production` muhiti uchun token oling va GitHub'da **Settings → Secrets and variables → Actions → New repository secret**: `RAILWAY_TOKEN`. Servis nomlari boshqacha bo'lsa — repository variable: `RAILWAY_BACKEND_SERVICE`, `RAILWAY_FRONTEND_SERVICE`. Ixtiyoriy `BACKEND_URL` / `FRONTEND_URL` variable'lari berilsa, deploydan keyin healthcheck ham tekshiriladi.
+5. Avtomatik deploy uchun: har ikkala servisda **Settings → Source → Connect Repo** → shu repo, branch `main`, va **Wait for CI**ni yoqing.
 
-Shundan keyin `main`ga har bir merge: testlar → image'lar → `railway up` (avval backend, keyin frontend). `RAILWAY_TOKEN` bo'lmasa deploy bosqichi ogohlantirish bilan o'tkazib yuboriladi.
+Shundan keyin `main`ga har bir merge: GitHub Actions testlari → yashil bo'lsa Railway o'zi yig'ib deploy qiladi (faqat o'zgargan servisni: `backend/**` yoki `frontend/**`). Testlar qizil bo'lsa deploy bo'lmaydi.
 
-> Railway servisiga GitHub reponi **alohida ulamang** (Settings → Source) — aks holda har push ikki marta deploy bo'ladi va testlarni kutmaydi. Qo'lda deploy: `railway up --service backend` (repo ildizidan).
+> Qo'lda deploy (favqulodda): `railway up --service backend` (repo ildizidan).
 
 ### Deploy qanday ishlaydi
 
