@@ -2,6 +2,7 @@ import { INestApplication, ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
+import { basicAuth } from './common/middleware/basic-auth';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { parseCorsOrigins, parseTrustProxy } from './config/http.config';
 
@@ -32,6 +33,13 @@ export function setupApp(app: INestApplication) {
   // Productionda standart holatda o'chiq (SWAGGER_ENABLED=true bilan yoqiladi)
   const swaggerDefault = process.env.NODE_ENV === 'production' ? 'false' : 'true';
   if ((process.env.SWAGGER_ENABLED ?? swaggerDefault) === 'true') {
+    // SWAGGER_PASSWORD berilsa hujjat sahifasi va uning JSON/YAML sxemasi login/parol bilan yopiladi
+    if (process.env.SWAGGER_PASSWORD) {
+      app.use(
+        ['/api/docs', '/api/docs-json', '/api/docs-yaml'],
+        basicAuth(process.env.SWAGGER_USER || 'formo', process.env.SWAGGER_PASSWORD),
+      );
+    }
     const config = new DocumentBuilder()
       .setTitle('Formo API')
       .setDescription(
