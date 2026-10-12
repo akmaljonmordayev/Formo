@@ -42,3 +42,36 @@ describe('Reverse proxy ortida rate-limit (e2e)', () => {
     expect(statuses).toEqual([401, 401, 401, 429]);
   });
 });
+
+describe('Diagnostika: server ko‘rayotgan klient IP (e2e)', () => {
+  let app: INestApplication;
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const helpers = require('./helpers') as typeof import('./helpers');
+
+  beforeAll(async () => {
+    process.env.TRUST_PROXY = '1';
+    ({ app } = await helpers.createApp());
+  });
+
+  afterAll(async () => {
+    await app.close();
+    delete process.env.TRUST_PROXY;
+  });
+
+  it('tokensiz yopiq', async () => {
+    await helpers.api(app).get('/api/admin/diagnostics/request').expect(401);
+  });
+
+  it('superadmin: proxy qo‘shgan oxirgi manzil klient IP deb olinadi', async () => {
+    const { accessToken } = await helpers.login(app, helpers.SUPERADMIN.phone, helpers.SUPERADMIN.password);
+    const res = await helpers
+      .api(app)
+      .get('/api/admin/diagnostics/request')
+      .set(helpers.bearer(accessToken))
+      .set('X-Forwarded-For', '10.9.8.7, 203.0.113.40')
+      .expect(200);
+    expect(res.body.ip).toBe('203.0.113.40');
+    expect(res.body.headers['x-forwarded-for']).toBe('10.9.8.7, 203.0.113.40');
+    expect(res.body.trustProxy).toBe(1);
+  });
+});
