@@ -4,6 +4,8 @@
  * bilan ishga tushish taqiqlanadi — server xato bilan to'xtaydi.
  */
 
+import { parseCorsOrigins } from './http.config';
+
 // Repoda (docker-compose.yml, .env.example, testlar) ochiq turgan qiymatlar
 const PUBLIC_JWT_SECRETS = new Set([
   'change-me-access-secret',
@@ -23,6 +25,18 @@ export function validateEnv(config: Record<string, unknown>) {
   if (!jwtSecret) errors.push('JWT_ACCESS_SECRET berilmagan');
 
   if (str('NODE_ENV') === 'production') {
+    if (!str('DATABASE_URL')) errors.push('DATABASE_URL berilmagan');
+
+    // CORS: panel manzili bo'lmasa brauzer hamma so'rovni bloklaydi. Sxemasiz qiymat
+    // (masalan Railway'ning RAILWAY_PUBLIC_DOMAIN o'zi) ham hech qachon mos kelmaydi.
+    const origins = parseCorsOrigins(str('FRONTEND_URL') || '');
+    if (!origins.length) {
+      errors.push('FRONTEND_URL berilmagan (web panel manzili, masalan https://panel.formo.uz)');
+    } else {
+      const bad = origins.filter((o) => !/^https?:\/\/[^/\s]+$/.test(o));
+      if (bad.length) errors.push(`FRONTEND_URL noto'g'ri: ${bad.join(', ')} — https://domen ko'rinishida bo'lishi kerak`);
+    }
+
     if (jwtSecret && PUBLIC_JWT_SECRETS.has(jwtSecret)) {
       errors.push("JWT_ACCESS_SECRET repodagi dev qiymati — yangi tasodifiy qiymat qo'ying (openssl rand -hex 32)");
     } else if (jwtSecret && jwtSecret.length < MIN_PROD_SECRET_LENGTH) {

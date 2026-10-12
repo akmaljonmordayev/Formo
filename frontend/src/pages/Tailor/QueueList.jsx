@@ -11,7 +11,6 @@ const BADGE_STYLES = {
 
 export default function QueueList({
   orders,
-  counts,
   activeTab,
   onTabChange,
   query,

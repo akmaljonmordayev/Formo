@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { User, Clock, Bell, Globe, Edit3, ShieldCheck, Phone, Check } from 'lucide-react';
+import { User, Clock, Globe, Edit3, ShieldCheck, Phone, Check } from 'lucide-react';
 import Card from './ui/Card';
 import Toggle from './ui/Toggle';
 import EmployeeModal from './EmployeeModal';

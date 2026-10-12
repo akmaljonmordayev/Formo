@@ -3,17 +3,20 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
+import { parseCorsOrigins, parseTrustProxy } from './config/http.config';
 
 /** main.ts va e2e testlar bir xil konfiguratsiyani ishlatadi */
 export function setupApp(app: INestApplication) {
   const express = app as NestExpressApplication;
   express.disable('x-powered-by');
+  // Proxy ortida (Railway) req.ip haqiqiy klient manzili bo'lishi uchun — rate-limit shunga tayanadi
+  express.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY, process.env.NODE_ENV));
   express.useBodyParser('json', { limit: '100kb' });
 
   app.setGlobalPrefix('api');
   app.use(helmet());
   app.enableCors({
-    origin: (process.env.FRONTEND_URL ?? 'http://localhost:5173').split(',').map((s) => s.trim()),
+    origin: parseCorsOrigins(process.env.FRONTEND_URL),
     credentials: true,
   });
   app.useGlobalPipes(

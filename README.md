@@ -48,6 +48,62 @@ Kodda: `import { auth, api } from './services/api'` → `auth.register(...)`, `a
 
 Sozlamalarni o'zgartirish (ixtiyoriy): ildizda `.env` yarating, masalan `SUPERADMIN_PASSWORD=...` yoki port band bo'lsa `FORMO_WEB_PORT=5174`, `FORMO_API_PORT=3002`, `FORMO_DB_PORT=5436`.
 
+## Testlar va CI
+
+| Buyruq | Nima tekshiradi |
+|---|---|
+| `pnpm --filter @formo/backend test` | Backend unit testlar (servislar, guardlar, validatsiya — bazasiz) |
+| `pnpm --filter @formo/backend test:e2e` | Backend integratsion testlar: haqiqiy Postgres + HTTP (`docker compose up -d postgres` kerak) |
+| `pnpm --filter @formo/frontend test` | Frontend testlar (Vitest): API klient, sessiya, routerlar, login oqimi |
+| `pnpm lint` | ESLint (backend + frontend) |
+
+Har bir PR va `main`ga push'da GitHub Actions ([.github/workflows/ci.yml](.github/workflows/ci.yml)) shularning hammasini, migratsiyalarni va production Docker image'larni tekshiradi. `main`da hammasi yashil bo'lsa — Railway'ga avtomatik deploy qilinadi.
+
+**Baza sxemasini o'zgartirsangiz** migratsiya ham qo'shing, aks holda CI qizil bo'ladi (production `prisma migrate deploy` bilan yangilanadi, `db push` bilan emas):
+
+```bash
+cd backend
+pnpm prisma migrate dev --name <qisqa_nom>   # prisma/migrations/ ga yangi papka qo'shadi — commit qiling
+```
+
+Lokal bazangiz avval `db push` bilan yaratilgan bo'lsa, `migrate dev` birinchi marta "drift" deb bazani tozalashni so'raydi. Ma'lumotni saqlab qolish uchun avval bir marta: `pnpm prisma migrate resolve --applied 20261012000000_init`.
+
+## Railway'ga deploy
+
+Production'da uchta servis: **Postgres**, **backend** (NestJS, `backend/Dockerfile`) va **frontend** (nginx + statik build, `frontend/Dockerfile`). Sozlamalar kodda: `backend/railway.json`, `frontend/railway.json` (Dockerfile, healthcheck, restart).
+
+### Bir martalik sozlash
+
+1. Railway'da yangi project → **Database → PostgreSQL** qo'shing.
+2. Ikkita **Empty Service** yarating: `backend` va `frontend`. Har birida **Settings → Config-as-code → Railway Config File**: `/backend/railway.json` va `/frontend/railway.json`. Root Directory'ni o'zgartirmang (`/`) — build repo ildizidan yuradi.
+3. Har ikkala servisda **Settings → Networking → Generate Domain**.
+4. **Variables**:
+
+   | Servis | O'zgaruvchi | Qiymat |
+   |---|---|---|
+   | backend | `DATABASE_URL` | `${{Postgres.DATABASE_URL}}` |
+   | backend | `JWT_ACCESS_SECRET` | `openssl rand -hex 32` natijasi |
+   | backend | `FRONTEND_URL` | `https://${{frontend.RAILWAY_PUBLIC_DOMAIN}}` (o'z domeningiz bo'lsa vergul bilan qo'shing) |
+   | backend | `SUPERADMIN_PHONE` | masalan `+998901111111` |
+   | backend | `SUPERADMIN_PASSWORD` | kamida 10 belgi (faqat birinchi ishga tushishda superadmin yaratish uchun) |
+   | backend | `SUPERADMIN_NAME` | ixtiyoriy |
+   | frontend | `VITE_API_URL` | `https://${{backend.RAILWAY_PUBLIC_DOMAIN}}` (oxirida `/api` **yo'q**) |
+
+   `NODE_ENV=production` image ichida o'rnatilgan, `PORT`ni Railway o'zi beradi. Xato yoki dev qiymatlar bilan backend ishga tushmaydi va sababini deploy logida yozadi.
+5. Avtomatik deploy uchun: Railway **Project Settings → Tokens** dan `production` muhiti uchun token oling va GitHub'da **Settings → Secrets and variables → Actions → New repository secret**: `RAILWAY_TOKEN`. Servis nomlari boshqacha bo'lsa — repository variable: `RAILWAY_BACKEND_SERVICE`, `RAILWAY_FRONTEND_SERVICE`. Ixtiyoriy `BACKEND_URL` / `FRONTEND_URL` variable'lari berilsa, deploydan keyin healthcheck ham tekshiriladi.
+
+Shundan keyin `main`ga har bir merge: testlar → image'lar → `railway up` (avval backend, keyin frontend). `RAILWAY_TOKEN` bo'lmasa deploy bosqichi ogohlantirish bilan o'tkazib yuboriladi.
+
+> Railway servisiga GitHub reponi **alohida ulamang** (Settings → Source) — aks holda har push ikki marta deploy bo'ladi va testlarni kutmaydi. Qo'lda deploy: `railway up --service backend` (repo ildizidan).
+
+### Deploy qanday ishlaydi
+
+- Backend konteyneri har ishga tushganda `prisma migrate deploy` qiladi, keyin serverni ko'taradi. Migratsiya yiqilsa yoki `/api/health` (bazani ham tekshiradi) 200 qaytarmasa, Railway eski deployni trafikda qoldiradi.
+- Frontend `VITE_API_URL` build paytida JS ichiga yoziladi — backend manzili o'zgarsa frontendni qayta deploy qiling.
+- Backend proxy ortida ishlaydi: rate-limit haqiqiy klient IP'siga qarab ishlashi uchun productionda `trust proxy = 1` (boshqa infratuzilmada `TRUST_PROXY` bilan o'zgartiriladi).
+- Swagger productionda o'chiq (`SWAGGER_ENABLED=true` bilan yoqiladi).
+- Mobil ilova uchun: `EXPO_PUBLIC_API_URL=https://<backend-domeni>/api`.
+
 ## Architecture
 
 pnpm + Turborepo monorepo. This is a structure-only skeleton — no business logic is implemented yet.
