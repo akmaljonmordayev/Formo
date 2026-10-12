@@ -1,7 +1,8 @@
-name: CI/CD
+name: CI
 
 # Har bir PR va main'ga push'da: lint, typecheck, unit + e2e testlar, production Docker image'lar.
-# Hammasi yashil bo'lsa va bu main'ga push bo'lsa — Railway'ga avtomatik deploy.
+# Deployni Railway o'zi qiladi: servislar shu reponing main branchiga ulangan va
+# "Wait for CI" yoqilgan — shu workflow main'da yashil bo'lgandagina yangi versiya chiqadi.
 
 on:
   push:
@@ -11,7 +12,7 @@ on:
 
 concurrency:
   group: ci-${{ github.ref }}
-  # main'dagi ishni bekor qilmaymiz — deploy yarim yo'lda to'xtab qolmasin
+  # main'dagi ishni bekor qilmaymiz — Railway shu natijani kutadi
   cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 permissions:
@@ -172,56 +173,3 @@ jobs:
         run: |
           docker logs api || true
           docker logs web || true
-
-  deploy:
-    name: Deploy · Railway
-    needs: [backend, frontend, docker]
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    environment: production
-    concurrency:
-      group: deploy-production
-      cancel-in-progress: false
-    env:
-      # Railway → Project → Settings → Tokens (production environment uchun project token)
-      RAILWAY_TOKEN: ${{ secrets.RAILWAY_TOKEN }}
-      BACKEND_SERVICE: ${{ vars.RAILWAY_BACKEND_SERVICE || 'backend' }}
-      FRONTEND_SERVICE: ${{ vars.RAILWAY_FRONTEND_SERVICE || 'frontend' }}
-      # Ixtiyoriy: deploydan keyin tekshiriladigan manzillar (https://...)
-      BACKEND_URL: ${{ vars.BACKEND_URL }}
-      FRONTEND_URL: ${{ vars.FRONTEND_URL }}
-    steps:
-      - name: Check Railway token
-        id: railway
-        run: |
-          if [ -z "$RAILWAY_TOKEN" ]; then
-            echo "::warning::RAILWAY_TOKEN secret qo'yilmagan — deploy o'tkazib yuborildi (README → Railway'ga deploy)."
-            echo "enabled=false" >> "$GITHUB_OUTPUT"
-          else
-            echo "enabled=true" >> "$GITHUB_OUTPUT"
-          fi
-      - uses: actions/checkout@v4
-        if: steps.railway.outputs.enabled == 'true'
-      - name: Install Railway CLI
-        if: steps.railway.outputs.enabled == 'true'
-        run: npm install --global @railway/cli@5
-      # Avval backend: yangi panel eski API bilan emas, yangi API bilan ishlasin
-      - name: Deploy backend
-        if: steps.railway.outputs.enabled == 'true'
-        run: railway up --ci --service "$BACKEND_SERVICE"
-      - name: Deploy frontend
-        if: steps.railway.outputs.enabled == 'true'
-        run: railway up --ci --service "$FRONTEND_SERVICE"
-      - name: Verify production
-        if: steps.railway.outputs.enabled == 'true' && (env.BACKEND_URL != '' || env.FRONTEND_URL != '')
-        run: |
-          check() {
-            for _ in $(seq 1 30); do
-              if curl -fsS "$1" >/dev/null 2>&1; then echo "OK  $1"; return 0; fi
-              sleep 10
-            done
-            echo "::error::$1 javob bermadi"; return 1
-          }
-          if [ -n "$BACKEND_URL" ]; then check "${BACKEND_URL%/}/api/health"; fi
-          if [ -n "$FRONTEND_URL" ]; then check "${FRONTEND_URL%/}/healthz"; fi
