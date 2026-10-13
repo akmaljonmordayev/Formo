@@ -12,6 +12,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import LanguageSwitch from './LanguageSwitch';
 
 /**
@@ -53,6 +54,7 @@ function parseBoundedInt(raw, min, max) {
 export default function CompleteProfileScreen({ auth, t, language, onLanguage, onSkip }) {
   const { height } = useWindowDimensions();
   const compact = height < 760;
+  const insets = useSafeAreaInsets();
 
   const [gender, setGender] = useState(auth.user?.gender || null);
   const [age, setAge] = useState(auth.user?.age != null ? String(auth.user.age) : '');
@@ -101,7 +103,7 @@ export default function CompleteProfileScreen({ auth, t, language, onLanguage, o
       <View style={[styles.glow, { backgroundColor: palette.orange, top: -90, right: -70, opacity: 0.12 }]} />
       <View style={[styles.glow, { backgroundColor: '#1D2F8C', bottom: -80, left: -70 }]} />
 
-      <View style={[styles.topBar, compact && styles.topBarCompact]}>
+      <View style={[styles.topBar, { paddingTop: insets.top + (compact ? 12 : 20) }]}>
         <View style={styles.brand}>
           <Text style={styles.logo}>FORMO</Text>
           <View style={styles.badge}>
@@ -238,10 +240,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: 20,
-    paddingTop: 26,
     paddingBottom: 6,
   },
-  topBarCompact: { paddingTop: 14 },
   scroll: {
     flexGrow: 1,
     paddingHorizontal: 20,
