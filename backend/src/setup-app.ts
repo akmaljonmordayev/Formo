@@ -4,6 +4,7 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { basicAuth } from './common/middleware/basic-auth';
 import { clientIpFromHeader } from './common/middleware/client-ip';
+import { buildCloudflareList, cloudflareOnly } from './common/middleware/cloudflare-only';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { parseCorsOrigins, parseTrustProxy } from './config/http.config';
 
@@ -15,6 +16,12 @@ export function setupApp(app: INestApplication) {
   express.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY, process.env.NODE_ENV));
   // Proxy klient IP sini alohida headerda bersa (Railway: X-Real-IP) — hop sanashdan ishonchliroq
   if (process.env.CLIENT_IP_HEADER) app.use(clientIpFromHeader(process.env.CLIENT_IP_HEADER));
+  // Cloudflare'ni chetlab origin'ga to'g'ridan-to'g'ri kelgan so'rovlar rad etiladi.
+  // /api/health ochiq qoladi — Railway healthcheck'i ichkaridan, Cloudflare'siz keladi.
+  if (process.env.REQUIRE_CLOUDFLARE === 'true') {
+    const extra = (process.env.CLOUDFLARE_EXTRA_RANGES ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+    app.use(cloudflareOnly(buildCloudflareList(extra), ['/api/health']));
+  }
   express.useBodyParser('json', { limit: '100kb' });
 
   app.setGlobalPrefix('api');

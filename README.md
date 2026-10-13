@@ -90,6 +90,7 @@ Production'da uchta servis: **Postgres**, **backend** (NestJS, `backend/Dockerfi
    | backend | `RAILWAY_DOCKERFILE_PATH` | `backend/Dockerfile` |
    | backend | `PORT` | `3001` (domen ham shu portga ulanadi) |
    | backend | `CLIENT_IP_HEADER` | `x-real-ip` — Railway haqiqiy klient IP'sini shu headerda beradi (Cloudflare ortida ham); usiz rate-limit hamma foydalanuvchiga umumiy bo'lib qoladi |
+   | backend | `REQUIRE_CLOUDFLARE` | `true` — Cloudflare'ni chetlab Railway'ga to'g'ridan-to'g'ri kelgan so'rovlar 403 oladi (`/api/health`dan tashqari) |
    | backend | `TRUST_PROXY` | `2` — zaxira: `CLIENT_IP_HEADER` bo'lmasa va Cloudflare'siz to'g'ri ishlaydi |
    | frontend | `RAILWAY_DOCKERFILE_PATH` | `frontend/Dockerfile` |
    | frontend | `PORT` | `8080` |

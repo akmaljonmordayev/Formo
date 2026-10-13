@@ -3,6 +3,9 @@ import { ApiBearerAuth, ApiForbiddenResponse, ApiOperation, ApiTags } from '@nes
 import { Role } from '@prisma/client';
 import { Request } from 'express';
 import { Roles } from '../common/decorators/roles.decorator';
+import { buildCloudflareList, connectingPeer, isFromCloudflare } from '../common/middleware/cloudflare-only';
+
+const CLOUDFLARE = buildCloudflareList();
 
 /**
  * Proxy zanjirini (Cloudflare → Railway → ilova) tekshirish uchun: server so'rovni qaysi
@@ -23,6 +26,9 @@ export class DiagnosticsController {
       ips: req.ips,
       remoteAddress: req.socket.remoteAddress ?? null,
       trustProxy: req.app.get('trust proxy'),
+      // REQUIRE_CLOUDFLARE yoqishdan oldin tekshirish uchun: so'rov Cloudflare orqali keldimi
+      connectingPeer: connectingPeer(req),
+      viaCloudflare: isFromCloudflare(req, CLOUDFLARE),
       headers: {
         'x-forwarded-for': header('x-forwarded-for'),
         'x-real-ip': header('x-real-ip'),

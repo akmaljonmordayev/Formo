@@ -130,3 +130,36 @@ describe('Klient IP alohida headerda (CLIENT_IP_HEADER) (e2e)', () => {
     expect(diag.body.ip).toBe('203.0.113.77');
   });
 });
+
+describe('Faqat Cloudflare orqali (REQUIRE_CLOUDFLARE) (e2e)', () => {
+  let app: INestApplication;
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const helpers = require('./helpers') as typeof import('./helpers');
+  const VIA_CLOUDFLARE = '172.64.200.81, 152.233.43.34';
+  const DIRECT = '195.158.30.13, 79.127.178.82';
+
+  beforeAll(async () => {
+    process.env.REQUIRE_CLOUDFLARE = 'true';
+    ({ app } = await helpers.createApp());
+  });
+
+  afterAll(async () => {
+    await app.close();
+    delete process.env.REQUIRE_CLOUDFLARE;
+  });
+
+  it('Cloudflare orqali kelgan so‘rov odatdagidek ishlaydi', async () => {
+    await helpers.api(app).post('/api/auth/login').set('X-Forwarded-For', VIA_CLOUDFLARE).send(helpers.SUPERADMIN).expect(200);
+  });
+
+  it('to‘g‘ridan-to‘g‘ri kelgan so‘rov — 403, to‘g‘ri parol bilan ham', async () => {
+    await helpers.api(app).post('/api/auth/login').set('X-Forwarded-For', DIRECT).send(helpers.SUPERADMIN).expect(403);
+    await helpers.api(app).get('/api/docs').set('X-Forwarded-For', DIRECT).expect(403);
+    await helpers.api(app).post('/api/auth/login').send(helpers.SUPERADMIN).expect(403); // header umuman yo'q
+  });
+
+  it('healthcheck Cloudflare’siz ham ochiq', async () => {
+    await helpers.api(app).get('/api/health').expect(200);
+    await helpers.api(app).get('/api/health').set('X-Forwarded-For', DIRECT).expect(200);
+  });
+});
