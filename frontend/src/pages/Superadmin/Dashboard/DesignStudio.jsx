@@ -1,38 +1,36 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+
+const JERSEY_CLIP =
+  'polygon(22% 0,38% 0,42% 5%,58% 5%,62% 0,78% 0,100% 16%,90% 32%,80% 26%,80% 100%,20% 100%,20% 26%,10% 32%,0 16%)'
+
+const PRICE = { shirt: 99000, print: 30000, design: 30000, patch: 10000, gift: 15000 }
 
 const SOLID_COLORS = [
-  { id: 'oq', label: 'Oq', value: '#eef1f6' },
-  { id: 'qora', label: 'Qora', value: '#14161c' },
-  { id: 'toqkok', label: "To'q ko'k", value: '#1b2550' },
-  { id: 'lojuvard', label: 'Lojuvard', value: '#3c4fd6' },
-  { id: 'firuza', label: 'Firuza', value: '#17a999' },
-  { id: 'sariq', label: 'Sariq', value: '#eda234' },
-  { id: 'qizil', label: 'Qizil', value: '#d9444f' },
-  { id: 'yashil', label: 'Yashil', value: '#3fa457' },
+  { id: 'oq', label: 'Oq', hex: '#F3F5F9' },
+  { id: 'qora', label: 'Qora', hex: '#151827' },
+  { id: 'toqkok', label: "To'q ko'k", hex: '#16204F' },
+  { id: 'lojuvard', label: 'Lojuvard', hex: '#2A3FB0' },
+  { id: 'firuza', label: 'Firuza', hex: '#19A7A1' },
+  { id: 'sariq', label: 'Sariq', hex: '#F2A33A' },
+  { id: 'qizil', label: 'Qizil', hex: '#D63A45' },
+  { id: 'yashil', label: 'Yashil', hex: '#3FAE5A' },
 ]
 
 const GRADIENTS = [
-  { id: 'quyosh', label: 'Quyosh', from: '#f2994a', to: '#e9544f' },
-  { id: 'dengiz', label: 'Dengiz', from: '#17a999', to: '#2f6fd6' },
-  { id: 'olov', label: 'Olov', from: '#e04b4b', to: '#7a1f2b' },
-  { id: 'tong', label: 'Tong', from: '#a7d2f2', to: '#8c6fe0' },
-  { id: 'tun', label: 'Tun', from: '#1b2550', to: '#06070d' },
-  { id: 'chempion', label: 'Chempion', from: '#2f9e6e', to: '#e0c23a' },
+  { id: 'quyosh', label: 'Quyosh', from: '#F2A33A', to: '#D63A45' },
+  { id: 'dengiz', label: 'Dengiz', from: '#19A7A1', to: '#2A3FB0' },
+  { id: 'olov', label: 'Olov', from: '#D63A45', to: '#8E1F3F' },
+  { id: 'tong', label: 'Tong', from: '#8FD3F4', to: '#7A4FD1' },
+  { id: 'tun', label: 'Tun', from: '#2A3FB0', to: '#151827' },
+  { id: 'chempion', label: 'Chempion', from: '#19A7A1', to: '#F2A33A' },
 ]
 
-const CUSTOM_COLOR = { id: 'custom', label: "O'z rangingiz (paint)", value: '#7a4fd1', hex: '#7A4FD1' }
-
-const STEPS = [
-  { id: 1, title: 'Rang', subtitle: '15 / 15 faol' },
-  { id: 2, title: 'Yozuv', subtitle: '3 / 3 shrift' },
-  { id: 3, title: 'Yamoq va qadoq', subtitle: '5 / 5 faol' },
-  { id: 4, title: 'Logo', subtitle: 'yoqilgan' },
-]
+const CUSTOM_COLOR_DEFAULT = '#7A4FD1'
 
 const FONTS = [
-  { id: 'sport', label: 'Sport', desc: 'Tor, futbolcha', fontFamily: "'Arial Black', Arial, sans-serif" },
-  { id: 'klassik', label: 'Klassik', desc: 'Keng, qalin', fontFamily: "Georgia, 'Times New Roman', serif" },
-  { id: 'oddiy', label: 'Oddiy', desc: 'Yumaloq, sodda', fontFamily: "'Trebuchet MS', 'Segoe UI', sans-serif" },
+  { id: 'sport', label: 'Sport', desc: 'Tor, futbolcha', fontFamily: "'Saira Extra Condensed', sans-serif" },
+  { id: 'klassik', label: 'Klassik', desc: 'Keng, qalin', fontFamily: "'Unbounded', sans-serif" },
+  { id: 'oddiy', label: 'Oddiy', desc: 'Yumaloq, sodda', fontFamily: "'Onest', sans-serif" },
 ]
 
 const TEXT_RULES = [
@@ -42,14 +40,14 @@ const TEXT_RULES = [
 ]
 
 const PATCHES = [
-  { id: 'kapitan', label: 'Kapitan', icon: 'C', desc: "yengga, «C» belgisi", price: '+10 000' },
-  { id: 'bayroq', label: 'Bayroq', icon: 'UZ', desc: "O'zbekiston bayrog'i", price: '+10 000' },
-  { id: 'chempion', label: 'Chempion', icon: '★', desc: 'oltin yulduz', price: '+10 000' },
+  { id: 'kapitan', label: 'Kapitan', sym: 'C', desc: "yengga, «C» belgisi" },
+  { id: 'bayroq', label: 'Bayroq', sym: 'UZ', desc: "O'zbekiston bayrog'i" },
+  { id: 'chempion', label: 'Chempion', sym: '★', desc: 'oltin yulduz' },
 ]
 
 const PACKAGES = [
   { id: 'oddiy-paket', label: 'Oddiy paket', desc: 'Polietilen, Formo logotipi bilan', price: 'Bepul' },
-  { id: 'sovga-qutisi', label: "Sovg'a qutisi", desc: 'Karton quti, lenta, tabriknoma', price: '+15 000' },
+  { id: 'sovga-qutisi', label: "Sovg'a qutisi", desc: 'Karton quti, lenta, tabriknoma', price: '+' + PRICE.gift.toLocaleString('ru-RU').replace(/,/g, ' ') },
 ]
 
 const LOGO_SPECS = [
@@ -63,15 +61,16 @@ const LOGO_TOGGLES = [
   { id: 'ai', label: 'AI bilan logo yaratish', desc: "Matn bo'yicha logo chizib beradi · 2-versiya" },
 ]
 
-function shade(hex, percent) {
-  const num = parseInt(hex.replace('#', ''), 16)
-  let r = (num >> 16) + Math.round(255 * percent)
-  let g = ((num >> 8) & 0xff) + Math.round(255 * percent)
-  let b = (num & 0xff) + Math.round(255 * percent)
-  r = Math.min(255, Math.max(0, r))
-  g = Math.min(255, Math.max(0, g))
-  b = Math.min(255, Math.max(0, b))
-  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`
+function formatPrice(n) {
+  return n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')
+}
+
+function inkFor(hex) {
+  const n = parseInt(hex.replace('#', ''), 16)
+  const r = (n >> 16) & 255
+  const g = (n >> 8) & 255
+  const b = n & 255
+  return r * 0.299 + g * 0.587 + b * 0.114 > 150 ? '#0E1A3F' : '#F3F5F9'
 }
 
 function Toggle({ checked, onChange }) {
@@ -101,6 +100,7 @@ function DesignStudio() {
     Object.fromEntries(GRADIENTS.map((g) => [g.id, true]))
   )
   const [customColorToggle, setCustomColorToggle] = useState(true)
+  const [customColorValue, setCustomColorValue] = useState(CUSTOM_COLOR_DEFAULT)
 
   const [selectedFont, setSelectedFont] = useState('sport')
   const [fontToggles, setFontToggles] = useState(
@@ -119,437 +119,596 @@ function DesignStudio() {
     Object.fromEntries(LOGO_TOGGLES.map((t) => [t.id, true]))
   )
 
+  const [savedAt, setSavedAt] = useState(null)
+
+  useEffect(() => {
+    let raw
+    try {
+      raw = localStorage.getItem('formo-design-studio-config')
+    } catch {
+      return
+    }
+    if (!raw) return
+    try {
+      const cfg = JSON.parse(raw)
+      if (cfg.colorSelection) setColorSelection(cfg.colorSelection)
+      if (cfg.customColorValue) setCustomColorValue(cfg.customColorValue)
+      if (cfg.name) setName(cfg.name)
+      if (cfg.number) setNumber(cfg.number)
+      if (cfg.selectedFont) setSelectedFont(cfg.selectedFont)
+      if (cfg.selectedPatch !== undefined) setSelectedPatch(cfg.selectedPatch)
+      if (cfg.solidToggles) setSolidToggles(cfg.solidToggles)
+      if (cfg.gradientToggles) setGradientToggles(cfg.gradientToggles)
+      if (cfg.customColorToggle !== undefined) setCustomColorToggle(cfg.customColorToggle)
+      if (cfg.fontToggles) setFontToggles(cfg.fontToggles)
+      if (cfg.patchToggles) setPatchToggles(cfg.patchToggles)
+      if (cfg.packageToggles) setPackageToggles(cfg.packageToggles)
+      if (cfg.logoToggles) setLogoToggles(cfg.logoToggles)
+    } catch {
+      /* ignore corrupt saved config */
+    }
+  }, [])
+
+  function handleSave() {
+    const config = {
+      colorSelection,
+      customColorValue,
+      name,
+      number,
+      selectedFont,
+      selectedPatch,
+      solidToggles,
+      gradientToggles,
+      customColorToggle,
+      fontToggles,
+      patchToggles,
+      packageToggles,
+      logoToggles,
+    }
+    try {
+      localStorage.setItem('formo-design-studio-config', JSON.stringify(config))
+    } catch {
+      /* storage unavailable */
+    }
+    setSavedAt(Date.now())
+  }
+
+  useEffect(() => {
+    if (!savedAt) return
+    const timer = setTimeout(() => setSavedAt(null), 2000)
+    return () => clearTimeout(timer)
+  }, [savedAt])
+
   const activeFont = FONTS.find((f) => f.id === selectedFont)
   const activePatch = PATCHES.find((p) => p.id === selectedPatch)
 
-  let jerseyTop
-  let jerseyBottom
+  const totalPrice =
+    PRICE.shirt + PRICE.print + (colorSelection.type === 'solid' ? 0 : PRICE.design) + (activePatch ? PRICE.patch : 0)
+
+  const colorActiveCount =
+    Object.values(solidToggles).filter(Boolean).length +
+    Object.values(gradientToggles).filter(Boolean).length +
+    (customColorToggle ? 1 : 0)
+  const colorTotalCount = SOLID_COLORS.length + GRADIENTS.length + 1
+
+  const fontActiveCount = Object.values(fontToggles).filter(Boolean).length
+  const fontTotalCount = FONTS.length
+
+  const extraActiveCount =
+    Object.values(patchToggles).filter(Boolean).length + Object.values(packageToggles).filter(Boolean).length
+  const extraTotalCount = PATCHES.length + PACKAGES.length
+
+  const logoActiveCount = Object.values(logoToggles).filter(Boolean).length
+
+  const steps = [
+    { id: 1, title: 'Rang', subtitle: `${colorActiveCount} / ${colorTotalCount} faol` },
+    { id: 2, title: 'Yozuv', subtitle: `${fontActiveCount} / ${fontTotalCount} shrift` },
+    { id: 3, title: 'Yamoq va qadoq', subtitle: `${extraActiveCount} / ${extraTotalCount} faol` },
+    { id: 4, title: 'Logo', subtitle: logoActiveCount > 0 ? 'yoqilgan' : "o'chirilgan" },
+  ]
+
+  let jerseyBg
+  let jerseyInk
   let colorLabel
   let typeLabel
+  let colorIsOff
 
   if (colorSelection.type === 'gradient') {
     const g = GRADIENTS.find((x) => x.id === colorSelection.id)
-    jerseyTop = g.from
-    jerseyBottom = g.to
+    jerseyBg = `linear-gradient(160deg, ${g.from}, ${g.to})`
+    jerseyInk = inkFor(g.from)
     colorLabel = g.label
     typeLabel = 'Gradient'
+    colorIsOff = !gradientToggles[colorSelection.id]
   } else if (colorSelection.type === 'custom') {
-    jerseyTop = shade(CUSTOM_COLOR.value, 0.12)
-    jerseyBottom = shade(CUSTOM_COLOR.value, -0.18)
-    colorLabel = CUSTOM_COLOR.label
+    jerseyBg = customColorValue
+    jerseyInk = inkFor(customColorValue)
+    colorLabel = "O'z rangi · " + customColorValue
     typeLabel = 'Boshqa'
+    colorIsOff = !customColorToggle
   } else {
     const c = SOLID_COLORS.find((x) => x.id === colorSelection.id)
-    jerseyTop = shade(c.value, 0.12)
-    jerseyBottom = shade(c.value, -0.18)
+    jerseyBg = c.hex
+    jerseyInk = inkFor(c.hex)
     colorLabel = c.label
     typeLabel = 'Bir rang'
+    colorIsOff = !solidToggles[colorSelection.id]
   }
+
+  const fontIsOff = !fontToggles[selectedFont]
+  const patchIsOff = selectedPatch ? !patchToggles[selectedPatch] : false
+  const previewIsOff = colorIsOff || fontIsOff || patchIsOff
 
   const patchLabel = activePatch ? activePatch.label : "yo'q"
 
   return (
     <div className="ds-page">
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link
+        href="https://fonts.googleapis.com/css2?family=Onest:wght@400;500;600;700&family=Unbounded:wght@500;600;700&family=Saira+Extra+Condensed:wght@700&display=swap"
+        rel="stylesheet"
+      />
       <style>{`
         .ds-page {
           min-height: 100vh;
-          background: #060913;
-          color: #f1f4fa;
-          font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-          padding: 20px;
+          background: #080C24;
+          color: #F3F5F9;
+          font-family: 'Onest', sans-serif;
+          padding: 28px;
           box-sizing: border-box;
+          -webkit-font-smoothing: antialiased;
         }
         .ds-page * { box-sizing: border-box; }
 
-        .ds-page-head { margin-bottom: 20px; }
-        .ds-breadcrumb { font-size: 13px; color: #828aa3; margin-bottom: 14px; }
-        .ds-breadcrumb strong { color: #fff; font-weight: 600; }
-        .ds-page-title { font-size: 26px; font-weight: 800; color: #fff; margin-bottom: 6px; }
-        .ds-page-sub { font-size: 13.5px; color: #828aa3; }
+        .ds-page-head { margin-bottom: 22px; display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+        .ds-breadcrumb { font-size: 13px; color: #A3ABCC; margin-bottom: 14px; display: flex; gap: 8px; align-items: center; }
+        .ds-breadcrumb .sep { color: #4A5380; }
+        .ds-breadcrumb .current { color: #F3F5F9; }
+        .ds-page-title { font-family: 'Unbounded', sans-serif; font-weight: 600; font-size: 28px; color: #F3F5F9; margin: 0; }
+        .ds-page-sub { margin: 6px 0 0; font-size: 14px; color: #A3ABCC; max-width: 680px; }
 
         .ds-layout {
-          display: flex;
+          display: grid;
+          grid-template-columns: 380px minmax(0, 1fr);
           gap: 20px;
-          align-items: flex-start;
+          align-items: start;
         }
 
         /* ---------- Sidebar ---------- */
         .ds-sidebar {
-          width: 360px;
-          flex-shrink: 0;
-          background: #0b1020;
-          border: 1px solid #1b2240;
-          border-radius: 18px;
-          padding: 18px;
+          background: #121A42;
+          border-radius: 20px;
+          padding: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
+          position: sticky;
+          top: 20px;
         }
         .ds-sidebar-head {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-bottom: 16px;
+          gap: 8px;
         }
         .ds-sidebar-title {
+          font-family: 'Unbounded', sans-serif;
+          font-weight: 500;
           font-size: 15px;
-          font-weight: 700;
-          color: #fff;
+          color: #F3F5F9;
         }
         .ds-segment {
           display: flex;
-          background: #121831;
-          border: 1px solid #232c4d;
+          gap: 2px;
+          background: #0B1030;
           border-radius: 10px;
           padding: 3px;
-          gap: 2px;
         }
         .ds-segment button {
           border: none;
           background: transparent;
-          color: #8992ac;
-          font-size: 13px;
+          color: #A3ABCC;
+          font-size: 12px;
           font-weight: 600;
           padding: 6px 14px;
           border-radius: 8px;
           cursor: pointer;
         }
         .ds-segment button.is-active {
-          background: #fff;
-          color: #121831;
+          background: #F3F5F9;
+          color: #080C24;
         }
 
         .ds-preview {
-          background: #0e1326;
-          border: 1px solid #1b2240;
-          border-radius: 14px;
-          padding: 24px;
+          height: 340px;
+          border-radius: 16px;
+          background: radial-gradient(circle at 50% 40%, #1B2560, #0B1030 70%);
+          display: grid;
+          place-items: center;
+          position: relative;
+        }
+        .ds-jersey-wrap {
+          position: relative;
+          width: 270px;
+          height: 290px;
+          filter: drop-shadow(0 18px 24px rgba(0,0,0,0.45));
+        }
+        .ds-jersey-base { position: absolute; inset: 0; clip-path: ${JERSEY_CLIP}; }
+        .ds-jersey-shade {
+          position: absolute;
+          inset: 0;
+          clip-path: ${JERSEY_CLIP};
+          background: linear-gradient(90deg, rgba(0,0,0,0.18), transparent 30%, transparent 70%, rgba(0,0,0,0.18));
+        }
+        .ds-jersey-back {
+          position: absolute;
+          left: 20%;
+          right: 20%;
+          top: 22%;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          line-height: 0.95;
+          font-weight: 700;
+        }
+        .ds-jersey-back .nm { font-size: 22px; letter-spacing: 0.06em; }
+        .ds-jersey-back .num { font-size: 118px; }
+        .ds-jersey-logo {
+          position: absolute;
+          left: 58%;
+          top: 16%;
+          width: 34px;
+          height: 34px;
+          border-radius: 17px;
+          border-width: 2px;
+          border-style: dashed;
+          display: grid;
+          place-items: center;
+          font-size: 9px;
+          font-weight: 600;
+          opacity: 0.8;
+        }
+        .ds-jersey-front-num {
+          position: absolute;
+          left: 0;
+          right: 0;
+          top: 40%;
+          text-align: center;
+          font-weight: 700;
+          font-size: 56px;
+          line-height: 1;
+        }
+        .ds-jersey-patch {
+          position: absolute;
+          left: 6%;
+          top: 12%;
+          width: 26px;
+          height: 26px;
+          border-radius: 13px;
+          background: #F2A33A;
+          color: #0E1A3F;
+          display: grid;
+          place-items: center;
+          font-size: 11px;
+          font-weight: 700;
+          border: 2px solid #F3F5F9;
+        }
+        .ds-off-badge {
+          position: absolute;
+          top: 12px;
+          left: 12px;
+          height: 24px;
+          padding: 0 10px;
+          border-radius: 12px;
+          background: #B8323F;
+          color: #F3F5F9;
+          font-size: 11px;
+          font-weight: 600;
           display: flex;
           align-items: center;
-          justify-content: center;
-          min-height: 280px;
         }
 
         .ds-fields {
-          display: flex;
-          gap: 10px;
-          margin-top: 14px;
+          display: grid;
+          grid-template-columns: minmax(0, 1fr) 80px;
+          gap: 8px;
         }
         .ds-field {
-          background: #0e1326;
-          border: 1px solid #232c4d;
+          height: 40px;
           border-radius: 10px;
-          padding: 10px 14px;
-          color: #fff;
-          font-weight: 700;
+          border: 1px solid rgba(243,245,249,0.1);
+          background: #1B2560;
+          color: #F3F5F9;
+          padding: 0 12px;
           font-size: 14px;
-          letter-spacing: 0.5px;
+          font-weight: 600;
+          letter-spacing: 0.04em;
           outline: none;
-          width: 100%;
+          text-transform: uppercase;
+          min-width: 0;
         }
         .ds-field.ds-field-number {
-          width: 70px;
           text-align: center;
-          flex-shrink: 0;
+          text-transform: none;
+          letter-spacing: normal;
         }
 
-        .ds-info {
-          margin-top: 16px;
-          display: flex;
-          flex-direction: column;
-          gap: 10px;
-        }
-        .ds-info-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          font-size: 13px;
-        }
-        .ds-info-row span:first-child { color: #828aa3; }
-        .ds-info-row span:last-child { color: #fff; font-weight: 600; }
-
-        .ds-divider {
-          height: 1px;
-          background: #1b2240;
-          margin: 16px 0;
-        }
+        .ds-info { display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+        .ds-info-row { display: flex; justify-content: space-between; gap: 8px; }
+        .ds-info-row span:first-child { color: #A3ABCC; }
+        .ds-info-row span:last-child { font-weight: 500; }
 
         .ds-price-row {
           display: flex;
-          align-items: center;
           justify-content: space-between;
+          align-items: baseline;
+          padding-top: 12px;
+          border-top: 1px solid rgba(243,245,249,0.08);
         }
-        .ds-price-label { font-size: 13px; color: #828aa3; }
-        .ds-price-value { font-size: 20px; font-weight: 800; color: #f5a623; }
+        .ds-price-label { font-size: 13px; color: #A3ABCC; }
+        .ds-price-value { font-family: 'Unbounded', sans-serif; font-weight: 600; font-size: 20px; color: #F2A33A; }
+
+        .ds-save-btn {
+          height: 44px;
+          border-radius: 12px;
+          border: none;
+          background: #19A7A1;
+          color: #080C24;
+          font-weight: 600;
+          font-size: 14px;
+          cursor: pointer;
+        }
+        .ds-save-btn:hover { opacity: 0.92; }
 
         /* ---------- Main content ---------- */
-        .ds-main { flex: 1; min-width: 0; }
+        .ds-main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
 
         .ds-steps {
           display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 14px;
-          margin-bottom: 20px;
+          grid-template-columns: repeat(4, minmax(0, 1fr));
+          gap: 8px;
         }
         .ds-step {
-          display: flex;
-          align-items: center;
-          gap: 10px;
-          background: #0b1020;
-          border: 1px solid #1b2240;
-          border-radius: 14px;
-          padding: 12px 14px;
-          cursor: pointer;
           text-align: left;
+          cursor: pointer;
+          padding: 12px 14px;
+          border-radius: 14px;
+          display: flex;
+          gap: 10px;
+          align-items: center;
+          color: #F3F5F9;
+          background: #121A42;
+          border: 1.5px solid transparent;
         }
-        .ds-step.is-active {
-          border-color: #f5a623;
-          background: #14172a;
-        }
+        .ds-step.is-active { background: #1B2560; border-color: #F2A33A; }
         .ds-step-num {
           width: 26px;
           height: 26px;
-          border-radius: 50%;
-          background: #1b2240;
-          color: #aeb4ca;
-          font-weight: 700;
-          font-size: 13px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
+          border-radius: 13px;
           flex-shrink: 0;
+          display: grid;
+          place-items: center;
+          font-size: 12px;
+          font-weight: 700;
+          background: #1B2560;
+          color: #D6DAEC;
         }
-        .ds-step.is-active .ds-step-num {
-          background: #f5a623;
-          color: #1a1300;
-        }
-        .ds-step-text { display: flex; flex-direction: column; min-width: 0; }
-        .ds-step-text strong { font-size: 13.5px; color: #fff; white-space: nowrap; }
-        .ds-step-text small { font-size: 11.5px; color: #828aa3; margin-top: 2px; }
+        .ds-step.is-active .ds-step-num { background: #F2A33A; color: #0E1A3F; }
+        .ds-step-text { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
+        .ds-step-text strong { font-weight: 600; font-size: 14px; }
+        .ds-step-text small { font-size: 11px; color: #A3ABCC; white-space: nowrap; }
 
         .ds-section {
-          background: #0b1020;
-          border: 1px solid #1b2240;
-          border-radius: 18px;
+          background: #121A42;
+          border-radius: 20px;
           padding: 20px;
-          margin-bottom: 20px;
+          display: flex;
+          flex-direction: column;
+          gap: 14px;
         }
-        .ds-section-title { font-size: 15px; font-weight: 700; color: #fff; }
-        .ds-section-sub { font-size: 12.5px; color: #828aa3; margin-top: 4px; margin-bottom: 18px; }
+        .ds-section-head { display: flex; flex-direction: column; gap: 2px; }
+        .ds-section-title { font-weight: 600; font-size: 15px; }
+        .ds-section-sub { font-size: 12px; color: #A3ABCC; }
 
-        .ds-grid-solid {
-          display: grid;
-          grid-template-columns: repeat(4, 1fr);
-          gap: 16px;
-        }
-        .ds-grid-gradient {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 16px;
-        }
+        .ds-grid-solid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+        .ds-grid-gradient { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+        .ds-grid-font { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+        .ds-grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+        .ds-grid-patch { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 
         .ds-swatch-card {
-          background: #0e1326;
-          border: 2px solid #1b2240;
+          cursor: pointer;
           border-radius: 14px;
           padding: 10px;
+          display: flex;
+          flex-direction: column;
+          gap: 10px;
+          background: #1B2560;
+          border: 1.5px solid transparent;
+          transition: background 0.12s ease;
         }
-        .ds-swatch-card.is-active {
-          border-color: #f5a623;
-        }
-        .ds-swatch-btn {
-          width: 100%;
-          height: 70px;
+        .ds-swatch-card:hover { background: #202C6E; }
+        .ds-swatch-card.is-active { border-color: #F2A33A; }
+        .ds-swatch-box {
+          height: 56px;
           border-radius: 10px;
-          border: 1px solid rgba(255,255,255,0.08);
-          cursor: pointer;
-          padding: 0;
+          border: 1px solid rgba(243,245,249,0.15);
         }
+        .ds-grid-gradient .ds-swatch-box { height: 48px; }
         .ds-swatch-footer {
           display: flex;
           align-items: center;
           justify-content: space-between;
-          margin-top: 10px;
+          gap: 6px;
         }
-        .ds-swatch-label { font-size: 13px; font-weight: 600; color: #fff; }
+        .ds-swatch-label { font-size: 13px; font-weight: 500; }
 
         .ds-toggle {
-          width: 38px;
-          height: 21px;
-          border-radius: 999px;
-          background: #232c4d;
+          width: 40px;
+          height: 24px;
+          border-radius: 12px;
           border: none;
-          cursor: pointer;
           position: relative;
-          padding: 0;
+          cursor: pointer;
           flex-shrink: 0;
+          background: #2E3875;
         }
-        .ds-toggle.is-on { background: #1aa987; }
+        .ds-toggle.is-on { background: #19A7A1; }
         .ds-toggle-knob {
           position: absolute;
-          top: 2px;
-          left: 2px;
-          width: 17px;
-          height: 17px;
-          border-radius: 50%;
-          background: #fff;
-          transition: transform 0.15s ease;
+          top: 3px;
+          left: 3px;
+          width: 18px;
+          height: 18px;
+          border-radius: 9px;
+          background: #F3F5F9;
+          transition: left 0.15s ease;
         }
-        .ds-toggle.is-on .ds-toggle-knob {
-          transform: translateX(17px);
-        }
+        .ds-toggle.is-on .ds-toggle-knob { left: 19px; }
 
-        .ds-color-row {
+        .ds-paint-row {
+          background: #121A42;
+          border-radius: 20px;
+          padding: 20px;
           display: flex;
+          flex-direction: row;
           align-items: center;
           gap: 14px;
-          background: #0e1326;
-          border: 1px solid #1b2240;
-          border-radius: 14px;
-          padding: 16px;
-          margin-top: 16px;
-        }
-        .ds-color-row-swatch {
-          width: 44px;
-          height: 44px;
-          border-radius: 10px;
-          flex-shrink: 0;
-          border: none;
           cursor: pointer;
+          border: 1.5px solid transparent;
+        }
+        .ds-paint-row.is-active { border-color: #F2A33A; }
+        .ds-paint-swatch {
+          position: relative;
+          width: 64px;
+          height: 64px;
+          border-radius: 16px;
+          flex-shrink: 0;
+          cursor: pointer;
+          border: 2px solid rgba(243,245,249,0.25);
+          overflow: hidden;
+        }
+        .ds-paint-input {
+          position: absolute;
+          inset: 0;
+          opacity: 0;
+          cursor: pointer;
+          width: 100%;
+          height: 100%;
+          border: none;
           padding: 0;
         }
-        .ds-color-row-text { flex: 1; min-width: 0; }
-        .ds-color-row-text strong { font-size: 14px; color: #fff; display: block; }
-        .ds-color-row-text div { font-size: 12px; color: #828aa3; margin-top: 4px; }
-        .ds-color-row-text code { color: #aeb4ca; }
+        .ds-paint-text { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+        .ds-paint-text strong { font-weight: 600; font-size: 15px; }
+        .ds-paint-text div { font-size: 12px; color: #A3ABCC; }
+        .ds-paint-text code { font-family: ui-monospace, monospace; color: #F3F5F9; }
 
-        .ds-spec-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 16px;
-        }
-        .ds-spec-card {
-          background: #0e1326;
-          border: 1px solid #1b2240;
-          border-radius: 12px;
-          padding: 14px 16px;
-        }
-        .ds-spec-label { font-size: 12px; color: #828aa3; margin-bottom: 6px; }
-        .ds-spec-value { font-size: 14px; font-weight: 700; color: #fff; }
+        .ds-spec-card { background: #1B2560; border-radius: 12px; padding: 12px 14px; display: flex; flex-direction: column; gap: 2px; }
+        .ds-spec-label { font-size: 11px; color: #A3ABCC; }
+        .ds-spec-value { font-weight: 600; }
 
-        .ds-list-row {
-          display: flex;
-          align-items: center;
-          justify-content: space-between;
-          background: #0e1326;
-          border: 1px solid #1b2240;
-          border-radius: 12px;
-          padding: 14px 16px;
-        }
-        .ds-list-row + .ds-list-row { margin-top: 12px; }
-        .ds-list-row-text strong { font-size: 13.5px; color: #fff; display: block; }
-        .ds-list-row-text div { font-size: 12px; color: #828aa3; margin-top: 3px; }
-        .ds-list-row-right { display: flex; align-items: center; gap: 16px; }
-        .ds-list-price { font-size: 13px; font-weight: 700; color: #f5a623; }
-
-        .ds-badge-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 16px;
-        }
-        .ds-badge-card {
-          background: #0e1326;
-          border: 2px solid #1b2240;
-          border-radius: 14px;
-          padding: 20px 16px;
-          text-align: center;
-          cursor: pointer;
-        }
-        .ds-badge-card.is-active { border-color: #f5a623; }
-        .ds-badge-circle {
-          width: 52px;
-          height: 52px;
-          border-radius: 50%;
-          background: linear-gradient(135deg, #f7b955, #e0861f);
-          margin: 0 auto 12px;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          font-weight: 800;
-          font-size: 17px;
-          color: #2a1800;
-        }
-        .ds-badge-title { font-size: 14px; font-weight: 700; color: #fff; }
-        .ds-badge-desc { font-size: 12px; color: #828aa3; margin-top: 4px; }
-        .ds-badge-price { font-size: 12.5px; font-weight: 700; color: #f5a623; margin-top: 8px; }
-        .ds-badge-footer { margin-top: 14px; display: flex; justify-content: center; }
-
-        .ds-font-grid {
-          display: grid;
-          grid-template-columns: repeat(3, 1fr);
-          gap: 16px;
-        }
         .ds-font-card {
-          background: #0e1326;
-          border: 2px solid #1b2240;
-          border-radius: 14px;
+          cursor: pointer;
+          border-radius: 16px;
           padding: 12px;
+          display: flex;
+          flex-direction: column;
+          gap: 12px;
+          background: #1B2560;
+          border: 1.5px solid transparent;
         }
-        .ds-font-card.is-active { border-color: #f5a623; }
+        .ds-font-card:hover { background: #202C6E; }
+        .ds-font-card.is-active { border-color: #F2A33A; }
         .ds-font-preview {
-          width: 100%;
-          min-height: 104px;
-          background: #121831;
-          border: 1px solid #232c4d;
-          border-radius: 10px;
-          padding: 10px;
+          height: 120px;
+          border-radius: 12px;
+          background: #16204F;
           display: flex;
           flex-direction: column;
           align-items: center;
           justify-content: center;
-          gap: 4px;
-          text-align: center;
+          line-height: 0.95;
+          font-weight: 700;
           cursor: pointer;
+          border: none;
+          color: #F3F5F9;
         }
-        .ds-font-preview .ds-font-name {
-          font-size: 13px;
-          font-weight: 800;
-          color: #fff;
-          letter-spacing: 1px;
-          display: block;
-        }
-        .ds-font-preview .ds-font-num {
-          font-size: 34px;
-          font-weight: 800;
-          color: #fff;
-          line-height: 1.15;
-          display: block;
-        }
-        .ds-font-footer {
+        .ds-font-preview .nm { font-size: 15px; letter-spacing: 0.06em; }
+        .ds-font-preview .num { font-size: 60px; }
+        .ds-font-footer { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
+        .ds-font-footer-text { display: flex; flex-direction: column; }
+        .ds-font-footer-text strong { font-weight: 600; font-size: 13px; }
+        .ds-font-footer-text div { font-size: 11px; color: #A3ABCC; }
+
+        .ds-patch-card {
+          cursor: pointer;
+          border-radius: 14px;
+          padding: 14px;
           display: flex;
+          flex-direction: column;
+          gap: 12px;
           align-items: center;
-          justify-content: space-between;
-          margin-top: 12px;
+          background: #1B2560;
+          border: 1.5px solid transparent;
+          text-align: center;
         }
-        .ds-font-footer-text strong { font-size: 13px; color: #fff; display: block; }
-        .ds-font-footer-text div { font-size: 11.5px; color: #828aa3; margin-top: 2px; }
+        .ds-patch-card:hover { background: #202C6E; }
+        .ds-patch-card.is-active { border-color: #F2A33A; }
+        .ds-patch-circle {
+          width: 56px;
+          height: 56px;
+          border-radius: 28px;
+          background: #F2A33A;
+          color: #0E1A3F;
+          display: grid;
+          place-items: center;
+          font-size: 20px;
+          font-weight: 700;
+          border: 3px solid #F3F5F9;
+        }
+        .ds-patch-text { display: flex; flex-direction: column; align-items: center; gap: 2px; }
+        .ds-patch-text strong { font-weight: 600; }
+        .ds-patch-text .desc { font-size: 12px; color: #A3ABCC; }
+        .ds-patch-text .price { font-size: 12px; color: #F2A33A; }
+
+        .ds-list-row {
+          display: flex;
+          gap: 14px;
+          align-items: center;
+          padding: 12px 14px;
+          border-radius: 12px;
+          background: #1B2560;
+        }
+        .ds-list-row + .ds-list-row { margin-top: 10px; }
+        .ds-list-row-text { flex: 1; display: flex; flex-direction: column; }
+        .ds-list-row-text strong { font-weight: 600; }
+        .ds-list-row-text div { font-size: 12px; color: #A3ABCC; }
+        .ds-list-price { font-size: 13px; color: #F2A33A; white-space: nowrap; }
+
+        .is-disabled { opacity: 0.45; }
 
         @media (max-width: 960px) {
-          .ds-layout { flex-direction: column; }
-          .ds-sidebar { width: 100%; }
-          .ds-grid-solid { grid-template-columns: repeat(2, 1fr); }
-          .ds-grid-gradient { grid-template-columns: repeat(2, 1fr); }
-          .ds-steps { grid-template-columns: repeat(2, 1fr); }
-          .ds-spec-grid { grid-template-columns: repeat(1, 1fr); }
-          .ds-badge-grid { grid-template-columns: repeat(1, 1fr); }
-          .ds-font-grid { grid-template-columns: repeat(1, 1fr); }
+          .ds-layout { grid-template-columns: 1fr; }
+          .ds-grid-solid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .ds-grid-gradient { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+          .ds-grid-font { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+          .ds-grid-patch { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+          .ds-grid-3 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+          .ds-steps { grid-template-columns: repeat(2, minmax(0, 1fr)); }
         }
       `}</style>
 
       <div className="ds-page-head">
-        <div className="ds-breadcrumb">
-          Katalog <span>/</span> <strong>Dizayn studiyasi</strong>
-        </div>
-        <div className="ds-page-title">Dizayn studiyasi</div>
-        <div className="ds-page-sub">
-          Mijoz ilovadagi «Dizayn studiyasi»da ko'radigan tanlovlar. O'chirilgani ilovada ko'rinmaydi.
+        <div>
+          <div className="ds-breadcrumb">
+            <span>Katalog</span>
+            <span className="sep">/</span>
+            <span className="current">Dizayn studiyasi</span>
+          </div>
+          <h1 className="ds-page-title">Dizayn studiyasi</h1>
+          <p className="ds-page-sub">
+            Mijoz ilovadagi «Dizayn studiyasi»da ko'radigan tanlovlar. O'chirilgani ilovada ko'rinmaydi.
+          </p>
         </div>
       </div>
 
@@ -575,64 +734,46 @@ function DesignStudio() {
           </div>
 
           <div className="ds-preview">
-            <svg width="220" height="260" viewBox="0 0 280 280">
-              <defs>
-                <linearGradient id="jerseyGrad" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor={jerseyTop} />
-                  <stop offset="100%" stopColor={jerseyBottom} />
-                </linearGradient>
-              </defs>
-              <path
-                d="M95,20 L60,20 L10,65 L35,100 L60,85 L60,260 L220,260 L220,85 L245,100 L270,65 L220,20 L185,20 C185,45 165,60 140,60 C115,60 95,45 95,20 Z"
-                fill="url(#jerseyGrad)"
-                stroke="rgba(0,0,0,0.25)"
-                strokeWidth="1"
-              />
-              <text
-                x="140"
-                y="152"
-                textAnchor="middle"
-                fontSize="20"
-                fontWeight="800"
-                fill="#ffffff"
-                letterSpacing="1.5"
-                fontFamily={activeFont.fontFamily}
-              >
-                {name || 'SAMIR'}
-              </text>
-              <text
-                x="140"
-                y="228"
-                textAnchor="middle"
-                fontSize="68"
-                fontWeight="800"
-                fill="#ffffff"
-                fontFamily={activeFont.fontFamily}
-              >
-                {number || '7'}
-              </text>
-              {activePatch && (
-                <g>
-                  <circle cx="195" cy="108" r="13" fill="#0e1326" stroke="#f5a623" strokeWidth="2" />
-                  <text x="195" y="113" textAnchor="middle" fontSize="11" fontWeight="800" fill="#f5a623">
-                    {activePatch.icon}
-                  </text>
-                </g>
+            <div className="ds-jersey-wrap">
+              <div className="ds-jersey-base" style={{ background: jerseyBg }} />
+              <div className="ds-jersey-shade" />
+              {view === 'orqa' && (
+                <div className="ds-jersey-back" style={{ color: jerseyInk, fontFamily: activeFont.fontFamily }}>
+                  <span className="nm">{name || 'ISM'}</span>
+                  <span className="num">{number || '0'}</span>
+                </div>
               )}
-            </svg>
+              {view === 'old' && (
+                <>
+                  <div className="ds-jersey-logo" style={{ borderColor: jerseyInk, color: jerseyInk }}>
+                    LOGO
+                  </div>
+                  <span
+                    className="ds-jersey-front-num"
+                    style={{ fontFamily: activeFont.fontFamily, color: jerseyInk }}
+                  >
+                    {number || '0'}
+                  </span>
+                  {activePatch && <span className="ds-jersey-patch">{activePatch.sym}</span>}
+                </>
+              )}
+            </div>
+            {previewIsOff && <span className="ds-off-badge">Ilovada o'chirilgan</span>}
           </div>
 
           <div className="ds-fields">
             <input
               className="ds-field"
               value={name}
-              onChange={(e) => setName(e.target.value.toUpperCase())}
+              onChange={(e) => setName(e.target.value.replace(/[^A-Za-z -]/g, '').toUpperCase().slice(0, 12))}
+              placeholder="Ism"
               maxLength={12}
             />
             <input
               className="ds-field ds-field-number"
               value={number}
               onChange={(e) => setNumber(e.target.value.replace(/\D/g, '').slice(0, 2))}
+              placeholder="№"
             />
           </div>
 
@@ -655,18 +796,20 @@ function DesignStudio() {
             </div>
           </div>
 
-          <div className="ds-divider" />
-
           <div className="ds-price-row">
             <span className="ds-price-label">Shu forma narxi</span>
-            <span className="ds-price-value">129 000 so'm</span>
+            <span className="ds-price-value">{formatPrice(totalPrice)} so'm</span>
           </div>
+
+          <button type="button" className="ds-save-btn" onClick={handleSave}>
+            {savedAt ? 'Saqlandi ✓' : 'Saqlash'}
+          </button>
         </aside>
 
         {/* ---------- Main content ---------- */}
         <main className="ds-main">
           <div className="ds-steps">
-            {STEPS.map((s) => (
+            {steps.map((s) => (
               <button
                 key={s.id}
                 className={`ds-step${activeStep === s.id ? ' is-active' : ''}`}
@@ -684,9 +827,11 @@ function DesignStudio() {
           {activeStep === 1 && (
             <>
               <section className="ds-section">
-                <div className="ds-section-title">Bir rang</div>
-                <div className="ds-section-sub">
-                  Rangni bosing — chapdagi ko'rinadi. O'ngdagi tugma ilovada ko'rsatish yoki yashirish.
+                <div className="ds-section-head">
+                  <span className="ds-section-title">Bir rang</span>
+                  <span className="ds-section-sub">
+                    Rangni bosing — chapda ko'rinadi. O'ngdagi tugma ilovada ko'rsatish yoki yashirish.
+                  </span>
                 </div>
                 <div className="ds-grid-solid">
                   {SOLID_COLORS.map((c) => (
@@ -694,20 +839,18 @@ function DesignStudio() {
                       key={c.id}
                       className={`ds-swatch-card${
                         colorSelection.type === 'solid' && colorSelection.id === c.id ? ' is-active' : ''
-                      }`}
+                      }${solidToggles[c.id] ? '' : ' is-disabled'}`}
+                      onClick={() => setColorSelection({ type: 'solid', id: c.id })}
                     >
-                      <button
-                        className="ds-swatch-btn"
-                        style={{ background: c.value }}
-                        onClick={() => setColorSelection({ type: 'solid', id: c.id })}
-                      />
+                      <div className="ds-swatch-box" style={{ background: c.hex }} />
                       <div className="ds-swatch-footer">
                         <span className="ds-swatch-label">{c.label}</span>
                         <Toggle
                           checked={solidToggles[c.id]}
-                          onChange={() =>
+                          onChange={(e) => {
+                            e.stopPropagation()
                             setSolidToggles((prev) => ({ ...prev, [c.id]: !prev[c.id] }))
-                          }
+                          }}
                         />
                       </div>
                     </div>
@@ -716,9 +859,9 @@ function DesignStudio() {
               </section>
 
               <section className="ds-section">
-                <div className="ds-section-title">Gradient</div>
-                <div className="ds-section-sub">
-                  Ikki rangli o'tish. Bosma doim oq yoki to'q rangda.
+                <div className="ds-section-head">
+                  <span className="ds-section-title">Gradient</span>
+                  <span className="ds-section-sub">Ikki rangli o'tish. Bosma doim oq yoki to'q rangda.</span>
                 </div>
                 <div className="ds-grid-gradient">
                   {GRADIENTS.map((g) => (
@@ -726,66 +869,83 @@ function DesignStudio() {
                       key={g.id}
                       className={`ds-swatch-card${
                         colorSelection.type === 'gradient' && colorSelection.id === g.id ? ' is-active' : ''
-                      }`}
+                      }${gradientToggles[g.id] ? '' : ' is-disabled'}`}
+                      onClick={() => setColorSelection({ type: 'gradient', id: g.id })}
                     >
-                      <button
-                        className="ds-swatch-btn"
-                        style={{ background: `linear-gradient(90deg, ${g.from}, ${g.to})` }}
-                        onClick={() => setColorSelection({ type: 'gradient', id: g.id })}
+                      <div
+                        className="ds-swatch-box"
+                        style={{ background: `linear-gradient(135deg, ${g.from}, ${g.to})` }}
                       />
                       <div className="ds-swatch-footer">
                         <span className="ds-swatch-label">{g.label}</span>
                         <Toggle
                           checked={gradientToggles[g.id]}
-                          onChange={() =>
+                          onChange={(e) => {
+                            e.stopPropagation()
                             setGradientToggles((prev) => ({ ...prev, [g.id]: !prev[g.id] }))
-                          }
+                          }}
                         />
                       </div>
                     </div>
                   ))}
                 </div>
-
-                <div className="ds-color-row">
-                  <button
-                    className="ds-color-row-swatch"
-                    style={{ background: CUSTOM_COLOR.value }}
-                    onClick={() => setColorSelection({ type: 'custom', id: 'custom' })}
-                  />
-                  <div className="ds-color-row-text">
-                    <strong>{CUSTOM_COLOR.label}</strong>
-                    <div>
-                      Mijoz istalgan rangni yasaydi. Kvadratni bosib sinab ko'ring: <code>{CUSTOM_COLOR.hex}</code>.
-                      Zaxirada «Boshqalar» qatoridan olinadi.
-                    </div>
-                  </div>
-                  <Toggle checked={customColorToggle} onChange={() => setCustomColorToggle((v) => !v)} />
-                </div>
               </section>
+
+              <div
+                className={`ds-paint-row${colorSelection.type === 'custom' ? ' is-active' : ''}${
+                  customColorToggle ? '' : ' is-disabled'
+                }`}
+                onClick={() => setColorSelection({ type: 'custom', id: 'custom' })}
+              >
+                <label className="ds-paint-swatch" style={{ background: customColorValue }} onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="color"
+                    className="ds-paint-input"
+                    value={customColorValue}
+                    onChange={(e) => {
+                      setCustomColorValue(e.target.value)
+                      setColorSelection({ type: 'custom', id: 'custom' })
+                    }}
+                  />
+                </label>
+                <div className="ds-paint-text">
+                  <strong>O'z rangingiz (paint)</strong>
+                  <div>
+                    Mijoz istalgan rangni yasaydi. Kvadratni bosib sinab ko'ring: <code>{customColorValue.toUpperCase()}</code>.
+                    Zaxirada «Boshqalar» qatoridan olinadi.
+                  </div>
+                </div>
+                <Toggle
+                  checked={customColorToggle}
+                  onChange={(e) => {
+                    e.stopPropagation()
+                    setCustomColorToggle((v) => !v)
+                  }}
+                />
+              </div>
             </>
           )}
 
           {activeStep === 2 && (
             <>
               <section className="ds-section">
-                <div className="ds-section-title">Orqa yozuv shrifti</div>
-                <div className="ds-section-sub">
-                  Ism va raqam uchun. Bosing — chapdagi formada ko'rinadi.
+                <div className="ds-section-head">
+                  <span className="ds-section-title">Orqa yozuv shrifti</span>
+                  <span className="ds-section-sub">Ism va raqam uchun. Bosing — chapdagi formada ko'rinadi.</span>
                 </div>
-                <div className="ds-font-grid">
+                <div className="ds-grid-font">
                   {FONTS.map((f) => (
                     <div
                       key={f.id}
-                      className={`ds-font-card${selectedFont === f.id ? ' is-active' : ''}`}
+                      className={`ds-font-card${selectedFont === f.id ? ' is-active' : ''}${
+                        fontToggles[f.id] ? '' : ' is-disabled'
+                      }`}
+                      onClick={() => setSelectedFont(f.id)}
                     >
-                      <button
-                        className="ds-font-preview"
-                        style={{ fontFamily: f.fontFamily }}
-                        onClick={() => setSelectedFont(f.id)}
-                      >
-                        <span className="ds-font-name">SAMIR</span>
-                        <span className="ds-font-num">7</span>
-                      </button>
+                      <div className="ds-font-preview" style={{ fontFamily: f.fontFamily }}>
+                        <span className="nm">SAMIR</span>
+                        <span className="num">7</span>
+                      </div>
                       <div className="ds-font-footer">
                         <div className="ds-font-footer-text">
                           <strong>{f.label}</strong>
@@ -793,9 +953,10 @@ function DesignStudio() {
                         </div>
                         <Toggle
                           checked={fontToggles[f.id]}
-                          onChange={() =>
+                          onChange={(e) => {
+                            e.stopPropagation()
                             setFontToggles((prev) => ({ ...prev, [f.id]: !prev[f.id] }))
-                          }
+                          }}
                         />
                       </div>
                     </div>
@@ -804,15 +965,17 @@ function DesignStudio() {
               </section>
 
               <section className="ds-section">
-                <div className="ds-section-title">Yozuv qoidalari</div>
-                <div className="ds-section-sub">
-                  Server tomonda tekshiriladi. O'zgartirish: Sozlamalar › Buyurtma qoidalari
+                <div className="ds-section-head">
+                  <span className="ds-section-title">Yozuv qoidalari</span>
+                  <span className="ds-section-sub">
+                    Server tomonda tekshiriladi. O'zgartirish: Sozlamalar › Buyurtma qoidalari
+                  </span>
                 </div>
-                <div className="ds-spec-grid">
+                <div className="ds-grid-3">
                   {TEXT_RULES.map((r) => (
                     <div key={r.label} className="ds-spec-card">
-                      <div className="ds-spec-label">{r.label}</div>
-                      <div className="ds-spec-value">{r.value}</div>
+                      <span className="ds-spec-label">{r.label}</span>
+                      <span className="ds-spec-value">{r.value}</span>
                     </div>
                   ))}
                 </div>
@@ -823,52 +986,58 @@ function DesignStudio() {
           {activeStep === 3 && (
             <>
               <section className="ds-section">
-                <div className="ds-section-title">Yamoqlar</div>
-                <div className="ds-section-sub">
-                  Yengga tikiladi. Bosing — formaning old tomonida ko'rinadi.
+                <div className="ds-section-head">
+                  <span className="ds-section-title">Yamoqlar</span>
+                  <span className="ds-section-sub">Yengga tikiladi. Bosing — formaning old tomonida ko'rinadi.</span>
                 </div>
-                <div className="ds-badge-grid">
+                <div className="ds-grid-patch">
                   {PATCHES.map((p) => (
                     <div
                       key={p.id}
-                      className={`ds-badge-card${selectedPatch === p.id ? ' is-active' : ''}`}
+                      className={`ds-patch-card${selectedPatch === p.id ? ' is-active' : ''}${
+                        patchToggles[p.id] ? '' : ' is-disabled'
+                      }`}
                       onClick={() => setSelectedPatch((prev) => (prev === p.id ? null : p.id))}
                     >
-                      <div className="ds-badge-circle">{p.icon}</div>
-                      <div className="ds-badge-title">{p.label}</div>
-                      <div className="ds-badge-desc">{p.desc}</div>
-                      <div className="ds-badge-price">{p.price}</div>
-                      <div className="ds-badge-footer" onClick={(e) => e.stopPropagation()}>
-                        <Toggle
-                          checked={patchToggles[p.id]}
-                          onChange={() =>
-                            setPatchToggles((prev) => ({ ...prev, [p.id]: !prev[p.id] }))
-                          }
-                        />
+                      <span className="ds-patch-circle">{p.sym}</span>
+                      <div className="ds-patch-text">
+                        <strong>{p.label}</strong>
+                        <span className="desc">{p.desc}</span>
+                        <span className="price">+{formatPrice(PRICE.patch)}</span>
                       </div>
+                      <Toggle
+                        checked={patchToggles[p.id]}
+                        onChange={(e) => {
+                          e.stopPropagation()
+                          setPatchToggles((prev) => ({ ...prev, [p.id]: !prev[p.id] }))
+                        }}
+                      />
                     </div>
                   ))}
                 </div>
               </section>
 
               <section className="ds-section">
-                <div className="ds-section-title">Qadoq</div>
-                <div className="ds-section-sub">Mijoz rasmiylashtirishda tanlaydi.</div>
+                <div className="ds-section-head">
+                  <span className="ds-section-title">Qadoq</span>
+                  <span className="ds-section-sub">Mijoz rasmiylashtirishda tanlaydi.</span>
+                </div>
                 {PACKAGES.map((pkg) => (
-                  <div key={pkg.id} className="ds-list-row">
+                  <div
+                    key={pkg.id}
+                    className={`ds-list-row${packageToggles[pkg.id] ? '' : ' is-disabled'}`}
+                  >
                     <div className="ds-list-row-text">
                       <strong>{pkg.label}</strong>
                       <div>{pkg.desc}</div>
                     </div>
-                    <div className="ds-list-row-right">
-                      <span className="ds-list-price">{pkg.price}</span>
-                      <Toggle
-                        checked={packageToggles[pkg.id]}
-                        onChange={() =>
-                          setPackageToggles((prev) => ({ ...prev, [pkg.id]: !prev[pkg.id] }))
-                        }
-                      />
-                    </div>
+                    <span className="ds-list-price">{pkg.price}</span>
+                    <Toggle
+                      checked={packageToggles[pkg.id]}
+                      onChange={() =>
+                        setPackageToggles((prev) => ({ ...prev, [pkg.id]: !prev[pkg.id] }))
+                      }
+                    />
                   </div>
                 ))}
               </section>
@@ -877,15 +1046,17 @@ function DesignStudio() {
 
           {activeStep === 4 && (
             <section className="ds-section">
-              <div className="ds-section-title">Logo</div>
-              <div className="ds-section-sub">
-                Mijoz o'z logosini ko'krakka qo'yadi. Old tomonda belgilangan joy.
+              <div className="ds-section-head">
+                <span className="ds-section-title">Logo</span>
+                <span className="ds-section-sub">
+                  Mijoz o'z logosini ko'krakka qo'yadi. Old tomonda belgilangan joy.
+                </span>
               </div>
-              <div className="ds-spec-grid" style={{ marginBottom: 16 }}>
+              <div className="ds-grid-3">
                 {LOGO_SPECS.map((s) => (
                   <div key={s.label} className="ds-spec-card">
-                    <div className="ds-spec-label">{s.label}</div>
-                    <div className="ds-spec-value">{s.value}</div>
+                    <span className="ds-spec-label">{s.label}</span>
+                    <span className="ds-spec-value">{s.value}</span>
                   </div>
                 ))}
               </div>

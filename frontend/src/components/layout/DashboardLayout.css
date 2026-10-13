@@ -141,6 +141,10 @@
   cursor: pointer;
 }
 
+.layout__logout:hover {
+  background: #1b2240;
+}
+
 .layout__content {
   padding: 28px;
 }
