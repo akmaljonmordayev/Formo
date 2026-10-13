@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import { colors, radii, spacing } from '../constants/theme';
 import { colorOptions, products } from '../data/mockData';
 import { Button, Card, Header, Overline, Screen, Segment, formatMoney } from '../components/ui/Common';
@@ -19,6 +19,7 @@ export default function StudioScreen({ t, addToCart, cartCount, onOpenCart, onBa
   const [shortsColor, setShortsColor] = useState(DEFAULT_COLOR);
   const [patch, setPatch] = useState('captain');
   const [sleeve, setSleeve] = useState('');
+  const [addedFeedback, setAddedFeedback] = useState(false);
 
   const product = { ...products[0], color, accent: textAccent };
   const item = { ...product, customName: name.trim() || 'OYIM', customNumber: number || '10' };
@@ -189,9 +190,20 @@ export default function StudioScreen({ t, addToCart, cartCount, onOpenCart, onBa
             <Text style={styles.footerLabel}>{t('total')}</Text>
             <Text style={styles.footerPrice}>{formatMoney(item.price)}</Text>
           </View>
-          <Button onPress={() => { addToCart(item); Alert.alert(t('added'), t('ok')); }}>
-            {t('addToCart')}
-          </Button>
+          <View style={{ alignItems: 'flex-end', gap: 4 }}>
+            {addedFeedback ? (
+              <Text style={styles.addedFeedback}>{t('added')}</Text>
+            ) : null}
+            <Button
+              onPress={() => {
+                addToCart(item);
+                setAddedFeedback(true);
+                setTimeout(() => setAddedFeedback(false), 2000);
+              }}
+            >
+              {t('addToCart')}
+            </Button>
+          </View>
         </View>
       }
     >
@@ -366,4 +378,5 @@ const styles = StyleSheet.create({
   footerBar: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   footerLabel: { color: colors.muted, fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
   footerPrice: { color: colors.text, fontSize: 17, fontWeight: '900', marginTop: 3 },
+  addedFeedback: { color: colors.teal, fontSize: 11, fontWeight: '700' },
 });

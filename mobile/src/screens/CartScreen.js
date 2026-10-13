@@ -96,7 +96,7 @@ export default function CartScreen({ cart, removeFromCart, clearCart, t, onBack,
           </Card>
 
           <Button onPress={checkoutLoading ? undefined : handleCheckout}>
-            {checkoutLoading ? t('loggingIn') : t('checkout')}
+            {checkoutLoading ? t('checkingOut') : t('checkout')}
           </Button>
 
           {checkoutError ? (

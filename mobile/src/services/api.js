@@ -56,9 +56,6 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ phone, password }),
       });
-      // Persist tokens after successful login
-      if (data.accessToken) await storage.setToken(data.accessToken);
-      if (data.refreshToken) await storage.setRefreshToken(data.refreshToken);
       return data;
     },
 
@@ -71,8 +68,6 @@ export const api = {
         method: 'POST',
         body: JSON.stringify({ fullName, phone, password }),
       });
-      if (data.accessToken) await storage.setToken(data.accessToken);
-      if (data.refreshToken) await storage.setRefreshToken(data.refreshToken);
       return data;
     },
 

@@ -22,14 +22,34 @@ import { colors, radii, spacing, typography } from '../../constants/theme';
  *   onLogin    — called after successful login (no-op; navigator reacts to auth.isAuthenticated)
  *   onRegister — called to navigate to RegisterScreen
  */
+// Normalise +998 XX XXX XX XX (with spaces) or plain 9-digit string to +998XXXXXXXXX
+function normalisePhone(raw) {
+  const digits = raw.replace(/\D/g, '');
+  if (digits.length === 9) return `+998${digits}`;
+  if (digits.length === 12 && digits.startsWith('998')) return `+${digits}`;
+  return raw.trim();
+}
+
+const PHONE_RE = /^\+998\d{9}$/;
+
 export default function LoginScreen({ auth, t, onLogin, onRegister }) {
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [validationError, setValidationError] = useState(null);
 
   async function handleLogin() {
+    setValidationError(null);
+
     if (!phone.trim() || !password.trim()) return;
-    const success = await auth.login(phone.trim(), password);
+
+    const normPhone = normalisePhone(phone);
+    if (!PHONE_RE.test(normPhone)) {
+      setValidationError(t('phone') + ': +998XXXXXXXXX');
+      return;
+    }
+
+    const success = await auth.login(normPhone, password);
     if (success && onLogin) onLogin();
   }
 
@@ -97,8 +117,8 @@ export default function LoginScreen({ auth, t, onLogin, onRegister }) {
           </View>
 
           {/* ─── Error message ───────────────────────────────────────────────── */}
-          {auth.error ? (
-            <Text style={styles.errorText}>{t(auth.error)}</Text>
+          {(validationError || auth.error) ? (
+            <Text style={styles.errorText}>{validationError || t(auth.error)}</Text>
           ) : null}
 
           {/* ─── Login button ─────────────────────────────────────────────────── */}
