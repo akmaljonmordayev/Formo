@@ -7,7 +7,7 @@ export const ROLES = {
 export const ROLE_LABELS = {
   [ROLES.SUPERADMIN]: 'Superadmin',
   [ROLES.OPERATOR]: 'Operator',
-  [ROLES.TAILOR]: 'Tikuvxona',
+  [ROLES.TAILOR]: 'Tikuv sexi',
 };
 
 // Har bir rol login qilgandan keyin tushadigan bosh sahifa

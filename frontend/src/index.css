@@ -1,9 +1,59 @@
-* {
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Formo brend tokenlari (login va panel layouti) */
+:root {
+  --ink: #080c24;
+  --navy: #0e1a3f;
+  --navy-2: #121a42;
+  --navy-3: #1b2560;
+  --orange: #f2a33a;
+  --orange-2: #f7c27a;
+  --teal: #19a7a1;
+  --violet: #9184d9;
+  --red: #b8323f;
+  --paper: #f3f5f9;
+  --muted: #a9b0d0;
+  --line: #d5dae8;
+  --font-display: 'Unbounded', system-ui, sans-serif;
+  --font-body: 'Onest', system-ui, sans-serif;
+  --font-number: 'Saira Extra Condensed', 'Onest', sans-serif;
+}
+
+body {
   margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+  font-family: 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  background: #f3f4f6;
 }
 
 #root {
   min-height: 100vh;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #334155 transparent;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #334155;
+  border-radius: 999px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:focus-visible {
+  outline: 2px solid var(--orange);
+  outline-offset: 2px;
 }

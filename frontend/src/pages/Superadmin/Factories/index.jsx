@@ -1,3 +1,5 @@
+import WorkshopsPage from '../../../features/factories/WorkshopsPage';
+
 export default function SuperadminFactories() {
-  return <h2>Tikuvxonalar</h2>;
+  return <WorkshopsPage />;
 }

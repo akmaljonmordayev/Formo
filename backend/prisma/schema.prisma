@@ -1,0 +1,63 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPERADMIN // yagona akkaunt, .env dan seed qilinadi
+  OPERATOR // yagona akkaunt, superadmin yaratadi
+  TAILOR // tikuv sexlari, superadmin yaratadi
+  USER // mobil ilova foydalanuvchilari, o'zi ro'yxatdan o'tadi
+}
+
+enum Gender {
+  MALE
+  FEMALE
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  phone        String   @unique
+  passwordHash String
+  role         Role     @default(USER)
+  fullName     String
+  isActive     Boolean  @default(true)
+
+  // Mobil foydalanuvchi profili
+  gender       Gender?
+  age          Int?
+  height       Int? // sm
+  weight       Int? // kg
+
+  // Tikuv sexi ma'lumotlari
+  workshopName String?
+  address      String?
+
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  sessions     Session[]
+
+  @@index([role])
+}
+
+// Har bir login = bitta sessiya. Logout sessiyani bekor qiladi,
+// shuning uchun access token ham darhol ishlamay qoladi.
+model Session {
+  id               String    @id @default(uuid())
+  userId           Int
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokenHash String
+  userAgent        String?
+  ip               String?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  @@index([userId])
+}

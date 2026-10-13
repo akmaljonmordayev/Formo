@@ -1,21 +1,48 @@
 .layout {
   display: flex;
   min-height: 100vh;
+  background: #f3f5f9;
+  font-family: var(--font-body);
 }
 
 .layout__sidebar {
-  width: 240px;
+  position: relative;
+  width: 248px;
   flex-shrink: 0;
-  background: #111827;
-  color: #fff;
-  padding: 24px 16px;
+  background:
+    radial-gradient(400px 300px at 0% 0%, rgba(29, 47, 140, 0.55), transparent 70%),
+    var(--ink);
+  color: var(--paper);
+  padding: 26px 16px;
+}
+
+.layout__stitch {
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  right: 8px;
+  border-right: 1.5px dashed rgba(242, 163, 58, 0.35);
 }
 
 .layout__brand {
-  font-size: 22px;
-  font-weight: 700;
-  margin-bottom: 32px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
   padding: 0 12px;
+  margin-bottom: 34px;
+  font-family: var(--font-display);
+  font-weight: 800;
+  font-size: 22px;
+  letter-spacing: 0.04em;
+}
+
+.layout__brand span {
+  font-family: var(--font-body);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--orange);
 }
 
 .layout__nav {
@@ -25,54 +52,167 @@
 }
 
 .layout__link {
-  color: #d1d5db;
+  position: relative;
+  color: var(--muted);
   text-decoration: none;
-  padding: 10px 12px;
-  border-radius: 8px;
+  padding: 11px 14px;
+  border-radius: 12px;
+  font-weight: 500;
+  font-size: 14.5px;
+  transition: background 0.2s ease, color 0.2s ease;
 }
 
 .layout__link:hover {
-  background: #1f2937;
+  background: rgba(243, 245, 249, 0.06);
+  color: var(--paper);
 }
 
 .layout__link--active {
-  background: #2563eb;
-  color: #fff;
+  background: rgba(242, 163, 58, 0.12);
+  color: var(--paper);
+}
+
+.layout__link--active::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 10px;
+  bottom: 10px;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--orange);
 }
 
 .layout__main {
   flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
-  background: #f3f4f6;
 }
 
 .layout__header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 16px 24px;
+  gap: 16px;
+  padding: 14px 28px;
   background: #fff;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e4e8f2;
+}
+
+.layout__who {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-right: auto;
+}
+
+.layout__avatar,
+.operator-card__avatar {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, var(--navy), #1d2f8c);
+  color: var(--orange);
+  font-family: var(--font-display);
+  font-weight: 700;
 }
 
 .layout__user {
   font-weight: 600;
+  color: var(--navy);
 }
 
 .layout__role {
-  font-size: 13px;
-  color: #6b7280;
+  font-size: 12.5px;
+  color: rgba(14, 26, 63, 0.55);
 }
 
-.layout__logout {
-  padding: 8px 16px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+.layout__burger {
+  display: none;
+  width: 40px;
+  height: 40px;
+  border: 1.5px solid #d5dae8;
+  border-radius: 10px;
   background: #fff;
+  color: var(--navy);
+  font-size: 18px;
   cursor: pointer;
 }
 
 .layout__content {
-  padding: 24px;
+  padding: 28px;
+}
+
+.layout__content > h2 {
+  font-family: var(--font-display);
+  color: var(--navy);
+}
+
+.operator-card {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+
+.operator-card__avatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 18px;
+  font-size: 26px;
+}
+
+.operator-card__info {
+  flex: 1;
+  min-width: 200px;
+  color: var(--navy);
+}
+
+.operator-card__info h3 {
+  font-family: var(--font-display);
+  font-size: 18px;
+  margin-bottom: 4px;
+}
+
+.operator-card__meta {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 8px;
+  font-size: 13px;
+}
+
+.operator-card__actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 860px) {
+  .layout__sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    z-index: 40;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+  }
+
+  .layout__sidebar.is-open {
+    transform: none;
+    box-shadow: 20px 0 60px rgba(0, 0, 0, 0.4);
+  }
+
+  .layout__burger {
+    display: block;
+  }
+
+  .layout__header {
+    padding: 12px 16px;
+  }
+
+  .layout__content {
+    padding: 20px 16px;
+  }
 }

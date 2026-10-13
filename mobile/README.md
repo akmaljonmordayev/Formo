@@ -9,6 +9,27 @@ npm install
 npx expo start
 ```
 
+## Backendga ulanish
+
+`.env.example` dan `.env` yarating va kompyuteringizning Wi-Fi IP manzilini yozing (telefonda `localhost` ishlamaydi):
+
+```bash
+EXPO_PUBLIC_API_URL=http://192.168.1.10:3001/api
+```
+
+Backend kompyuterda `docker compose up` bilan ishlab turishi kerak. `.env` o'zgarsa `npm run start:clear` bilan qayta ishga tushiring.
+
+```js
+import { auth } from './src/services/api';
+
+await auth.register({ phone: '90 123 45 67', password: 'secret123', fullName: 'Aziz Rahimov', gender: 'MALE', age: 25, height: 178, weight: 72 });
+await auth.login({ phone: '901234567', password: 'secret123' });
+const me = await auth.me();
+await auth.logout();
+```
+
+Xatolar `ApiError` bo'lib keladi: `error.message` — foydalanuvchiga ko'rsatsa bo'ladigan o'zbekcha matn, `error.status` — 400 / 401 / 403 / 409 / 429.
+
 ## Expo 57 va Metro cache
 
 Agar `transformFile` xatosi chiqsa, avval eski Metro cache va ishlayotgan Expo serverini tozalang:
