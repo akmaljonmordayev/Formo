@@ -3,6 +3,7 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import helmet from 'helmet';
 import { basicAuth } from './common/middleware/basic-auth';
+import { clientIpFromHeader } from './common/middleware/client-ip';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { parseCorsOrigins, parseTrustProxy } from './config/http.config';
 
@@ -12,6 +13,8 @@ export function setupApp(app: INestApplication) {
   express.disable('x-powered-by');
   // Proxy ortida (Railway) req.ip haqiqiy klient manzili bo'lishi uchun — rate-limit shunga tayanadi
   express.set('trust proxy', parseTrustProxy(process.env.TRUST_PROXY, process.env.NODE_ENV));
+  // Proxy klient IP sini alohida headerda bersa (Railway: X-Real-IP) — hop sanashdan ishonchliroq
+  if (process.env.CLIENT_IP_HEADER) app.use(clientIpFromHeader(process.env.CLIENT_IP_HEADER));
   express.useBodyParser('json', { limit: '100kb' });
 
   app.setGlobalPrefix('api');
