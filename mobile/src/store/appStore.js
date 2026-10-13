@@ -2,15 +2,39 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getItem, setItem } from '../utils/storage';
 
 const LANGUAGE_KEY = 'formo_language';
+const CART_KEY = 'formo_cart';
+const FAVORITES_KEY = 'formo_favorites';
+
+async function readJson(key, fallback) {
+  const raw = await getItem(key);
+  if (!raw) return fallback;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return fallback;
+  }
+}
 
 export function useAppStore() {
   // ─── Language (persisted) ────────────────────────────────────────────────────
   const [language, setLanguageState] = useState('uz');
 
-  // Hydrate language from storage on mount
+  // ─── Cart ────────────────────────────────────────────────────────────────────
+  const [cart, setCart] = useState([]);
+
+  // ─── Favorites ───────────────────────────────────────────────────────────────
+  const [favorites, setFavorites] = useState([]);
+
+  // Hydrate persisted state on mount
   useEffect(() => {
     getItem(LANGUAGE_KEY).then((saved) => {
       if (saved) setLanguageState(saved);
+    });
+    readJson(CART_KEY, []).then((saved) => {
+      if (Array.isArray(saved) && saved.length > 0) setCart(saved);
+    });
+    readJson(FAVORITES_KEY, []).then((saved) => {
+      if (Array.isArray(saved) && saved.length > 0) setFavorites(saved);
     });
   }, []);
 
@@ -19,46 +43,37 @@ export function useAppStore() {
     setItem(LANGUAGE_KEY, code);
   }, []);
 
-  // ─── Auth state ──────────────────────────────────────────────────────────────
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUserState] = useState(null);
-
-  const setUser = useCallback((userData) => {
-    setUserState(userData);
-    setIsAuthenticated(true);
+  const updateCart = useCallback((updater) => {
+    setCart((current) => {
+      const next = updater(current);
+      setItem(CART_KEY, JSON.stringify(next));
+      return next;
+    });
   }, []);
 
-  const clearUser = useCallback(() => {
-    setUserState(null);
-    setIsAuthenticated(false);
-  }, []);
-
-  // ─── Cart ────────────────────────────────────────────────────────────────────
-  const [cart, setCart] = useState([]);
-
-  const addToCart = useCallback(
-    (item) => setCart((current) => [...current, item]),
-    [],
-  );
-
+  const addToCart = useCallback((item) => updateCart((current) => [...current, item]), [updateCart]);
   const removeFromCart = useCallback(
-    (index) => setCart((current) => current.filter((_, i) => i !== index)),
-    [],
+    (index) => updateCart((current) => current.filter((_, i) => i !== index)),
+    [updateCart],
   );
+  const clearCart = useCallback(() => updateCart(() => []), [updateCart]);
 
-  const clearCart = useCallback(() => setCart([]), []);
-
-  // ─── Favorites ───────────────────────────────────────────────────────────────
-  const [favorites, setFavorites] = useState([]);
+  const updateFavorites = useCallback((updater) => {
+    setFavorites((current) => {
+      const next = updater(current);
+      setItem(FAVORITES_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
 
   const toggleFavorite = useCallback(
     (id) =>
-      setFavorites((current) =>
+      updateFavorites((current) =>
         current.includes(id)
           ? current.filter((item) => item !== id)
           : [...current, id],
       ),
-    [],
+    [updateFavorites],
   );
 
   // ─── Memoized store object ────────────────────────────────────────────────────
@@ -67,11 +82,6 @@ export function useAppStore() {
       // language
       language,
       setLanguage,
-      // auth
-      isAuthenticated,
-      user,
-      setUser,
-      clearUser,
       // cart
       cart,
       addToCart,
@@ -84,10 +94,6 @@ export function useAppStore() {
     [
       language,
       setLanguage,
-      isAuthenticated,
-      user,
-      setUser,
-      clearUser,
       cart,
       addToCart,
       removeFromCart,

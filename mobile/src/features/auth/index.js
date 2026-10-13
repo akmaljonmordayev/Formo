@@ -1,20 +1,46 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api } from '../../services/api';
+import { api, ApiError } from '../../services/api';
 import * as storage from '../../utils/storage';
+
+/**
+ * Maps an API error to a display-ready error object.
+ * `key` is an i18n fallback; `message` is the server's own text when it is
+ * trustworthy (never for 401, where the localized key reads better).
+ */
+function toAuthError(err, fallbackKey) {
+  if (err instanceof ApiError) {
+    if (err.status === 0) return { key: 'networkError', message: null };
+    if (err.status === 401) return { key: 'loginError', message: null };
+    return { key: fallbackKey, message: err.message || null };
+  }
+  if (err instanceof TypeError) return { key: 'networkError', message: null };
+  return { key: fallbackKey, message: null };
+}
 
 /**
  * useAuth — manages authentication state for the whole app.
  *
  * On mount: reads the stored token, validates it with GET /auth/me.
- * Exposes login(), register(), and logout() actions.
+ * Exposes login(), register(), logout(), refreshUser() and updateUser().
  *
- * Returns: { user, isLoading, isAuthenticated, error, login, register, logout }
+ * `error` shape: { key: string, message: string|null } — screens render
+ * `error.message || t(error.key)`.
+ *
+ * Returns: { user, isLoading, isAuthenticated, error, login, register, logout, refreshUser, updateUser }
  */
 export default function useAuth() {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  // ─── Session expiry: bounce back to the login screen ────────────────────────
+  useEffect(() => {
+    api.auth.onSessionExpired(() => {
+      setUser(null);
+      setIsAuthenticated(false);
+    });
+  }, []);
 
   // ─── Restore session on mount ────────────────────────────────────────────────
   useEffect(() => {
@@ -53,20 +79,12 @@ export default function useAuth() {
     setError(null);
 
     try {
-      const data = await api.auth.login(phone, password);
-      const me = data.user || await api.auth.me();
-
-      await storage.setToken(data.accessToken);
-      await storage.setRefreshToken(data.refreshToken);
-
+      const me = await api.auth.login(phone, password);
       setUser(me);
       setIsAuthenticated(true);
       return true;
     } catch (err) {
-      const message = err?.message?.includes('401') || err?.name === 'AuthError'
-        ? 'loginError'     // i18n key — screens call t(error)
-        : 'networkError';
-      setError(message);
+      setError(toAuthError(err, 'authError'));
       return false;
     } finally {
       setIsLoading(false);
@@ -74,25 +92,20 @@ export default function useAuth() {
   }, []);
 
   // ─── Register ────────────────────────────────────────────────────────────────
-  const register = useCallback(async (fullName, phone, password) => {
+  /**
+   * @param {{fullName, phone, password, gender?, age?, height?, weight?}} payload
+   */
+  const register = useCallback(async (payload) => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const data = await api.auth.register(fullName, phone, password);
-      const me = data.user || await api.auth.me();
-
-      await storage.setToken(data.accessToken);
-      await storage.setRefreshToken(data.refreshToken);
-
+      const me = await api.auth.register(payload);
       setUser(me);
       setIsAuthenticated(true);
       return true;
     } catch (err) {
-      const message = err?.message?.includes('401') || err?.name === 'AuthError'
-        ? 'authError'
-        : 'networkError';
-      setError(message);
+      setError(toAuthError(err, 'authError'));
       return false;
     } finally {
       setIsLoading(false);
@@ -106,12 +119,34 @@ export default function useAuth() {
     } catch {
       // Server-side logout errors are non-fatal — clear locally regardless
     } finally {
-      await storage.removeToken();
-      await storage.removeRefreshToken();
       setUser(null);
       setIsAuthenticated(false);
     }
   }, []);
 
-  return { user, isLoading, isAuthenticated, error, login, register, logout };
+  // ─── Refresh profile from the server ─────────────────────────────────────────
+  const refreshUser = useCallback(async () => {
+    const me = await api.auth.me();
+    setUser(me);
+    return me;
+  }, []);
+
+  // ─── Update profile via API; refreshes local user on success ─────────────────
+  const updateUser = useCallback(async (fields) => {
+    const me = await api.auth.updateMe(fields);
+    setUser(me);
+    return me;
+  }, []);
+
+  return {
+    user,
+    isLoading,
+    isAuthenticated,
+    error,
+    login,
+    register,
+    logout,
+    refreshUser,
+    updateUser,
+  };
 }

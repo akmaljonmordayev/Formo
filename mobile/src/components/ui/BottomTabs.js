@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors } from '../../constants/theme';
+import { colors, TAB_BAR_HEIGHT } from '../../constants/theme';
 
 const TABS = [
   { key: 'home',    label: 'home',    icon: 'home-outline',         iconActive: 'home' },
@@ -44,7 +44,7 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 74,
+    height: TAB_BAR_HEIGHT,
     borderTopWidth: 1,
     borderTopColor: '#1C2148',
     backgroundColor: colors.tabBar,

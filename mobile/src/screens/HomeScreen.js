@@ -12,12 +12,13 @@ export default function HomeScreen({ t, onNavigate, onProduct, auth }) {
   const { orders, isLoading: ordersLoading } = useOrders();
   const { products: apiProducts, isLoading: productsLoading } = useProducts();
 
-  // Safe fallback — never crash on an empty orders array
-  const order = orders[0] || { id: '—', status: 'production' };
-  const orderStatus = order.status === 'production' ? t('production') : t('delivered');
+  // Most recent real order from the API (empty until the orders endpoint is live)
+  const order = orders[0] || null;
+  const orderStatus = order?.status === 'delivered' ? t('delivered') : t('production');
 
-  // Greeting uses the authenticated user's name when available
-  const greeting = auth?.user?.fullName ? auth.user.fullName : t('hello');
+  // Greeting uses the authenticated user's real name
+  const name = auth?.user?.fullName || t('hello');
+  const avatarInitial = (auth?.user?.fullName || 'F')[0].toUpperCase();
 
   // Products with fallback
   const heroProduct = (apiProducts && apiProducts.length > 0) ? apiProducts[0] : null;
@@ -29,7 +30,15 @@ export default function HomeScreen({ t, onNavigate, onProduct, auth }) {
 
   return (
     <Screen>
-      <Header overline={t('goodDay')} title={greeting} right={<View style={styles.avatar} />} />
+      <Header
+        overline={t('goodDay')}
+        title={name}
+        right={
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{avatarInitial}</Text>
+          </View>
+        }
+      />
 
       <View style={styles.hero}>
         <View style={styles.heroCopy}>
@@ -48,11 +57,13 @@ export default function HomeScreen({ t, onNavigate, onProduct, auth }) {
         <View style={styles.trackCopy}>
           {ordersLoading ? (
             <LoadingSpinner size="small" />
-          ) : (
+          ) : order ? (
             <>
               <Text style={styles.trackId}>{order.id}</Text>
               <Text style={styles.trackStatus}>{orderStatus}</Text>
             </>
+          ) : (
+            <Text style={styles.trackStatus}>{t('noOrders')}</Text>
           )}
         </View>
         <Text style={styles.trackAction}>{t('track')}</Text>
@@ -96,11 +107,14 @@ const styles = StyleSheet.create({
   avatar: {
     width: 40,
     height: 40,
-    borderRadius: radii.md,
-    backgroundColor: '#141A3E',
-    borderWidth: 1,
-    borderColor: '#232A57',
+    borderRadius: 20,
+    backgroundColor: '#151B42',
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  avatarText: { color: colors.accent, fontWeight: '900', fontSize: 15 },
   hero: {
     backgroundColor: '#141A40',
     borderRadius: radii.lg,

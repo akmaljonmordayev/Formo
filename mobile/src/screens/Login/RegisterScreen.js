@@ -1,346 +1,345 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import {
-  ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from 'react-native';
-import { colors, radii, spacing, typography } from '../../constants/theme';
+  AuthButton,
+  AuthError,
+  AuthField,
+  AuthInput,
+  AuthLink,
+  AuthPasswordInput,
+  AuthPhoneInput,
+  AuthSecondaryButton,
+  AuthShell,
+  AuthTitle,
+  authColors,
+} from './authShared';
+import { isValidUzPhone } from '../../utils/phone';
 
-// Normalise +998 XX XXX XX XX (with spaces) or plain 9-digit string to +998XXXXXXXXX
-function normalisePhone(raw) {
-  const digits = raw.replace(/\D/g, '');
-  if (digits.length === 9) return `+998${digits}`;
-  if (digits.length === 12 && digits.startsWith('998')) return `+${digits}`;
-  return raw.trim();
-}
-
-const PHONE_RE = /^\+998\d{9}$/;
+const GENDERS = [
+  { key: 'MALE', icon: 'human-male', labelKey: 'male' },
+  { key: 'FEMALE', icon: 'human-female', labelKey: 'female' },
+];
 
 /**
- * RegisterScreen
+ * RegisterScreen — two-step flow in the light card design:
+ *   Step 1 — account basics (name, phone, password)
+ *   Step 2 — "about you" questions (gender, age, height, weight) shown as
+ *            a slide-in modal-style step; all fields optional and editable later.
  *
  * Props:
  *   auth      — useAuth() object { register, isLoading, error }
  *   t         — translation function
- *   onLogin   — called on successful register OR on "have account" link
- *   onRegister — unused (kept for API symmetry)
+ *   onLogin   — called on "have account" link (successful register flips auth state)
  */
 export default function RegisterScreen({ auth, t, onLogin }) {
+  const [step, setStep] = useState(1);
+  const slide = useRef(new Animated.Value(0)).current;
+  const prevStep = useRef(1);
+
   const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phoneDigits, setPhoneDigits] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [showConfirm, setShowConfirm] = useState(false);
+  const [gender, setGender] = useState(null);
+  const [age, setAge] = useState('');
+  const [height, setHeight] = useState('');
+  const [weight, setWeight] = useState('');
   const [validationError, setValidationError] = useState(null);
 
-  async function handleRegister() {
+  useEffect(() => {
+    if (step === prevStep.current) return;
+    const direction = step > prevStep.current ? 1 : -1;
+    prevStep.current = step;
+    slide.setValue(direction * 48);
+    Animated.timing(slide, { toValue: 0, duration: 220, useNativeDriver: true }).start();
+  }, [step, slide]);
+
+  const errorText = validationError || (auth.error ? auth.error.message || t(auth.error.key) : null);
+
+  const parseBoundedInt = (raw, min, max) => {
+    if (!raw.trim()) return null; // optional
+    const value = Number(raw);
+    if (!Number.isInteger(value) || value < min || value > max) return NaN;
+    return value;
+  };
+
+  function validateStep1() {
+    if (!fullName.trim()) return t('fullName') + ': ?';
+    if (!isValidUzPhone(phoneDigits)) return t('phoneInvalid');
+    if (password.length < 6) return t('passwordShort');
+    if (password !== confirmPassword) return t('confirmPassword');
+    return null;
+  }
+
+  function handleNext() {
+    setValidationError(null);
+    const error = validateStep1();
+    if (error) return setValidationError(error);
+    setStep(2);
+  }
+
+  async function handleRegister(skipMeasurements = false) {
     setValidationError(null);
 
-    if (!fullName.trim()) {
-      setValidationError(t('fullName') + ' ' + t('confirmQuestion'));
-      return;
+    let ageValue = null;
+    let heightValue = null;
+    let weightValue = null;
+
+    if (!skipMeasurements) {
+      ageValue = parseBoundedInt(age, 1, 120);
+      heightValue = parseBoundedInt(height, 50, 250);
+      weightValue = parseBoundedInt(weight, 20, 300);
+      if ([ageValue, heightValue, weightValue].some(Number.isNaN)) {
+        return setValidationError(t('invalidValue'));
+      }
     }
 
-    const normPhone = normalisePhone(phone);
-    if (!PHONE_RE.test(normPhone)) {
-      setValidationError(t('phone') + ': +998XXXXXXXXX');
-      return;
-    }
-
-    if (password.length < 6) {
-      setValidationError(t('password') + ' min 6');
-      return;
-    }
-
-    if (password !== confirmPassword) {
-      setValidationError(t('confirmPassword'));
-      return;
-    }
-
-    const success = await auth.register(fullName.trim(), normPhone, password);
+    const success = await auth.register({
+      fullName: fullName.trim(),
+      phone: `+998${phoneDigits}`,
+      password,
+      ...(gender ? { gender } : {}),
+      ...(ageValue != null ? { age: ageValue } : {}),
+      ...(heightValue != null ? { height: heightValue } : {}),
+      ...(weightValue != null ? { weight: weightValue } : {}),
+    });
     if (success && onLogin) onLogin();
   }
 
-  const displayError = validationError || (auth.error ? t(auth.error) : null);
+  const stepContent =
+    step === 1 ? (
+      <View>
+        <AuthTitle title="FORMO" subtitle={t('register')} />
 
-  return (
-    <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        style={styles.flex}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-      >
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          {/* ─── Logo ───────────────────────────────────────────────────────── */}
-          <View style={styles.logoBlock}>
-            <Text style={styles.logoText}>FORMO</Text>
-          </View>
+        <View style={styles.progress}>
+          <View style={[styles.progressSeg, styles.progressActive]} />
+          <View style={styles.progressSeg} />
+        </View>
+        <Text style={styles.stepLabel}>{t('regStepAccount')}</Text>
 
-          {/* ─── Heading ─────────────────────────────────────────────────────── */}
-          <Text style={styles.title}>{t('register')}</Text>
-          <Text style={styles.subtitle}>{t('welcomeSub')}</Text>
-
-          {/* ─── Full name ───────────────────────────────────────────────────── */}
-          <View style={styles.fieldBlock}>
-            <Text style={styles.label}>{t('fullName')}</Text>
-            <TextInput
-              style={styles.input}
+        <AuthField label={t('fullName')} icon="account-outline">
+          {({ focused, setFocused }) => (
+            <AuthInput
               value={fullName}
               onChangeText={setFullName}
-              placeholder={t('fullName')}
-              placeholderTextColor={colors.muted}
+              placeholder={t('fullNamePlaceholder')}
               autoComplete="name"
               returnKeyType="next"
-              selectionColor={colors.accent}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
             />
-          </View>
+          )}
+        </AuthField>
 
-          {/* ─── Phone ───────────────────────────────────────────────────────── */}
-          <View style={styles.fieldBlock}>
-            <Text style={styles.label}>{t('phone')}</Text>
-            <TextInput
-              style={styles.input}
-              value={phone}
-              onChangeText={setPhone}
+        <AuthField label={t('phone')} icon="cellphone">
+          {({ focused, setFocused }) => (
+            <AuthPhoneInput
+              digits={phoneDigits}
+              onChangeDigits={setPhoneDigits}
               placeholder="+998 XX XXX XX XX"
-              placeholderTextColor={colors.muted}
-              keyboardType="phone-pad"
-              autoComplete="tel"
-              returnKeyType="next"
-              selectionColor={colors.accent}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
             />
-          </View>
+          )}
+        </AuthField>
 
-          {/* ─── Password ────────────────────────────────────────────────────── */}
-          <View style={styles.fieldBlock}>
-            <Text style={styles.label}>{t('password')}</Text>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={[styles.input, styles.inputFlex]}
-                value={password}
-                onChangeText={setPassword}
-                placeholder="••••••"
-                placeholderTextColor={colors.muted}
-                secureTextEntry={!showPassword}
-                autoComplete="new-password"
-                returnKeyType="next"
-                selectionColor={colors.accent}
-              />
+        <AuthField label={t('password')} icon="lock-outline">
+          {({ focused, setFocused }) => (
+            <AuthPasswordInput
+              value={password}
+              onChangeText={setPassword}
+              placeholder="••••••••"
+              autoComplete="new-password"
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+            />
+          )}
+        </AuthField>
+
+        <AuthField label={t('confirmPassword')} icon="lock-check-outline">
+          {({ focused, setFocused }) => (
+            <AuthPasswordInput
+              value={confirmPassword}
+              onChangeText={setConfirmPassword}
+              placeholder="••••••••"
+              autoComplete="new-password"
+              returnKeyType="done"
+              onSubmitEditing={handleNext}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+            />
+          )}
+        </AuthField>
+
+        <AuthError message={errorText} />
+
+        <AuthButton onPress={handleNext}>{t('next')}</AuthButton>
+
+        <AuthLink onPress={onLogin}>
+          <Text>{t('haveAccount')} </Text>
+          <Text style={styles.linkAccent}>{t('login')}</Text>
+        </AuthLink>
+      </View>
+    ) : (
+      <View>
+        <Text style={styles.aboutTitle}>{t('regAboutTitle')}</Text>
+        <Text style={styles.aboutSub}>{t('regAboutSub')}</Text>
+
+        <View style={styles.progress}>
+          <View style={styles.progressSeg} />
+          <View style={[styles.progressSeg, styles.progressActive]} />
+        </View>
+        <Text style={styles.stepLabel}>{t('regStepAbout')}</Text>
+
+        <Text style={styles.questionLabel}>{t('gender')}</Text>
+        <View style={styles.genderRow}>
+          {GENDERS.map(({ key, icon, labelKey }) => {
+            const selected = gender === key;
+            return (
               <Pressable
-                onPress={() => setShowPassword((v) => !v)}
-                style={styles.eyeButton}
-                hitSlop={8}
+                key={key}
+                onPress={() => setGender(selected ? null : key)}
+                style={[styles.genderCard, selected && styles.genderCardActive]}
               >
-                <Text style={styles.eyeIcon}>{showPassword ? '👁' : '🔒'}</Text>
+                <MaterialCommunityIcons
+                  name={icon}
+                  size={24}
+                  color={selected ? authColors.primary : authColors.muted}
+                />
+                <Text style={[styles.genderText, selected && styles.genderTextActive]}>
+                  {t(labelKey)}
+                </Text>
               </Pressable>
-            </View>
+            );
+          })}
+        </View>
+
+        <View style={styles.metricsRow}>
+          <View style={styles.metric}>
+            <AuthField label={t('age')} icon="calendar-outline">
+              {({ focused, setFocused }) => (
+                <AuthInput
+                  value={age}
+                  onChangeText={setAge}
+                  placeholder="25"
+                  keyboardType="number-pad"
+                  maxLength={3}
+                  onFocus={() => setFocused(true)}
+                  onBlur={() => setFocused(false)}
+                />
+              )}
+            </AuthField>
           </View>
-
-          {/* ─── Confirm password ────────────────────────────────────────────── */}
-          <View style={styles.fieldBlock}>
-            <Text style={styles.label}>{t('confirmPassword')}</Text>
-            <View style={styles.inputRow}>
-              <TextInput
-                style={[styles.input, styles.inputFlex]}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder="••••••"
-                placeholderTextColor={colors.muted}
-                secureTextEntry={!showConfirm}
-                autoComplete="new-password"
-                returnKeyType="done"
-                onSubmitEditing={handleRegister}
-                selectionColor={colors.accent}
-              />
-              <Pressable
-                onPress={() => setShowConfirm((v) => !v)}
-                style={styles.eyeButton}
-                hitSlop={8}
-              >
-                <Text style={styles.eyeIcon}>{showConfirm ? '👁' : '🔒'}</Text>
-              </Pressable>
-            </View>
+          <View style={styles.metric}>
+            <AuthField label={`${t('height')}, sm`} icon="ruler-height">
+              {({ focused, setFocused }) => (
+                <AuthInput
+                  value={height}
+                  onChangeText={setHeight}
+                  placeholder="178"
+                  keyboardType="number-pad"
+                  maxLength={3}
+                  onFocus={() => setFocused(true)}
+                  onBlur={() => setFocused(false)}
+                />
+              )}
+            </AuthField>
           </View>
+          <View style={styles.metric}>
+            <AuthField label={`${t('weight')}, kg`} icon="scale-bathroom">
+              {({ focused, setFocused }) => (
+                <AuthInput
+                  value={weight}
+                  onChangeText={setWeight}
+                  placeholder="76"
+                  keyboardType="number-pad"
+                  maxLength={3}
+                  onFocus={() => setFocused(true)}
+                  onBlur={() => setFocused(false)}
+                />
+              )}
+            </AuthField>
+          </View>
+        </View>
 
-          {/* ─── Validation / API error ──────────────────────────────────────── */}
-          {displayError ? (
-            <Text style={styles.errorText}>{displayError}</Text>
-          ) : null}
+        <Text style={styles.optionalNote}>{t('optionalNote')}</Text>
 
-          {/* ─── Register button ─────────────────────────────────────────────── */}
-          <Pressable
-            style={({ pressed }) => [
-              styles.button,
-              auth.isLoading && styles.buttonDisabled,
-              pressed && styles.buttonPressed,
-            ]}
-            onPress={handleRegister}
-            disabled={auth.isLoading}
-          >
-            {auth.isLoading ? (
-              <ActivityIndicator color={colors.accent} size="small" />
-            ) : (
-              <Text style={styles.buttonText}>{t('registerButton')}</Text>
-            )}
-          </Pressable>
+        <AuthError message={errorText} />
 
-          {/* ─── Login link ──────────────────────────────────────────────────── */}
-          <Pressable onPress={onLogin} style={styles.linkButton} hitSlop={8}>
-            <Text style={styles.linkText}>{t('haveAccount')}</Text>
-            <Text style={styles.linkAccent}> {t('login')}</Text>
-          </Pressable>
-        </ScrollView>
-      </KeyboardAvoidingView>
-    </SafeAreaView>
+        <View style={styles.actions}>
+          <View style={styles.backSlot}>
+            <AuthSecondaryButton onPress={() => setStep(1)}>{t('back')}</AuthSecondaryButton>
+          </View>
+          <View style={styles.nextSlot}>
+            <AuthButton onPress={() => handleRegister(false)} loading={auth.isLoading}>
+              {t('registerButton')}
+            </AuthButton>
+          </View>
+        </View>
+
+        <Pressable onPress={() => handleRegister(true)} style={styles.skip} hitSlop={8}>
+          <Text style={styles.skipText}>{t('skip')}</Text>
+        </Pressable>
+      </View>
+    );
+
+  return (
+    <AuthShell>
+      <Animated.View
+        style={{
+          opacity: slide.interpolate({ inputRange: [-48, 0, 48], outputRange: [0, 1, 0] }),
+          transform: [{ translateX: slide }],
+        }}
+      >
+        {stepContent}
+      </Animated.View>
+    </AuthShell>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
+  progress: { flexDirection: 'row', gap: 6, marginBottom: 8 },
+  progressSeg: { flex: 1, height: 4, borderRadius: 2, backgroundColor: '#e5e7eb' },
+  progressActive: { backgroundColor: authColors.primary },
+  stepLabel: { fontSize: 12, fontWeight: '600', color: authColors.muted, marginBottom: 18 },
+  aboutTitle: { fontSize: 22, fontWeight: '800', color: authColors.text, textAlign: 'center' },
+  aboutSub: {
+    fontSize: 13,
+    color: authColors.muted,
+    textAlign: 'center',
+    marginTop: 6,
+    marginBottom: 18,
+    lineHeight: 18,
+  },
+  questionLabel: { fontSize: 13, fontWeight: '600', color: authColors.muted, marginBottom: 8 },
+  genderRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
+  genderCard: {
     flex: 1,
-    backgroundColor: colors.background,
-  },
-  flex: {
-    flex: 1,
-  },
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: spacing.xl,
-    paddingTop: spacing.xxxl,
-    paddingBottom: spacing.xxxl,
-  },
-
-  // Logo
-  logoBlock: {
     alignItems: 'center',
-    marginBottom: spacing.xxl,
-  },
-  logoText: {
-    fontSize: 40,
-    fontWeight: '900',
-    letterSpacing: 6,
-    color: colors.accent,
-  },
-
-  // Heading
-  title: {
-    fontSize: typography.h1,
-    fontWeight: '800',
-    color: colors.text,
-    textAlign: 'center',
-    marginBottom: spacing.xs,
-  },
-  subtitle: {
-    fontSize: typography.body,
-    color: colors.muted,
-    textAlign: 'center',
-    marginBottom: spacing.xxl,
-  },
-
-  // Fields
-  fieldBlock: {
-    marginBottom: spacing.lg,
-  },
-  label: {
-    fontSize: typography.small,
-    fontWeight: '700',
-    color: colors.muted,
-    textTransform: 'uppercase',
-    letterSpacing: 0.8,
-    marginBottom: spacing.sm,
-  },
-  input: {
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderRadius: radii.md,
+    gap: 6,
     paddingVertical: 14,
-    paddingHorizontal: spacing.lg,
-    color: colors.text,
-    fontSize: typography.body,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: authColors.border,
+    backgroundColor: '#fff',
   },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  inputFlex: {
-    flex: 1,
-    borderTopRightRadius: 0,
-    borderBottomRightRadius: 0,
-    borderRightWidth: 0,
-  },
-  eyeButton: {
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderTopRightRadius: radii.md,
-    borderBottomRightRadius: radii.md,
-    paddingVertical: 14,
-    paddingHorizontal: spacing.md,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  eyeIcon: {
-    fontSize: 16,
-  },
-
-  // Error
-  errorText: {
-    color: '#E8543F',
-    fontSize: typography.small,
-    fontWeight: '600',
-    marginBottom: spacing.md,
+  genderCardActive: { borderColor: authColors.primary, backgroundColor: '#eff6ff' },
+  genderText: { fontSize: 13, fontWeight: '600', color: authColors.muted },
+  genderTextActive: { color: authColors.primary },
+  metricsRow: { flexDirection: 'row', gap: 10 },
+  metric: { flex: 1 },
+  optionalNote: {
+    fontSize: 12,
+    color: authColors.icon,
     textAlign: 'center',
+    marginTop: 4,
+    marginBottom: 14,
   },
-
-  // Button
-  button: {
-    backgroundColor: '#0E1330',
-    borderWidth: 1.5,
-    borderColor: colors.accent,
-    borderRadius: radii.md,
-    paddingVertical: 16,
-    alignItems: 'center',
-    marginBottom: spacing.lg,
-  },
-  buttonDisabled: {
-    opacity: 0.5,
-  },
-  buttonPressed: {
-    opacity: 0.75,
-  },
-  buttonText: {
-    color: colors.accent,
-    fontWeight: '800',
-    fontSize: typography.body,
-    letterSpacing: 0.5,
-  },
-
-  // Link
-  linkButton: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    paddingVertical: spacing.sm,
-  },
-  linkText: {
-    color: colors.muted,
-    fontSize: typography.body,
-  },
-  linkAccent: {
-    color: colors.accent,
-    fontWeight: '700',
-    fontSize: typography.body,
-  },
+  actions: { flexDirection: 'row', gap: 10 },
+  backSlot: { width: 110 },
+  nextSlot: { flex: 1 },
+  skip: { alignItems: 'center', marginTop: 10, paddingVertical: 6 },
+  skipText: { color: authColors.muted, fontSize: 13, fontWeight: '600' },
+  linkAccent: { color: authColors.primary, fontWeight: '700', fontSize: 14 },
 });

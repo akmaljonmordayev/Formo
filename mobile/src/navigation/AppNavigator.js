@@ -123,7 +123,9 @@ export default function AppNavigator({ store, t, auth }) {
       />
     );
 
-  const hideTabs = ['product', 'settings', 'studio'].includes(route);
+  // Tab bar stays visible everywhere in the main app (including the design
+  // studio — only full-screen detail/settings pages hide it).
+  const hideTabs = ['product', 'settings'].includes(route);
 
   return (
     <>

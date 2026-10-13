@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
-import { colors, radii, spacing } from '../constants/theme';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { colors, radii, spacing, TAB_BAR_HEIGHT } from '../constants/theme';
 import { colorOptions, products } from '../data/mockData';
 import { Button, Card, Header, Overline, Screen, Segment, formatMoney } from '../components/ui/Common';
 import { JerseyPreview } from '../components/ui/JerseyPreview';
@@ -183,7 +184,8 @@ export default function StudioScreen({ t, addToCart, cartCount, onOpenCart, onBa
 
   return (
     <Screen
-      contentStyle={{ paddingBottom: 130 }}
+      contentStyle={{ paddingBottom: 170 }}
+      footerStyle={{ bottom: TAB_BAR_HEIGHT }}
       footer={
         <View style={styles.footerBar}>
           <View>
@@ -246,7 +248,7 @@ export default function StudioScreen({ t, addToCart, cartCount, onOpenCart, onBa
       <View style={styles.panel}>{renderPanel()}</View>
 
       <Card style={styles.ar}>
-        <Text style={styles.arIcon}>⌾</Text>
+        <MaterialCommunityIcons name="cube-scan" size={24} color={colors.teal} />
         <View style={{ flex: 1 }}>
           <Text style={styles.arTitle}>{t('arTitle')}</Text>
           <Text style={styles.arText}>{t('arSub')}</Text>
@@ -255,7 +257,8 @@ export default function StudioScreen({ t, addToCart, cartCount, onOpenCart, onBa
 
       {cartCount > 0 ? (
         <Pressable onPress={onOpenCart} style={styles.cartLink}>
-          <Text style={styles.cartLinkText}>{t('openCart')} · {cartCount} {t('items')} →</Text>
+          <Text style={styles.cartLinkText}>{t('openCart')} · {cartCount} {t('items')}</Text>
+          <MaterialCommunityIcons name="chevron-right" size={16} color={colors.accent} />
         </Pressable>
       ) : null}
     </Screen>
@@ -370,10 +373,9 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(63, 217, 183, 0.35)',
     backgroundColor: 'rgba(63, 217, 183, 0.06)',
   },
-  arIcon: { color: colors.teal, fontSize: 24 },
   arTitle: { color: colors.text, fontWeight: '800', fontSize: 13 },
   arText: { color: colors.muted, fontSize: 11, marginTop: 3 },
-  cartLink: { alignItems: 'center', paddingVertical: spacing.lg },
+  cartLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, paddingVertical: spacing.lg },
   cartLinkText: { color: colors.accent, fontSize: 12, fontWeight: '800' },
   footerBar: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   footerLabel: { color: colors.muted, fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },

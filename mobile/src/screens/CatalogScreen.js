@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
 import { clubs, products } from '../data/mockData';
 import { Header, Screen, SectionTitle } from '../components/ui/Common';
@@ -27,7 +28,7 @@ export default function CatalogScreen({ t, favorites, onToggleFavorite, onProduc
       <Header title={t('catalog')} subtitle={t('catalogSub')} />
 
       <View style={styles.search}>
-        <Text style={styles.icon}>⌕</Text>
+        <MaterialCommunityIcons name="magnify" size={20} color={colors.muted} />
         <TextInput
           value={query}
           onChangeText={setQuery}
@@ -105,9 +106,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.md,
     marginBottom: spacing.md,
   },
-  icon: { color: colors.muted, fontSize: 20 },
-  input: { flex: 1, color: colors.text, marginLeft: spacing.sm, fontSize: 14 },
-  filters: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, flexWrap: 'wrap' },
+  input: { flex: 1, color: colors.text, marginLeft: spacing.sm, fontSize: 14 },  filters: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, flexWrap: 'wrap' },
   filter: {
     paddingHorizontal: spacing.md,
     paddingVertical: 8,

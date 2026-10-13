@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../services/api';
-import { orders as mockOrders } from '../../data/mockData';
 
 /**
  * Provides the current user's order list plus order creation.
- * Initial load falls back to mock data on any error (including 404).
+ * Data comes from the live API only — no mock fallback; when the orders
+ * endpoint is unavailable the list stays empty and `error` is set so the UI
+ * can show an honest empty state.
  * createOrder() throws to the caller on failure so the UI can show inline errors.
  *
  * @returns {{ orders: object[], isLoading: boolean, error: Error|null, createOrder: (payload: object) => Promise<object>, refetch: () => void }}
@@ -19,11 +20,11 @@ export default function useOrders() {
     setError(null);
     try {
       const data = await api.orders.list();
-      setOrders(data || mockOrders);
+      setOrders(Array.isArray(data) ? data : []);
     } catch (err) {
-      // API not yet deployed — silently fall back to mock data
+      // Endpoint not yet deployed (or network down) — show empty, keep the error
       setError(err instanceof Error ? err : new Error(String(err)));
-      setOrders(mockOrders);
+      setOrders([]);
     } finally {
       setIsLoading(false);
     }

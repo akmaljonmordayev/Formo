@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
 import useCart from '../features/cart';
 import { Button, Card, Header, Screen, formatMoney } from '../components/ui/Common';
@@ -7,6 +8,7 @@ import { JerseyPreview } from '../components/ui/JerseyPreview';
 
 export default function CartScreen({ cart: cartProp, addToCart, removeFromCart, clearCart, t, onBack, onNavigate }) {
   const [promo, setPromo] = useState('');
+  const [promoNote, setPromoNote] = useState(null);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
 
@@ -15,6 +17,8 @@ export default function CartScreen({ cart: cartProp, addToCart, removeFromCart, 
 
   const applyPromo = () => {
     // Promo code feature placeholder — backend integration pending
+    setPromoNote(t('promoDemo'));
+    setTimeout(() => setPromoNote(null), 2500);
   };
 
   const handleCheckout = async () => {
@@ -38,7 +42,7 @@ export default function CartScreen({ cart: cartProp, addToCart, removeFromCart, 
       <Header title={t('cart')} right={<Text style={styles.count}>{cart.length} {t('pcs')}</Text>} />
       {cart.length === 0 ? (
         <Card style={styles.empty}>
-          <Text style={styles.emptyIcon}>＋</Text>
+          <MaterialCommunityIcons name="cart-outline" size={42} color={colors.accent} />
           <Text style={styles.emptyTitle}>{t('emptyCart')}</Text>
           <Text style={styles.emptyText}>{t('emptyCartSub')}</Text>
           <Button onPress={onBack} style={styles.emptyButton}>{t('goStudio')}</Button>
@@ -57,7 +61,7 @@ export default function CartScreen({ cart: cartProp, addToCart, removeFromCart, 
                   <Text style={styles.price}>{formatMoney(item.price)}</Text>
                 </View>
                 <Pressable onPress={() => removeFromCart(index)} style={styles.remove} hitSlop={6}>
-                  <Text style={styles.removeText}>×</Text>
+                  <MaterialCommunityIcons name="close" size={18} color={colors.muted} />
                 </Pressable>
               </View>
             ))}
@@ -76,6 +80,8 @@ export default function CartScreen({ cart: cartProp, addToCart, removeFromCart, 
               <Text style={styles.promoApply}>{t('promoApply')}</Text>
             </Pressable>
           </View>
+
+          {promoNote ? <Text style={styles.promoNote}>{promoNote}</Text> : null}
 
           <Card style={styles.summary}>
             <Row label={t('products')} value={formatMoney(total)} />
@@ -113,7 +119,6 @@ function Row({ label, value, strong }) {
 const styles = StyleSheet.create({
   count: { color: colors.muted, fontSize: 13, fontWeight: '700' },
   empty: { alignItems: 'center', marginTop: spacing.xxxl },
-  emptyIcon: { color: colors.accent, fontSize: 42 },
   emptyTitle: { color: colors.text, fontSize: 20, fontWeight: '800', marginTop: spacing.md },
   emptyText: { color: colors.muted, textAlign: 'center', lineHeight: 20, marginTop: spacing.sm },
   emptyButton: { marginTop: spacing.xl, alignSelf: 'stretch' },
@@ -151,7 +156,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  removeText: { color: colors.muted, fontSize: 20, lineHeight: 22 },
   promo: {
     height: 48,
     borderRadius: radii.md,
@@ -161,10 +165,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: spacing.lg,
-    marginBottom: spacing.lg,
+    marginBottom: spacing.sm,
   },
   promoInput: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '700' },
   promoApply: { color: colors.accent, fontSize: 12, fontWeight: '800' },
+  promoNote: { color: colors.muted, fontSize: 11, marginBottom: spacing.lg, textAlign: 'center' },
   summary: { gap: spacing.md, marginBottom: spacing.lg },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   rowLabel: { color: colors.muted, fontSize: 13 },
