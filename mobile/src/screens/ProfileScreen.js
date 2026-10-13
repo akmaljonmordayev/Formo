@@ -1,21 +1,32 @@
 import React from 'react';
-import { Alert, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, spacing } from '../constants/theme';
 import { profile } from '../data/mockData';
 import { Button, Card, Header, Screen } from '../components/ui/Common';
 
-export default function ProfileScreen({ t, onSettings, onOrders }) {
+export default function ProfileScreen({ t, onSettings, onOrders, auth }) {
+  // Prefer authenticated user data; fall back to mock profile
+  const name = auth?.user?.fullName || profile.name;
+  const phone = auth?.user?.phone || profile.phone;
+  const avatarInitial = (auth?.user?.fullName || 'A')[0].toUpperCase();
+
+  const handleLogout = () => {
+    if (auth?.logout) {
+      auth.logout();
+    }
+  };
+
   return (
     <Screen>
       <Header title={t('myProfile')} right={<View style={styles.avatarSquare} />} />
 
       <Card style={styles.profile}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>A</Text>
+          <Text style={styles.avatarText}>{avatarInitial}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{profile.name}</Text>
-          <Text style={styles.phone}>{profile.phone}</Text>
+          <Text style={styles.name}>{name}</Text>
+          <Text style={styles.phone}>{phone}</Text>
         </View>
       </Card>
 
@@ -43,7 +54,7 @@ export default function ProfileScreen({ t, onSettings, onOrders }) {
       <Button
         variant="secondary"
         style={styles.logout}
-        onPress={() => Alert.alert(t('logout'), t('logoutDemo'))}
+        onPress={handleLogout}
       >
         {t('logout')}
       </Button>

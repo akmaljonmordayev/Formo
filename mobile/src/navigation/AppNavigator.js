@@ -71,7 +71,7 @@ export default function AppNavigator({ store, t, auth }) {
   // ─── 3. Main app ─────────────────────────────────────────────────────────────
   const content =
     route === 'home' ? (
-      <HomeScreen t={t} onNavigate={navigate} onProduct={openProduct} />
+      <HomeScreen t={t} onNavigate={navigate} onProduct={openProduct} auth={auth} />
     ) : route === 'catalog' ? (
       <CatalogScreen
         t={t}
@@ -94,6 +94,7 @@ export default function AppNavigator({ store, t, auth }) {
         removeFromCart={store.removeFromCart}
         clearCart={store.clearCart}
         onBack={() => navigate('studio')}
+        onNavigate={navigate}
       />
     ) : route === 'orders' ? (
       <OrdersScreen t={t} />
@@ -110,6 +111,7 @@ export default function AppNavigator({ store, t, auth }) {
         language={store.language}
         setLanguage={store.setLanguage}
         onBack={() => navigate('profile')}
+        auth={auth}
       />
     ) : (
       <ProductScreen

@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { colors, radii, spacing } from '../constants/theme';
 import { languageOptions } from '../i18n';
+import { setItem } from '../utils/storage';
 import { Button, Header, Overline, Screen } from '../components/ui/Common';
 
 const LANGUAGE_SUBS = {
@@ -10,14 +11,34 @@ const LANGUAGE_SUBS = {
   en: { uz: 'Uzbek · Latin', ru: 'Russian · Cyrillic', en: 'English · Latin' },
 };
 
-export default function SettingsScreen({ language, setLanguage, t, onBack }) {
+export default function SettingsScreen({ language, setLanguage, t, onBack, auth }) {
   const [notif, setNotif] = useState({ orders: true, sms: true, promo: false });
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
   const toggle = (key) => setNotif((current) => ({ ...current, [key]: !current[key] }));
   const rows = [
     ['orders', t('notifOrders'), t('notifOrdersSub')],
     ['sms', t('notifSms'), t('notifSmsSub')],
     ['promo', t('notifPromo'), t('notifPromoSub')],
   ];
+
+  const handleSetLanguage = (code) => {
+    setLanguage(code);
+    setItem('formo_language', code);
+  };
+
+  const handleDeletePress = () => {
+    if (confirmDelete) {
+      // Second press — confirmed
+      setConfirmDelete(false);
+      if (auth?.logout) {
+        auth.logout();
+      }
+    } else {
+      // First press — ask for confirmation
+      setConfirmDelete(true);
+    }
+  };
 
   return (
     <Screen>
@@ -28,7 +49,7 @@ export default function SettingsScreen({ language, setLanguage, t, onBack }) {
         {languageOptions.map((option) => (
           <Pressable
             key={option.code}
-            onPress={() => setLanguage(option.code)}
+            onPress={() => handleSetLanguage(option.code)}
             style={[styles.option, language === option.code && styles.selected]}
           >
             <View style={{ flex: 1 }}>
@@ -62,9 +83,9 @@ export default function SettingsScreen({ language, setLanguage, t, onBack }) {
       <Button
         variant="danger"
         style={styles.deleteButton}
-        onPress={() => Alert.alert(t('deleteAccount'), t('deleteDemo'))}
+        onPress={handleDeletePress}
       >
-        {t('deleteAccount')}
+        {confirmDelete ? t('confirmQuestion') : t('deleteAccount')}
       </Button>
 
       <Text style={styles.version}>{t('version')}</Text>

@@ -1,20 +1,35 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, spacing } from '../constants/theme';
-import { clubs, orders, products } from '../data/mockData';
+import { clubs } from '../data/mockData';
 import { Button, Header, Screen, SectionTitle } from '../components/ui/Common';
 import { JerseyPreview } from '../components/ui/JerseyPreview';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
+import useOrders from '../features/orders';
+import useProducts from '../features/products';
 
-export default function HomeScreen({ t, onNavigate, onProduct }) {
-  const order = orders[0];
+export default function HomeScreen({ t, onNavigate, onProduct, auth }) {
+  const { orders, isLoading: ordersLoading } = useOrders();
+  const { products: apiProducts, isLoading: productsLoading } = useProducts();
+
+  // Safe fallback — never crash on an empty orders array
+  const order = orders[0] || { id: '—', status: 'production' };
   const orderStatus = order.status === 'production' ? t('production') : t('delivered');
+
+  // Greeting uses the authenticated user's name when available
+  const greeting = auth?.user?.fullName ? auth.user.fullName : t('hello');
+
+  // Products with fallback
+  const heroProduct = (apiProducts && apiProducts.length > 0) ? apiProducts[0] : null;
+
   const openClub = (club) => {
-    const product = products.find((item) => item.id === club.product);
+    const product = apiProducts.find((item) => item.id === club.product);
     if (product) onProduct(product);
   };
+
   return (
     <Screen>
-      <Header overline={t('goodDay')} title={t('hello')} right={<View style={styles.avatar} />} />
+      <Header overline={t('goodDay')} title={greeting} right={<View style={styles.avatar} />} />
 
       <View style={styles.hero}>
         <View style={styles.heroCopy}>
@@ -23,14 +38,22 @@ export default function HomeScreen({ t, onNavigate, onProduct }) {
           <Button small onPress={() => onNavigate('studio')} style={styles.heroButton}>{t('startShort')}</Button>
         </View>
         <View style={styles.heroJersey}>
-          <JerseyPreview product={products[0]} number="10" />
+          {heroProduct ? (
+            <JerseyPreview product={heroProduct} number="10" />
+          ) : null}
         </View>
       </View>
 
       <Pressable style={styles.track} onPress={() => onNavigate('orders')}>
         <View style={styles.trackCopy}>
-          <Text style={styles.trackId}>{order.id}</Text>
-          <Text style={styles.trackStatus}>{orderStatus}</Text>
+          {ordersLoading ? (
+            <LoadingSpinner size="small" />
+          ) : (
+            <>
+              <Text style={styles.trackId}>{order.id}</Text>
+              <Text style={styles.trackStatus}>{orderStatus}</Text>
+            </>
+          )}
         </View>
         <Text style={styles.trackAction}>{t('track')}</Text>
       </Pressable>

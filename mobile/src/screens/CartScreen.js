@@ -1,14 +1,48 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, radii, spacing } from '../constants/theme';
+import { api } from '../services/api';
 import { Button, Card, Header, Screen, formatMoney } from '../components/ui/Common';
 import { JerseyPreview } from '../components/ui/JerseyPreview';
 
-export default function CartScreen({ cart, removeFromCart, clearCart, t, onBack }) {
+export default function CartScreen({ cart, removeFromCart, clearCart, t, onBack, onNavigate }) {
   const [promo, setPromo] = useState('');
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutError, setCheckoutError] = useState(null);
+
   const total = cart.reduce((sum, item) => sum + item.price, 0);
-  const checkout = () => Alert.alert(t('checkout'), t('mockCheckout'));
-  const applyPromo = () => Alert.alert(t('promoApply'), t('promoDemo'));
+
+  const applyPromo = () => {
+    // Promo code feature placeholder — backend integration pending
+  };
+
+  const handleCheckout = async () => {
+    setCheckoutLoading(true);
+    setCheckoutError(null);
+    try {
+      const payload = {
+        items: cart.map((item) => ({
+          productId: item.id,
+          name: item.name,
+          customName: item.customName,
+          customNumber: item.customNumber,
+          price: item.price,
+          color: item.color,
+        })),
+        total,
+      };
+      await api.orders.create(payload);
+      clearCart();
+      if (onNavigate) {
+        onNavigate('orders');
+      }
+    } catch (err) {
+      const msg = err?.message || t('networkError');
+      setCheckoutError(msg);
+    } finally {
+      setCheckoutLoading(false);
+    }
+  };
 
   return (
     <Screen>
@@ -61,7 +95,14 @@ export default function CartScreen({ cart, removeFromCart, clearCart, t, onBack 
             <Row label={t('total')} value={formatMoney(total)} strong />
           </Card>
 
-          <Button onPress={checkout}>{t('checkout')}</Button>
+          <Button onPress={checkoutLoading ? undefined : handleCheckout}>
+            {checkoutLoading ? t('loggingIn') : t('checkout')}
+          </Button>
+
+          {checkoutError ? (
+            <Text style={styles.checkoutError}>{checkoutError}</Text>
+          ) : null}
+
           <Pressable onPress={clearCart} style={styles.clear}>
             <Text style={styles.clearText}>{t('clearCart')}</Text>
           </Pressable>
@@ -142,6 +183,7 @@ const styles = StyleSheet.create({
   strongLabel: { color: colors.text, fontSize: 15, fontWeight: '800' },
   strong: { color: colors.text, fontSize: 17, fontWeight: '900' },
   divider: { borderTopWidth: 1, borderTopColor: '#171C3F' },
+  checkoutError: { color: '#E8543F', fontSize: 12, textAlign: 'center', marginTop: spacing.sm },
   clear: { alignItems: 'center', padding: spacing.lg },
   clearText: { color: colors.muted, fontSize: 12 },
 });
