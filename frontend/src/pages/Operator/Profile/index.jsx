@@ -1,36 +1,37 @@
 import { Link } from 'react-router-dom';
 import { CheckCircle2, CircleDot, Inbox, Phone, Settings } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
-import { ROLE_LABELS } from '../../../constants/roles';
 import { prettyPhone } from '../../../features/accounts/accountsApi';
 import { formatDateTime, initials, useOperator } from '../prefs';
+import { useT } from '../i18n';
 
 export default function OperatorProfile() {
   const { user, role } = useAuth();
   const { loginAt } = useOperator();
-  const name = user?.fullName || 'Operator';
+  const t = useT();
+  const name = user?.fullName || t('role.OPERATOR');
 
   // Buyurtmalar API hali yo'q — raqamlar ulanganda to'ladi
   const stats = [
-    { label: 'Menga biriktirilgan', value: '—', icon: Inbox },
-    { label: 'Hal qilingan', value: '—', icon: CheckCircle2 },
-    { label: 'Ochiq', value: '—', icon: CircleDot },
+    { label: t('profile.assigned'), value: '—', icon: Inbox },
+    { label: t('profile.resolved'), value: '—', icon: CheckCircle2 },
+    { label: t('profile.open'), value: '—', icon: CircleDot },
   ];
 
   return (
     <>
       <div className="op-ph">
         <div>
-          <h1>Profil</h1>
-          <p>Operator panelidagi hisobingiz</p>
+          <h1>{t('menu.profile')}</h1>
+          <p>{t('profile.subtitle')}</p>
         </div>
         <Link to="/operator/settings" className="op-b">
           <Settings size={15} strokeWidth={1.8} aria-hidden="true" />
-          Sozlamalar
+          {t('menu.settings')}
         </Link>
       </div>
 
-      <section className="op-cd op-hero" aria-label="Hisob ma'lumotlari">
+      <section className="op-cd op-hero" aria-label={t('profile.info')}>
         <span className="op-av" style={{ width: 72, height: 72, fontSize: 24 }} aria-hidden="true">
           {initials(name)}
         </span>
@@ -42,24 +43,24 @@ export default function OperatorProfile() {
           </div>
         </div>
         <dl className="op-kv">
-          <dt>Rol</dt>
+          <dt>{t('profile.role')}</dt>
           <dd>
-            <b style={{ fontWeight: 600 }}>{ROLE_LABELS[role] ?? 'Operator'}</b>
+            <b style={{ fontWeight: 600 }}>{t(`role.${role}`)}</b>
           </dd>
-          <dt>Jamoa</dt>
-          <dd>Formo operatorlari</dd>
-          <dt>Status</dt>
+          <dt>{t('profile.team')}</dt>
+          <dd>{t('team')}</dd>
+          <dt>{t('profile.status')}</dt>
           <dd>
-            <span className="op-bd is-ok">Online</span>
+            <span className="op-bd is-ok">{t('online')}</span>
           </dd>
-          <dt>Oxirgi kirish</dt>
-          <dd>{formatDateTime(loginAt)}</dd>
-          <dt>Ro‘yxatdan o‘tgan</dt>
-          <dd>{formatDateTime(user?.createdAt)}</dd>
+          <dt>{t('profile.lastLogin')}</dt>
+          <dd>{formatDateTime(loginAt, t.locale)}</dd>
+          <dt>{t('profile.registered')}</dt>
+          <dd>{formatDateTime(user?.createdAt, t.locale)}</dd>
         </dl>
       </section>
 
-      <h2>Statistika</h2>
+      <h2>{t('profile.stats')}</h2>
       <div className="op-st3">
         {stats.map(({ label, value, icon: Icon }) => (
           <div key={label}>
@@ -68,13 +69,13 @@ export default function OperatorProfile() {
               {label}
             </span>
             <b>{value}</b>
-            <small className="op-sub">Buyurtmalar moduli ulanganda hisoblanadi</small>
+            <small className="op-sub">{t('profile.statsHint')}</small>
           </div>
         ))}
       </div>
 
       <p className="op-sub" style={{ marginTop: 14 }}>
-        Ism va telefon raqamini superadmin o‘zgartiradi. Superadmin boshqaruvlari bu rolda mavjud emas.
+        {t('profile.note')}
       </p>
     </>
   );

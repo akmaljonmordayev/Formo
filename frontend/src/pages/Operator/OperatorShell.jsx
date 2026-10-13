@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { Bell, LogOut, Menu, PanelLeft, Settings, UserRound } from 'lucide-react';
+import { Bell, LogOut, Menu, PanelLeft, Scissors, Settings, UserRound } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { ROLE_LABELS } from '../../constants/roles';
+import { LANGS, LOCALES, translate } from './i18n';
 import {
   OperatorContext,
   forgetLogin,
@@ -16,7 +16,8 @@ import {
 import '../../components/ui/ui.css';
 import './operator.css';
 
-const FONT_HREF = 'https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap';
+const FONT_HREF =
+  'https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500;700&family=Manrope:wght@400;500;600;700;800&family=Unbounded:wght@700;800&display=swap';
 
 // Operator uchun alohida layout: guruhlangan sidebar + faqat bildirishnoma va avatar bor header
 export default function OperatorShell({ menu }) {
@@ -102,9 +103,17 @@ export default function OperatorShell({ menu }) {
   );
 
   const context = useMemo(() => ({ prefs, savePrefs, loginAt, toast }), [prefs, savePrefs, loginAt, toast]);
-  const name = user?.fullName || 'Operator';
-  const roleLabel = ROLE_LABELS[role] ?? 'Operator';
+  const t = (key) => translate(prefs.lang, key);
+  const name = user?.fullName || t('role.OPERATOR');
+  const roleLabel = t(`role.${role}`);
   const theme = prefs.theme === 'system' ? undefined : prefs.theme;
+  const today = new Date().toLocaleDateString(LOCALES[prefs.lang] ?? LOCALES.uz, {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+  });
+  // Til darhol qo'llanadi va saqlanadi — Sozlamalarda "Saqlash"ni kutmaydi
+  const setLang = (lang) => savePrefs({ ...prefs, lang });
 
   return (
     <OperatorContext.Provider value={context}>
@@ -113,51 +122,55 @@ export default function OperatorShell({ menu }) {
         data-theme={theme}
         lang={prefs.lang}
       >
-        <aside className="op-sb" aria-label="Asosiy menyu">
+        <aside className="op-sb" aria-label={t('shell.mainMenu')}>
           <div className="op-logo">
-            <i aria-hidden="true">F</i>
+            <i aria-hidden="true">
+              <Scissors size={16} strokeWidth={2.2} />
+            </i>
             <span>
               FORMO
-              <small>Operator paneli</small>
+              <small>{t('shell.panel')}</small>
             </span>
           </div>
 
           {groups.map(({ title, items }) => (
             <div key={title ?? 'main'}>
-              {title && <div className="op-gl">{title}</div>}
+              {title && <div className="op-gl">{t(title)}</div>}
               {items.map(({ to, label, end, icon: Icon }) => (
                 <NavLink
                   key={to}
                   to={to}
                   end={end}
-                  title={label}
+                  title={t(label)}
                   className={({ isActive }) => `op-ni${isActive ? ' is-on' : ''}`}
                 >
                   {Icon && <Icon size={16} strokeWidth={1.8} aria-hidden="true" />}
-                  <span className="op-lb">{label}</span>
+                  <span className="op-lb">{t(label)}</span>
                 </NavLink>
               ))}
             </div>
           ))}
 
           <div className="op-sp" />
-          <button type="button" className="op-ni op-cmb" onClick={toggleCollapsed} title="Yig'ish">
+          <button type="button" className="op-ni op-cmb" onClick={toggleCollapsed} title={t(collapsed ? 'shell.expand' : 'shell.collapse')}>
             <PanelLeft size={16} strokeWidth={1.8} aria-hidden="true" />
-            <span className="op-lb">{collapsed ? 'Yoyish' : "Yig'ish"}</span>
+            <span className="op-lb">{t(collapsed ? 'shell.expand' : 'shell.collapse')}</span>
           </button>
-          <div className="op-me">
-            <span className="op-av" style={{ width: 30, height: 30, fontSize: 11 }} aria-hidden="true">
-              {initials(name)}
-            </span>
-            <div>
-              <b>{name}</b>
-              <span>{roleLabel}</span>
+          <div className="op-mecd">
+            <div className="op-me">
+              <span className="op-av" style={{ width: 34, height: 34, fontSize: 12 }} aria-hidden="true">
+                {initials(name)}
+              </span>
+              <div>
+                <b>{name}</b>
+                <span>{roleLabel}</span>
+              </div>
             </div>
+            <button type="button" className="op-ni op-out" onClick={handleLogout} disabled={leaving} title={t('shell.logout')}>
+              <LogOut size={16} strokeWidth={1.8} aria-hidden="true" />
+              <span className="op-lb">{t(leaving ? 'shell.loggingOut' : 'shell.logout')}</span>
+            </button>
           </div>
-          <button type="button" className="op-ni" onClick={handleLogout} disabled={leaving} title="Chiqish">
-            <LogOut size={16} strokeWidth={1.8} aria-hidden="true" />
-            <span className="op-lb">{leaving ? 'Chiqilmoqda...' : 'Chiqish'}</span>
-          </button>
         </aside>
         <div className="op-ov" onClick={() => setDrawer(false)} aria-hidden="true" />
 
@@ -167,16 +180,33 @@ export default function OperatorShell({ menu }) {
               type="button"
               className="op-b is-ic op-mbtn"
               onClick={() => setDrawer(true)}
-              aria-label="Menyuni ochish"
+              aria-label={t('shell.openMenu')}
               aria-expanded={drawer}
             >
               <Menu size={16} strokeWidth={1.8} />
             </button>
             <div className="op-crumb">
-              Operator / <b>{current?.label ?? 'Dashboard'}</b>
+              <small>{today}</small>
+              <b>{t(current?.label ?? 'menu.dashboard')}</b>
             </div>
 
-            <Link to="/operator/notifications" className="op-b is-ic" aria-label="Bildirishnomalar">
+            <div className="op-lang" role="radiogroup" aria-label={t('shell.lang')}>
+              {LANGS.map((l) => (
+                <button
+                  key={l.value}
+                  type="button"
+                  role="radio"
+                  aria-checked={prefs.lang === l.value}
+                  title={l.label}
+                  className={prefs.lang === l.value ? 'is-on' : undefined}
+                  onClick={() => setLang(l.value)}
+                >
+                  {l.value.toUpperCase()}
+                </button>
+              ))}
+            </div>
+
+            <Link to="/operator/notifications" className="op-b is-ic is-rd" aria-label={t('menu.notifications')}>
               <Bell size={16} strokeWidth={1.8} />
             </Link>
 
@@ -185,11 +215,11 @@ export default function OperatorShell({ menu }) {
                 type="button"
                 className="op-avbtn"
                 onClick={() => setProfileMenu((v) => !v)}
-                aria-label="Profil menyusi"
+                aria-label={t('shell.profileMenu')}
                 aria-expanded={profileMenu}
                 aria-haspopup="menu"
               >
-                <span className="op-av" style={{ width: 34, height: 34, fontSize: 12 }}>
+                <span className="op-av" style={{ width: 38, height: 38, fontSize: 12 }}>
                   {initials(name)}
                 </span>
               </button>
@@ -197,21 +227,21 @@ export default function OperatorShell({ menu }) {
                 <div className="op-pop" role="menu">
                   <div className="op-pop-who">
                     <b>{name}</b>
-                    <div className="op-sub">{roleLabel} · Online</div>
+                    <div className="op-sub">{roleLabel} · {t('online')}</div>
                   </div>
                   <hr />
                   <Link to="/operator/profile" className="op-ni" role="menuitem">
                     <UserRound size={16} strokeWidth={1.8} aria-hidden="true" />
-                    Profil
+                    {t('menu.profile')}
                   </Link>
                   <Link to="/operator/settings" className="op-ni" role="menuitem">
                     <Settings size={16} strokeWidth={1.8} aria-hidden="true" />
-                    Sozlamalar
+                    {t('menu.settings')}
                   </Link>
                   <hr />
                   <button type="button" className="op-ni" role="menuitem" onClick={handleLogout} disabled={leaving}>
                     <LogOut size={16} strokeWidth={1.8} aria-hidden="true" />
-                    {leaving ? 'Chiqilmoqda...' : 'Chiqish'}
+                    {t(leaving ? 'shell.loggingOut' : 'shell.logout')}
                   </button>
                 </div>
               )}

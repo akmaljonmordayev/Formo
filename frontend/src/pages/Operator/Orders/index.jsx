@@ -1,10 +1,12 @@
 import { useState } from 'react';
 import { ShoppingBag } from 'lucide-react';
+import { useT } from '../i18n';
 
-const STATUSES = ['Barchasi', 'Yangi', 'Jarayonda', 'Tikilmoqda', 'Yetkazildi', 'Bekor qilingan'];
+const STATUSES = ['all', 'new', 'progress', 'sewing', 'delivered', 'cancelled'];
 
 // Buyurtmalar API hali yo'q: tuzilma tayyor, ma'lumot ulanganda jadval to'ladi
 export default function OperatorOrders() {
+  const t = useT();
   const [status, setStatus] = useState(STATUSES[0]);
   const [query, setQuery] = useState('');
 
@@ -12,8 +14,8 @@ export default function OperatorOrders() {
     <>
       <div className="op-ph">
         <div>
-          <h1>Buyurtmalar</h1>
-          <p>Mijozlar buyurtmalarini kuzatish va tikuv sexlariga yo‘naltirish</p>
+          <h1>{t('menu.orders')}</h1>
+          <p>{t('orders.subtitle')}</p>
         </div>
       </div>
 
@@ -23,10 +25,10 @@ export default function OperatorOrders() {
             type="search"
             className="op-in"
             style={{ flex: '1 1 220px', width: 'auto' }}
-            placeholder="Buyurtma raqami yoki mijoz bo‘yicha"
+            placeholder={t('orders.search')}
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            aria-label="Buyurtmalarni qidirish"
+            aria-label={t('orders.searchLabel')}
           />
           <div className="op-row is-w" style={{ gap: 6 }}>
             {STATUSES.map((s) => (
@@ -37,7 +39,7 @@ export default function OperatorOrders() {
                 onClick={() => setStatus(s)}
                 aria-pressed={status === s}
               >
-                {s}
+                {t(`orders.s.${s}`)}
               </button>
             ))}
           </div>
@@ -46,19 +48,19 @@ export default function OperatorOrders() {
           <table className="op-tb">
             <thead>
               <tr>
-                <th>Buyurtma</th>
-                <th>Mijoz</th>
-                <th>Tikuv sexi</th>
-                <th>Holat</th>
-                <th>Sana</th>
+                <th>{t('orders.col.order')}</th>
+                <th>{t('orders.col.client')}</th>
+                <th>{t('orders.col.workshop')}</th>
+                <th>{t('orders.col.status')}</th>
+                <th>{t('orders.col.date')}</th>
               </tr>
             </thead>
           </table>
         </div>
         <div className="op-em">
           <ShoppingBag size={28} aria-hidden="true" />
-          <h3>Buyurtmalar hali yo‘q</h3>
-          <p>Buyurtmalar moduli backendga ulanganda ro‘yxat shu yerda paydo bo‘ladi.</p>
+          <h3>{t('orders.empty')}</h3>
+          <p>{t('orders.emptyHint')}</p>
         </div>
       </section>
     </>
