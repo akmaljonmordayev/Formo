@@ -6,7 +6,7 @@ const LOGIN_KEY = 'formo_operator_login';
 const COLLAPSE_KEY = 'formo_operator_sidebar';
 
 export const DEFAULT_PREFS = {
-  theme: 'system', // system | light | dark
+  theme: 'dark', // system | light | dark — dizayn to'q fon uchun chizilgan
   lang: 'uz',
   notify: {
     newOrders: true,

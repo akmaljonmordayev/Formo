@@ -25,6 +25,12 @@ export default function OperatorSettings() {
   const setNotify = (key) => (e) =>
     setDraft((d) => ({ ...d, notify: { ...d.notify, [key]: e.target.checked } }));
 
+  // Til tanlanishi bilan qo'llanadi; qolgan sozlamalar "Saqlash"ni kutadi
+  const changeLang = (lang) => {
+    setDraft((d) => ({ ...d, lang }));
+    savePrefs({ ...prefs, lang });
+  };
+
   const save = () => {
     savePrefs(draft);
     // xabar yangi tanlangan tilda chiqadi
@@ -90,7 +96,7 @@ export default function OperatorSettings() {
             <h2 id="set-lang">{t('set.lang')}</h2>
             <label className="op-fld" style={{ marginBottom: 0 }}>
               <span>{t('set.langLabel')}</span>
-              <select value={draft.lang} onChange={(e) => setDraft((d) => ({ ...d, lang: e.target.value }))}>
+              <select value={draft.lang} onChange={(e) => changeLang(e.target.value)}>
                 {LANGS.map((l) => (
                   <option key={l.value} value={l.value}>
                     {l.label}
