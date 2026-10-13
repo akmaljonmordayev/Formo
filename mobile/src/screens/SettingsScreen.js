@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { colors, radii, spacing } from '../constants/theme';
 import { languageOptions } from '../i18n';
-import { setItem } from '../utils/storage';
 import { Button, Header, Overline, Screen } from '../components/ui/Common';
 
 const LANGUAGE_SUBS = {
@@ -23,8 +22,8 @@ export default function SettingsScreen({ language, setLanguage, t, onBack, auth 
   ];
 
   const handleSetLanguage = (code) => {
+    // setLanguage already persists to AsyncStorage via appStore.setLanguage()
     setLanguage(code);
-    setItem('formo_language', code);
   };
 
   const handleDeletePress = () => {

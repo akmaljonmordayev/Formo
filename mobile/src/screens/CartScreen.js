@@ -1,16 +1,17 @@
 import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { colors, radii, spacing } from '../constants/theme';
-import { api } from '../services/api';
+import useCart from '../features/cart';
 import { Button, Card, Header, Screen, formatMoney } from '../components/ui/Common';
 import { JerseyPreview } from '../components/ui/JerseyPreview';
 
-export default function CartScreen({ cart, removeFromCart, clearCart, t, onBack, onNavigate }) {
+export default function CartScreen({ cart: cartProp, addToCart, removeFromCart, clearCart, t, onBack, onNavigate }) {
   const [promo, setPromo] = useState('');
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutError, setCheckoutError] = useState(null);
 
-  const total = cart.reduce((sum, item) => sum + item.price, 0);
+  // Delegate cart logic and API call to the useCart hook
+  const { cart, total, checkout } = useCart({ cart: cartProp, addToCart, removeFromCart, clearCart });
 
   const applyPromo = () => {
     // Promo code feature placeholder — backend integration pending
@@ -20,19 +21,7 @@ export default function CartScreen({ cart, removeFromCart, clearCart, t, onBack,
     setCheckoutLoading(true);
     setCheckoutError(null);
     try {
-      const payload = {
-        items: cart.map((item) => ({
-          productId: item.id,
-          name: item.name,
-          customName: item.customName,
-          customNumber: item.customNumber,
-          price: item.price,
-          color: item.color,
-        })),
-        total,
-      };
-      await api.orders.create(payload);
-      clearCart();
+      await checkout();
       if (onNavigate) {
         onNavigate('orders');
       }

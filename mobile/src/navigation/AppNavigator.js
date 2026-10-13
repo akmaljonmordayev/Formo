@@ -91,6 +91,7 @@ export default function AppNavigator({ store, t, auth }) {
       <CartScreen
         t={t}
         cart={store.cart}
+        addToCart={store.addToCart}
         removeFromCart={store.removeFromCart}
         clearCart={store.clearCart}
         onBack={() => navigate('studio')}
