@@ -4,9 +4,10 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
 import { clubs, products } from '../data/mockData';
 import { Header, Screen, SectionTitle } from '../components/ui/Common';
+import CartButton from '../components/ui/CartButton';
 import { ProductCard } from '../components/ui/ProductCard';
 
-export default function CatalogScreen({ t, favorites, onToggleFavorite, onProduct }) {
+export default function CatalogScreen({ t, favorites, onToggleFavorite, onProduct, cartCount = 0, onCart }) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
   const categories = [['all', t('all')], ['football', t('football')], ['street', t('street')], ['kids', t('kids')]];
@@ -25,7 +26,11 @@ export default function CatalogScreen({ t, favorites, onToggleFavorite, onProduc
   };
   return (
     <Screen>
-      <Header title={t('catalog')} subtitle={t('catalogSub')} />
+      <Header
+        title={t('catalog')}
+        subtitle={t('catalogSub')}
+        right={<CartButton count={cartCount} onPress={onCart} t={t} />}
+      />
 
       <View style={styles.search}>
         <MaterialCommunityIcons name="magnify" size={20} color={colors.muted} />

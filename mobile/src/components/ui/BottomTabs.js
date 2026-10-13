@@ -11,7 +11,7 @@ const TABS = [
   { key: 'profile', label: 'profile', icon: 'account-outline',      iconActive: 'account' },
 ];
 
-export function BottomTabs({ active, onChange, cartCount, t }) {
+export function BottomTabs({ active, onChange, t }) {
   return (
     <View style={styles.root}>
       {TABS.map(({ key, label, icon, iconActive }) => {
@@ -24,11 +24,6 @@ export function BottomTabs({ active, onChange, cartCount, t }) {
                 size={22}
                 color={isActive ? colors.accent : '#7C86AE'}
               />
-              {key === 'catalog' && cartCount > 0 ? (
-                <View style={styles.dot}>
-                  <Text style={styles.dotText}>{cartCount}</Text>
-                </View>
-              ) : null}
             </View>
             <Text style={[styles.label, isActive && styles.activeLabel]}>{t(label)}</Text>
           </Pressable>
@@ -67,22 +62,5 @@ const styles = StyleSheet.create({
   activeLabel: {
     color: colors.accent,
     fontWeight: '700',
-  },
-  dot: {
-    position: 'absolute',
-    top: -4,
-    right: -9,
-    minWidth: 16,
-    height: 16,
-    borderRadius: 8,
-    paddingHorizontal: 4,
-    backgroundColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  dotText: {
-    color: colors.black,
-    fontSize: 9,
-    fontWeight: '900',
   },
 });

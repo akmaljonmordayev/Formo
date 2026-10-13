@@ -8,11 +8,13 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { isValidUzPhone } from '../../utils/phone';
+import LanguageSwitch from './LanguageSwitch';
 
 /**
  * RegisterScreen — two-step flow in the same dressing-room / hang-tag design
@@ -21,9 +23,11 @@ import { isValidUzPhone } from '../../utils/phone';
  *   Step 2 — "about you" questions (gender, age, height, weight), all optional.
  *
  * Props:
- *   auth    — useAuth() object { register, isLoading, error }
- *   t       — translation function
- *   onLogin — called on "have account" link / after successful register
+ *   auth       — useAuth() object { register, isLoading, error }
+ *   t          — translation function
+ *   language   — current language code (uz/ru/en)
+ *   onLanguage — change language
+ *   onLogin    — called on "have account" link / after successful register
  */
 
 const palette = {
@@ -68,7 +72,10 @@ function FieldInput({ t, secure, ...props }) {
   );
 }
 
-export default function RegisterScreen({ auth, t, onLogin }) {
+export default function RegisterScreen({ auth, t, language, onLanguage, onLogin }) {
+  const { height: windowHeight } = useWindowDimensions();
+  const compact = windowHeight < 760;
+
   const [step, setStep] = useState(1);
   const slide = useRef(new Animated.Value(0)).current;
   const prevStep = useRef(1);
@@ -159,20 +166,24 @@ export default function RegisterScreen({ auth, t, onLogin }) {
       <View style={[styles.glow, { backgroundColor: palette.orange, top: -90, right: -70, opacity: 0.12 }]} />
       <View style={[styles.glow, { backgroundColor: '#1D2F8C', bottom: -80, left: -70 }]} />
 
+      <View style={[styles.topBar, compact && styles.topBarCompact]}>
+        <View style={styles.brand}>
+          <Text style={styles.logo}>FORMO</Text>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{t('loginBrandBadge')}</Text>
+          </View>
+        </View>
+        <LanguageSwitch language={language} onChange={onLanguage} />
+      </View>
+
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={[styles.scroll, compact && styles.scrollCompact]}
           keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.brand}>
-            <Text style={styles.logo}>FORMO</Text>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{t('loginBrandBadge')}</Text>
-            </View>
-          </View>
-
-          <View style={styles.tagWrap}>
+          <View style={[styles.tagWrap, compact && styles.tagWrapCompact]}>
             <View style={styles.string} />
             <View style={styles.tag}>
               <View style={styles.tagHole} />
@@ -390,13 +401,22 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: palette.ink },
   flex: { flex: 1 },
   glow: { position: 'absolute', width: 380, height: 380, borderRadius: 190, opacity: 0.16 },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 26,
+    paddingBottom: 6,
+  },
+  topBarCompact: { paddingTop: 14 },
   scroll: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingHorizontal: 20,
-    paddingTop: 48,
-    paddingBottom: 40,
+    paddingTop: 10,
+    paddingBottom: 140,
   },
+  scrollCompact: { paddingTop: 4, paddingBottom: 130 },
 
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 4 },
   logo: { color: palette.paper, fontSize: 22, fontWeight: '800', letterSpacing: 1 },
@@ -410,7 +430,8 @@ const styles = StyleSheet.create({
   },
   badgeText: { color: palette.muted, fontSize: 11, fontWeight: '600', letterSpacing: 1.5, textTransform: 'uppercase' },
 
-  tagWrap: { marginTop: 40, alignItems: 'center', alignSelf: 'stretch' },
+  tagWrap: { marginTop: 32, alignItems: 'center', alignSelf: 'stretch' },
+  tagWrapCompact: { marginTop: 18 },
   string: {
     position: 'absolute',
     top: 0,

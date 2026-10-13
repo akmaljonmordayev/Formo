@@ -18,6 +18,50 @@ function toAuthError(err, fallbackKey) {
 }
 
 /**
+ * Backend hozircha profilni tahrirlash endpointini bermaydi (PATCH /auth/me → 404).
+ * Shuning uchun o'lchov maydonlari (gender/age/height/weight) qurilmada lokal
+ * saqlanadi va server javobiga "bo'shliqni to'ldiruvchi" qatlam sifatida qo'shiladi.
+ */
+const PROFILE_KEYS = ['gender', 'age', 'height', 'weight', 'address'];
+const overlayStorageKey = (id) => `formo_profile_overlay_${id}`;
+
+function applyOverlay(base, overlay) {
+  if (!base || !overlay) return base;
+  const merged = { ...base };
+  PROFILE_KEYS.forEach((key) => {
+    if (merged[key] == null && overlay[key] != null) merged[key] = overlay[key];
+  });
+  return merged;
+}
+
+async function readOverlay(id) {
+  if (!id) return null;
+  const raw = await storage.getItem(overlayStorageKey(id));
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw);
+  } catch {
+    return null;
+  }
+}
+
+async function writeOverlay(id, fields) {
+  if (!id) return null;
+  const current = (await readOverlay(id)) || {};
+  const next = { ...current };
+  PROFILE_KEYS.forEach((key) => {
+    if (fields[key] != null) next[key] = fields[key];
+  });
+  await storage.setItem(overlayStorageKey(id), JSON.stringify(next));
+  return next;
+}
+
+async function mergeWithOverlay(me) {
+  const overlay = await readOverlay(me?.id);
+  return applyOverlay(me, overlay);
+}
+
+/**
  * useAuth — manages authentication state for the whole app.
  *
  * On mount: reads the stored token, validates it with GET /auth/me.
@@ -57,7 +101,7 @@ export default function useAuth() {
         // Validate token against the server
         const me = await api.auth.me();
         if (!cancelled) {
-          setUser(me);
+          setUser(await mergeWithOverlay(me));
           setIsAuthenticated(true);
         }
       } catch {
@@ -80,7 +124,7 @@ export default function useAuth() {
 
     try {
       const me = await api.auth.login(phone, password);
-      setUser(me);
+      setUser(await mergeWithOverlay(me));
       setIsAuthenticated(true);
       return true;
     } catch (err) {
@@ -101,7 +145,7 @@ export default function useAuth() {
 
     try {
       const me = await api.auth.register(payload);
-      setUser(me);
+      setUser(await mergeWithOverlay(me));
       setIsAuthenticated(true);
       return true;
     } catch (err) {
@@ -127,16 +171,33 @@ export default function useAuth() {
   // ─── Refresh profile from the server ─────────────────────────────────────────
   const refreshUser = useCallback(async () => {
     const me = await api.auth.me();
-    setUser(me);
-    return me;
+    const merged = await mergeWithOverlay(me);
+    setUser(merged);
+    return merged;
   }, []);
 
   // ─── Update profile via API; refreshes local user on success ─────────────────
-  const updateUser = useCallback(async (fields) => {
-    const me = await api.auth.updateMe(fields);
-    setUser(me);
-    return me;
-  }, []);
+  // Endpoint mavjud bo'lmasa (404/405) o'lchovlar qurilmada saqlanadi — ekranlar
+  // baribir yangilangan userni ko'radi.
+  const updateUser = useCallback(
+    async (fields) => {
+      try {
+        const me = await api.auth.updateMe(fields);
+        const merged = await mergeWithOverlay(me);
+        setUser(merged);
+        return merged;
+      } catch (err) {
+        const endpointMissing = err instanceof ApiError && (err.status === 404 || err.status === 405);
+        if (!endpointMissing || !user?.id) throw err;
+
+        const overlay = await writeOverlay(user.id, fields);
+        const merged = applyOverlay(user, overlay);
+        setUser(merged);
+        return merged;
+      }
+    },
+    [user]
+  );
 
   return {
     user,

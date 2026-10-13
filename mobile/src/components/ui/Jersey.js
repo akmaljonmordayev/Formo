@@ -1,5 +1,5 @@
-import React from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useEffect, useRef } from 'react';
+import { Animated, Easing, StyleSheet, View } from 'react-native';
 import Svg, {
   Path,
   Defs,
@@ -13,7 +13,9 @@ import Svg, {
 } from 'react-native-svg';
 
 // Login sahifasidagi forma: orqa tomonida ism + raqam, old tomonida Formo gerbi.
-// `flipped` bo'lsa forma old tomoniga buriladi (parol kiritilayotganda raqam "yashirinadi").
+// `flipped` bo'lsa forma old tomoniga "buriladi" (parol kiritilayotganda raqam yashirinadi).
+// Burilish 3D rotateY emas, crossfade + gorizontal siqilish bilan qilinadi — Android'da
+// backfaceVisibility ishonchsiz ishlaydi va matn oynada teskari ko'rinib qoladi.
 // Ported from frontend/src/pages/Login/Jersey.jsx (SVG -> react-native-svg).
 
 const SHIRT =
@@ -68,15 +70,41 @@ function Side({ kit, id, children }) {
   );
 }
 
-export default function Jersey({ kit, name, number, flipped, error }) {
+export default function Jersey({ kit, name, number, flipped, error, size = 240 }) {
   const shown = error ? '!!' : number;
+  const progress = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    Animated.timing(progress, {
+      toValue: flipped ? 1 : 0,
+      duration: 420,
+      easing: Easing.inOut(Easing.quad),
+      useNativeDriver: true,
+    }).start();
+  }, [flipped, progress]);
+
+  const cardStyle = {
+    transform: [
+      {
+        scaleX: progress.interpolate({ inputRange: [0, 0.5, 1], outputRange: [1, 0.12, 1] }),
+      },
+    ],
+  };
+  const backStyle = {
+    opacity: progress.interpolate({ inputRange: [0, 0.4, 0.6, 1], outputRange: [1, 1, 0, 0] }),
+  };
+  const frontStyle = {
+    opacity: progress.interpolate({ inputRange: [0, 0.4, 0.6, 1], outputRange: [0, 0, 1, 1] }),
+  };
+
+  const hangerWidth = Math.round(size * 0.46);
 
   return (
-    <View style={styles.jersey}>
-      <View style={styles.hanger} />
+    <View style={[styles.jersey, { width: size }]}>
+      <View style={[styles.hanger, { width: hangerWidth, marginLeft: -hangerWidth / 2 }]} />
       <View style={styles.hook} />
-      <View style={[styles.card, flipped && styles.cardFlipped]}>
-        <View style={[styles.face, styles.faceBack]}>
+      <Animated.View style={[styles.card, cardStyle]}>
+        <Animated.View style={[styles.face, backStyle]}>
           <Side kit={kit} id="back">
             <Path d="M96 22 Q150 46 204 22 Q150 58 96 22 Z" fill={kit.trim} />
             <SvgText x="150" y="104" textAnchor="middle" fill={kit.ink} fontSize="30" fontWeight="800">
@@ -93,9 +121,9 @@ export default function Jersey({ kit, name, number, flipped, error }) {
               {shown}
             </SvgText>
           </Side>
-        </View>
+        </Animated.View>
 
-        <View style={[styles.face, styles.faceFront]}>
+        <Animated.View style={[styles.face, frontStyle]}>
           <Side kit={kit} id="front">
             <Path d="M118 22 L150 70 L182 22 Q150 40 118 22 Z" fill={kit.trim} />
             {/* gerb */}
@@ -112,15 +140,14 @@ export default function Jersey({ kit, name, number, flipped, error }) {
               JAMOANGIZ RANGIDA
             </SvgText>
           </Side>
-        </View>
-      </View>
+        </Animated.View>
+      </Animated.View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   jersey: {
-    width: 240,
     aspectRatio: 300 / 360,
     alignSelf: 'center',
   },
@@ -129,9 +156,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: -6,
     left: '50%',
-    width: '46%',
     height: 30,
-    marginLeft: -55,
     borderWidth: 3,
     borderBottomWidth: 0,
     borderColor: 'rgba(243,245,249,0.5)',
@@ -158,15 +183,11 @@ const styles = StyleSheet.create({
     right: 0,
     bottom: 0,
   },
-  cardFlipped: { transform: [{ rotateY: '180deg' }] },
   face: {
     position: 'absolute',
     top: 0,
     left: 0,
     right: 0,
     bottom: 0,
-    backfaceVisibility: 'hidden',
   },
-  faceBack: {},
-  faceFront: { transform: [{ rotateY: '180deg' }] },
 });

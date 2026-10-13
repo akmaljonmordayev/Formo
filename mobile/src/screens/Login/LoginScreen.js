@@ -8,11 +8,13 @@ import {
   StyleSheet,
   Text,
   TextInput,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Jersey, { KITS } from '../../components/ui/Jersey';
+import LanguageSwitch from './LanguageSwitch';
 
 /**
  * LoginScreen — dressing-room design ported from the NEW frontend login
@@ -22,6 +24,8 @@ import Jersey, { KITS } from '../../components/ui/Jersey';
  * Props:
  *   auth       — useAuth() object { login, isLoading, error }
  *   t          — translation function
+ *   language   — current language code (uz/ru/en)
+ *   onLanguage — change language
  *   onLogin    — called after successful login (navigator reacts to auth state)
  *   onRegister — navigate to RegisterScreen
  */
@@ -43,7 +47,10 @@ function formatPhone(digits) {
   return [d.slice(0, 2), d.slice(2, 5), d.slice(5, 7), d.slice(7, 9)].filter(Boolean).join(' ');
 }
 
-export default function LoginScreen({ auth, t, onLogin, onRegister }) {
+export default function LoginScreen({ auth, t, language, onLanguage, onLogin, onRegister }) {
+  const { height } = useWindowDimensions();
+  const compact = height < 760;
+
   const [digits, setDigits] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -53,7 +60,6 @@ export default function LoginScreen({ auth, t, onLogin, onRegister }) {
   const [kitIndex, setKitIndex] = useState(0);
   const [autoKit, setAutoKit] = useState(true);
   const shake = useRef(new Animated.Value(0)).current;
-  const phoneRef = useRef(null);
 
   // Formalar o'z-o'zidan almashib turadi, foydalanuvchi tanlasa to'xtaydi
   useEffect(() => {
@@ -61,11 +67,6 @@ export default function LoginScreen({ auth, t, onLogin, onRegister }) {
     const id = setInterval(() => setKitIndex((i) => (i + 1) % KITS.length), 3600);
     return () => clearInterval(id);
   }, [autoKit]);
-
-  useEffect(() => {
-    const id = setTimeout(() => phoneRef.current?.focus(), 350);
-    return () => clearTimeout(id);
-  }, []);
 
   const kit = KITS[kitIndex];
   const phoneComplete = digits.length === 9;
@@ -119,26 +120,31 @@ export default function LoginScreen({ auth, t, onLogin, onRegister }) {
       <View style={[styles.glow, { backgroundColor: kit.to, top: -90, left: -70 }]} />
       <View style={[styles.glow, { backgroundColor: palette.orange, bottom: -80, right: -70, opacity: 0.1 }]} />
 
+      <View style={[styles.topBar, compact && styles.topBarCompact]}>
+        <View style={styles.brand}>
+          <Text style={styles.logo}>FORMO</Text>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>{t('loginBrandBadge')}</Text>
+          </View>
+        </View>
+        <LanguageSwitch language={language} onChange={onLanguage} />
+      </View>
+
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
         <ScrollView
-          contentContainerStyle={styles.scroll}
+          contentContainerStyle={[styles.scroll, compact && styles.scrollCompact]}
           keyboardShouldPersistTaps="handled"
+          automaticallyAdjustKeyboardInsets
           showsVerticalScrollIndicator={false}
         >
-          <View style={styles.brand}>
-            <Text style={styles.logo}>FORMO</Text>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>{t('loginBrandBadge')}</Text>
-            </View>
-          </View>
-
-          <Animated.View style={[styles.jerseyWrap, shakeStyle]}>
+          <Animated.View style={[styles.jerseyWrap, compact && styles.jerseyWrapCompact, shakeStyle]}>
             <Jersey
               kit={kit}
               name="FORMO"
               number={number}
               flipped={passwordFocused && !showPassword}
               error={!!errorText}
+              size={compact ? 154 : 202}
             />
           </Animated.View>
 
@@ -162,11 +168,11 @@ export default function LoginScreen({ auth, t, onLogin, onRegister }) {
             <Text style={styles.kitName}>{kit.name}</Text>
           </View>
 
-          <Text style={styles.tagline}>{t('loginTagline')}</Text>
+          {compact ? null : <Text style={styles.tagline}>{t('loginTagline')}</Text>}
 
-          <Animated.View style={[styles.tagWrap, shakeStyle]}>
+          <Animated.View style={[styles.tagWrap, compact && styles.tagWrapCompact, shakeStyle]}>
             <View style={styles.string} />
-            <View style={[styles.tag, fieldFocused && styles.tagFlat]}>
+            <View style={[styles.tag, compact && styles.tagCompact, fieldFocused && styles.tagFlat]}>
               <View style={styles.tagHole} />
               <View style={styles.tagInner} pointerEvents="none" />
 
@@ -186,7 +192,6 @@ export default function LoginScreen({ auth, t, onLogin, onRegister }) {
               <View style={[styles.inputRow, phoneComplete && styles.inputRowComplete]}>
                 <Text style={styles.prefix}>+998</Text>
                 <TextInput
-                  ref={phoneRef}
                   value={formatPhone(digits)}
                   onChangeText={handleDigitsChange}
                   placeholder="90 123 45 67"
@@ -270,13 +275,22 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: palette.ink },
   flex: { flex: 1 },
   glow: { position: 'absolute', width: 380, height: 380, borderRadius: 190, opacity: 0.16 },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 26,
+    paddingBottom: 6,
+  },
+  topBarCompact: { paddingTop: 14 },
   scroll: {
     flexGrow: 1,
-    justifyContent: 'center',
     paddingHorizontal: 20,
-    paddingTop: 56,
-    paddingBottom: 40,
+    paddingTop: 10,
+    paddingBottom: 140,
   },
+  scrollCompact: { paddingTop: 4, paddingBottom: 130 },
 
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 4 },
   logo: { color: palette.paper, fontSize: 22, fontWeight: '800', letterSpacing: 1 },
@@ -290,7 +304,8 @@ const styles = StyleSheet.create({
   },
   badgeText: { color: palette.muted, fontSize: 11, fontWeight: '600', letterSpacing: 1.5, textTransform: 'uppercase' },
 
-  jerseyWrap: { alignItems: 'center', marginTop: 18, marginBottom: 10 },
+  jerseyWrap: { alignItems: 'center', marginTop: 14, marginBottom: 8 },
+  jerseyWrapCompact: { marginTop: 6, marginBottom: 4 },
 
   kits: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
   swatch: { width: 26, height: 26, borderRadius: 13, borderWidth: 2 },
@@ -306,7 +321,7 @@ const styles = StyleSheet.create({
   },
 
   tagline: {
-    marginTop: 22,
+    marginTop: 16,
     color: 'rgba(243,245,249,0.86)',
     fontSize: 18,
     fontWeight: '500',
@@ -314,7 +329,8 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  tagWrap: { marginTop: 30, alignItems: 'center', alignSelf: 'stretch' },
+  tagWrap: { marginTop: 24, alignItems: 'center', alignSelf: 'stretch' },
+  tagWrapCompact: { marginTop: 16 },
   string: {
     position: 'absolute',
     top: 0,
@@ -341,6 +357,7 @@ const styles = StyleSheet.create({
     elevation: 12,
   },
   tagFlat: { transform: [{ rotate: '0deg' }] },
+  tagCompact: { paddingTop: 38, paddingBottom: 18 },
   tagHole: {
     position: 'absolute',
     top: 16,

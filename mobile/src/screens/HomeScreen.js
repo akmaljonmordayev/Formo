@@ -3,12 +3,13 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, spacing } from '../constants/theme';
 import { clubs } from '../data/mockData';
 import { Button, Header, Screen, SectionTitle } from '../components/ui/Common';
+import CartButton from '../components/ui/CartButton';
 import { JerseyPreview } from '../components/ui/JerseyPreview';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import useOrders from '../features/orders';
 import useProducts from '../features/products';
 
-export default function HomeScreen({ t, onNavigate, onProduct, auth }) {
+export default function HomeScreen({ t, onNavigate, onProduct, auth, cartCount = 0, onCart }) {
   const { orders, isLoading: ordersLoading } = useOrders();
   const { products: apiProducts, isLoading: productsLoading } = useProducts();
 
@@ -34,8 +35,11 @@ export default function HomeScreen({ t, onNavigate, onProduct, auth }) {
         overline={t('goodDay')}
         title={name}
         right={
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{avatarInitial}</Text>
+          <View style={styles.headerRight}>
+            <CartButton count={cartCount} onPress={onCart} t={t} />
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{avatarInitial}</Text>
+            </View>
           </View>
         }
       />
@@ -104,6 +108,7 @@ export default function HomeScreen({ t, onNavigate, onProduct, auth }) {
 }
 
 const styles = StyleSheet.create({
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatar: {
     width: 40,
     height: 40,
