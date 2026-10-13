@@ -1,9 +1,10 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, screenStyles, spacing } from '../../constants/theme';
 
-export function Screen({ children, scroll = true, contentStyle, footer }) {
+export function Screen({ children, scroll = true, contentStyle, footer, footerStyle }) {
   const Content = scroll ? ScrollView : View;
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={screenStyles.safe}>
@@ -14,7 +15,7 @@ export function Screen({ children, scroll = true, contentStyle, footer }) {
       >
         {children}
       </Content>
-      {footer ? <View style={styles.footer}>{footer}</View> : null}
+      {footer ? <View style={[styles.footer, footerStyle]}>{footer}</View> : null}
     </SafeAreaView>
   );
 }
@@ -25,7 +26,7 @@ export function Header({ title, subtitle, overline, onBack, right, logo }) {
     <View style={styles.header}>
       {onBack ? (
         <Pressable onPress={onBack} style={styles.iconButton} hitSlop={8}>
-          <Text style={styles.backText}>‹</Text>
+          <MaterialCommunityIcons name="chevron-left" size={26} color={colors.text} />
         </Pressable>
       ) : logo ? (
         <View style={styles.iconButton} />
@@ -40,16 +41,18 @@ export function Header({ title, subtitle, overline, onBack, right, logo }) {
   );
 }
 
-export function Button({ children, onPress, variant = 'primary', small = false, style }) {
+export function Button({ children, onPress, variant = 'primary', small = false, disabled = false, style }) {
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
       style={({ pressed }) => [
         styles.button,
         small && styles.buttonSmall,
         variant === 'secondary' && styles.secondaryButton,
         variant === 'danger' && styles.dangerButton,
-        pressed && styles.pressed,
+        disabled && styles.buttonDisabled,
+        pressed && !disabled && styles.pressed,
         style,
       ]}
     >
@@ -126,7 +129,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  backText: { color: colors.text, fontSize: 26, lineHeight: 28, marginTop: -3 },
   headerCopy: { flex: 1 },
   headerCopyLead: { marginLeft: spacing.md },
   headerRight: { marginLeft: 10 },
@@ -151,6 +153,7 @@ const styles = StyleSheet.create({
   secondaryText: { color: colors.text },
   dangerButton: { backgroundColor: 'transparent', borderWidth: 1, borderColor: '#E8543F' },
   dangerText: { color: '#E8543F' },
+  buttonDisabled: { opacity: 0.55 },
   pressed: { opacity: 0.72 },
   segment: {
     flexDirection: 'row',

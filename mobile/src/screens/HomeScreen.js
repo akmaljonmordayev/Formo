@@ -1,20 +1,48 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, spacing } from '../constants/theme';
-import { clubs, orders, products } from '../data/mockData';
+import { clubs } from '../data/mockData';
 import { Button, Header, Screen, SectionTitle } from '../components/ui/Common';
+import CartButton from '../components/ui/CartButton';
 import { JerseyPreview } from '../components/ui/JerseyPreview';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
+import useOrders from '../features/orders';
+import useProducts from '../features/products';
 
-export default function HomeScreen({ t, onNavigate, onProduct }) {
-  const order = orders[0];
-  const orderStatus = order.status === 'production' ? t('production') : t('delivered');
+export default function HomeScreen({ t, onNavigate, onProduct, auth, cartCount = 0, onCart }) {
+  const { orders, isLoading: ordersLoading } = useOrders();
+  const { products: apiProducts, isLoading: productsLoading } = useProducts();
+
+  // Most recent real order from the API (empty until the orders endpoint is live)
+  const order = orders[0] || null;
+  const orderStatus = order?.status === 'delivered' ? t('delivered') : t('production');
+
+  // Greeting uses the authenticated user's real name
+  const name = auth?.user?.fullName || t('hello');
+  const avatarInitial = (auth?.user?.fullName || 'F')[0].toUpperCase();
+
+  // Products with fallback
+  const heroProduct = (apiProducts && apiProducts.length > 0) ? apiProducts[0] : null;
+
   const openClub = (club) => {
-    const product = products.find((item) => item.id === club.product);
+    const product = apiProducts.find((item) => item.id === club.product);
     if (product) onProduct(product);
   };
+
   return (
     <Screen>
-      <Header overline={t('goodDay')} title={t('hello')} right={<View style={styles.avatar} />} />
+      <Header
+        overline={t('goodDay')}
+        title={name}
+        right={
+          <View style={styles.headerRight}>
+            <CartButton count={cartCount} onPress={onCart} t={t} />
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{avatarInitial}</Text>
+            </View>
+          </View>
+        }
+      />
 
       <View style={styles.hero}>
         <View style={styles.heroCopy}>
@@ -23,14 +51,24 @@ export default function HomeScreen({ t, onNavigate, onProduct }) {
           <Button small onPress={() => onNavigate('studio')} style={styles.heroButton}>{t('startShort')}</Button>
         </View>
         <View style={styles.heroJersey}>
-          <JerseyPreview product={products[0]} number="10" />
+          {heroProduct ? (
+            <JerseyPreview product={heroProduct} number="10" />
+          ) : null}
         </View>
       </View>
 
       <Pressable style={styles.track} onPress={() => onNavigate('orders')}>
         <View style={styles.trackCopy}>
-          <Text style={styles.trackId}>{order.id}</Text>
-          <Text style={styles.trackStatus}>{orderStatus}</Text>
+          {ordersLoading ? (
+            <LoadingSpinner size="small" />
+          ) : order ? (
+            <>
+              <Text style={styles.trackId}>{order.id}</Text>
+              <Text style={styles.trackStatus}>{orderStatus}</Text>
+            </>
+          ) : (
+            <Text style={styles.trackStatus}>{t('noOrders')}</Text>
+          )}
         </View>
         <Text style={styles.trackAction}>{t('track')}</Text>
       </Pressable>
@@ -70,14 +108,18 @@ export default function HomeScreen({ t, onNavigate, onProduct }) {
 }
 
 const styles = StyleSheet.create({
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   avatar: {
     width: 40,
     height: 40,
-    borderRadius: radii.md,
-    backgroundColor: '#141A3E',
-    borderWidth: 1,
-    borderColor: '#232A57',
+    borderRadius: 20,
+    backgroundColor: '#151B42',
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  avatarText: { color: colors.accent, fontWeight: '900', fontSize: 15 },
   hero: {
     backgroundColor: '#141A40',
     borderRadius: radii.lg,

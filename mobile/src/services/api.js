@@ -1,55 +1,84 @@
-import { orders, products, profile } from '../data/mockData';
+import * as storage from '../utils/storage';
 
 // mobile/.env:  EXPO_PUBLIC_API_URL=http://<kompyuter-IP>:3001/api
-// Telefonda "localhost" — telefonning o'zi, shuning uchun kompyuterning Wi-Fi IP manzili kerak.
+// Telefonda "localhost" ishlamaydi — kompyuterning Wi-Fi IP manzili kerak.
 // Android emulator uchun: http://10.0.2.2:3001/api
-const API_URL = (() => {
-  const raw = (process.env.EXPO_PUBLIC_API_URL || '').trim().replace(/\/+$/, '');
-  if (!raw) return '';
+const BASE_URL = (() => {
+  const raw = (process.env.EXPO_PUBLIC_API_URL || 'https://api.formo.uz/api').trim().replace(/\/+$/, '');
+  if (!raw) return 'https://api.formo.uz/api';
   return raw.endsWith('/api') ? raw : `${raw}/api`;
 })();
 
-// Tokenlar xotirada saqlanadi (ilova yopilsa qayta login). Doimiy saqlash uchun
-// keyinchalik expo-secure-store ga o'tkazish mumkin.
-let tokens = { accessToken: null, refreshToken: null };
-let onSessionExpired = null;
+// ─── Error types ─────────────────────────────────────────────────────────────
 
 export class ApiError extends Error {
   constructor(message, status) {
     super(message);
     this.status = status;
+    this.name = 'ApiError';
   }
 }
 
-const errorMessage = (data) => {
-  const msg = data?.message;
-  return Array.isArray(msg) ? msg[0] : msg || 'Serverda xatolik yuz berdi';
-};
+export class AuthError extends ApiError {
+  constructor(message = 'Unauthorized') {
+    super(message, 401);
+    this.name = 'AuthError';
+  }
+}
+
+// Sessiya muddati tugaganda (refresh ham ishlamasa) chaqiriladigan callback
+let sessionExpiredHandler = null;
+
+// ─── Phone helper (kept local so api.js has no extra deps) ───────────────────
+
+/** "+998 90 123 45 67" / "901234567" -> "+998901234567" */
+export function normalizePhone(raw) {
+  let digits = String(raw || '').replace(/\D/g, '');
+  if (digits.startsWith('998')) digits = digits.slice(3);
+  digits = digits.slice(0, 9);
+  return `+998${digits}`;
+}
+
+// ─── Core request helper ─────────────────────────────────────────────────────
 
 async function rawRequest(path, { method = 'GET', body, auth = true } = {}) {
-  const response = await fetch(`${API_URL}${path}`, {
+  const token = await storage.getToken();
+
+  const response = await fetch(`${BASE_URL}${path}`, {
     method,
     headers: {
       'Content-Type': 'application/json',
-      ...(auth && tokens.accessToken && { Authorization: `Bearer ${tokens.accessToken}` }),
+      ...(auth && token ? { Authorization: `Bearer ${token}` } : {}),
     },
     body: body ? JSON.stringify(body) : undefined,
   });
+
   const data = await response.json().catch(() => null);
   return { response, data };
 }
 
+const errorMessage = (data, fallback) => {
+  const msg = data?.message;
+  if (Array.isArray(msg)) return msg[0] || fallback;
+  return msg || fallback;
+};
+
 let refreshing = null;
-function refreshTokens() {
+
+async function refreshTokens() {
   refreshing ??= (async () => {
-    if (!tokens.refreshToken) return false;
+    const refreshToken = await storage.getRefreshToken();
+    if (!refreshToken) return false;
+
     const { response, data } = await rawRequest('/auth/refresh', {
       method: 'POST',
-      body: { refreshToken: tokens.refreshToken },
+      body: { refreshToken },
       auth: false,
     });
     if (!response.ok) return false;
-    tokens = { accessToken: data.accessToken, refreshToken: data.refreshToken };
+
+    await storage.setToken(data.accessToken);
+    await storage.setRefreshToken(data.refreshToken);
     return true;
   })().finally(() => {
     refreshing = null;
@@ -58,87 +87,115 @@ function refreshTokens() {
 }
 
 async function request(path, options = {}) {
-  if (!API_URL) throw new ApiError("EXPO_PUBLIC_API_URL sozlanmagan (mobile/.env)", 0);
-
   let { response, data } = await rawRequest(path, options);
-  if (response.status === 401 && options.auth !== false && tokens.refreshToken) {
+
+  // 401 — bir marta token yangilab ko'rishga urinamiz
+  if (response.status === 401 && options.auth !== false) {
     if (await refreshTokens()) {
       ({ response, data } = await rawRequest(path, options));
     } else {
-      tokens = { accessToken: null, refreshToken: null };
-      onSessionExpired?.();
+      await storage.removeToken();
+      await storage.removeRefreshToken();
+      sessionExpiredHandler?.();
+      throw new AuthError(errorMessage(data, 'Unauthorized'));
     }
   }
+
   if (!response.ok) {
-    if (response.status === 429) throw new ApiError("Juda ko'p urinish. Birozdan so'ng qayta urinib ko'ring", 429);
-    throw new ApiError(errorMessage(data), response.status);
+    if (response.status === 429) {
+      throw new ApiError("Juda ko'p urinish. Birozdan so'ng qayta urinib ko'ring", 429);
+    }
+    throw new ApiError(errorMessage(data, `API error: ${response.status}`), response.status);
   }
+
   return data;
 }
 
-// Backendda hali yo'q endpointlar uchun: server ishlamasa yoki 404 bo'lsa mock ma'lumot
-async function withMock(path, mock, options) {
-  try {
-    return (await request(path, options)) ?? mock;
-  } catch (error) {
-    if (error.status === 0 || error.status === 404 || error instanceof TypeError) return mock;
-    throw error;
-  }
+async function storeSession(data) {
+  if (data?.accessToken) await storage.setToken(data.accessToken);
+  if (data?.refreshToken) await storage.setRefreshToken(data.refreshToken);
+  return data?.user;
 }
 
-/** "+998 90 123 45 67" / "901234567" -> "+998901234567" (server ham normallashtiradi) */
-export function normalizePhone(phone) {
-  const digits = String(phone).replace(/\D/g, '');
-  return digits.length === 9 ? `+998${digits}` : `+${digits}`;
-}
+// ─── Auth API ────────────────────────────────────────────────────────────────
 
 export const auth = {
-  /** Mobil foydalanuvchi ro'yxatdan o'tishi. gender: 'MALE' | 'FEMALE', height sm, weight kg */
-  async register({ phone, password, fullName, gender, age, height, weight }) {
-    const data = await request('/auth/register', {
-      method: 'POST',
-      auth: false,
-      body: { phone: normalizePhone(phone), password, fullName, gender, age, height, weight },
-    });
-    tokens = { accessToken: data.accessToken, refreshToken: data.refreshToken };
-    return data.user;
-  },
-
-  async login({ phone, password }) {
+  /**
+   * Login with phone + password. Phone: "+998XXXXXXXXX".
+   * @returns {Promise<object>} user object
+   */
+  async login(phone, password) {
     const data = await request('/auth/login', {
       method: 'POST',
       auth: false,
       body: { phone: normalizePhone(phone), password },
     });
-    tokens = { accessToken: data.accessToken, refreshToken: data.refreshToken };
-    return data.user;
+    return storeSession(data);
   },
 
-  /** Serverdagi sessiyani yopadi; xato bo'lsa ham lokal chiqish bo'ladi */
+  /**
+   * Register a new user.
+   * @param {{phone, password, fullName, gender?, age?, height?, weight?}} payload
+   * @returns {Promise<object>} user object
+   */
+  async register(payload) {
+    const data = await request('/auth/register', {
+      method: 'POST',
+      auth: false,
+      body: { ...payload, phone: normalizePhone(payload.phone) },
+    });
+    return storeSession(data);
+  },
+
+  /** Fetch the currently authenticated user's profile. */
+  me: () => request('/auth/me'),
+
+  /**
+   * Update the current user's profile fields (age, height, weight, gender, address...).
+   * @returns {Promise<object>} updated user object
+   */
+  updateMe(fields) {
+    return request('/auth/me', { method: 'PATCH', body: fields });
+  },
+
+  /** Invalidate the current session on the server and clear local tokens. */
   async logout() {
     try {
-      if (tokens.accessToken) await request('/auth/logout', { method: 'POST' });
+      if (await storage.getToken()) await request('/auth/logout', { method: 'POST' });
     } finally {
-      tokens = { accessToken: null, refreshToken: null };
+      await storage.removeToken();
+      await storage.removeRefreshToken();
     }
   },
 
-  me: () => request('/auth/me'),
-  isLoggedIn: () => !!tokens.accessToken,
   /** Sessiya tugaganda (refresh ham o'tmasa) chaqiriladi — login ekraniga qaytarish uchun */
-  onSessionExpired: (callback) => {
-    onSessionExpired = callback;
+  onSessionExpired(callback) {
+    sessionExpiredHandler = callback;
   },
 };
 
+// ─── Public API object ───────────────────────────────────────────────────────
+
 export const api = {
-  async getProducts() { return withMock('/products', products); },
-  async getOrders() { return withMock('/orders', orders); },
-  async getProfile() { return auth.isLoggedIn() ? auth.me() : profile; },
-  async createOrder(payload) {
-    return withMock('/orders', { id: `#FM-${Date.now().toString().slice(-4)}`, ...payload, status: 'production' }, {
-      method: 'POST',
-      body: payload,
-    });
+  auth,
+
+  // ── Products ─────────────────────────────────────────────────────────────────
+  products: {
+    /** List all products. NOTE: endpoint not yet deployed — callers must handle errors. */
+    list: () => request('/products'),
+  },
+
+  // ── Orders ───────────────────────────────────────────────────────────────────
+  orders: {
+    /** List current user's orders. NOTE: endpoint not yet deployed — callers must handle errors. */
+    list: () => request('/orders'),
+
+    /** Create a new order. */
+    create(payload) {
+      return request('/orders', { method: 'POST', body: payload });
+    },
+
+    /** Fetch a single order by ID. */
+    get: (id) => request(`/orders/${id}`),
   },
 };
