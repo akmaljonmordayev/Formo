@@ -75,3 +75,58 @@ describe('Diagnostika: server ko‘rayotgan klient IP (e2e)', () => {
     expect(res.body.trustProxy).toBe(1);
   });
 });
+
+/** Cloudflare → Railway: X-Forwarded-For da faqat proxy manzillari, haqiqiy klient X-Real-IP da */
+describe('Klient IP alohida headerda (CLIENT_IP_HEADER) (e2e)', () => {
+  let app: INestApplication;
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const helpers = require('./helpers') as typeof import('./helpers');
+
+  const attempt = (clientIp: string) =>
+    helpers
+      .api(app)
+      .post('/api/auth/login')
+      .set('X-Forwarded-For', '172.64.200.81, 152.233.43.34') // hamma uchun bir xil proxy zanjiri
+      .set('X-Real-IP', clientIp)
+      .send({ phone: helpers.SUPERADMIN.phone, password: 'wrong-password' })
+      .then((res) => res.status);
+
+  beforeAll(async () => {
+    process.env.TRUST_PROXY = '2';
+    process.env.CLIENT_IP_HEADER = 'x-real-ip';
+    ({ app } = await helpers.createApp());
+  });
+
+  afterAll(async () => {
+    await app.close();
+    delete process.env.TRUST_PROXY;
+    delete process.env.CLIENT_IP_HEADER;
+  });
+
+  it('rate-limit proxy manziliga emas, X-Real-IP dagi klientga qarab ishlaydi', async () => {
+    const first = [];
+    for (let i = 0; i < 4; i++) first.push(await attempt('195.158.30.13'));
+    expect(first).toEqual([401, 401, 401, 429]);
+
+    // Xuddi shu proxy zanjiri orqali kelgan boshqa klient bloklanmaydi
+    expect(await attempt('195.158.30.14')).toBe(401);
+  });
+
+  it('diagnostika va sessiya ham shu manzilni ko‘radi', async () => {
+    const res = await helpers
+      .api(app)
+      .post('/api/auth/login')
+      .set('X-Forwarded-For', '172.64.200.81, 152.233.43.34')
+      .set('X-Real-IP', '203.0.113.77')
+      .send(helpers.SUPERADMIN)
+      .expect(200);
+    const diag = await helpers
+      .api(app)
+      .get('/api/admin/diagnostics/request')
+      .set(helpers.bearer(res.body.accessToken))
+      .set('X-Forwarded-For', '172.64.200.81, 152.233.43.34')
+      .set('X-Real-IP', '203.0.113.77')
+      .expect(200);
+    expect(diag.body.ip).toBe('203.0.113.77');
+  });
+});
