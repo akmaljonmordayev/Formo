@@ -1,29 +1,26 @@
-import { useState } from 'react';
-
-// Namuna ma'lumot — backend klub katalogi API'si ulanguncha
-const CLUBS = [
-  {
-    name: 'Real Madrid', league: 'LaLiga', season: '2026/27', sold: 212, code: 'RM', mark: '#0e1a3f',
-    kits: [{ label: 'Uy', bg: '#f3f5f9', color: '#0e1a3f' }, { label: 'Mehmon', bg: '#0e1a3f', color: '#fff' }, { label: 'Uchinchi', bg: '#1b2560', color: '#fff' }],
-  },
-  {
-    name: 'FC Barcelona', league: 'LaLiga', season: '2026/27', sold: 184, code: 'FB', mark: '#9184d9',
-    kits: [{ label: 'Uy', bg: '#8a1f2b', color: '#fff' }, { label: 'Mehmon', bg: '#f2a33a', color: '#1a1200' }, { label: 'Uchinchi', bg: '#19a7a1', color: '#fff' }],
-  },
-  {
-    name: 'Manchester United', league: 'Premier League', season: '2026/27', sold: 131, code: 'MU', mark: '#8a1f2b',
-    kits: [{ label: 'Uy', bg: '#8a1f2b', color: '#fff' }, { label: 'Mehmon', bg: '#f3f5f9', color: '#0e1a3f' }, { label: 'Uchinchi', bg: '#0e1a3f', color: '#fff' }],
-  },
-  {
-    name: 'Liverpool', league: 'Premier League', season: '2026/27', sold: 96, code: 'L', mark: '#b8323f',
-    kits: [{ label: 'Uy', bg: '#b8323f', color: '#fff' }, { label: 'Mehmon', bg: '#f3f5f9', color: '#0e1a3f' }, { label: 'Uchinchi', bg: '#19a7a1', color: '#fff' }],
-  },
-];
-
-const FILTERS = ['Barchasi · 6', 'LaLiga · 2', 'Premier League · 2', 'Bundesliga · 1', 'Serie A · 1'];
+import { useEffect, useState } from 'react';
+import { clubsApi } from '../../../features/platform/platformApi';
 
 export default function SuperadminClubs() {
-  const [filter, setFilter] = useState(FILTERS[0]);
+  const [leagueFilter, setLeagueFilter] = useState('');
+  const [clubs, setClubs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    clubsApi
+      .list({ league: leagueFilter || undefined })
+      .then((d) => active && setClubs(d.items))
+      .catch((e) => active && setError(e.message))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [leagueFilter]);
+
+  const leagues = Array.from(new Set(clubs.map((c) => c.league)));
 
   return (
     <>
@@ -40,56 +37,68 @@ export default function SuperadminClubs() {
 
       <div className="sa-tabs" style={{ justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          {FILTERS.map((f) => (
-            <button key={f} type="button" className={`sa-tab${filter === f ? ' is-active' : ''}`} onClick={() => setFilter(f)}>
-              {f}
+          <button type="button" className={`sa-tab${!leagueFilter ? ' is-active' : ''}`} onClick={() => setLeagueFilter('')}>
+            Barchasi · {clubs.length}
+          </button>
+          {leagues.map((l) => (
+            <button key={l} type="button" className={`sa-tab${leagueFilter === l ? ' is-active' : ''}`} onClick={() => setLeagueFilter(l)}>
+              {l}
             </button>
           ))}
         </div>
-        <span className="sa-table__sub" style={{ marginTop: 8 }}>
-          Har bir forma: 189 000 so'm · futbolka + shortik + ism va raqam
-        </span>
       </div>
 
-      <div className="sa-grid-2">
-        {CLUBS.map((c) => (
-          <div key={c.name} className="sa-panel">
-            <div className="sa-panel__head">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <span
-                  style={{
-                    display: 'grid', placeItems: 'center', width: 36, height: 36, borderRadius: 10,
-                    background: c.mark, color: '#fff', fontWeight: 800, fontSize: 12, fontFamily: 'var(--font-display)',
-                  }}
-                >
-                  {c.code}
-                </span>
-                <div>
-                  <div className="sa-panel__title" style={{ fontSize: 14.5 }}>{c.name}</div>
-                  <div className="sa-table__sub">{c.league} · {c.season} mavsumi</div>
-                </div>
-              </div>
-              <span className="sa-table__sub" style={{ marginTop: 0 }}>{c.sold} ta sotildi</span>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 10 }}>
-              {c.kits.map((k) => (
-                <div key={k.label} style={{ textAlign: 'center' }}>
-                  <div
+      {error && <div className="form-error">{error}</div>}
+
+      {loading ? (
+        <div className="sa-table__sub" style={{ padding: 20 }}>Yuklanmoqda...</div>
+      ) : clubs.length === 0 ? (
+        <div className="sa-panel">
+          <div className="sa-table__sub">
+            Hali klub qo'shilmagan. "+ Klub qo'shish" tugmasi bilan birinchi klubni yarating.
+          </div>
+        </div>
+      ) : (
+        <div className="sa-grid-2">
+          {clubs.map((c) => (
+            <div key={c.id} className="sa-panel">
+              <div className="sa-panel__head">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <span
                     style={{
-                      height: 56, borderRadius: 10, display: 'grid', placeItems: 'center', marginBottom: 6,
-                      background: k.bg, color: k.color, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18,
-                      border: '1px solid var(--sa-line)',
+                      display: 'grid', placeItems: 'center', width: 36, height: 36, borderRadius: 10,
+                      background: c.markColor, color: '#fff', fontWeight: 800, fontSize: 12, fontFamily: 'var(--font-display)',
                     }}
                   >
-                    10
+                    {c.code}
+                  </span>
+                  <div>
+                    <div className="sa-panel__title" style={{ fontSize: 14.5 }}>{c.name}</div>
+                    <div className="sa-table__sub">{c.league} · {c.season} mavsumi</div>
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--sa-mu)' }}>{k.label}</div>
                 </div>
-              ))}
+                <span className="sa-table__sub" style={{ marginTop: 0 }}>{c.sold} ta sotildi</span>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${c.kits.length || 1}, 1fr)`, gap: 10 }}>
+                {c.kits.map((k) => (
+                  <div key={k.id} style={{ textAlign: 'center' }}>
+                    <div
+                      style={{
+                        height: 56, borderRadius: 10, display: 'grid', placeItems: 'center', marginBottom: 6,
+                        background: k.bgColor, color: k.textColor, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18,
+                        border: '1px solid var(--sa-line)',
+                      }}
+                    >
+                      {c.code}
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--sa-mu)' }}>{k.label}</div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
     </>
   );
 }

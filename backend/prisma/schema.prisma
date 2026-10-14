@@ -34,13 +34,17 @@ model User {
   weight       Int? // kg
 
   // Tikuv sexi ma'lumotlari
-  workshopName String?
-  address      String?
+  workshopName   String?
+  address        String?
+  dailyCapacity  Int?     // tikuv sexi uchun kunlik bosma sig'imi (dona) — "Sexdagi yuk" foizi shundan hisoblanadi
 
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
   sessions     Session[]
+
+  ordersAsCustomer Order[] @relation("OrderCustomer")
+  ordersAsWorkshop Order[] @relation("OrderWorkshop")
 
   @@index([role])
 }
@@ -60,4 +64,257 @@ model Session {
   updatedAt        DateTime  @updatedAt
 
   @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Katalog: klublar va formalar (ilovadagi "Klub formalari")
+// ---------------------------------------------------------------------------
+
+model Club {
+  id        Int      @id @default(autoincrement())
+  name      String
+  league    String
+  season    String
+  code      String // nishon ustidagi qisqa harf, masalan "RM"
+  markColor String // nishon foni, hex
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  kits   Kit[]
+  orders Order[]
+
+  @@unique([name, season])
+}
+
+// Bitta klubning uy/mehmon/uchinchi formasi
+model Kit {
+  id        Int    @id @default(autoincrement())
+  clubId    Int
+  club      Club   @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  label     String // "Uy" | "Mehmon" | "Uchinchi"
+  bgColor   String
+  textColor String
+  sortOrder Int    @default(0)
+
+  @@index([clubId])
+}
+
+// ---------------------------------------------------------------------------
+// Buyurtmalar
+// ---------------------------------------------------------------------------
+
+enum OrderProductType {
+  CLUB_KIT // klub formasi katalogidan
+  CUSTOM_DESIGN // dizayn studiyasida o'zi yasagan
+}
+
+enum OrderChannel {
+  APP
+  WEB
+}
+
+enum PaymentMethod {
+  CLICK
+  PAYME
+  CASH
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+}
+
+// Bitta maydon ham to'lov, ham ishlab chiqarish bosqichini bildiradi —
+// Superadmin panelidagi "Buyurtmalar" va "Ishlab chiqarish" kanban shu ustida ishlaydi.
+enum OrderStatus {
+  PENDING_PAYMENT // to'lov kutilmoqda
+  ACCEPTED // qabul qilindi, bosishni kutmoqda (navbatda)
+  PRINTING // bosilmoqda
+  QUALITY_CHECK // sifat nazorati
+  READY // tayyor, yetkazishga chiqarilmagan
+  DELIVERING // yetkazishda
+  DELIVERED // yetkazildi
+  CANCELLED // bekor qilindi
+  RETURNED // qaytarildi
+}
+
+model Order {
+  id            Int      @id @default(autoincrement())
+  code          String   @unique // "FRM-88424"
+
+  customerId    Int?
+  customer      User?    @relation("OrderCustomer", fields: [customerId], references: [id], onDelete: SetNull)
+  customerName  String
+  customerPhone String
+
+  workshopId    Int?
+  workshop      User?    @relation("OrderWorkshop", fields: [workshopId], references: [id], onDelete: SetNull)
+
+  clubId        Int?
+  club          Club?    @relation(fields: [clubId], references: [id], onDelete: SetNull)
+  kitLabel      String? // tanlangan forma: "Uy" | "Mehmon" | "Uchinchi"
+
+  productType   OrderProductType @default(CLUB_KIT)
+  printName     String?
+  printNumber   String?
+  size          String
+  quantity      Int      @default(1)
+
+  totalSum      Int // so'm, umumiy summa (yetkazish bilan)
+  deliverySum   Int      @default(0)
+
+  channel       OrderChannel  @default(APP)
+  paymentMethod PaymentMethod
+  paymentStatus PaymentStatus @default(PENDING)
+  status        OrderStatus   @default(PENDING_PAYMENT)
+
+  promocodeId   Int?
+  promocode     Promocode? @relation(fields: [promocodeId], references: [id], onDelete: SetNull)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@index([status])
+  @@index([workshopId])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Zaxira: futbolka/shortik, rang va o'lcham bo'yicha qoldiq
+// ---------------------------------------------------------------------------
+
+enum InventoryProductType {
+  TSHIRT
+  SHORTS
+}
+
+model InventoryItem {
+  id          Int                  @id @default(autoincrement())
+  productType InventoryProductType
+  color       String
+  size        String
+  qty         Int                  @default(0)
+  updatedAt   DateTime             @updatedAt
+
+  @@unique([productType, color, size])
+}
+
+// ---------------------------------------------------------------------------
+// Narxlar — mijozga ko'rsatiladigan narx jadvali
+// ---------------------------------------------------------------------------
+
+model PricingItem {
+  id        Int      @id @default(autoincrement())
+  key       String   @unique // masalan "club.tshirt", "studio.custom"
+  section   String // "Klub formasi" | "Dizayn studiyasi"
+  step      Int
+  label     String
+  sub       String
+  price     Int // so'm
+  sortOrder Int      @default(0)
+  updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Promokodlar
+// ---------------------------------------------------------------------------
+
+enum PromocodeType {
+  PERCENT
+  FIXED
+  FREE_SHIPPING
+}
+
+model Promocode {
+  id        Int           @id @default(autoincrement())
+  code      String        @unique
+  type      PromocodeType
+  value     Int           @default(0) // PERCENT: 0-100, FIXED: so'm, FREE_SHIPPING: ishlatilmaydi
+  minSum    Int?
+  usageCap  Int?
+  usedCount Int           @default(0)
+  startsAt  DateTime?
+  endsAt    DateTime?
+  isActive  Boolean       @default(true)
+  createdAt DateTime      @default(now())
+  updatedAt DateTime      @updatedAt
+
+  orders Order[]
+}
+
+// ---------------------------------------------------------------------------
+// Kampaniyalar — push/SMS xabarlar
+// ---------------------------------------------------------------------------
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  ACTIVE
+  COMPLETED
+}
+
+enum CampaignChannel {
+  PUSH
+  SMS
+  PUSH_SMS
+}
+
+model Campaign {
+  id          Int             @id @default(autoincrement())
+  name        String
+  status      CampaignStatus  @default(DRAFT)
+  audience    String
+  channel     CampaignChannel
+  scheduledAt DateTime?
+  message     String
+
+  sentCount   Int?
+  openedCount Int?
+  orderCount  Int?
+  revenue     Int?
+
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Audit jurnali — append-only, tahrirlanmaydi/o'chirilmaydi
+// ---------------------------------------------------------------------------
+
+enum AuditCategory {
+  ORDER
+  PAYMENT
+  USER
+  SETTING
+  CATALOG
+  SYSTEM
+}
+
+model AuditLog {
+  id        Int           @id @default(autoincrement())
+  // Foydalanuvchi o'chirilsa ham yozuv saqlanib qolishi uchun ataylab FK emas
+  actorId   Int?
+  actorName String
+  actorRole String
+  action    String
+  category  AuditCategory
+  context   String?
+  ip        String?
+  createdAt DateTime      @default(now())
+
+  @@index([category])
+  @@index([createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Sozlamalar — umumiy kalit/qiymat ombori (masalan yetkazish slotlari)
+// ---------------------------------------------------------------------------
+
+model Setting {
+  key       String   @id
+  value     Json
+  updatedAt DateTime @updatedAt
 }
