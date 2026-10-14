@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
-import { Alert, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { colors, radii, spacing } from '../constants/theme';
 import { languageOptions } from '../i18n';
 import { Button, Header, Overline, Screen } from '../components/ui/Common';
+import { getItem, setItem } from '../utils/storage';
 
 const LANGUAGE_SUBS = {
   uz: { uz: 'Lotin alifbosi', ru: 'Kirill yozuvi', en: 'Lotin alifbosi' },
@@ -10,9 +11,35 @@ const LANGUAGE_SUBS = {
   en: { uz: 'Uzbek · Latin', ru: 'Russian · Cyrillic', en: 'English · Latin' },
 };
 
-export default function SettingsScreen({ language, setLanguage, t, onBack }) {
-  const [notif, setNotif] = useState({ orders: true, sms: true, promo: false });
-  const toggle = (key) => setNotif((current) => ({ ...current, [key]: !current[key] }));
+const NOTIF_KEY = 'formo_notif_prefs';
+const DEFAULT_NOTIF = { orders: true, sms: true, promo: false };
+
+export default function SettingsScreen({ language, setLanguage, t, onBack, auth }) {
+  const [notif, setNotif] = useState(DEFAULT_NOTIF);
+  const [loaded, setLoaded] = useState(false);
+
+  // Persist notification preferences locally
+  useEffect(() => {
+    getItem(NOTIF_KEY).then((raw) => {
+      if (raw) {
+        try {
+          setNotif({ ...DEFAULT_NOTIF, ...JSON.parse(raw) });
+        } catch {
+          // corrupted storage — keep defaults
+        }
+      }
+      setLoaded(true);
+    });
+  }, []);
+
+  const toggle = (key) => {
+    setNotif((current) => {
+      const next = { ...current, [key]: !current[key] };
+      if (loaded) setItem(NOTIF_KEY, JSON.stringify(next));
+      return next;
+    });
+  };
+
   const rows = [
     ['orders', t('notifOrders'), t('notifOrdersSub')],
     ['sms', t('notifSms'), t('notifSmsSub')],
@@ -59,12 +86,8 @@ export default function SettingsScreen({ language, setLanguage, t, onBack }) {
         ))}
       </View>
 
-      <Button
-        variant="danger"
-        style={styles.deleteButton}
-        onPress={() => Alert.alert(t('deleteAccount'), t('deleteDemo'))}
-      >
-        {t('deleteAccount')}
+      <Button variant="secondary" style={styles.logoutButton} onPress={() => auth?.logout?.()}>
+        {t('logout')}
       </Button>
 
       <Text style={styles.version}>{t('version')}</Text>
@@ -98,6 +121,6 @@ const styles = StyleSheet.create({
   notifRowBorder: { borderBottomWidth: 1, borderBottomColor: '#171C3F' },
   notifTitle: { color: colors.text, fontSize: 13, fontWeight: '700' },
   notifSub: { color: colors.muted, fontSize: 11, marginTop: 3 },
-  deleteButton: { marginTop: spacing.xl },
+  logoutButton: { marginTop: spacing.xl },
   version: { color: '#59618D', textAlign: 'center', fontSize: 10, marginTop: spacing.lg, marginBottom: spacing.sm },
 });

@@ -6,7 +6,7 @@ const LOGIN_KEY = 'formo_operator_login';
 const COLLAPSE_KEY = 'formo_operator_sidebar';
 
 export const DEFAULT_PREFS = {
-  theme: 'system', // system | light | dark
+  theme: 'dark', // system | light | dark — dizayn to'q fon uchun chizilgan
   lang: 'uz',
   notify: {
     newOrders: true,
@@ -70,9 +70,9 @@ export const initials = (name = '') =>
     .map((w) => w[0].toUpperCase())
     .join('') || '?';
 
-export const formatDateTime = (iso) =>
+export const formatDateTime = (iso, locale = 'uz-UZ') =>
   iso
-    ? new Date(iso).toLocaleString('uz-UZ', {
+    ? new Date(iso).toLocaleString(locale, {
         day: '2-digit',
         month: '2-digit',
         year: 'numeric',

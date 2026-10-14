@@ -13,7 +13,8 @@
       "bundleIdentifier": "com.formo.app"
     },
     "android": {
-      "package": "com.formo.app"
+      "package": "com.formo.app",
+      "softwareKeyboardLayoutMode": "resize"
     }
   }
 }

@@ -1,3 +1,5 @@
+// Catalog/studio demo data. User-specific data (profile, orders) is NEVER
+// mocked — it always comes from the live API.
 export const products = [
   { id: 'home', name: 'FORMO HOME', category: 'football', price: 289000, color: '#5A66DE', accent: '#BFD5FF', badge: 'hit' },
   { id: 'away', name: 'FORMO AWAY', category: 'football', price: 289000, color: '#EBEDF6', accent: '#7681CF', badge: 'new' },
@@ -14,22 +16,5 @@ export const clubs = [
   { id: 'liverpool', name: 'Liverpool', league: 'Premier League', forms: 3, season: '2026/27', code: 'LI', color: '#B01E32', accent: '#F6D67B', product: 'street' },
   { id: 'psg', name: 'PSG', league: 'Ligue 1', forms: 3, season: '2026/27', code: 'PS', color: '#123B6B', accent: '#E8543F', product: 'home' },
 ];
-
-export const orders = [
-  { id: '#FM-2408', product: 'FORMO HOME', size: 'L', date: '24.08.2024', total: 349000, status: 'production' },
-  { id: '#FM-1932', product: 'FORMO STREET', size: 'M', date: '12.07.2024', total: 279000, status: 'delivered' },
-];
-
-export const profile = {
-  name: 'Azizbek Karimov',
-  phone: '+998 90 123 45 67',
-  city: 'Toshkent',
-  stats: [
-    { value: '25', label: 'yosh' },
-    { value: '178', label: 'bo‘y, sm' },
-    { value: '76', label: 'vazn, kg' },
-    { value: 'L', label: 'o‘lcham' },
-  ],
-};
 
 export const colorOptions = ['#FFFFFF', '#242749', '#5A66DE', '#62B6AE', '#F5C542', '#E8543F', '#3A3F7A', '#3FD9B7', '#EBEDF6'];
