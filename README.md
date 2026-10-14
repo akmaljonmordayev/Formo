@@ -32,6 +32,18 @@ Superadmin avtomatik yaratiladi: **+998 90 111 11 11** / **admin123**. Operator 
 
 `backend/src`, `frontend/src` dagi o'zgarishlar konteynerda avtomatik qayta yuklanadi. `package.json` ga yangi paket qo'shilsa — `docker compose up --build`.
 
+### Docker'siz: faqat frontend, production API bilan
+
+Backend va Postgres kerak emas — Vite proxy `/api` ni `api.formo.uz` ga yuboradi.
+
+```bash
+cd frontend
+npm install
+npm run dev:prod   # http://localhost:5173 — .env shart emas
+```
+
+> **Diqqat:** bu **production baza** — yaratilgan/o'zgartirilgan/o'chirilgan hamma narsa haqiqiy. Production akkaunti bilan kiriladi (`admin123` ishlamaydi).
+
 ### Mobil ilova (Expo) backendga ulanishi
 
 Mobil ilova Docker'da emas — `mobile/` da Expo bilan alohida ishga tushadi va Wi-Fi orqali kompyuterdagi backendga ulanadi.
