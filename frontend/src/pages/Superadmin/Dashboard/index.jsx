@@ -1,46 +1,21 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../../../hooks/useAuth';
+import { dashboardApi, money } from '../../../features/platform/platformApi';
 
-// Hali backend ulanmagani uchun namuna (mock) ma'lumotlar. Backend tayyor bo'lgach shu yerga API chaqiruvi qo'shiladi.
-const STATS = [
-  { label: 'Buyurtmalar', value: '48', delta: '+12% kechagiga nisbatan', up: true },
-  { label: 'Tushum', value: "8,47 mln so'm", delta: '+8% kechagiga nisbatan', up: true },
-  { label: 'Sexdagi yuk', value: '72%', delta: '86 / 120 dona' },
-  { label: 'Kechikayotgan', value: '2', delta: 'muddatga 3 soatdan kam', up: false },
+const RANGES = [
+  { label: 'Bugun', days: 1 },
+  { label: '7 kun', days: 7 },
+  { label: '30 kun', days: 30 },
 ];
 
-const BARS = [
-  18, 22, 15, 24, 30, 26, 20, 17, 25, 29, 33, 21, 19, 24, 28, 31, 26, 22, 18, 23, 27, 30, 25, 20, 24, 29, 32, 27, 23, 35,
-];
-
-const STATUS = [
-  { label: 'API', detail: 'p95 184 ms', state: 'ok' },
-  { label: 'Navbat · print.generate', detail: '2 kutmoqda', state: 'ok' },
-  { label: 'Navbat · sms / push', detail: '0 kutmoqda', state: 'ok' },
-  { label: 'Click / Payme webhook', detail: 'oxirgisi 2 daq oldin', state: 'ok' },
-  { label: 'Eskiz SMS', detail: "yetkazish 98,6%", state: 'warn' },
-  { label: 'Telegram bot', detail: 'kechikish 40 s', state: 'warn' },
-  { label: 'Backup', detail: 'bugun 03:00 · 7 kun', state: 'ok' },
-];
-
-const ACTIVITY = [
-  { time: '14:32', actor: 'Sardor Rahimov', action: "Rol o'zgartirildi", ctx: 'user · Dilnoza K.' },
-  { time: '14:05', actor: 'Bekzod Aliyev', action: 'Qaytarish tasdiqlandi', ctx: 'FRM-88412' },
-  { time: '13:48', actor: 'Dilnoza Karimova', action: 'Buyurtma bekor qilindi', ctx: 'FRM-88419' },
-  { time: '13:20', actor: 'Malika Yusupova', action: "Narx o'zgartirildi", ctx: 'product · tshirt' },
-  { time: '12:10', actor: 'Sardor Rahimov', action: 'Integratsiya kaliti almashtirildi', ctx: 'payme.prod.key' },
-];
-
-const STAFF = [
-  { role: 'Super admin', count: 1, pct: 20 },
-  { role: 'Moliyachi', count: 2, pct: 45 },
-];
-
-const RANGES = ['Bugun', '7 kun', '30 kun'];
+const delta = (pct) => (pct === null || pct === undefined ? null : `${pct > 0 ? '+' : ''}${pct}% oldingi davrga nisbatan`);
 
 export default function SuperadminDashboard() {
   const { user } = useAuth();
-  const [range, setRange] = useState('30 kun');
+  const [range, setRange] = useState(RANGES[2]);
+  const [stats, setStats] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
   const name = (user?.fullName || 'Super admin').split(' ')[0];
   const WEEKDAYS = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'];
   const MONTHS = [
@@ -48,6 +23,37 @@ export default function SuperadminDashboard() {
   ];
   const now = new Date();
   const today = `${WEEKDAYS[now.getDay()]}, ${now.getDate()}-${MONTHS[now.getMonth()]}`;
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError('');
+    dashboardApi
+      .get(range.days)
+      .then((d) => active && setStats(d))
+      .catch((e) => active && setError(e.message))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [range]);
+
+  const bars = stats?.dailyTrend ?? [];
+  const maxBar = Math.max(1, ...bars.map((b) => b.count));
+  const totalOrders = bars.reduce((s, b) => s + b.count, 0);
+
+  const STATS = stats
+    ? [
+        { label: 'Buyurtmalar', value: String(stats.ordersCount), delta: delta(stats.ordersDeltaPct), up: stats.ordersDeltaPct > 0 },
+        { label: 'Tushum', value: money(stats.revenue), delta: delta(stats.revenueDeltaPct), up: stats.revenueDeltaPct > 0 },
+        {
+          label: 'Sexdagi yuk',
+          value: stats.loadPct !== null ? `${stats.loadPct}%` : '—',
+          delta: stats.capacity ? `${stats.activeCount} / ${stats.capacity} dona` : "Sig'im kiritilmagan",
+        },
+        { label: 'Kechikayotgan', value: String(stats.lateCount), delta: 'muddatga 3 soatdan kam', up: stats.lateCount === 0 },
+      ]
+    : [];
 
   return (
     <>
@@ -58,19 +64,28 @@ export default function SuperadminDashboard() {
         </div>
         <div className="sa-tabs" style={{ marginBottom: 0 }}>
           {RANGES.map((r) => (
-            <button key={r} type="button" className={`sa-tab${range === r ? ' is-active' : ''}`} onClick={() => setRange(r)}>
-              {r}
+            <button
+              key={r.label}
+              type="button"
+              className={`sa-tab${range.label === r.label ? ' is-active' : ''}`}
+              onClick={() => setRange(r)}
+            >
+              {r.label}
             </button>
           ))}
         </div>
       </div>
 
+      {error && <div className="form-error">{error}</div>}
+
       <div className="sa-stats">
-        {STATS.map((s) => (
-          <div key={s.label} className="sa-stat">
-            <div className="sa-stat__label">{s.label}</div>
-            <div className="sa-stat__value">{s.value}</div>
-            <div className={`sa-stat__delta${s.up === true ? ' is-up' : s.up === false ? ' is-down' : ''}`}>{s.delta}</div>
+        {(loading ? Array.from({ length: 4 }) : STATS).map((s, i) => (
+          <div key={s?.label ?? i} className="sa-stat">
+            <div className="sa-stat__label">{s?.label ?? '···'}</div>
+            <div className="sa-stat__value">{loading ? '···' : s.value}</div>
+            {!loading && s.delta && (
+              <div className={`sa-stat__delta${s.up === true ? ' is-up' : s.up === false ? ' is-down' : ''}`}>{s.delta}</div>
+            )}
           </div>
         ))}
       </div>
@@ -79,20 +94,28 @@ export default function SuperadminDashboard() {
         <div className="sa-panel">
           <div className="sa-panel__head">
             <div>
-              <div className="sa-panel__title">Buyurtmalar · 30 kun</div>
-              <div className="sa-panel__sub">jami {BARS.reduce((a, b) => a + b, 0)} · o'rtacha kuniga {Math.round(BARS.reduce((a, b) => a + b, 0) / BARS.length)}</div>
+              <div className="sa-panel__title">Buyurtmalar · {range.label}</div>
+              <div className="sa-panel__sub">
+                jami {totalOrders} · o'rtacha kuniga {bars.length ? Math.round(totalOrders / bars.length) : 0}
+              </div>
             </div>
           </div>
-          <div className="sa-bars">
-            {BARS.map((v, i) => (
-              <div
-                key={i}
-                className={`sa-bars__col${i === BARS.length - 1 ? ' is-today' : ''}`}
-                style={{ height: `${(v / Math.max(...BARS)) * 100}%` }}
-                title={`${v} ta`}
-              />
-            ))}
-          </div>
+          {bars.length === 0 ? (
+            <div className="sa-table__sub" style={{ padding: '24px 0', textAlign: 'center' }}>
+              {loading ? 'Yuklanmoqda...' : 'Bu davrda buyurtma yo\'q'}
+            </div>
+          ) : (
+            <div className="sa-bars">
+              {bars.map((b, i) => (
+                <div
+                  key={b.date}
+                  className={`sa-bars__col${i === bars.length - 1 ? ' is-today' : ''}`}
+                  style={{ height: `${(b.count / maxBar) * 100}%` }}
+                  title={`${b.date}: ${b.count} ta`}
+                />
+              ))}
+            </div>
+          )}
         </div>
 
         <div className="sa-panel">
@@ -100,14 +123,8 @@ export default function SuperadminDashboard() {
             <div className="sa-panel__title">Tizim holati</div>
             <a className="sa-panel__link" href="#">Integratsiyalar →</a>
           </div>
-          <div className="sa-list">
-            {STATUS.map((s) => (
-              <div key={s.label} className="sa-list__row">
-                <span className={`sa-dot${s.state === 'warn' ? ' is-warn' : s.state === 'bad' ? ' is-bad' : ''}`} />
-                <span style={{ flex: 1 }}>{s.label}</span>
-                <span className="sa-table__sub" style={{ marginTop: 0 }}>{s.detail}</span>
-              </div>
-            ))}
+          <div className="sa-table__sub" style={{ padding: '8px 0' }}>
+            Integratsiya monitoringi (SMS, webhook, backup) hali ulanmagan — bu bo'lim keyingi bosqichda qo'shiladi.
           </div>
         </div>
       </div>
@@ -116,41 +133,20 @@ export default function SuperadminDashboard() {
         <div className="sa-panel">
           <div className="sa-panel__head">
             <div className="sa-panel__title">So'nggi muhim amallar</div>
-            <a className="sa-panel__link" href="#">Audit jurnali →</a>
+            <a className="sa-panel__link" href="/superadmin/audit-log">Audit jurnali →</a>
           </div>
-          <div className="sa-table-wrap" style={{ border: 'none' }}>
-            <table className="sa-table">
-              <tbody>
-                {ACTIVITY.map((a, i) => (
-                  <tr key={i}>
-                    <td className="sa-table__sub" style={{ marginTop: 0 }}>{a.time}</td>
-                    <td><b>{a.actor}</b></td>
-                    <td>{a.action}</td>
-                    <td style={{ textAlign: 'right', color: 'var(--sa-mu)' }}>{a.ctx}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="sa-table__sub" style={{ padding: '8px 0' }}>
+            To'liq ro'yxat Audit jurnali sahifasida.
           </div>
         </div>
 
         <div className="sa-panel">
           <div className="sa-panel__head">
             <div className="sa-panel__title">Xodimlar</div>
-            <a className="sa-panel__link" href="#">Boshqarish →</a>
+            <a className="sa-panel__link" href="/superadmin/users">Boshqarish →</a>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            {STAFF.map((s) => (
-              <div key={s.role}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6, fontSize: 13.5 }}>
-                  <span>{s.role}</span>
-                  <b>{s.count}</b>
-                </div>
-                <div className="sa-progress">
-                  <div className="sa-progress__fill" style={{ width: `${s.pct}%` }} />
-                </div>
-              </div>
-            ))}
+          <div className="sa-table__sub" style={{ padding: '8px 0' }}>
+            Operator va tikuv sexi akkauntlari "Foydalanuvchilar" bo'limida boshqariladi.
           </div>
         </div>
       </div>

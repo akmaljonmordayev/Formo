@@ -1,18 +1,53 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { auditLogApi } from '../../../features/platform/platformApi';
+import { useDebounced } from '../../../hooks/useDebounced';
+import { downloadCsv } from '../../../utils/csvExport';
 
-const LOG = [
-  { time: '14:32', date: '27-sen', actor: 'Sardor Rahimov', role: 'Super admin', action: "Rol o'zgartirildi", ctx: 'user · Dilnoza K.', ip: '185.139.136.14' },
-  { time: '14:05', date: '27-sen', actor: 'Bekzod Aliyev', role: 'Moliyachi', action: 'Qaytarish tasdiqlandi', ctx: 'FRM-88412', ip: '185.139.136.22' },
-  { time: '13:48', date: '27-sen', actor: 'Dilnoza Karimova', role: 'Operator', action: 'Buyurtma bekor qilindi', ctx: 'FRM-88419', ip: '185.139.136.31' },
-  { time: '13:20', date: '27-sen', actor: 'Malika Yusupova', role: 'Kontent-menejer', action: "Narx o'zgartirildi", ctx: 'product · tshirt', ip: '185.139.136.40' },
-  { time: '12:57', date: '27-sen', actor: 'Tizim (BullMQ)', role: 'Tizim', action: "Zaxira bo'shatildi", ctx: 'FRM-88421', ip: 'job · —' },
-];
-
-const TABS = ['Barchasi', 'Buyurtma', "To'lov", 'Foydalanuvchi', 'Sozlama', 'Katalog'];
+const CATEGORY_LABEL = {
+  ORDER: 'Buyurtma',
+  PAYMENT: "To'lov",
+  USER: 'Foydalanuvchi',
+  SETTING: 'Sozlama',
+  CATALOG: 'Katalog',
+  SYSTEM: 'Tizim',
+};
+const TABS = [['', 'Barchasi'], ...Object.entries(CATEGORY_LABEL)];
 
 export default function SuperadminAuditLog() {
-  const [tab, setTab] = useState('Barchasi');
+  const [tab, setTab] = useState('');
   const [search, setSearch] = useState('');
+  const [data, setData] = useState({ items: [], total: 0 });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const debouncedSearch = useDebounced(search, 300);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    auditLogApi
+      .list({ search: debouncedSearch, category: tab || undefined, limit: 100 })
+      .then((d) => active && setData(d))
+      .catch((e) => active && setError(e.message))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [debouncedSearch, tab]);
+
+  const exportCsv = () => {
+    downloadCsv(
+      `audit-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        ['Vaqt', (l) => new Date(l.createdAt).toLocaleString('uz-UZ')],
+        ['Kim', (l) => l.actorName],
+        ['Roli', (l) => l.actorRole],
+        ['Amal', (l) => l.action],
+        ['Obyekt', (l) => l.context || ''],
+        ['IP', (l) => l.ip || ''],
+      ],
+      data.items,
+    );
+  };
 
   return (
     <>
@@ -21,7 +56,7 @@ export default function SuperadminAuditLog() {
           <h1>Audit jurnali</h1>
           <p>Kim, qachon va nimani o'zgartirgani. Yozuvlarni o'zgartirib ham, o'chirib ham bo'lmaydi.</p>
         </div>
-        <button type="button" className="sa-btn sa-btn--ghost">CSV eksport</button>
+        <button type="button" className="sa-btn sa-btn--ghost" onClick={exportCsv} disabled={!data.items.length}>CSV eksport</button>
       </div>
 
       <div className="sa-toolbar">
@@ -35,12 +70,14 @@ export default function SuperadminAuditLog() {
       </div>
 
       <div className="sa-tabs">
-        {TABS.map((t) => (
-          <button key={t} type="button" className={`sa-tab${tab === t ? ' is-active' : ''}`} onClick={() => setTab(t)}>
-            {t}
+        {TABS.map(([value, label]) => (
+          <button key={value || 'all'} type="button" className={`sa-tab${tab === value ? ' is-active' : ''}`} onClick={() => setTab(value)}>
+            {label}
           </button>
         ))}
       </div>
+
+      {error && <div className="form-error">{error}</div>}
 
       <div className="sa-table-wrap">
         <table className="sa-table">
@@ -50,25 +87,38 @@ export default function SuperadminAuditLog() {
               <th>Kim</th>
               <th>Amal</th>
               <th>Obyekt</th>
-              <th>Kanal · IP</th>
+              <th>IP</th>
             </tr>
           </thead>
           <tbody>
-            {LOG.filter((l) => `${l.actor} ${l.ctx}`.toLowerCase().includes(search.toLowerCase())).map((l, i) => (
-              <tr key={i}>
-                <td>
-                  {l.time}
-                  <span className="sa-table__sub">{l.date}</span>
-                </td>
-                <td>
-                  <b>{l.actor}</b>
-                  <span className="sa-table__sub">{l.role}</span>
-                </td>
-                <td>{l.action}</td>
-                <td style={{ color: 'var(--sa-mu)' }}>{l.ctx}</td>
-                <td style={{ color: 'var(--sa-mu)' }}>{l.ip}</td>
+            {loading && !data.items.length ? (
+              <tr>
+                <td colSpan={5} className="sa-table__sub" style={{ textAlign: 'center', padding: 20 }}>Yuklanmoqda...</td>
               </tr>
-            ))}
+            ) : !data.items.length ? (
+              <tr>
+                <td colSpan={5} className="sa-table__sub" style={{ textAlign: 'center', padding: 20 }}>Yozuv topilmadi</td>
+              </tr>
+            ) : (
+              data.items.map((l) => {
+                const d = new Date(l.createdAt);
+                return (
+                  <tr key={l.id}>
+                    <td>
+                      {d.toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' })}
+                      <span className="sa-table__sub">{d.toLocaleDateString('uz-UZ', { day: '2-digit', month: 'short' })}</span>
+                    </td>
+                    <td>
+                      <b>{l.actorName}</b>
+                      <span className="sa-table__sub">{l.actorRole}</span>
+                    </td>
+                    <td>{l.action}</td>
+                    <td style={{ color: 'var(--sa-mu)' }}>{l.context || '—'}</td>
+                    <td style={{ color: 'var(--sa-mu)' }}>{l.ip || '—'}</td>
+                  </tr>
+                );
+              })
+            )}
           </tbody>
         </table>
       </div>

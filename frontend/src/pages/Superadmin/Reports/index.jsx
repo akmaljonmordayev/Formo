@@ -1,110 +1,133 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { reportsApi, money } from '../../../features/platform/platformApi';
+import { downloadCsv } from '../../../utils/csvExport';
 
-const RANGES = ['7 kun', '30 kun', '90 kun'];
-
-const STATS = [
-  { label: 'Tushum', value: "198,4 mln so'm", delta: '+22%', up: true },
-  { label: 'Buyurtmalar', value: '1 184', delta: '+18%', up: true },
-  { label: "O'rtacha chek", value: "167 600 so'm", delta: '+3%', up: true },
-  { label: 'Qayta xarid qilganlar', value: '18,4%', delta: '-1,2 p.p.', up: false },
+const RANGES = [
+  { label: '7 kun', days: 7 },
+  { label: '30 kun', days: 30 },
+  { label: '90 kun', days: 90 },
 ];
 
-const FUNNEL = [
-  { label: 'Ilovaga kirdi', value: 6420, pct: 100 },
-  { label: 'Katalogni ko\'rdi', value: 4180, pct: 65 },
-  { label: "Savatga qo'shdi", value: 3310, pct: 79 },
-  { label: "To'lovga o'tdi", value: 2240, pct: 68 },
-];
-
-const REVENUE = [
-  { label: 'Klub formalari', pct: 61, sum: '121,0 mln', color: 'var(--sa-blue)' },
-  { label: "O'z dizayni", pct: 29, sum: '57,5 mln', color: 'var(--sa-teal)' },
-  { label: 'Qo\'shimcha (shortik, bosma)', pct: 10, sum: '19,9 mln', color: 'var(--sa-accent)' },
-];
+const PRODUCT_LABEL = { CLUB_KIT: 'Klub formalari', CUSTOM_DESIGN: "O'z dizayni" };
+const PRODUCT_COLOR = { CLUB_KIT: 'var(--sa-blue)', CUSTOM_DESIGN: 'var(--sa-teal)' };
 
 export default function SuperadminReports() {
-  const [range, setRange] = useState('30 kun');
+  const [range, setRange] = useState(RANGES[1]);
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    reportsApi
+      .get(range.days)
+      .then((d) => active && setData(d))
+      .catch((e) => active && setError(e.message))
+      .finally(() => active && setLoading(false));
+    return () => {
+      active = false;
+    };
+  }, [range]);
+
+  const byProductType = data?.byProductType ?? {};
+  const total = Object.values(byProductType).reduce((s, v) => s + v, 0);
+  const breakdown = Object.entries(byProductType).map(([type, sum]) => ({
+    label: PRODUCT_LABEL[type] ?? type,
+    color: PRODUCT_COLOR[type] ?? 'var(--sa-accent)',
+    pct: total ? Math.round((sum / total) * 100) : 0,
+    sum,
+  }));
+
+  const exportCsv = () => {
+    downloadCsv(
+      `hisobot-${range.days}kun-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        ['Mahsulot turi', (r) => r.label],
+        ["Summa (so'm)", (r) => r.sum],
+        ['Ulushi (%)', (r) => r.pct],
+      ],
+      breakdown,
+    );
+  };
+
+  const STATS = data
+    ? [
+        { label: 'Tushum', value: money(data.revenue), delta: `${data.revenueDeltaPct > 0 ? '+' : ''}${data.revenueDeltaPct}%`, up: data.revenueDeltaPct > 0 },
+        { label: 'Buyurtmalar', value: String(data.ordersCount), delta: `${data.ordersDeltaPct > 0 ? '+' : ''}${data.ordersDeltaPct}%`, up: data.ordersDeltaPct > 0 },
+        { label: "O'rtacha chek", value: money(data.avgCheck), delta: '' },
+      ]
+    : [];
 
   return (
     <>
       <div className="sa-head">
         <div>
           <h1>Hisobotlar</h1>
-          <p>Konversiya va mashhur tanlovlar · so'nggi 30 kun.</p>
+          <p>Tushum va mahsulot turlari bo'yicha taqsimot · {range.label}.</p>
         </div>
-        <button type="button" className="sa-btn sa-btn--ghost">Excel eksport</button>
+        <button type="button" className="sa-btn sa-btn--ghost" onClick={exportCsv} disabled={!breakdown.length}>Excel eksport</button>
       </div>
 
-      <div className="sa-tabs" style={{ justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {RANGES.map((r) => (
-            <button key={r} type="button" className={`sa-tab${range === r ? ' is-active' : ''}`} onClick={() => setRange(r)}>
-              {r}
-            </button>
-          ))}
-        </div>
-        <span className="sa-table__sub" style={{ marginTop: 8 }}>1-30-sen · oldingi davrga nisbatan</span>
+      <div className="sa-tabs">
+        {RANGES.map((r) => (
+          <button key={r.label} type="button" className={`sa-tab${range.label === r.label ? ' is-active' : ''}`} onClick={() => setRange(r)}>
+            {r.label}
+          </button>
+        ))}
       </div>
+
+      {error && <div className="form-error">{error}</div>}
 
       <div className="sa-stats">
-        {STATS.map((s) => (
-          <div key={s.label} className="sa-stat">
-            <div className="sa-stat__label">{s.label}</div>
-            <div className="sa-stat__value">{s.value}</div>
-            <div className={`sa-stat__delta${s.up ? ' is-up' : ' is-down'}`}>{s.delta}</div>
+        {(loading ? Array.from({ length: 3 }) : STATS).map((s, i) => (
+          <div key={s?.label ?? i} className="sa-stat">
+            <div className="sa-stat__label">{s?.label ?? '···'}</div>
+            <div className="sa-stat__value">{loading ? '···' : s.value}</div>
+            {!loading && s.delta && (
+              <div className={`sa-stat__delta${s.up ? ' is-up' : ''}`}>{s.delta}</div>
+            )}
           </div>
         ))}
       </div>
 
-      <div className="sa-grid-2">
-        <div className="sa-panel">
-          <div className="sa-panel__head">
-            <div className="sa-panel__title">Mijoz yo'li</div>
-            <span className="sa-panel__sub">ilovaga kirgandan to'lovgacha</span>
-          </div>
-          <div className="sa-bars" style={{ alignItems: 'flex-end', gap: 24, height: 150 }}>
-            {FUNNEL.map((f, i) => (
-              <div
-                key={f.label}
-                style={{ flex: 1, height: '100%', display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }}
-              >
-                <div
-                  className="sa-bars__col"
-                  style={{ height: `${f.pct}%`, width: '70%', background: i === 0 ? 'var(--sa-blue)' : 'var(--sa-teal)' }}
-                />
-              </div>
-            ))}
-          </div>
-          <div style={{ display: 'flex', gap: 24 }}>
-            {FUNNEL.map((f) => (
-              <div key={f.label} style={{ flex: 1, textAlign: 'center' }}>
-                <b>{f.value.toLocaleString('uz-UZ')}</b>
-                <div className="sa-table__sub">{f.label}{f.pct < 100 ? ` · ${f.pct}% qoldi` : ''}</div>
-              </div>
-            ))}
-          </div>
+      <div className="sa-panel">
+        <div className="sa-panel__head">
+          <div className="sa-panel__title">Tushum tarkibi</div>
+          <span className="sa-panel__sub">so'm</span>
         </div>
+        {breakdown.length === 0 ? (
+          <div className="sa-table__sub" style={{ padding: '12px 0' }}>
+            {loading ? 'Yuklanmoqda...' : "Bu davrda tushum yo'q"}
+          </div>
+        ) : (
+          <>
+            <div style={{ display: 'flex', height: 18, borderRadius: 999, overflow: 'hidden', marginBottom: 16 }}>
+              {breakdown.map((r) => (
+                <span key={r.label} style={{ width: `${r.pct}%`, background: r.color }} />
+              ))}
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              {breakdown.map((r) => (
+                <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
+                  <span style={{ width: 9, height: 9, borderRadius: '50%', background: r.color }} />
+                  <span style={{ flex: 1 }}>{r.label}</span>
+                  <span style={{ color: 'var(--sa-mu)' }}>{r.pct}%</span>
+                  <b style={{ minWidth: 70, textAlign: 'right' }}>{money(r.sum)}</b>
+                </div>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
 
-        <div className="sa-panel">
-          <div className="sa-panel__head">
-            <div className="sa-panel__title">Tushum tarkibi</div>
-            <span className="sa-panel__sub">so'm</span>
-          </div>
-          <div style={{ display: 'flex', height: 18, borderRadius: 999, overflow: 'hidden', marginBottom: 16 }}>
-            {REVENUE.map((r) => (
-              <span key={r.label} style={{ width: `${r.pct}%`, background: r.color }} />
-            ))}
-          </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {REVENUE.map((r) => (
-              <div key={r.label} style={{ display: 'flex', alignItems: 'center', gap: 10, fontSize: 13 }}>
-                <span style={{ width: 9, height: 9, borderRadius: '50%', background: r.color }} />
-                <span style={{ flex: 1 }}>{r.label}</span>
-                <span style={{ color: 'var(--sa-mu)' }}>{r.pct}%</span>
-                <b style={{ minWidth: 70, textAlign: 'right' }}>{r.sum}</b>
-              </div>
-            ))}
-          </div>
+      <div className="sa-panel">
+        <div className="sa-panel__head">
+          <div className="sa-panel__title">Mijoz yo'li</div>
+          <span className="sa-panel__sub">ilovaga kirgandan to'lovgacha</span>
+        </div>
+        <div className="sa-table__sub" style={{ padding: '8px 0' }}>
+          Konversiya voronkasi uchun ilovada foydalanuvchi hodisalarini yozib borish kerak — bu analitika tizimi hali ulanmagan.
         </div>
       </div>
     </>
