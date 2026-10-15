@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { auditLogApi } from '../../../features/platform/platformApi';
 import { useDebounced } from '../../../hooks/useDebounced';
+import { downloadCsv } from '../../../utils/csvExport';
 
 const CATEGORY_LABEL = {
   ORDER: 'Buyurtma',
@@ -33,6 +34,21 @@ export default function SuperadminAuditLog() {
     };
   }, [debouncedSearch, tab]);
 
+  const exportCsv = () => {
+    downloadCsv(
+      `audit-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        ['Vaqt', (l) => new Date(l.createdAt).toLocaleString('uz-UZ')],
+        ['Kim', (l) => l.actorName],
+        ['Roli', (l) => l.actorRole],
+        ['Amal', (l) => l.action],
+        ['Obyekt', (l) => l.context || ''],
+        ['IP', (l) => l.ip || ''],
+      ],
+      data.items,
+    );
+  };
+
   return (
     <>
       <div className="sa-head">
@@ -40,7 +56,7 @@ export default function SuperadminAuditLog() {
           <h1>Audit jurnali</h1>
           <p>Kim, qachon va nimani o'zgartirgani. Yozuvlarni o'zgartirib ham, o'chirib ham bo'lmaydi.</p>
         </div>
-        <button type="button" className="sa-btn sa-btn--ghost">CSV eksport</button>
+        <button type="button" className="sa-btn sa-btn--ghost" onClick={exportCsv} disabled={!data.items.length}>CSV eksport</button>
       </div>
 
       <div className="sa-toolbar">

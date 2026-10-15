@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { financeApi, money, PAYMENT_METHOD } from '../../../features/platform/platformApi';
+import { downloadCsv } from '../../../utils/csvExport';
 
 const RANGES = [
   { label: 'Bugun', days: 1 },
@@ -32,6 +33,19 @@ export default function SuperadminFinance() {
   const methods = Object.entries(byMethod);
   const totalByMethod = methods.reduce((s, [, m]) => s + m.sum, 0);
 
+  const exportCsv = () => {
+    downloadCsv(
+      `moliya-${range.days}kun-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        ["To'lov usuli", ([method]) => PAYMENT_METHOD[method] ?? method],
+        ['Soni', ([, m]) => m.count],
+        ["Summa (so'm)", ([, m]) => m.sum],
+        ['Ulushi (%)', ([, m]) => (totalByMethod ? Math.round((m.sum / totalByMethod) * 100) : 0)],
+      ],
+      methods,
+    );
+  };
+
   const STATS = data
     ? [
         { label: 'Tushum', value: money(data.revenue), delta: `${data.revenueDeltaPct > 0 ? '+' : ''}${data.revenueDeltaPct}% oldingi davrga` },
@@ -46,7 +60,7 @@ export default function SuperadminFinance() {
           <h1>Moliya</h1>
           <p>Tushum, to'lov usullari va qaytarishlar.</p>
         </div>
-        <button type="button" className="sa-btn sa-btn--ghost">Excel eksport</button>
+        <button type="button" className="sa-btn sa-btn--ghost" onClick={exportCsv} disabled={!methods.length}>Excel eksport</button>
       </div>
 
       <div className="sa-tabs">

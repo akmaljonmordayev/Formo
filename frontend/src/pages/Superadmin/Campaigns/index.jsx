@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { campaignsApi, money } from '../../../features/platform/platformApi';
+import Modal from '../../../components/ui/Modal';
 
 const STATUS_LABEL = {
   DRAFT: { label: 'Qoralama', color: 'blue' },
@@ -14,17 +15,19 @@ export default function SuperadminCampaigns() {
   const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [editing, setEditing] = useState(null); // null | 'new'
+
+  const load = () => campaignsApi.list().then((d) => setData(d));
 
   useEffect(() => {
     let active = true;
-    campaignsApi
-      .list()
-      .then((d) => active && setData(d))
+    load()
       .catch((e) => active && setError(e.message))
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const campaigns = statusFilter ? data.items.filter((c) => c.status === statusFilter) : data.items;
@@ -45,7 +48,7 @@ export default function SuperadminCampaigns() {
           <h1>Kampaniyalar</h1>
           <p>Mijozlarga push va SMS xabarlar. Kampaniyani bosib tahrirlang yoki natijasini ko'ring.</p>
         </div>
-        <button type="button" className="sa-btn">+ Kampaniya</button>
+        <button type="button" className="sa-btn" onClick={() => setEditing('new')}>+ Kampaniya</button>
       </div>
 
       {error && <div className="form-error">{error}</div>}
@@ -127,6 +130,95 @@ export default function SuperadminCampaigns() {
           })}
         </div>
       )}
+
+      {editing && (
+        <CampaignForm
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            load().catch((e) => setError(e.message));
+          }}
+        />
+      )}
     </>
+  );
+}
+
+function CampaignForm({ onClose, onSaved }) {
+  const [form, setForm] = useState({ name: '', audience: '', channel: 'PUSH', scheduledAt: '', message: '' });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError('');
+    try {
+      const body = {
+        name: form.name.trim(),
+        audience: form.audience.trim(),
+        channel: form.channel,
+        message: form.message.trim(),
+      };
+      if (form.scheduledAt) {
+        body.scheduledAt = new Date(form.scheduledAt).toISOString();
+        body.status = 'SCHEDULED';
+      }
+      await campaignsApi.create(body);
+      onSaved();
+    } catch (err) {
+      setError(err.message);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal title="Yangi kampaniya" onClose={onClose}>
+      <form onSubmit={submit}>
+        {error && <div className="form-error">{error}</div>}
+        <div className="form-grid">
+          <label className="field field--full">
+            <span>Nomi</span>
+            <input value={form.name} onChange={set('name')} required minLength={2} maxLength={120} />
+          </label>
+          <label className="field field--full">
+            <span>Auditoriya</span>
+            <input
+              value={form.audience}
+              onChange={set('audience')}
+              required
+              maxLength={200}
+              placeholder="Savatda qoldirganlar · 7 kun"
+            />
+          </label>
+          <label className="field">
+            <span>Kanal</span>
+            <select value={form.channel} onChange={set('channel')}>
+              <option value="PUSH">Push</option>
+              <option value="SMS">SMS</option>
+              <option value="PUSH_SMS">Push + SMS</option>
+            </select>
+          </label>
+          <label className="field">
+            <span>Qachon yuborilsin</span>
+            <input type="datetime-local" value={form.scheduledAt} onChange={set('scheduledAt')} />
+            <small>Bo'sh qoldirilsa qoralama sifatida saqlanadi</small>
+          </label>
+          <label className="field field--full">
+            <span>Xabar matni</span>
+            <textarea value={form.message} onChange={set('message')} required maxLength={500} rows={3} />
+          </label>
+        </div>
+        <div className="modal__foot" style={{ padding: '14px 0 0' }}>
+          <button type="button" className="btn btn--ghost" onClick={onClose}>
+            Bekor qilish
+          </button>
+          <button type="submit" className="btn btn--accent" disabled={saving}>
+            {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
