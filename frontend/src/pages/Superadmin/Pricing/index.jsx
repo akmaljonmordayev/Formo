@@ -1,16 +1,26 @@
 import { useEffect, useState } from 'react';
 import { pricingApi, money } from '../../../features/platform/platformApi';
 
+// PUT /admin/pricing faqat shu maydonlarni qabul qiladi (id, sortOrder, updatedAt yuborilsa 400 qaytadi)
+const toInput = ({ key, section, step, label, sub, price }) => ({ key, section, step, label, sub, price });
+
 export default function SuperadminPricing() {
   const [items, setItems] = useState([]);
+  const [saved, setSaved] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [notice, setNotice] = useState('');
 
   useEffect(() => {
     let active = true;
     pricingApi
       .list()
-      .then((d) => active && setItems(d))
+      .then((d) => {
+        if (!active) return;
+        setItems(d);
+        setSaved(d);
+      })
       .catch((e) => active && setError(e.message))
       .finally(() => active && setLoading(false));
     return () => {
@@ -18,13 +28,35 @@ export default function SuperadminPricing() {
     };
   }, []);
 
+  const setPrice = (key, value) =>
+    setItems((prev) => prev.map((i) => (i.key === key ? { ...i, price: value === '' ? '' : Math.max(0, Math.round(Number(value))) } : i)));
+
+  const dirty = items.some((i, idx) => i.price !== saved[idx]?.price);
+  const invalid = items.some((i) => i.price === '' || Number.isNaN(i.price));
+
+  const save = async () => {
+    setSaving(true);
+    setError('');
+    setNotice('');
+    try {
+      const fresh = await pricingApi.save(items.map(toInput));
+      setItems(fresh);
+      setSaved(fresh);
+      setNotice('Narxlar saqlandi');
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const sections = Array.from(new Set(items.map((i) => i.section))).map((title) => ({
     title,
     step: items.find((i) => i.section === title)?.step ?? 1,
     items: items.filter((i) => i.section === title),
   }));
 
-  const priced = (key) => items.find((i) => i.key === key)?.price ?? 0;
+  const priced = (key) => Number(items.find((i) => i.key === key)?.price) || 0;
   const tshirt = priced('club.tshirt');
   const shorts = priced('club.shorts');
   const print = priced('club.print');
@@ -38,9 +70,22 @@ export default function SuperadminPricing() {
           <h1>Narxlar</h1>
           <p>Futbolka va bosma narxi. O'ng tomonda mijoz ko'radigan yakuniy narx.</p>
         </div>
+        {items.length > 0 && (
+          <div style={{ display: 'flex', gap: 10 }}>
+            {dirty && (
+              <button type="button" className="sa-btn sa-btn--ghost" disabled={saving} onClick={() => setItems(saved)}>
+                Bekor qilish
+              </button>
+            )}
+            <button type="button" className="sa-btn" disabled={!dirty || invalid || saving} onClick={save}>
+              {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+            </button>
+          </div>
+        )}
       </div>
 
       {error && <div className="form-error">{error}</div>}
+      {notice && !dirty && <div className="sa-table__sub" style={{ marginBottom: 12, color: 'var(--sa-teal)' }}>{notice}</div>}
 
       {loading ? (
         <div className="sa-table__sub" style={{ padding: 20 }}>Yuklanmoqda...</div>
@@ -72,8 +117,17 @@ export default function SuperadminPricing() {
                         <div style={{ fontWeight: 600, fontSize: 13.5 }}>{it.label}</div>
                         <div className="sa-table__sub">{it.sub}</div>
                       </div>
-                      <div style={{ display: 'flex', alignItems: 'baseline', gap: 4 }}>
-                        <b style={{ fontFamily: 'var(--font-display)', fontSize: 16 }}>{it.price.toLocaleString('uz-UZ')}</b>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                        <input
+                          className="sa-input"
+                          type="number"
+                          min={0}
+                          step={1000}
+                          value={it.price}
+                          onChange={(e) => setPrice(it.key, e.target.value)}
+                          aria-label={`${it.label} narxi`}
+                          style={{ width: 120, textAlign: 'right', fontFamily: 'var(--font-display)', fontWeight: 700 }}
+                        />
                         <span className="sa-table__sub" style={{ marginTop: 0 }}>so'm</span>
                       </div>
                     </div>

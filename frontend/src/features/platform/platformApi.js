@@ -28,6 +28,14 @@ export const clubsApi = {
   create: (body) => api('/admin/clubs', { method: 'POST', body }),
   update: (id, body) => api(`/admin/clubs/${id}`, { method: 'PATCH', body }),
   remove: (id) => api(`/admin/clubs/${id}`, { method: 'DELETE' }),
+  updateKit: (kitId, body) => api(`/admin/clubs/kits/${kitId}`, { method: 'PATCH', body }),
+};
+
+export const categoriesApi = {
+  list: () => api('/admin/categories'),
+  create: (body) => api('/admin/categories', { method: 'POST', body }),
+  update: (id, body) => api(`/admin/categories/${id}`, { method: 'PATCH', body }),
+  remove: (id) => api(`/admin/categories/${id}`, { method: 'DELETE' }),
 };
 
 export const ordersApi = {
@@ -64,6 +72,21 @@ export const auditLogApi = {
 export const settingsApi = {
   all: () => api('/admin/settings'),
   update: (key, value) => api(`/admin/settings/${key}`, { method: 'PUT', body: { value } }),
+};
+
+export const diagnosticsApi = {
+  request: () => api('/admin/diagnostics/request'),
+};
+
+// Superadminning o'z akkaunti (Sozlamalar → Xavfsizlik)
+export const securityApi = {
+  changePassword: (body) => api('/auth/password', { method: 'PATCH', body }),
+  logoutAll: () => api('/auth/logout-all', { method: 'POST' }),
+};
+
+// Mobil foydalanuvchi tafsiloti (ro'yxat, bloklash, o'chirish — accountsApi.usersApi da)
+export const userDetailApi = {
+  get: (id) => api(`/admin/users/${id}`),
 };
 
 // --- Buyurtma holati: panel ko'rsatadigan label va badge rangi ---
