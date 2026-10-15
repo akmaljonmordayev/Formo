@@ -3,6 +3,8 @@ import { AuthModule } from '../auth/auth.module';
 import { AccountsService } from './accounts.service';
 import { AuditController } from './audit.controller';
 import { AuditService } from './audit.service';
+import { CategoriesController } from './categories.controller';
+import { CategoriesService } from './categories.service';
 import { CampaignsController } from './campaigns.controller';
 import { CampaignsService } from './campaigns.service';
 import { ClubsController } from './clubs.controller';
@@ -30,6 +32,7 @@ import { WorkshopsController } from './workshops.controller';
     WorkshopsController,
     UsersController,
     DiagnosticsController,
+    CategoriesController,
     ClubsController,
     OrdersController,
     InsightsController,
@@ -43,6 +46,7 @@ import { WorkshopsController } from './workshops.controller';
   providers: [
     AccountsService,
     AuditService,
+    CategoriesService,
     ClubsService,
     OrdersService,
     InventoryService,

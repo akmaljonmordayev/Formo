@@ -6,7 +6,7 @@ import { CurrentUser, AuthUser } from '../common/decorators/current-user.decorat
 import { Roles } from '../common/decorators/roles.decorator';
 import { ParseIdPipe } from '../common/pipes/parse-id.pipe';
 import { ClubsService } from './clubs.service';
-import { CreateClubDto, ListClubsQueryDto, UpdateClubDto } from './dto/club.dto';
+import { CreateClubDto, ListClubsQueryDto, UpdateClubDto, UpdateKitDto } from './dto/club.dto';
 
 @ApiTags('Admin · Klublar va formalar')
 @ApiBearerAuth()
@@ -38,6 +38,17 @@ export class ClubsController {
     @Req() req: Request,
   ) {
     return this.clubs.update(id, dto, user, req.ip);
+  }
+
+  @Patch('kits/:kitId')
+  @ApiOperation({ summary: "Bitta formani tahrirlash (narx, o'lchamlar, sotuvda/yo'q)" })
+  updateKit(
+    @Param('kitId', ParseIdPipe) kitId: number,
+    @Body() dto: UpdateKitDto,
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+  ) {
+    return this.clubs.updateKit(kitId, dto, user, req.ip);
   }
 
   @Delete(':id')

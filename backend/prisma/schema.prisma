@@ -20,28 +20,31 @@ enum Gender {
 }
 
 model User {
-  id           Int      @id @default(autoincrement())
-  phone        String   @unique
+  id           Int     @id @default(autoincrement())
+  phone        String  @unique
   passwordHash String
-  role         Role     @default(USER)
+  role         Role    @default(USER)
   fullName     String
-  isActive     Boolean  @default(true)
+  isActive     Boolean @default(true)
 
   // Mobil foydalanuvchi profili
-  gender       Gender?
-  age          Int?
-  height       Int? // sm
-  weight       Int? // kg
+  gender Gender?
+  age    Int?
+  height Int? // sm
+  weight Int? // kg
 
   // Tikuv sexi ma'lumotlari
-  workshopName   String?
-  address        String?
-  dailyCapacity  Int?     // tikuv sexi uchun kunlik bosma sig'imi (dona) — "Sexdagi yuk" foizi shundan hisoblanadi
+  workshopName  String?
+  address       String?
+  dailyCapacity Int? // tikuv sexi uchun kunlik bosma sig'imi (dona) — "Sexdagi yuk" foizi shundan hisoblanadi
 
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  sessions     Session[]
+  sessions      Session[]
+  cartItems     CartItem[]
+  addresses     Address[]
+  favoriteClubs FavoriteClub[]
 
   ordersAsCustomer Order[] @relation("OrderCustomer")
   ordersAsWorkshop Order[] @relation("OrderWorkshop")
@@ -67,24 +70,41 @@ model Session {
 }
 
 // ---------------------------------------------------------------------------
-// Katalog: klublar va formalar (ilovadagi "Klub formalari")
+// Katalog: kategoriya (liga) → klub → formalar (ilovadagi "Klub formalari")
 // ---------------------------------------------------------------------------
 
-model Club {
+// Katalogdagi filtr chiplari: "LaLiga", "Premier League", "Serie A" ...
+model Category {
   id        Int      @id @default(autoincrement())
-  name      String
-  league    String
-  season    String
-  code      String // nishon ustidagi qisqa harf, masalan "RM"
-  markColor String // nishon foni, hex
+  name      String   @unique
+  slug      String   @unique
+  sortOrder Int      @default(0)
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  kits   Kit[]
-  orders Order[]
+  clubs Club[]
+}
+
+model Club {
+  id         Int       @id @default(autoincrement())
+  name       String
+  league     String // kategoriya nomi (eski panel shu maydon bilan ishlaydi)
+  categoryId Int?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  season     String
+  code       String // nishon ustidagi qisqa harf, masalan "RM"
+  markColor  String // nishon foni, hex
+  isActive   Boolean   @default(true)
+  createdAt  DateTime  @default(now())
+  updatedAt  DateTime  @updatedAt
+
+  kits      Kit[]
+  orders    Order[]
+  favorites FavoriteClub[]
 
   @@unique([name, season])
+  @@index([categoryId])
 }
 
 // Bitta klubning uy/mehmon/uchinchi formasi
@@ -97,7 +117,68 @@ model Kit {
   textColor String
   sortOrder Int    @default(0)
 
+  // Mahsulot sifatidagi ma'lumotlar: to'plam = futbolka + shortik (+ ism/raqam bosmasi)
+  colorsLabel String? // "Oq / oltin"
+  description String? // "Dry-fit polyester · DTF bosma"
+  shirtPrice  Int      @default(99000) // so'm
+  shortsPrice Int      @default(60000)
+  printPrice  Int      @default(30000) // ism + raqam bosmasi
+  sizes       String[] @default(["S", "M", "L", "XL", "XXL", "3XL"]) // sotuvda bor o'lchamlar
+  isActive    Boolean  @default(true)
+
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
   @@index([clubId])
+}
+
+model FavoriteClub {
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  clubId    Int
+  club      Club     @relation(fields: [clubId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, clubId])
+}
+
+// ---------------------------------------------------------------------------
+// Savat va manzillar (mobil ilova foydalanuvchisi)
+// ---------------------------------------------------------------------------
+
+model CartItem {
+  id             Int      @id @default(autoincrement())
+  userId         Int
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kitId          Int
+  kit            Kit      @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  printName      String?
+  printNumber    String?
+  numberOnShorts Boolean  @default(false)
+  withShorts     Boolean  @default(true)
+  shirtSize      String
+  shortsSize     String?
+  quantity       Int      @default(1)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@index([userId])
+}
+
+model Address {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  label     String // "Uy", "Ish"
+  address   String // "Yunusobod, Amir Temur 108"
+  apartment String? // "45-xonadon"
+  latitude  Float?
+  longitude Float?
+  isDefault Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
 }
 
 // ---------------------------------------------------------------------------
@@ -142,44 +223,81 @@ enum OrderStatus {
 }
 
 model Order {
-  id            Int      @id @default(autoincrement())
-  code          String   @unique // "FRM-88424"
+  id   Int    @id @default(autoincrement())
+  code String @unique // "FRM-88424"
 
   customerId    Int?
-  customer      User?    @relation("OrderCustomer", fields: [customerId], references: [id], onDelete: SetNull)
+  customer      User?  @relation("OrderCustomer", fields: [customerId], references: [id], onDelete: SetNull)
   customerName  String
   customerPhone String
 
-  workshopId    Int?
-  workshop      User?    @relation("OrderWorkshop", fields: [workshopId], references: [id], onDelete: SetNull)
+  workshopId Int?
+  workshop   User? @relation("OrderWorkshop", fields: [workshopId], references: [id], onDelete: SetNull)
 
-  clubId        Int?
-  club          Club?    @relation(fields: [clubId], references: [id], onDelete: SetNull)
-  kitLabel      String? // tanlangan forma: "Uy" | "Mehmon" | "Uchinchi"
+  clubId   Int?
+  club     Club?   @relation(fields: [clubId], references: [id], onDelete: SetNull)
+  kitLabel String? // tanlangan forma: "Uy" | "Mehmon" | "Uchinchi"
 
-  productType   OrderProductType @default(CLUB_KIT)
-  printName     String?
-  printNumber   String?
-  size          String
-  quantity      Int      @default(1)
+  productType OrderProductType @default(CLUB_KIT)
+  printName   String?
+  printNumber String?
+  size        String
+  quantity    Int              @default(1)
 
-  totalSum      Int // so'm, umumiy summa (yetkazish bilan)
-  deliverySum   Int      @default(0)
+  totalSum    Int // so'm, umumiy summa (yetkazish bilan)
+  deliverySum Int @default(0)
+  subtotalSum Int @default(0) // mahsulotlar summasi (chegirmagacha)
+  discountSum Int @default(0)
+
+  // Yetkazish (mobil ilovadan rasmiylashtirilganda)
+  deliveryDate    DateTime? @db.Date
+  deliverySlot    String? // "10:00-14:00"
+  deliveryAddress String?
+  comment         String? // kuryer uchun izoh
+
+  paymentExpiresAt DateTime? // Click/Payme: to'lov kutiladigan muddat (30 daqiqa)
+  paidAt           DateTime?
+
+  items OrderItem[]
 
   channel       OrderChannel  @default(APP)
   paymentMethod PaymentMethod
   paymentStatus PaymentStatus @default(PENDING)
   status        OrderStatus   @default(PENDING_PAYMENT)
 
-  promocodeId   Int?
-  promocode     Promocode? @relation(fields: [promocodeId], references: [id], onDelete: SetNull)
+  promocodeId Int?
+  promocode   Promocode? @relation(fields: [promocodeId], references: [id], onDelete: SetNull)
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([status])
   @@index([workshopId])
   @@index([createdAt])
+  @@index([customerId])
+  @@index([deliveryDate, deliverySlot])
+}
+
+// Buyurtma qatorlari — narx va nomlar buyurtma paytidagi holatda saqlanadi
+model OrderItem {
+  id             Int     @id @default(autoincrement())
+  orderId        Int
+  order          Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  kitId          Int?
+  kit            Kit?    @relation(fields: [kitId], references: [id], onDelete: SetNull)
+  clubName       String
+  kitLabel       String
+  printName      String?
+  printNumber    String?
+  numberOnShorts Boolean @default(false)
+  withShorts     Boolean @default(true)
+  shirtSize      String
+  shortsSize     String?
+  quantity       Int
+  unitPrice      Int
+  totalPrice     Int
+
+  @@index([orderId])
 }
 
 // ---------------------------------------------------------------------------
@@ -276,8 +394,8 @@ model Campaign {
   orderCount  Int?
   revenue     Int?
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 // ---------------------------------------------------------------------------
