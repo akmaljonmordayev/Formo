@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { ordersApi, ORDER_STATUS, paymentLabel, formatDateTime, money } from '../../../features/platform/platformApi';
 import { prettyPhone } from '../../../features/accounts/accountsApi';
 import { useDebounced } from '../../../hooks/useDebounced';
+import { downloadCsv } from '../../../utils/csvExport';
 
 const LIMIT = 20;
 const TABS = [
@@ -35,6 +36,24 @@ export default function SuperadminOrders() {
       active = false;
     };
   }, [debouncedSearch, tab]);
+
+  const exportCsv = () => {
+    downloadCsv(
+      `buyurtmalar-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        ['Raqam', (o) => o.code],
+        ['Mijoz', (o) => o.customerName],
+        ['Telefon', (o) => prettyPhone(o.customerPhone)],
+        ['Summa', (o) => o.totalSum],
+        ["To'lov", (o) => paymentLabel(o.paymentMethod, o.paymentStatus)],
+        ['Status', (o) => ORDER_STATUS[o.status]?.label ?? o.status],
+        ['Sex', (o) => o.workshop?.workshopName || o.workshop?.fullName || ''],
+        ['Kanal', (o) => (o.channel === 'APP' ? 'app' : 'web')],
+        ['Sana', (o) => formatDateTime(o.createdAt)],
+      ],
+      data.items,
+    );
+  };
 
   const countFor = (status) => {
     if (!status) return data.total;
@@ -72,7 +91,7 @@ export default function SuperadminOrders() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
-        <button type="button" className="sa-btn sa-btn--ghost">CSV</button>
+        <button type="button" className="sa-btn sa-btn--ghost" onClick={exportCsv} disabled={!data.items.length}>CSV</button>
       </div>
 
       {error && <div className="form-error">{error}</div>}

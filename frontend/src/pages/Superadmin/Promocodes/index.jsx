@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { promocodesApi } from '../../../features/platform/platformApi';
+import Modal from '../../../components/ui/Modal';
 
 const TYPE_LABEL = { PERCENT: 'Foiz', FIXED: "Qat'iy", FREE_SHIPPING: 'Bepul yetkazish' };
 
@@ -15,6 +16,7 @@ export default function SuperadminPromocodes() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState(null);
+  const [editing, setEditing] = useState(null); // null | 'new'
 
   const load = () =>
     promocodesApi
@@ -46,7 +48,7 @@ export default function SuperadminPromocodes() {
           <h1>Promokodlar</h1>
           <p>Chegirma kodlari. O'chirilgan kod to'lovda qabul qilinmaydi.</p>
         </div>
-        <button type="button" className="sa-btn">+ Promokod</button>
+        <button type="button" className="sa-btn" onClick={() => setEditing('new')}>+ Promokod</button>
       </div>
 
       {error && <div className="form-error">{error}</div>}
@@ -111,6 +113,111 @@ export default function SuperadminPromocodes() {
           </table>
         </div>
       )}
+
+      {editing && (
+        <PromocodeForm
+          onClose={() => setEditing(null)}
+          onSaved={() => {
+            setEditing(null);
+            load();
+          }}
+        />
+      )}
     </>
+  );
+}
+
+function PromocodeForm({ onClose, onSaved }) {
+  const [form, setForm] = useState({
+    code: '',
+    type: 'PERCENT',
+    value: '',
+    minSum: '',
+    usageCap: '',
+    startsAt: '',
+    endsAt: '',
+  });
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setSaving(true);
+    setError('');
+    try {
+      const body = { code: form.code.trim().toUpperCase(), type: form.type };
+      if (form.type !== 'FREE_SHIPPING' && form.value) body.value = Number(form.value);
+      if (form.minSum) body.minSum = Number(form.minSum);
+      if (form.usageCap) body.usageCap = Number(form.usageCap);
+      if (form.startsAt) body.startsAt = new Date(form.startsAt).toISOString();
+      if (form.endsAt) body.endsAt = new Date(form.endsAt).toISOString();
+      await promocodesApi.create(body);
+      onSaved();
+    } catch (err) {
+      setError(err.message);
+      setSaving(false);
+    }
+  };
+
+  return (
+    <Modal title="Yangi promokod" onClose={onClose}>
+      <form onSubmit={submit}>
+        {error && <div className="form-error">{error}</div>}
+        <div className="form-grid">
+          <label className="field field--full">
+            <span>Kod</span>
+            <input
+              value={form.code}
+              onChange={set('code')}
+              required
+              minLength={3}
+              maxLength={20}
+              placeholder="FORMO10"
+              style={{ textTransform: 'uppercase' }}
+            />
+            <small>Faqat katta harf, raqam, - va _ (3-20 belgi)</small>
+          </label>
+          <label className="field">
+            <span>Turi</span>
+            <select value={form.type} onChange={set('type')}>
+              <option value="PERCENT">Foiz</option>
+              <option value="FIXED">Qat'iy summa</option>
+              <option value="FREE_SHIPPING">Bepul yetkazish</option>
+            </select>
+          </label>
+          {form.type !== 'FREE_SHIPPING' && (
+            <label className="field">
+              <span>{form.type === 'PERCENT' ? 'Qiymat (%)' : "Qiymat (so'm)"}</span>
+              <input type="number" min={0} value={form.value} onChange={set('value')} />
+            </label>
+          )}
+          <label className="field">
+            <span>Minimal summa (so'm)</span>
+            <input type="number" min={0} value={form.minSum} onChange={set('minSum')} />
+          </label>
+          <label className="field">
+            <span>Ishlatish limiti</span>
+            <input type="number" min={1} value={form.usageCap} onChange={set('usageCap')} />
+          </label>
+          <label className="field">
+            <span>Boshlanishi</span>
+            <input type="date" value={form.startsAt} onChange={set('startsAt')} />
+          </label>
+          <label className="field">
+            <span>Tugashi</span>
+            <input type="date" value={form.endsAt} onChange={set('endsAt')} />
+          </label>
+        </div>
+        <div className="modal__foot" style={{ padding: '14px 0 0' }}>
+          <button type="button" className="btn btn--ghost" onClick={onClose}>
+            Bekor qilish
+          </button>
+          <button type="submit" className="btn btn--accent" disabled={saving}>
+            {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }

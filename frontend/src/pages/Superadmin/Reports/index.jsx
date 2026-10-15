@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { reportsApi, money } from '../../../features/platform/platformApi';
+import { downloadCsv } from '../../../utils/csvExport';
 
 const RANGES = [
   { label: '7 kun', days: 7 },
@@ -38,6 +39,18 @@ export default function SuperadminReports() {
     sum,
   }));
 
+  const exportCsv = () => {
+    downloadCsv(
+      `hisobot-${range.days}kun-${new Date().toISOString().slice(0, 10)}.csv`,
+      [
+        ['Mahsulot turi', (r) => r.label],
+        ["Summa (so'm)", (r) => r.sum],
+        ['Ulushi (%)', (r) => r.pct],
+      ],
+      breakdown,
+    );
+  };
+
   const STATS = data
     ? [
         { label: 'Tushum', value: money(data.revenue), delta: `${data.revenueDeltaPct > 0 ? '+' : ''}${data.revenueDeltaPct}%`, up: data.revenueDeltaPct > 0 },
@@ -53,7 +66,7 @@ export default function SuperadminReports() {
           <h1>Hisobotlar</h1>
           <p>Tushum va mahsulot turlari bo'yicha taqsimot · {range.label}.</p>
         </div>
-        <button type="button" className="sa-btn sa-btn--ghost">Excel eksport</button>
+        <button type="button" className="sa-btn sa-btn--ghost" onClick={exportCsv} disabled={!breakdown.length}>Excel eksport</button>
       </div>
 
       <div className="sa-tabs">

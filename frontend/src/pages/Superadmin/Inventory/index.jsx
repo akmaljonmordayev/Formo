@@ -5,18 +5,34 @@ const KID_SIZES = ['2-3', '4-5', '6-7', '8-9', '10-11', '12-13'];
 const ADULT_SIZES = ['S', 'M', 'L', 'XL', 'XXL', '3XL'];
 const SIZES = [...KID_SIZES, ...ADULT_SIZES];
 
+const cellKey = (color, size) => `${color}::${size}`;
+
 export default function SuperadminInventory() {
   const [tab, setTab] = useState('TSHIRT');
-  const [items, setItems] = useState([]);
+  const [colors, setColors] = useState([]);
+  const [qtyMap, setQtyMap] = useState({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [newColor, setNewColor] = useState('');
 
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setError('');
+    setSaved(false);
     inventoryApi
       .list({ productType: tab })
-      .then((d) => active && setItems(d))
+      .then((items) => {
+        if (!active) return;
+        setColors(Array.from(new Set(items.map((i) => i.color))));
+        const map = {};
+        items.forEach((i) => {
+          map[cellKey(i.color, i.size)] = String(i.qty);
+        });
+        setQtyMap(map);
+      })
       .catch((e) => active && setError(e.message))
       .finally(() => active && setLoading(false));
     return () => {
@@ -24,8 +40,48 @@ export default function SuperadminInventory() {
     };
   }, [tab]);
 
-  const colors = Array.from(new Set(items.map((i) => i.color)));
-  const qtyOf = (color, size) => items.find((i) => i.color === color && i.size === size)?.qty ?? null;
+  const setQty = (color, size, value) => {
+    if (value !== '' && !/^\d+$/.test(value)) return;
+    setQtyMap((m) => ({ ...m, [cellKey(color, size)]: value }));
+    setSaved(false);
+  };
+
+  const addColor = () => {
+    const name = newColor.trim();
+    if (!name || colors.includes(name)) return;
+    setColors((c) => [...c, name]);
+    setNewColor('');
+    setSaved(false);
+  };
+
+  const save = async () => {
+    const items = [];
+    colors.forEach((color) => {
+      SIZES.forEach((size) => {
+        const raw = qtyMap[cellKey(color, size)];
+        if (raw === '' || raw === undefined) return;
+        items.push({ productType: tab, color, size, qty: Number(raw) });
+      });
+    });
+    if (!items.length) return;
+    setSaving(true);
+    setError('');
+    setSaved(false);
+    try {
+      const fresh = (await inventoryApi.save(items)).filter((i) => i.productType === tab);
+      setColors(Array.from(new Set(fresh.map((i) => i.color))));
+      const map = {};
+      fresh.forEach((i) => {
+        map[cellKey(i.color, i.size)] = String(i.qty);
+      });
+      setQtyMap(map);
+      setSaved(true);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
 
   return (
     <>
@@ -34,7 +90,12 @@ export default function SuperadminInventory() {
           <h1>Zaxira</h1>
           <p>Rang va o'lcham bo'yicha bo'sh futbolkalar. 0 bo'lsa, bu variant mijozga ko'rinmaydi.</p>
         </div>
-        <button type="button" className="sa-btn">Qoldiqni saqlash</button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {saved && <span className="sa-table__sub" style={{ color: 'var(--sa-teal)' }}>Saqlandi ✓</span>}
+          <button type="button" className="sa-btn" onClick={save} disabled={saving}>
+            {saving ? 'Saqlanmoqda...' : 'Qoldiqni saqlash'}
+          </button>
+        </div>
       </div>
 
       <div className="sa-tabs" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
@@ -53,12 +114,27 @@ export default function SuperadminInventory() {
 
       {error && <div className="form-error">{error}</div>}
 
+      <div className="sa-toolbar">
+        <input
+          className="sa-input"
+          style={{ maxWidth: 200 }}
+          placeholder="Yangi rang nomi"
+          value={newColor}
+          onChange={(e) => setNewColor(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addColor())}
+          maxLength={30}
+        />
+        <button type="button" className="sa-btn sa-btn--ghost" onClick={addColor} disabled={!newColor.trim()}>
+          + Rang qo'shish
+        </button>
+      </div>
+
       {loading ? (
         <div className="sa-table__sub" style={{ padding: 20 }}>Yuklanmoqda...</div>
       ) : colors.length === 0 ? (
         <div className="sa-panel">
           <div className="sa-table__sub">
-            Hali bu mahsulot turi uchun zaxira kiritilmagan. "Qoldiqni saqlash" bilan birinchi yozuvlarni qo'shing.
+            Hali bu mahsulot turi uchun zaxira kiritilmagan. Yuqoridan rang qo'shib, qoldiqlarni kiriting.
           </div>
         </div>
       ) : (
@@ -80,21 +156,25 @@ export default function SuperadminInventory() {
                   <tr key={color}>
                     <td><b>{color}</b></td>
                     {SIZES.map((s) => {
-                      const v = qtyOf(color, s);
+                      const raw = qtyMap[cellKey(color, s)];
+                      const v = raw === '' || raw === undefined ? null : Number(raw);
                       total += v ?? 0;
                       const low = v !== null && v > 0 && v < 5;
                       const out = v === 0;
                       return (
                         <td key={s} style={{ textAlign: 'center' }}>
-                          <span
+                          <input
+                            value={raw ?? ''}
+                            onChange={(e) => setQty(color, s, e.target.value)}
+                            inputMode="numeric"
+                            placeholder="—"
                             style={{
-                              display: 'inline-block', minWidth: 26, padding: '3px 6px', borderRadius: 7,
-                              border: low ? '1px solid var(--sa-accent)' : out ? '1px solid var(--sa-red)' : '1px solid transparent',
-                              color: out ? '#ff8b9a' : low ? 'var(--sa-accent)' : v === null ? 'var(--sa-mu)' : 'var(--sa-ink)',
+                              width: 44, textAlign: 'center', padding: '3px 2px', borderRadius: 7,
+                              background: 'transparent',
+                              border: low ? '1px solid var(--sa-accent)' : out ? '1px solid var(--sa-red)' : '1px solid var(--sa-line)',
+                              color: out ? '#ff8b9a' : low ? 'var(--sa-accent)' : 'var(--sa-ink)',
                             }}
-                          >
-                            {v === null ? '—' : v}
-                          </span>
+                          />
                         </td>
                       );
                     })}
