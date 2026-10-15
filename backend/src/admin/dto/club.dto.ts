@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
+import { ClubType, Continent } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -6,6 +7,7 @@ import {
   ArrayUnique,
   IsArray,
   IsBoolean,
+  IsEnum,
   IsIn,
   IsInt,
   IsOptional,
@@ -149,6 +151,16 @@ export class CreateClubDto {
   @Matches(HEX_COLOR, { message: HEX_MESSAGE })
   markColor: string;
 
+  @ApiPropertyOptional({ enum: ClubType, default: ClubType.CLUB, description: "Klub (liga jamoasi) yoki davlat terma jamoasi" })
+  @IsOptional()
+  @IsEnum(ClubType)
+  type?: ClubType;
+
+  @ApiPropertyOptional({ enum: Continent, description: "type=NATIONAL bo'lsa majburiy — terma jamoa shu qit'a bo'yicha filtrlanadi" })
+  @ValidateIf((o) => (o.type ?? ClubType.CLUB) === ClubType.NATIONAL)
+  @IsEnum(Continent)
+  continent?: Continent;
+
   @ApiProperty({ type: [ClubKitDto], minItems: 1, maxItems: 3 })
   @IsArray()
   @ArrayMinSize(1)
@@ -179,6 +191,16 @@ export class ListClubsQueryDto {
   @IsInt()
   @Min(1)
   categoryId?: number;
+
+  @ApiPropertyOptional({ enum: ClubType })
+  @IsOptional()
+  @IsEnum(ClubType)
+  type?: ClubType;
+
+  @ApiPropertyOptional({ enum: Continent })
+  @IsOptional()
+  @IsEnum(Continent)
+  continent?: Continent;
 
   @ApiPropertyOptional({ default: 1 })
   @IsOptional()
