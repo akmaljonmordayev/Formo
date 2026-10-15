@@ -22,6 +22,7 @@ const REVENUE_STATUSES: OrderStatus[] = [
 
 const include = {
   club: { select: { name: true } },
+  items: { orderBy: { id: 'asc' } },
   workshop: { select: { id: true, fullName: true, workshopName: true } },
 } satisfies Prisma.OrderInclude;
 

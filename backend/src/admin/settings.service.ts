@@ -4,12 +4,13 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditEntry, AuditService } from './audit.service';
 
 /** Delivery slotlari kabi boshlang'ich sozlamalar — birinchi so'rovda hali yozuv bo'lmasa shu qaytariladi */
-const DEFAULTS: Record<string, Prisma.JsonValue> = {
+export const SETTING_DEFAULTS: Record<string, Prisma.JsonValue> = {
   'delivery.slots': [
     { start: '10:00', end: '14:00', cap: 50, on: true },
     { start: '14:00', end: '18:00', cap: 50, on: true },
     { start: '18:00', end: '22:00', cap: 30, on: true },
   ],
+  'delivery.fee': 15000, // so'm, mobil ilovadagi "Yetkazish"
 };
 
 @Injectable()
@@ -22,7 +23,7 @@ export class SettingsService {
   async all() {
     const rows = await this.prisma.setting.findMany();
     const byKey = Object.fromEntries(rows.map((r) => [r.key, r.value]));
-    return { ...DEFAULTS, ...byKey };
+    return { ...SETTING_DEFAULTS, ...byKey };
   }
 
   async update(key: string, value: unknown, actor: AuditEntry['actor'], ip?: string) {
