@@ -27,7 +27,6 @@ export default function SuperadminCampaigns() {
     return () => {
       active = false;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const campaigns = statusFilter ? data.items.filter((c) => c.status === statusFilter) : data.items;
