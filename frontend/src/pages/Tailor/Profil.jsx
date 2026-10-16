@@ -1,276 +1,199 @@
-import { useState, useEffect } from 'react';
-import { User, Clock, Globe, Edit3, ShieldCheck, Phone, Check } from 'lucide-react';
-import Card from './ui/Card';
-import Toggle from './ui/Toggle';
-import EmployeeModal from './EmployeeModal';
+import { useEffect, useState } from 'react';
+import { Clock, Edit3, Factory, Globe, Phone, ShieldCheck, User, Check } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { Card, Toggle } from './ui';
+import EmployeeModal from './EmployeeModal';
+import { useTailor } from './prefs';
+import { LANGS, translate, useT } from './i18n';
 import { initialsOf, prettyPhone } from './utils';
 
-// Ism, telefon va sex nomi bazadagi akkauntdan olinadi (buildProfile).
-// Smena, til va bildirishnomalar uchun backend hali yo'q — lokal qiymatlar.
-const INITIAL_PROFILE = {
-  id: 1,
-  name: '',
-  initials: '',
-  role: "Mas'ul shaxs",
-  factory: '',
-  phone: '',
-  shiftStart: '09:00',
-  shiftEnd: '18:00',
-  language: "O'zbekcha",
-  active: true,
-  notifications: { push: true, sms: true, email: true },
-};
+const profileKey = (userId) => `formo_tailor_profile_${userId ?? 'current'}`;
 
-const buildProfile = (user) => ({
-  ...INITIAL_PROFILE,
-  id: user?.id ?? INITIAL_PROFILE.id,
-  name: user?.fullName ?? '',
-  initials: initialsOf(user?.fullName),
-  factory: user?.workshopName ?? '',
-  phone: prettyPhone(user?.phone),
-});
+function loadProfile(user, language = 'uz') {
+  const fallback = {
+    id: user?.id ?? null,
+    name: user?.fullName ?? '',
+    initials: initialsOf(user?.fullName),
+    phone: user?.phone ?? '',
+    roleKey: 'lead',
+    factory: user?.workshopName ?? '',
+    shiftStart: '09:00',
+    shiftEnd: '18:00',
+    lang: language,
+  };
+  try {
+    const saved = JSON.parse(localStorage.getItem(profileKey(user?.id)) || 'null');
+    return saved ? { ...fallback, ...saved, id: fallback.id, lang: language } : fallback;
+  } catch {
+    return fallback;
+  }
+}
 
 export default function Profile() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState(() => buildProfile(user));
-
-  // /auth/me dan yangilangan ma'lumot kelsa — profilni yangilaymiz
-  useEffect(() => {
-    if (!user) return;
-    setProfile((prev) => ({
-      ...prev,
-      name: user.fullName,
-      initials: initialsOf(user.fullName),
-      factory: user.workshopName ?? '',
-      phone: prettyPhone(user.phone),
-    }));
-  }, [user]);
+  const { prefs, savePrefs } = useTailor();
+  const t = useT();
+  const [notice, setNotice] = useState(null);
+  const [profile, setProfile] = useState(() => loadProfile(user, prefs.lang));
   const [modalOpen, setModalOpen] = useState(false);
-  const [toastMsg, setToastMsg] = useState('');
+  const name = profile.name || user?.fullName || '';
 
-  // Dynamically update document theme background tint on language change
   useEffect(() => {
-    if (profile.language === 'Русский') {
-      document.body.style.backgroundColor = '#081226';
-    } else {
-      document.body.style.backgroundColor = '#0b0f19';
+    setProfile(loadProfile(user, prefs.lang));
+  }, [user, prefs.lang]);
+
+  const saveProfile = (updated) => {
+    try {
+      localStorage.setItem(profileKey(user?.id), JSON.stringify(updated));
+      setProfile(updated);
+      if (updated.lang !== prefs.lang) savePrefs({ ...prefs, lang: updated.lang });
+      window.dispatchEvent(new CustomEvent('formo:tailor-profile-updated', { detail: updated }));
+      setModalOpen(false);
+      setNotice({ text: t('profile.savedToast'), error: false });
+    } catch {
+      setNotice({ text: t('profile.persistError'), error: true });
     }
-    // Sahifadan chiqqanda fonni qaytaramiz (aks holda boshqa sahifalarga ham o'tib qoladi)
-    return () => {
-      document.body.style.backgroundColor = '';
-    };
-  }, [profile.language]);
-
-  const showToast = (msg) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(''), 3000);
   };
 
-  const handleSaveModal = (updatedForm) => {
-    setProfile(updatedForm);
-    setModalOpen(false);
-    showToast(
-      profile.language === 'Русский'
-        ? 'Профиль успешно сохранен!'
-        : "Profil ma'lumotlari muvaffaqiyatli saqlandi!"
-    );
+  const changeLanguage = (lang) => {
+    try {
+      savePrefs({ ...prefs, lang });
+      setProfile((current) => ({ ...current, lang }));
+      setNotice({ text: translate(lang, lang === 'ru' ? 'profile.langToastRu' : 'profile.langToast'), error: false });
+    } catch {
+      setNotice({ text: translate(lang, 'profile.persistError'), error: true });
+    }
   };
 
-  const toggleNotification = (key) => {
-    setProfile((prev) => ({
-      ...prev,
-      notifications: {
-        ...prev.notifications,
-        [key]: !prev.notifications[key],
-      },
-    }));
-    showToast(
-      profile.language === 'Русский'
-        ? 'Настройки уведомлений обновлены!'
-        : "Bildirishnoma sozlamasi yangilandi!"
-    );
+  const togglePreference = (key) => {
+    try {
+      savePrefs({
+        ...prefs,
+        notifications: { ...prefs.notifications, [key]: !prefs.notifications[key] },
+      });
+      setNotice({ text: t('profile.notifToast'), error: false });
+    } catch {
+      setNotice({ text: t('profile.persistError'), error: true });
+    }
   };
-
-  const isRu = profile.language === 'Русский';
 
   return (
-    <div className="relative space-y-5 max-w-4xl mx-auto">
-      {/* Toast Alert */}
-      {toastMsg && (
-        <div className="fixed top-20 right-6 z-50 rounded-2xl bg-teal-400 px-5 py-3 text-xs font-black text-slate-950 shadow-2xl animate-fade-in flex items-center gap-2">
+    <div className="relative mx-auto max-w-4xl space-y-5">
+      {notice && (
+        <div
+          role={notice.error ? 'alert' : 'status'}
+          className={`fixed right-6 top-20 z-50 flex items-center gap-2 rounded-2xl px-5 py-3 text-xs font-black shadow-2xl ${
+            notice.error ? 'bg-rose-500 text-white' : 'bg-teal-400 text-slate-950'
+          }`}
+        >
           <Check className="h-4 w-4 stroke-[3]" />
-          <span>{toastMsg}</span>
+          {notice.text}
         </div>
       )}
 
-      {/* Main Personal Profile Settings Card */}
-      <Card className="flex flex-col gap-6 bg-[#121829] p-6 border border-white/10 shadow-2xl">
-        {/* Header Banner */}
+      <Card className="flex flex-col gap-6 border border-white/10 bg-[#121829] p-6 shadow-2xl">
         <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-5">
           <div className="flex items-center gap-4">
             <span className="flex h-14 w-14 items-center justify-center rounded-full bg-teal-500/20 text-lg font-black text-teal-400 ring-2 ring-teal-500/40">
-              {profile.initials}
+              {initialsOf(name)}
             </span>
             <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-2xl font-black text-white">{profile.name}</h2>
-                <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400">
-                  {isRu ? 'АКТИВНЫЙ' : 'FAOL'}
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="text-2xl font-black text-white">{name || '—'}</h2>
+                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${user?.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-300'}`}>
+                  {t(user?.isActive ? 'profile.active' : 'profile.inactive')}
                 </span>
               </div>
-              <p className="mt-0.5 text-xs font-semibold text-slate-400">
-                {isRu ? 'Ответственное лицо' : profile.role}{profile.factory && ` · ${profile.factory}`}
-              </p>
+              <p className="mt-0.5 text-xs font-semibold text-slate-400">{t('profile.rolePerson')}</p>
             </div>
           </div>
-
           <button
             type="button"
             onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 rounded-xl bg-teal-400 px-5 py-2.5 text-xs font-extrabold text-slate-950 shadow-glow transition hover:bg-teal-300 active:scale-95 cursor-pointer"
+            className="flex items-center gap-2 rounded-xl bg-teal-400 px-5 py-2.5 text-xs font-extrabold text-slate-950 shadow-glow transition hover:bg-teal-300 active:scale-95"
           >
             <Edit3 className="h-4 w-4" />
-            <span>{isRu ? 'Редактировать' : 'Tahrirlash'}</span>
+            <span>{t('profile.edit')}</span>
           </button>
         </div>
 
-        {/* Section 1: Profil Ma'lumotlari */}
-        <div>
-          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-3">
-            {isRu ? 'ДАННЫЕ ПРОФИЛЯ' : 'PROFIL MA\'LUMOTLARI'}
-          </h3>
+        <section>
+          <h3 className="mb-3 text-xs font-extrabold uppercase tracking-wider text-slate-400">{t('profile.data')}</h3>
           <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                {isRu ? 'Имя и фамилия' : 'Ism va familiya'}
+            {[
+              { label: t('profile.nameLabel'), value: name, Icon: User },
+              { label: t('profile.phoneLabel'), value: prettyPhone(profile.phone || user?.phone), Icon: Phone },
+              { label: t('profile.workshopLabel'), value: profile.factory || user?.workshopName || t('profile.workshopMissing'), Icon: Factory },
+              { label: t('profile.shiftLabel'), value: `${profile.shiftStart} — ${profile.shiftEnd}`, Icon: Clock },
+            ].map(({ label, value, Icon }) => (
+              <label key={label} className="block">
+                <span className="mb-1 block text-[11px] font-bold text-slate-400">{label}</span>
+                <span className="relative block">
+                  <Icon className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
+                  <input
+                    type="text"
+                    readOnly
+                    value={value}
+                    className="w-full rounded-xl border border-white/10 bg-[#0e1424] py-2.5 pl-10 pr-4 text-xs font-bold text-white outline-none"
+                  />
+                </span>
               </label>
-              <div className="relative">
-                <User className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <input
-                  type="text"
-                  readOnly
-                  value={profile.name}
-                  className="w-full rounded-xl border border-white/10 bg-[#0e1424] pl-10 pr-4 py-2.5 text-xs font-bold text-white outline-none"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-slate-400 mb-1">{isRu ? 'Телефон' : 'Telefon'}</label>
-              <div className="relative">
-                <Phone className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <input
-                  type="text"
-                  readOnly
-                  value={profile.phone}
-                  className="w-full rounded-xl border border-white/10 bg-[#0e1424] pl-10 pr-4 py-2.5 text-xs font-bold text-white outline-none"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                {isRu ? 'Рабочее время' : 'Ish vaqti'}
-              </label>
-              <div className="relative">
-                <Clock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <input
-                  type="text"
-                  readOnly
-                  value={`${profile.shiftStart} — ${profile.shiftEnd}`}
-                  className="w-full rounded-xl border border-white/10 bg-[#0e1424] pl-10 pr-4 py-2.5 text-xs font-bold text-white outline-none"
-                />
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                {isRu ? 'Язык интерфейса' : 'Interfeys tili'}
-              </label>
-              <div className="relative">
-                <Globe className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
+            ))}
+            <label className="block">
+              <span className="mb-1 block text-[11px] font-bold text-slate-400">{t('profile.langLabel')}</span>
+              <span className="relative block">
+                <Globe className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
                 <select
-                  value={profile.language}
-                  onChange={(e) => {
-                    const newLang = e.target.value;
-                    setProfile({ ...profile, language: newLang });
-                    showToast(newLang === 'Русский' ? 'Язык интерфейса изменен на Русский!' : 'Interfeys tili O\'zbekchaga o\'zgardi!');
-                  }}
-                  className="w-full rounded-xl border border-white/10 bg-[#0e1424] pl-10 pr-4 py-2.5 text-xs font-bold text-white outline-none"
+                  value={prefs.lang}
+                  onChange={(event) => changeLanguage(event.target.value)}
+                  className="w-full rounded-xl border border-white/10 bg-[#0e1424] py-2.5 pl-10 pr-4 text-xs font-bold text-white outline-none"
                 >
-                  <option value="O'zbekcha" className="bg-[#121829]">O'zbekcha</option>
-                  <option value="Русский" className="bg-[#121829]">Русский</option>
+                  {LANGS.map((language) => (
+                    <option key={language.value} value={language.value}>{language.label}</option>
+                  ))}
                 </select>
-              </div>
-            </div>
+              </span>
+            </label>
           </div>
-        </div>
+          <p className="mt-3 text-xs leading-5 text-slate-400">{t('profile.accountReadOnly')}</p>
+        </section>
 
-        {/* Section 2: Bildirishnomalar */}
-        <div className="border-t border-white/10 pt-5">
-          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-3">
-            {isRu ? 'УВЕДОМЛЕНИЯ' : 'BILDIRISHNOMALAR'}
-          </h3>
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between rounded-xl bg-[#0e1424] p-3.5">
-              <div>
-                <h4 className="text-xs font-extrabold text-white">{isRu ? 'Новые заказы' : 'Yangi buyurtmalar'}</h4>
-                <p className="text-[10px] text-slate-400">
-                  {isRu ? 'Уведомлять при появлении нового заказа в очереди' : 'Navbatga yangi vazifa tushganda bildirishnoma yuborish'}
-                </p>
+        <section className="border-t border-white/10 pt-5">
+          <h3 className="mb-3 text-xs font-extrabold uppercase tracking-wider text-slate-400">{t('profile.notifications')}</h3>
+          <div className="flex flex-col gap-2">
+            {[
+              ['newOrders', 'profile.n.newOrders', 'profile.n.newOrdersHint'],
+              ['deadline', 'profile.n.deadline', 'profile.n.deadlineHint'],
+              ['summary', 'profile.n.summary', 'profile.n.summaryHint'],
+            ].map(([key, labelKey, hintKey]) => (
+              <div key={key} className="flex items-center justify-between gap-4 rounded-xl bg-[#0e1424] px-3.5">
+                <div className="py-3">
+                  <h4 className="text-xs font-extrabold text-white">{t(labelKey)}</h4>
+                  <p className="text-[10px] text-slate-400">{t(hintKey)}</p>
+                </div>
+                <Toggle
+                  checked={prefs.notifications[key]}
+                  onChange={() => togglePreference(key)}
+                  ariaLabel={t(labelKey)}
+                />
               </div>
-              <Toggle
-                checked={profile.notifications.push}
-                onChange={() => toggleNotification('push')}
-              />
-            </div>
-
-            <div className="flex items-center justify-between rounded-xl bg-[#0e1424] p-3.5">
-              <div>
-                <h4 className="text-xs font-extrabold text-white">{isRu ? 'Напоминания о сроках' : 'Muddat eslatmalari'}</h4>
-                <p className="text-[10px] text-slate-400">
-                  {isRu ? 'Предупреждение за 30 минут до окончания срока' : 'Muddatga 30 daqiqa qolganda ogohlantirish'}
-                </p>
-              </div>
-              <Toggle
-                checked={profile.notifications.sms}
-                onChange={() => toggleNotification('sms')}
-              />
-            </div>
-
-            <div className="flex items-center justify-between rounded-xl bg-[#0e1424] p-3.5">
-              <div>
-                <h4 className="text-xs font-extrabold text-white">{isRu ? 'Итоги смены' : 'Smena xulosasi'}</h4>
-                <p className="text-[10px] text-slate-400">
-                  {isRu ? 'Формирование отчета в конце рабочей смены' : 'Kun yakunidagi ishlab chiqarish hisobotini tayyorlash'}
-                </p>
-              </div>
-              <Toggle
-                checked={profile.notifications.email}
-                onChange={() => toggleNotification('email')}
-              />
-            </div>
+            ))}
           </div>
-        </div>
+          <p className="mt-3 text-xs text-slate-500">{t('profile.localNotifications')}</p>
+        </section>
 
-        {/* Permission Info Footer */}
-        <div className="flex items-center gap-3 rounded-2xl border border-teal-500/30 bg-[#0e1d24] p-4 text-teal-200">
-          <ShieldCheck className="h-5 w-5 shrink-0 text-teal-400" />
-          <p className="text-xs leading-relaxed font-medium">
-            {isRu
-              ? 'Начальник смены просматривает все задачи печати, управляет запасами, подтверждает брак и формирует отчеты.'
-              : "Smena boshlig'i barcha bosma vazifalarini ko'radi, zaxirani boshqaradi, brakni tasdiqlaydi va hisobotlarni shakllantiradi."}
-          </p>
+        <div className="flex items-start gap-3 rounded-2xl border border-teal-500/30 bg-[#0e1d24] p-4 text-teal-200">
+          <ShieldCheck className="h-5 w-5 shrink-0 text-teal-400" aria-hidden="true" />
+          <p className="text-xs leading-relaxed font-medium">{t('profile.backendNote')}</p>
         </div>
       </Card>
-
-      {/* Edit Profile Modal Drawer */}
       <EmployeeModal
         open={modalOpen}
         employee={profile}
+        title={t('profile.edit')}
+        showRole={false}
         onClose={() => setModalOpen(false)}
-        onSave={handleSaveModal}
+        onSave={saveProfile}
       />
     </div>
   );

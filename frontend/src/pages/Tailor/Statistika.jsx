@@ -1,16 +1,15 @@
 import { useState } from 'react';
 import { BarChart3, TrendingUp, Clock, AlertTriangle, Zap, PieChart } from 'lucide-react';
-import Card from './ui/Card';
+import { Card } from './ui';
+import { useT } from './i18n';
 import { cx } from './utils';
 
 const STAT_DATA = {
   bugun: {
-    total: '185 dona',
-    growth: "+5% bugungi smena bo'yicha",
-    avgTime: '11.8 daq',
-    avgDiff: '1.5 daq tezroq',
+    total: 185,
+    avgTime: '11.8',
     defectRate: '0.5%',
-    defectCount: '1 dona futbolka',
+    defectCount: 1,
     efficiency: '98.2%',
     points: [
       { label: '08:00', val: 25 },
@@ -21,57 +20,62 @@ const STAT_DATA = {
       { label: '18:00', val: 15 },
     ],
     maxVal: 60,
-    materials: { white: 88, black: 72, red: 30, fabric: 95 },
+    materials: { white: 88, black: 72, fabric: 95 },
   },
   hafta: {
-    total: '1,335 dona',
-    growth: "+14% o'tgan haftaga nisbatan",
-    avgTime: '14.2 daq',
-    avgDiff: '2.1 daq tezlashgan',
+    total: 1335,
+    avgTime: '14.2',
     defectRate: '1.2%',
-    defectCount: '6 dona futbolka',
+    defectCount: 6,
     efficiency: '94.8%',
     points: [
-      { label: 'Dush', val: 140 },
-      { label: 'Sesh', val: 185 },
-      { label: 'Chor', val: 210 },
-      { label: 'Pay', val: 175 },
-      { label: 'Jum', val: 240 },
-      { label: 'Shan', val: 195 },
-      { label: 'Yak', val: 90 },
+      { labelKey: 'dush', val: 140 },
+      { labelKey: 'sesh', val: 185 },
+      { labelKey: 'chor', val: 210 },
+      { labelKey: 'pay', val: 175 },
+      { labelKey: 'jum', val: 240 },
+      { labelKey: 'shan', val: 195 },
+      { labelKey: 'yak', val: 90 },
     ],
     maxVal: 280,
-    materials: { white: 82, black: 65, red: 45, fabric: 91 },
+    materials: { white: 82, black: 65, fabric: 91 },
   },
   oy: {
-    total: '5,840 dona',
-    growth: "+22% o'tgan oyga nisbatan",
-    avgTime: '13.5 daq',
-    avgDiff: "O'rtacha barqaror",
+    total: 5840,
+    avgTime: '13.5',
     defectRate: '0.9%',
-    defectCount: '24 dona futbolka',
+    defectCount: 24,
     efficiency: '96.5%',
     points: [
-      { label: '1-hafta', val: 1320 },
-      { label: '2-hafta', val: 1480 },
-      { label: '3-hafta', val: 1650 },
-      { label: '4-hafta', val: 1390 },
+      { labelKey: 'week1', val: 1320 },
+      { labelKey: 'week2', val: 1480 },
+      { labelKey: 'week3', val: 1650 },
+      { labelKey: 'week4', val: 1390 },
     ],
     maxVal: 2000,
-    materials: { white: 78, black: 80, red: 60, fabric: 88 },
+    materials: { white: 78, black: 80, fabric: 88 },
   },
 };
 
+const PERIODS = [
+  { key: 'bugun', labelKey: 'stat.today' },
+  { key: 'hafta', labelKey: 'stat.week' },
+  { key: 'oy', labelKey: 'stat.month' },
+];
+
 export default function Statistika() {
+  const t = useT();
   const [period, setPeriod] = useState('hafta');
   const current = STAT_DATA[period];
 
   const operatorStats = [
-    { name: 'Dilshod Nurmatov', role: 'Bosma operatori', done: 142, avgTime: '12 daq', defect: 1, rate: '98.5%' },
-    { name: 'Sardor Olimov', role: 'Bosma operatori', done: 128, avgTime: '14 daq', defect: 2, rate: '96.2%' },
-    { name: 'Otabek Toshpo‘latov', role: 'Tikuvchi', done: 110, avgTime: '16 daq', defect: 0, rate: '100%' },
-    { name: 'Bekzod Qodirov', role: 'Tikuvchi', done: 95, avgTime: '18 daq', defect: 3, rate: '94.0%' },
+    { name: 'Dilshod Nurmatov', roleKey: 'stat.role.printer', done: 142, avgTime: '12', defect: 1, rate: '98.5%' },
+    { name: 'Sardor Olimov', roleKey: 'stat.role.printer', done: 128, avgTime: '14', defect: 2, rate: '96.2%' },
+    { name: 'Otabek Toshpo‘latov', roleKey: 'stat.role.sewer', done: 110, avgTime: '16', defect: 0, rate: '100%' },
+    { name: 'Bekzod Qodirov', roleKey: 'stat.role.sewer', done: 95, avgTime: '18', defect: 3, rate: '94.0%' },
   ];
+
+  const labelOf = (p) => (p.labelKey ? t(`stat.label.${p.labelKey}`) : p.label);
 
   // Helper to generate SVG polyline / curve path from points
   const pointsString = current.points
@@ -82,33 +86,31 @@ export default function Statistika() {
     })
     .join(' ');
 
-  const fillAreaString = `40,200 ${pointsString} ${ (current.points.length - 1) * (500 / (current.points.length - 1)) + 40 },200`;
+  const fillAreaString = `40,200 ${pointsString} ${(current.points.length - 1) * (500 / (current.points.length - 1)) + 40},200`;
 
   return (
     <div className="space-y-5">
       {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black text-white">Statistika va Hisobotlar</h1>
-          <p className="mt-1 text-xs font-medium text-slate-400">
-            Sex samaradorligi, bosma hajmi va brak ko'rsatkichlari dinamikasi
-          </p>
+          <h1 className="text-2xl font-black text-white">{t('stat.title')}</h1>
+          <p className="mt-1 text-xs font-medium text-slate-400">{t('stat.subtitle')}</p>
         </div>
 
         <div className="flex rounded-xl bg-[#121829] p-1 border border-white/10">
-          {['bugun', 'hafta', 'oy'].map((p) => (
+          {PERIODS.map((p) => (
             <button
-              key={p}
+              key={p.key}
               type="button"
-              onClick={() => setPeriod(p)}
+              onClick={() => setPeriod(p.key)}
               className={cx(
                 'rounded-lg px-3 py-1.5 text-xs font-extrabold capitalize transition cursor-pointer',
-                period === p
+                period === p.key
                   ? 'bg-teal-400 text-slate-950 shadow-md'
                   : 'text-slate-400 hover:text-white'
               )}
             >
-              {p}
+              {t(p.labelKey)}
             </button>
           ))}
         </div>
@@ -121,9 +123,11 @@ export default function Statistika() {
             <TrendingUp className="h-6 w-6" />
           </div>
           <div>
-            <span className="text-xs font-semibold text-slate-400">Jami bosma hajmi</span>
-            <p className="mt-1 text-2xl font-black text-white">{current.total}</p>
-            <span className="text-[10px] font-bold text-emerald-400">{current.growth}</span>
+            <span className="text-xs font-semibold text-slate-400">{t('stat.totalVolume')}</span>
+            <p className="mt-1 text-2xl font-black text-white">
+              {t('stat.qtyUnit', { n: current.total.toLocaleString(t.locale) })}
+            </p>
+            <span className="text-[10px] font-bold text-emerald-400">{t(`stat.growth.${period}`)}</span>
           </div>
         </Card>
 
@@ -132,9 +136,11 @@ export default function Statistika() {
             <Clock className="h-6 w-6" />
           </div>
           <div>
-            <span className="text-xs font-semibold text-slate-400">O'rtacha vaqt</span>
-            <p className="mt-1 text-2xl font-black text-white">{current.avgTime}</p>
-            <span className="text-[10px] font-bold text-teal-400">{current.avgDiff}</span>
+            <span className="text-xs font-semibold text-slate-400">{t('stat.avgTime')}</span>
+            <p className="mt-1 text-2xl font-black text-white">
+              {current.avgTime} {t('unit.min')}
+            </p>
+            <span className="text-[10px] font-bold text-teal-400">{t(`stat.avgDiff.${period}`)}</span>
           </div>
         </Card>
 
@@ -143,9 +149,11 @@ export default function Statistika() {
             <AlertTriangle className="h-6 w-6" />
           </div>
           <div>
-            <span className="text-xs font-semibold text-slate-400">Brak darajasi</span>
+            <span className="text-xs font-semibold text-slate-400">{t('stat.defectRate')}</span>
             <p className="mt-1 text-2xl font-black text-rose-400">{current.defectRate}</p>
-            <span className="text-[10px] font-bold text-slate-400">{current.defectCount}</span>
+            <span className="text-[10px] font-bold text-slate-400">
+              {t('stat.defectCount', { n: current.defectCount })}
+            </span>
           </div>
         </Card>
 
@@ -154,9 +162,9 @@ export default function Statistika() {
             <Zap className="h-6 w-6" />
           </div>
           <div>
-            <span className="text-xs font-semibold text-slate-400">Smena samaradorligi</span>
+            <span className="text-xs font-semibold text-slate-400">{t('stat.efficiency')}</span>
             <p className="mt-1 text-2xl font-black text-amber-300">{current.efficiency}</p>
-            <span className="text-[10px] font-bold text-emerald-400">Yuqori samaradorlik</span>
+            <span className="text-[10px] font-bold text-emerald-400">{t('stat.high')}</span>
           </div>
         </Card>
       </div>
@@ -167,8 +175,8 @@ export default function Statistika() {
         <Card className="flex flex-col justify-between bg-[#121829] p-6 border border-white/10">
           <div className="flex items-center justify-between border-b border-white/10 pb-4">
             <div>
-              <h3 className="text-base font-extrabold text-white">Bosma hajmi dinamika grafigi</h3>
-              <p className="text-xs text-slate-400">Tanlangan davr ({period}) bo'yicha ishlab chiqarish egri grafigi</p>
+              <h3 className="text-base font-extrabold text-white">{t('stat.volumeChart')}</h3>
+              <p className="text-xs text-slate-400">{t('stat.volumeChartHint', { period: t(PERIODS.find((p) => p.key === period).labelKey) })}</p>
             </div>
             <BarChart3 className="h-5 w-5 text-teal-400" />
           </div>
@@ -206,13 +214,13 @@ export default function Statistika() {
                 const x = (i / (current.points.length - 1)) * 500 + 40;
                 const y = 200 - (p.val / current.maxVal) * 160;
                 return (
-                  <g key={p.label}>
+                  <g key={p.labelKey ?? p.label}>
                     <circle cx={x} cy={y} r="5" fill="#0b0f19" stroke="#22d3ee" strokeWidth="3" />
                     <text x={x} y={y - 12} textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="bold">
                       {p.val}
                     </text>
                     <text x={x} y="220" textAnchor="middle" fill="#94a3b8" fontSize="11" fontWeight="600">
-                      {p.label}
+                      {labelOf(p)}
                     </text>
                   </g>
                 );
@@ -225,7 +233,7 @@ export default function Statistika() {
         <Card className="flex flex-col justify-between bg-[#121829] p-6 border border-white/10">
           <div>
             <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <h3 className="text-base font-extrabold text-white">Materiallar va Brak ulushi</h3>
+              <h3 className="text-base font-extrabold text-white">{t('stat.materials')}</h3>
               <PieChart className="h-5 w-5 text-teal-400" />
             </div>
 
@@ -239,7 +247,7 @@ export default function Statistika() {
                 </svg>
                 <div className="absolute text-center">
                   <span className="text-xl font-black text-white">{current.materials.white}%</span>
-                  <span className="block text-[9px] font-bold text-slate-400 uppercase">Oq bo'yoq</span>
+                  <span className="block text-[9px] font-bold text-slate-400 uppercase">{t('stat.whiteShort')}</span>
                 </div>
               </div>
             </div>
@@ -248,7 +256,7 @@ export default function Statistika() {
             <div className="space-y-3">
               <div>
                 <div className="flex justify-between text-xs font-bold">
-                  <span className="text-slate-300">Oq bo'yoq (Plastisol)</span>
+                  <span className="text-slate-300">{t('stat.whitePaint')}</span>
                   <span className="text-teal-400">{current.materials.white}%</span>
                 </div>
                 <div className="mt-1 h-2 overflow-hidden rounded-full bg-white/10">
@@ -258,7 +266,7 @@ export default function Statistika() {
 
               <div>
                 <div className="flex justify-between text-xs font-bold">
-                  <span className="text-slate-300">Qora bo'yoq (Plastisol)</span>
+                  <span className="text-slate-300">{t('stat.blackPaint')}</span>
                   <span className="text-blue-400">{current.materials.black}%</span>
                 </div>
                 <div className="mt-1 h-2 overflow-hidden rounded-full bg-white/10">
@@ -268,7 +276,7 @@ export default function Statistika() {
 
               <div>
                 <div className="flex justify-between text-xs font-bold">
-                  <span className="text-slate-300">Interlok mato rollari</span>
+                  <span className="text-slate-300">{t('stat.fabricRolls')}</span>
                   <span className="text-emerald-400">{current.materials.fabric}%</span>
                 </div>
                 <div className="mt-1 h-2 overflow-hidden rounded-full bg-white/10">
@@ -282,29 +290,31 @@ export default function Statistika() {
 
       {/* Operator Ranking Table */}
       <Card className="overflow-hidden bg-[#121829] p-6 border border-white/10">
-        <h3 className="text-base font-extrabold text-white mb-1">Xodimlar unumdorligi reytingi</h3>
-        <p className="text-xs text-slate-400 mb-4">Bajarilgan buyurtmalar soni va sifat darajasi bo'yicha</p>
+        <h3 className="text-base font-extrabold text-white mb-1">{t('stat.teamRating')}</h3>
+        <p className="text-xs text-slate-400 mb-4">{t('stat.teamRatingHint')}</p>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-white/10 text-slate-400 uppercase font-bold tracking-wider">
-                <th className="pb-3">Xodim</th>
-                <th className="pb-3">Rol</th>
-                <th className="pb-3">Bajarildi</th>
-                <th className="pb-3">O'rtacha vaqt</th>
-                <th className="pb-3">Brak soni</th>
-                <th className="pb-3">Sifat ko'rsatkichi</th>
+                <th className="pb-3">{t('stat.col.employee')}</th>
+                <th className="pb-3">{t('stat.col.role')}</th>
+                <th className="pb-3">{t('stat.col.done')}</th>
+                <th className="pb-3">{t('stat.col.avg')}</th>
+                <th className="pb-3">{t('stat.col.defects')}</th>
+                <th className="pb-3">{t('stat.col.quality')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 text-slate-200">
               {operatorStats.map((op) => (
                 <tr key={op.name} className="hover:bg-white/5 transition">
                   <td className="py-3.5 font-extrabold text-white">{op.name}</td>
-                  <td className="py-3.5 text-slate-400">{op.role}</td>
-                  <td className="py-3.5 font-bold text-teal-400">{op.done} dona</td>
-                  <td className="py-3.5 font-semibold">{op.avgTime}</td>
-                  <td className="py-3.5 font-semibold text-rose-400">{op.defect} dona</td>
+                  <td className="py-3.5 text-slate-400">{t(op.roleKey)}</td>
+                  <td className="py-3.5 font-bold text-teal-400">{t('unit.donaCount', { n: op.done })}</td>
+                  <td className="py-3.5 font-semibold">
+                    {op.avgTime} {t('unit.min')}
+                  </td>
+                  <td className="py-3.5 font-semibold text-rose-400">{t('unit.donaCount', { n: op.defect })}</td>
                   <td className="py-3.5">
                     <span className="rounded-full bg-emerald-500/20 px-2.5 py-1 font-extrabold text-emerald-400 ring-1 ring-emerald-500/40">
                       {op.rate}
