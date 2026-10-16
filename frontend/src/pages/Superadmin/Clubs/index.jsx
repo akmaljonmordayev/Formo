@@ -5,23 +5,33 @@ import Modal, { ConfirmModal } from '../../../components/ui/Modal';
 const ADULT_SIZES = ['S', 'M', 'L', 'XL', 'XXL', '3XL'];
 const KID_SIZES = ['2-3', '4-5', '6-7', '8-9', '10-11', '12-13'];
 
+const CONTINENTS = [
+  { value: 'EUROPE', label: 'Yevropa' },
+  { value: 'ASIA', label: 'Osiyo' },
+  { value: 'AMERICA', label: 'Amerika' },
+  { value: 'AFRICA', label: 'Afrika' },
+  { value: 'OCEANIA', label: 'Okeaniya' },
+];
+const continentLabel = (v) => CONTINENTS.find((c) => c.value === v)?.label ?? v;
+
 export default function SuperadminClubs() {
-  const [categoryId, setCategoryId] = useState('');
-  const [categories, setCategories] = useState([]);
+  const [section, setSection] = useState('CLUB'); // 'CLUB' | 'NATIONAL'
+  const [leagueFilter, setLeagueFilter] = useState('');
+  const [continentFilter, setContinentFilter] = useState('');
   const [clubs, setClubs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [editing, setEditing] = useState(null); // null | 'new' | club
-  const [deleting, setDeleting] = useState(null);
-  const [busy, setBusy] = useState(false);
-  const [busyKit, setBusyKit] = useState(null);
+  const [editing, setEditing] = useState(null); // null | 'new' | club object
+  const [busyId, setBusyId] = useState(null);
 
-  const load = () => clubsApi.list({ categoryId: categoryId || undefined }).then((d) => setClubs(d.items));
-  const loadCategories = () => categoriesApi.list().then(setCategories);
-
-  useEffect(() => {
-    loadCategories().catch((e) => setError(e.message));
-  }, []);
+  const load = () =>
+    clubsApi
+      .list({
+        type: section,
+        league: section === 'CLUB' ? leagueFilter || undefined : undefined,
+        continent: section === 'NATIONAL' ? continentFilter || undefined : undefined,
+      })
+      .then((d) => setClubs(d.items));
 
   useEffect(() => {
     let active = true;
@@ -68,17 +78,47 @@ export default function SuperadminClubs() {
 
   const totalClubs = categories.reduce((s, c) => s + c.clubsCount, 0);
 
+  const selectSection = (s) => {
+    setSection(s);
+    setLeagueFilter('');
+    setContinentFilter('');
+  };
+
+  const remove = async (c) => {
+    if (!window.confirm(`"${c.name}" o'chirilsinmi? Bu amalni qaytarib bo'lmaydi.`)) return;
+    setBusyId(c.id);
+    try {
+      await clubsApi.remove(c.id);
+      await load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusyId(null);
+    }
+  };
+
   return (
     <>
       <div className="sa-head">
         <div>
           <h1>Klublar va formalar</h1>
           <p>
-            Ilovadagi «Klub formalari» katalogi. Har bir klubda uy, mehmon va uchinchi forma. O'chirilgan forma ilovada
-            ko'rinmaydi.
+            Ilovadagi «Klub formalari» katalogi: liga klublari va davlat terma jamoalari. Har birida uy, mehmon va
+            uchinchi forma. O'chirilgan forma ilovada ko'rinmaydi.
           </p>
         </div>
-        <button type="button" className="sa-btn" onClick={() => setEditing('new')}>+ Klub qo'shish</button>
+        <button type="button" className="sa-btn" onClick={() => setEditing('new')}>
+          {section === 'CLUB' ? "+ Klub qo'shish" : "+ Terma jamoa qo'shish"}
+        </button>
+      </div>
+
+      <div className="sa-tabs">
+        <button type="button" className={`sa-tab${section === 'CLUB' ? ' is-active' : ''}`} onClick={() => selectSection('CLUB')}>
+          Klub ligalari
+        </button>
+        <button type="button" className={`sa-tab${section === 'NATIONAL' ? ' is-active' : ''}`} onClick={() => selectSection('NATIONAL')}>
+          Milliy terma jamoalar
+        </button>
       </div>
 
       <div className="sa-tabs" style={{ justifyContent: 'space-between' }}>
@@ -301,8 +341,11 @@ function ClubForm({ club, categories, onClose, onSaved }) {
         {error && <div className="form-error">{error}</div>}
         <div className="form-grid">
           <label className="field field--full">
-            <span>Klub nomi</span>
-            <input value={form.name} onChange={set('name')} required minLength={2} maxLength={100} />
+            <span>Turi</span>
+            <select value={type} onChange={(e) => setType(e.target.value)}>
+              <option value="CLUB">Klub (liga jamoasi)</option>
+              <option value="NATIONAL">Davlat terma jamoasi</option>
+            </select>
           </label>
           <label className="field">
             <span>Kategoriya (liga)</span>
@@ -313,6 +356,21 @@ function ClubForm({ club, categories, onClose, onSaved }) {
               <option value={NEW_CATEGORY}>+ Yangi kategoriya</option>
             </select>
           </label>
+          {type === 'NATIONAL' ? (
+            <label className="field">
+              <span>Qit'a</span>
+              <select value={form.continent} onChange={set('continent')}>
+                {CONTINENTS.map((c) => (
+                  <option key={c.value} value={c.value}>{c.label}</option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <label className="field">
+              <span>Liga</span>
+              <input value={form.league} onChange={set('league')} required minLength={2} maxLength={60} />
+            </label>
+          )}
           <label className="field">
             <span>Mavsum</span>
             <input value={form.season} onChange={set('season')} placeholder="2026/27" maxLength={20} />

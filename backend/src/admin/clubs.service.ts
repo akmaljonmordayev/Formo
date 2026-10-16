@@ -19,10 +19,12 @@ export class ClubsService {
   ) {}
 
   async list(query: ListClubsQueryDto) {
-    const { league, categoryId, page = 1, limit = 50 } = query;
+    const { league, categoryId, type, continent, page = 1, limit = 50 } = query;
     const where: Prisma.ClubWhereInput = {
       ...(league && { league }),
       ...(categoryId && { categoryId }),
+      ...(type && { type }),
+      ...(continent && { continent }),
     };
 
     const [clubs, total] = await this.prisma.$transaction([
@@ -63,6 +65,8 @@ export class ClubsService {
           season: dto.season,
           code: dto.code,
           markColor: dto.markColor,
+          type: dto.type,
+          continent: dto.continent,
           kits: { create: dto.kits.map(({ id: _id, ...k }, i) => ({ ...k, sortOrder: i })) },
         },
         include: clubInclude,
