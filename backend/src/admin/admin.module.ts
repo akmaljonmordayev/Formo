@@ -15,6 +15,7 @@ import { InventoryController } from './inventory.controller';
 import { InventoryService } from './inventory.service';
 import { OperatorController } from './operator.controller';
 import { OrdersController } from './orders.controller';
+import { OrderHistoryService } from './order-history.service';
 import { OrdersService } from './orders.service';
 import { PricingController } from './pricing.controller';
 import { PricingService } from './pricing.service';
@@ -23,6 +24,8 @@ import { PromocodesService } from './promocodes.service';
 import { SettingsController } from './settings.controller';
 import { SettingsService } from './settings.service';
 import { UsersController } from './users.controller';
+import { WorkshopOrdersController } from './workshop-orders.controller';
+import { WorkshopOrdersService } from './workshop-orders.service';
 import { WorkshopsController } from './workshops.controller';
 
 @Module({
@@ -35,6 +38,7 @@ import { WorkshopsController } from './workshops.controller';
     CategoriesController,
     ClubsController,
     OrdersController,
+    WorkshopOrdersController,
     InsightsController,
     InventoryController,
     PricingController,
@@ -49,6 +53,8 @@ import { WorkshopsController } from './workshops.controller';
     CategoriesService,
     ClubsService,
     OrdersService,
+    OrderHistoryService,
+    WorkshopOrdersService,
     InventoryService,
     PricingService,
     PromocodesService,

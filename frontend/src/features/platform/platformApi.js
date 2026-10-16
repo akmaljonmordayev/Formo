@@ -69,7 +69,9 @@ export const settingsApi = {
 // --- Buyurtma holati: panel ko'rsatadigan label va badge rangi ---
 export const ORDER_STATUS = {
   PENDING_PAYMENT: { label: "To'lov kutilmoqda", color: 'orange' },
-  ACCEPTED: { label: 'Qabul qilindi', color: 'blue' },
+  NEW: { label: 'Yangi', color: 'orange' },
+  SENT_TO_WORKSHOP: { label: 'Sexga yuborildi', color: 'blue' },
+  ACCEPTED: { label: 'Sex qabul qildi', color: 'blue' },
   PRINTING: { label: 'Bosilmoqda', color: 'violet' },
   QUALITY_CHECK: { label: 'Sifat nazorati', color: 'violet' },
   READY: { label: 'Tayyor', color: 'blue' },
