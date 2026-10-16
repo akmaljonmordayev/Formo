@@ -16,7 +16,7 @@ export default function SuperadminPromocodes() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState(null);
-  const [editing, setEditing] = useState(null); // null | 'new'
+  const [editing, setEditing] = useState(null); // null | 'new' | promocode
 
   const load = () =>
     promocodesApi
@@ -89,14 +89,17 @@ export default function SuperadminPromocodes() {
                     )}
                   </td>
                   <td>{formatPeriod(c)}</td>
-                  <td>
+                  <td style={{ whiteSpace: 'nowrap' }}>
+                    <button type="button" className="sa-btn sa-btn--ghost" style={{ marginRight: 10, verticalAlign: 'middle' }} onClick={() => setEditing(c)}>
+                      Tahrirlash
+                    </button>
                     <button
                       type="button"
                       disabled={busyId === c.id}
                       onClick={() => toggle(c)}
                       style={{
                         display: 'inline-block', width: 36, height: 20, borderRadius: 999, border: 'none', cursor: 'pointer',
-                        background: c.isActive ? 'var(--sa-teal)' : 'rgba(255,255,255,0.12)', position: 'relative', padding: 0,
+                        background: c.isActive ? 'var(--sa-teal)' : 'rgba(255,255,255,0.12)', position: 'relative', padding: 0, verticalAlign: 'middle',
                       }}
                       aria-label={c.isActive ? "O'chirish" : 'Yoqish'}
                     >
@@ -116,6 +119,7 @@ export default function SuperadminPromocodes() {
 
       {editing && (
         <PromocodeForm
+          promo={editing === 'new' ? null : editing}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
@@ -127,15 +131,19 @@ export default function SuperadminPromocodes() {
   );
 }
 
-function PromocodeForm({ onClose, onSaved }) {
+// ISO -> <input type="date"> qiymati
+const toDateInput = (iso) => (iso ? new Date(iso).toLocaleDateString('sv-SE') : '');
+
+function PromocodeForm({ promo, onClose, onSaved }) {
+  const isEdit = Boolean(promo);
   const [form, setForm] = useState({
-    code: '',
-    type: 'PERCENT',
-    value: '',
-    minSum: '',
-    usageCap: '',
-    startsAt: '',
-    endsAt: '',
+    code: promo?.code ?? '',
+    type: promo?.type ?? 'PERCENT',
+    value: promo?.value ?? '',
+    minSum: promo?.minSum ?? '',
+    usageCap: promo?.usageCap ?? '',
+    startsAt: toDateInput(promo?.startsAt),
+    endsAt: toDateInput(promo?.endsAt),
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -147,12 +155,19 @@ function PromocodeForm({ onClose, onSaved }) {
     setError('');
     try {
       const body = { code: form.code.trim().toUpperCase(), type: form.type };
-      if (form.type !== 'FREE_SHIPPING' && form.value) body.value = Number(form.value);
-      if (form.minSum) body.minSum = Number(form.minSum);
-      if (form.usageCap) body.usageCap = Number(form.usageCap);
+      if (form.type !== 'FREE_SHIPPING' && form.value !== '') body.value = Number(form.value);
+      if (form.minSum !== '') body.minSum = Number(form.minSum);
+      if (form.usageCap !== '') body.usageCap = Number(form.usageCap);
       if (form.startsAt) body.startsAt = new Date(form.startsAt).toISOString();
       if (form.endsAt) body.endsAt = new Date(form.endsAt).toISOString();
-      await promocodesApi.create(body);
+      if (isEdit) {
+        // Tahrirlashda bo'shatilgan limitlar serverda ham olib tashlanadi
+        if (form.minSum === '') body.minSum = null;
+        if (form.usageCap === '') body.usageCap = null;
+        await promocodesApi.update(promo.id, body);
+      } else {
+        await promocodesApi.create(body);
+      }
       onSaved();
     } catch (err) {
       setError(err.message);
@@ -161,7 +176,7 @@ function PromocodeForm({ onClose, onSaved }) {
   };
 
   return (
-    <Modal title="Yangi promokod" onClose={onClose}>
+    <Modal title={isEdit ? `${promo.code} — tahrirlash` : 'Yangi promokod'} onClose={onClose}>
       <form onSubmit={submit}>
         {error && <div className="form-error">{error}</div>}
         <div className="form-grid">

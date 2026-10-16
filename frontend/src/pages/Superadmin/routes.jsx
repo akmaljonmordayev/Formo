@@ -3,6 +3,7 @@ import {
   Factory,
   History,
   LayoutDashboard,
+  Layers,
   Megaphone,
   Package,
   Palette,
@@ -24,6 +25,7 @@ import Orders from './Orders';
 import DesignStudio from './Dashboard/DesignStudio';
 import Production from './Production';
 import Clubs from './Clubs';
+import Categories from './Categories';
 import Inventory from './Inventory';
 import Pricing from './Pricing';
 import Promocodes from './Promocodes';
@@ -52,6 +54,7 @@ export const superadminRoutes = [
   { path: 'orders', element: <Orders /> },
   { path: 'production', element: <Production /> },
   { path: 'clubs', element: <Clubs /> },
+  { path: 'categories', element: <Categories /> },
   { path: 'design-studio', element: <DesignStudio /> },
   { path: 'inventory', element: <Inventory /> },
   { path: 'pricing', element: <Pricing /> },
@@ -73,6 +76,7 @@ export const superadminMenu = [
   { to: `${BASE}/production`, label: 'Ishlab chiqarish', icon: Factory, group: 'Asosiy', badge: 2 },
 
   { to: `${BASE}/clubs`, label: 'Klublar va formalar', icon: Shirt, group: 'Katalog' },
+  { to: `${BASE}/categories`, label: 'Kategoriyalar', icon: Layers, group: 'Katalog' },
   { to: `${BASE}/design-studio`, label: 'Dizayn studiyasi', icon: Palette, group: 'Katalog' },
   { to: `${BASE}/inventory`, label: 'Zaxira', icon: Package, group: 'Katalog' },
   { to: `${BASE}/pricing`, label: 'Narxlar', icon: Tag, group: 'Katalog' },

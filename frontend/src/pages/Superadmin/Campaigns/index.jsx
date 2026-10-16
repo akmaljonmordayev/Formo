@@ -10,12 +10,19 @@ const STATUS_LABEL = {
 };
 const CHANNEL_LABEL = { PUSH: 'Push', SMS: 'SMS', PUSH_SMS: 'Push + SMS' };
 
+// ISO -> <input type="datetime-local"> qiymati (mahalliy vaqt)
+const toLocalInput = (iso) => {
+  if (!iso) return '';
+  const d = new Date(iso);
+  return new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
+
 export default function SuperadminCampaigns() {
   const [data, setData] = useState({ items: [], totals: { sent: 0, opened: 0, orders: 0, revenue: 0 } });
   const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [editing, setEditing] = useState(null); // null | 'new'
+  const [editing, setEditing] = useState(null); // null | 'new' | campaign
 
   const load = () => campaignsApi.list().then((d) => setData(d));
 
@@ -88,7 +95,15 @@ export default function SuperadminCampaigns() {
             const st = STATUS_LABEL[c.status] ?? { label: c.status, color: 'blue' };
             const hasMetrics = c.sentCount != null;
             return (
-              <div key={c.id} className="sa-panel" style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center' }}>
+              <div
+                key={c.id}
+                className="sa-panel"
+                role="button"
+                tabIndex={0}
+                onClick={() => setEditing(c)}
+                onKeyDown={(e) => e.key === 'Enter' && setEditing(c)}
+                style={{ display: 'flex', gap: 20, flexWrap: 'wrap', alignItems: 'center', cursor: 'pointer' }}
+              >
                 <div style={{ flex: 1, minWidth: 260 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                     <b style={{ fontSize: 15 }}>{c.name}</b>
@@ -132,6 +147,7 @@ export default function SuperadminCampaigns() {
 
       {editing && (
         <CampaignForm
+          campaign={editing === 'new' ? null : editing}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
@@ -143,8 +159,16 @@ export default function SuperadminCampaigns() {
   );
 }
 
-function CampaignForm({ onClose, onSaved }) {
-  const [form, setForm] = useState({ name: '', audience: '', channel: 'PUSH', scheduledAt: '', message: '' });
+function CampaignForm({ campaign, onClose, onSaved }) {
+  const isEdit = Boolean(campaign);
+  const [form, setForm] = useState({
+    name: campaign?.name ?? '',
+    audience: campaign?.audience ?? '',
+    channel: campaign?.channel ?? 'PUSH',
+    scheduledAt: toLocalInput(campaign?.scheduledAt),
+    message: campaign?.message ?? '',
+    status: campaign?.status ?? 'DRAFT',
+  });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
@@ -160,11 +184,14 @@ function CampaignForm({ onClose, onSaved }) {
         channel: form.channel,
         message: form.message.trim(),
       };
-      if (form.scheduledAt) {
-        body.scheduledAt = new Date(form.scheduledAt).toISOString();
-        body.status = 'SCHEDULED';
+      if (form.scheduledAt) body.scheduledAt = new Date(form.scheduledAt).toISOString();
+      if (isEdit) {
+        body.status = form.status;
+        await campaignsApi.update(campaign.id, body);
+      } else {
+        if (form.scheduledAt) body.status = 'SCHEDULED';
+        await campaignsApi.create(body);
       }
-      await campaignsApi.create(body);
       onSaved();
     } catch (err) {
       setError(err.message);
@@ -173,7 +200,7 @@ function CampaignForm({ onClose, onSaved }) {
   };
 
   return (
-    <Modal title="Yangi kampaniya" onClose={onClose}>
+    <Modal title={isEdit ? 'Kampaniyani tahrirlash' : 'Yangi kampaniya'} onClose={onClose}>
       <form onSubmit={submit}>
         {error && <div className="form-error">{error}</div>}
         <div className="form-grid">
@@ -202,8 +229,18 @@ function CampaignForm({ onClose, onSaved }) {
           <label className="field">
             <span>Qachon yuborilsin</span>
             <input type="datetime-local" value={form.scheduledAt} onChange={set('scheduledAt')} />
-            <small>Bo'sh qoldirilsa qoralama sifatida saqlanadi</small>
+            {!isEdit && <small>Bo'sh qoldirilsa qoralama sifatida saqlanadi</small>}
           </label>
+          {isEdit && (
+            <label className="field">
+              <span>Holat</span>
+              <select value={form.status} onChange={set('status')}>
+                {Object.entries(STATUS_LABEL).map(([value, s]) => (
+                  <option key={value} value={value}>{s.label}</option>
+                ))}
+              </select>
+            </label>
+          )}
           <label className="field field--full">
             <span>Xabar matni</span>
             <textarea value={form.message} onChange={set('message')} required maxLength={500} rows={3} />
