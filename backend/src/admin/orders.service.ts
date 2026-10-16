@@ -1,10 +1,12 @@
-import { NotFoundException, Injectable } from '@nestjs/common';
-import { AuditCategory, OrderStatus, Prisma } from '@prisma/client';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { AuditCategory, OrderStatus, Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditEntry, AuditService } from './audit.service';
-import { ListOrdersQueryDto, UpdateOrderStatusDto } from './dto/order.dto';
+import { AssignWorkshopDto, ListOrdersQueryDto, UpdateOrderStatusDto } from './dto/order.dto';
+import { OrderHistoryService } from './order-history.service';
 
 const ACTIVE_STATUSES: OrderStatus[] = [
+  OrderStatus.SENT_TO_WORKSHOP,
   OrderStatus.ACCEPTED,
   OrderStatus.PRINTING,
   OrderStatus.QUALITY_CHECK,
@@ -12,6 +14,8 @@ const ACTIVE_STATUSES: OrderStatus[] = [
   OrderStatus.DELIVERING,
 ];
 const REVENUE_STATUSES: OrderStatus[] = [
+  OrderStatus.NEW,
+  OrderStatus.SENT_TO_WORKSHOP,
   OrderStatus.ACCEPTED,
   OrderStatus.PRINTING,
   OrderStatus.QUALITY_CHECK,
@@ -20,17 +24,27 @@ const REVENUE_STATUSES: OrderStatus[] = [
   OrderStatus.DELIVERED,
 ];
 
-const include = {
+export const include = {
   club: { select: { name: true } },
   items: { orderBy: { id: 'asc' } },
-  workshop: { select: { id: true, fullName: true, workshopName: true } },
+  workshop: { select: { id: true, fullName: true, workshopName: true, phone: true } },
 } satisfies Prisma.OrderInclude;
+
+export const detailInclude = {
+  ...include,
+  promocode: { select: { code: true } },
+  statusLogs: { orderBy: { id: 'asc' } },
+} satisfies Prisma.OrderInclude;
+
+/** Operator sexga yubora oladigan holatlar: yangi yoki hali sex tasdiqlamagan (qayta biriktirish) */
+const ASSIGNABLE: OrderStatus[] = [OrderStatus.NEW, OrderStatus.SENT_TO_WORKSHOP];
 
 @Injectable()
 export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly history: OrderHistoryService,
   ) {}
 
   async list(query: ListOrdersQueryDto) {
@@ -65,14 +79,64 @@ export class OrdersService {
     return { items, total, page, limit, byStatus };
   }
 
+  async get(id: number) {
+    const order = await this.prisma.order.findUnique({ where: { id }, include: detailInclude });
+    if (!order) throw new NotFoundException('Buyurtma topilmadi');
+    return order;
+  }
+
+  /** Operator buyurtmani tekshirib, tikuv sexiga yuboradi (yoki hali tasdiqlanmagan bo'lsa boshqa sexga o'tkazadi) */
+  async assign(id: number, dto: AssignWorkshopDto, actor: NonNullable<AuditEntry['actor']>, ip?: string) {
+    const order = await this.prisma.order.findUnique({ where: { id }, select: { status: true, code: true } });
+    if (!order) throw new NotFoundException('Buyurtma topilmadi');
+    if (!ASSIGNABLE.includes(order.status)) {
+      throw new ConflictException(
+        order.status === OrderStatus.PENDING_PAYMENT
+          ? "Buyurtma hali to'lanmagan"
+          : 'Buyurtmani faqat NEW yoki SENT_TO_WORKSHOP holatida sexga yuborish mumkin',
+      );
+    }
+    const workshop = await this.prisma.user.findFirst({
+      where: { id: dto.workshopId, role: Role.TAILOR },
+      select: { isActive: true, workshopName: true, fullName: true },
+    });
+    if (!workshop) throw new BadRequestException('Tikuv sexi topilmadi');
+    if (!workshop.isActive) throw new BadRequestException('Tikuv sexi bloklangan');
+
+    await this.prisma.$transaction(async (tx) => {
+      // Shu orada holat o'zgargan bo'lsa (mijoz bekor qildi, sex qabul qildi) — yozilmaydi
+      const { count } = await tx.order.updateMany({
+        where: { id, status: order.status },
+        data: { status: OrderStatus.SENT_TO_WORKSHOP, workshopId: dto.workshopId },
+      });
+      if (!count) throw new ConflictException("Buyurtma holati hozirgina o'zgardi, qayta urinib ko'ring");
+      await this.history.record({ orderId: id, from: order.status, to: OrderStatus.SENT_TO_WORKSHOP, actor, note: dto.note }, tx);
+    });
+
+    await this.audit.log({
+      actor,
+      action: `Buyurtma sexga yuborildi: ${workshop.workshopName || workshop.fullName}`,
+      category: AuditCategory.ORDER,
+      context: order.code,
+      ip,
+    });
+    return this.get(id);
+  }
+
   async updateStatus(id: number, dto: UpdateOrderStatusDto, actor: AuditEntry['actor'], ip?: string) {
     const current = await this.prisma.order.findUnique({ where: { id } });
     if (!current) throw new NotFoundException('Buyurtma topilmadi');
 
-    const order = await this.prisma.order.update({
-      where: { id },
-      data: { status: dto.status, ...(dto.workshopId !== undefined && { workshopId: dto.workshopId }) },
-      include,
+    const order = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.order.update({
+        where: { id },
+        data: { status: dto.status, ...(dto.workshopId !== undefined && { workshopId: dto.workshopId }) },
+        include,
+      });
+      if (current.status !== dto.status) {
+        await this.history.record({ orderId: id, from: current.status, to: dto.status, actor, note: dto.note }, tx);
+      }
+      return updated;
     });
 
     await this.audit.log({

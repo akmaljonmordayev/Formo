@@ -12,7 +12,7 @@ export interface AuditEntry {
   ip?: string | null;
 }
 
-const ROLE_LABEL: Record<string, string> = {
+export const ROLE_LABEL: Record<string, string> = {
   SUPERADMIN: 'Super admin',
   OPERATOR: 'Operator',
   TAILOR: 'Tikuv sexi',

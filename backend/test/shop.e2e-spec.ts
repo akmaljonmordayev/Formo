@@ -468,11 +468,12 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
       await as(other).post(`/api/orders/${orderId}/cancel`).expect(404);
     });
 
-    it('"To‘lovni tasdiqlash (demo)" → qabul qilindi, kuzatish', async () => {
+    it('"To‘lovni tasdiqlash (demo)" → operatorga tushadi (NEW), kuzatish', async () => {
       const res = await as(user).post(`/api/orders/${orderId}/payment/confirm`).expect(200);
-      expect(res.body).toMatchObject({ status: 'ACCEPTED', paymentStatus: 'PAID', payment: { required: false } });
-      expect(res.body.timeline[0]).toMatchObject({ status: 'ACCEPTED', done: true, current: true });
-      expect(res.body.timeline[1]).toMatchObject({ status: 'PRINTING', done: false });
+      expect(res.body).toMatchObject({ status: 'NEW', paymentStatus: 'PAID', payment: { required: false }, canCancel: true });
+      expect(res.body.timeline[0]).toMatchObject({ status: 'NEW', done: true, current: true });
+      expect(res.body.timeline[0].at).toBeTruthy();
+      expect(res.body.timeline[1]).toMatchObject({ status: 'SENT_TO_WORKSHOP', done: false, at: null });
 
       await as(user).post(`/api/orders/${orderId}/payment/confirm`).expect(409);
       await as(user).patch(`/api/orders/${orderId}/payment-method`, { paymentMethod: 'CASH' }).expect(409);
@@ -495,22 +496,23 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
     it('bosishga berilgan buyurtmani bekor qilib bo‘lmaydi', async () => {
       await as(user).post('/api/cart/items', { kitId: awayKit, shirtSize: 'S' }).expect(201);
       const res = await as(user).post('/api/orders/checkout', checkoutBody({ paymentMethod: 'CASH', promocode: undefined })).expect(201);
-      expect(res.body).toMatchObject({ status: 'ACCEPTED', paymentMethod: 'CASH', paymentStatus: 'PENDING', payment: { required: false } });
+      expect(res.body).toMatchObject({ status: 'NEW', paymentMethod: 'CASH', paymentStatus: 'PENDING', payment: { required: false } });
       expect(res.body.summary).toEqual({ subtotal: 159000, discount: 0, delivery: 15000, total: 174000 });
 
       await as(admin).patch(`/api/admin/orders/${res.body.id}/status`, { status: 'PRINTING' }).expect(200);
       const order = await as(user).get(`/api/orders/${res.body.id}`).expect(200);
       expect(order.body).toMatchObject({ statusLabel: 'Bosilmoqda', canCancel: false });
-      expect(order.body.timeline.filter((s: { done: boolean }) => s.done)).toHaveLength(2);
+      // NEW → SENT_TO_WORKSHOP → ACCEPTED → PRINTING
+      expect(order.body.timeline.filter((s: { done: boolean }) => s.done)).toHaveLength(4);
       await as(user).post(`/api/orders/${res.body.id}/cancel`).expect(409);
     });
 
-    it("\"Boshqa usulni tanlash\": Click → Naqd darhol qabul qilinadi", async () => {
+    it("\"Boshqa usulni tanlash\": Click → Naqd darhol operatorga tushadi", async () => {
       await as(user).post('/api/cart/items', { kitId: awayKit, shirtSize: 'S' }).expect(201);
       const res = await as(user).post('/api/orders/checkout', checkoutBody({ paymentMethod: 'PAYME', promocode: undefined })).expect(201);
       expect(res.body.status).toBe('PENDING_PAYMENT');
       const changed = await as(user).patch(`/api/orders/${res.body.id}/payment-method`, { paymentMethod: 'CASH' }).expect(200);
-      expect(changed.body).toMatchObject({ status: 'ACCEPTED', paymentMethod: 'CASH', paymentExpiresAt: null });
+      expect(changed.body).toMatchObject({ status: 'NEW', paymentMethod: 'CASH', paymentExpiresAt: null });
     });
 
     it('30 daqiqada to‘lanmagan buyurtma avtomatik bekor bo‘ladi', async () => {

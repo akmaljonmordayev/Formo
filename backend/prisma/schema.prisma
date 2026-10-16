@@ -230,7 +230,9 @@ enum PaymentStatus {
 // Superadmin panelidagi "Buyurtmalar" va "Ishlab chiqarish" kanban shu ustida ishlaydi.
 enum OrderStatus {
   PENDING_PAYMENT // to'lov kutilmoqda
-  ACCEPTED // qabul qilindi, bosishni kutmoqda (navbatda)
+  NEW // yangi: operator/superadmin tekshiruvini kutmoqda
+  SENT_TO_WORKSHOP // operator tikuv sexiga yubordi, sex tasdig'ini kutmoqda
+  ACCEPTED // sex qabul qildi, bosishni kutmoqda (navbatda)
   PRINTING // bosilmoqda
   QUALITY_CHECK // sifat nazorati
   READY // tayyor, yetkazishga chiqarilmagan
@@ -276,7 +278,8 @@ model Order {
   paymentExpiresAt DateTime? // Click/Payme: to'lov kutiladigan muddat (30 daqiqa)
   paidAt           DateTime?
 
-  items OrderItem[]
+  items      OrderItem[]
+  statusLogs OrderStatusLog[]
 
   channel       OrderChannel  @default(APP)
   paymentMethod PaymentMethod
@@ -316,6 +319,23 @@ model OrderItem {
   totalPrice     Int
 
   @@index([orderId])
+}
+
+// Buyurtma holati tarixi: har o'zgarish kim tomonidan, qachon va qanday izoh bilan
+model OrderStatusLog {
+  id         Int          @id @default(autoincrement())
+  orderId    Int
+  order      Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  fromStatus OrderStatus?
+  toStatus   OrderStatus
+  // Audit jurnalidagi kabi: foydalanuvchi o'chirilsa ham tarix saqlanadi
+  actorId    Int?
+  actorName  String
+  actorRole  String
+  note       String?
+  createdAt  DateTime     @default(now())
+
+  @@index([orderId, createdAt])
 }
 
 // ---------------------------------------------------------------------------
