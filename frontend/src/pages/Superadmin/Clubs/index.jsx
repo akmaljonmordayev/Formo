@@ -13,25 +13,36 @@ const CONTINENTS = [
   { value: 'OCEANIA', label: 'Okeaniya' },
 ];
 const continentLabel = (v) => CONTINENTS.find((c) => c.value === v)?.label ?? v;
+// Terma jamoalar kategoriyasi qit'a nomidan avtomatik yaratiladi — klub ligalari ro'yxatida ko'rsatilmaydi
+const nationalLeague = (continent) => `${continentLabel(continent)} terma jamoalari`;
+const NATIONAL_LEAGUES = new Set(CONTINENTS.map((c) => nationalLeague(c.value)));
 
 export default function SuperadminClubs() {
   const [section, setSection] = useState('CLUB'); // 'CLUB' | 'NATIONAL'
-  const [leagueFilter, setLeagueFilter] = useState('');
+  const [categoryId, setCategoryId] = useState('');
   const [continentFilter, setContinentFilter] = useState('');
+  const [categories, setCategories] = useState([]);
   const [clubs, setClubs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [editing, setEditing] = useState(null); // null | 'new' | club object
-  const [busyId, setBusyId] = useState(null);
+  const [editing, setEditing] = useState(null); // null | 'new' | club
+  const [deleting, setDeleting] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const [busyKit, setBusyKit] = useState(null);
 
   const load = () =>
     clubsApi
       .list({
         type: section,
-        league: section === 'CLUB' ? leagueFilter || undefined : undefined,
+        categoryId: section === 'CLUB' ? categoryId || undefined : undefined,
         continent: section === 'NATIONAL' ? continentFilter || undefined : undefined,
       })
       .then((d) => setClubs(d.items));
+  const loadCategories = () => categoriesApi.list().then(setCategories);
+
+  useEffect(() => {
+    loadCategories().catch((e) => setError(e.message));
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -43,7 +54,7 @@ export default function SuperadminClubs() {
       active = false;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [categoryId]);
+  }, [section, categoryId, continentFilter]);
 
   const refresh = () => Promise.all([load(), loadCategories()]).catch((e) => setError(e.message));
 
@@ -76,25 +87,13 @@ export default function SuperadminClubs() {
     }
   };
 
-  const totalClubs = categories.reduce((s, c) => s + c.clubsCount, 0);
+  const clubCategories = categories.filter((c) => !NATIONAL_LEAGUES.has(c.name));
+  const totalClubs = clubCategories.reduce((s, c) => s + c.clubsCount, 0);
 
   const selectSection = (s) => {
     setSection(s);
-    setLeagueFilter('');
+    setCategoryId('');
     setContinentFilter('');
-  };
-
-  const remove = async (c) => {
-    if (!window.confirm(`"${c.name}" o'chirilsinmi? Bu amalni qaytarib bo'lmaydi.`)) return;
-    setBusyId(c.id);
-    try {
-      await clubsApi.remove(c.id);
-      await load();
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setBusyId(null);
-    }
   };
 
   return (
@@ -123,19 +122,39 @@ export default function SuperadminClubs() {
 
       <div className="sa-tabs" style={{ justifyContent: 'space-between' }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-          <button type="button" className={`sa-tab${!categoryId ? ' is-active' : ''}`} onClick={() => setCategoryId('')}>
-            Barchasi · {categoryId ? totalClubs : clubs.length}
-          </button>
-          {categories.map((cat) => (
-            <button
-              key={cat.id}
-              type="button"
-              className={`sa-tab${categoryId === cat.id ? ' is-active' : ''}`}
-              onClick={() => setCategoryId(cat.id)}
-            >
-              {cat.name} · {cat.clubsCount}
-            </button>
-          ))}
+          {section === 'CLUB' ? (
+            <>
+              <button type="button" className={`sa-tab${!categoryId ? ' is-active' : ''}`} onClick={() => setCategoryId('')}>
+                Barchasi · {categoryId ? totalClubs : clubs.length}
+              </button>
+              {clubCategories.map((cat) => (
+                <button
+                  key={cat.id}
+                  type="button"
+                  className={`sa-tab${categoryId === cat.id ? ' is-active' : ''}`}
+                  onClick={() => setCategoryId(cat.id)}
+                >
+                  {cat.name} · {cat.clubsCount}
+                </button>
+              ))}
+            </>
+          ) : (
+            <>
+              <button type="button" className={`sa-tab${!continentFilter ? ' is-active' : ''}`} onClick={() => setContinentFilter('')}>
+                Barchasi
+              </button>
+              {CONTINENTS.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  className={`sa-tab${continentFilter === c.value ? ' is-active' : ''}`}
+                  onClick={() => setContinentFilter(c.value)}
+                >
+                  {c.label}
+                </button>
+              ))}
+            </>
+          )}
         </div>
       </div>
 
@@ -146,7 +165,13 @@ export default function SuperadminClubs() {
       ) : clubs.length === 0 ? (
         <div className="sa-panel">
           <div className="sa-table__sub">
-            {categoryId ? "Bu kategoriyada klub yo'q." : 'Hali klub qo\'shilmagan. "+ Klub qo\'shish" tugmasi bilan birinchi klubni yarating.'}
+            {section === 'NATIONAL'
+              ? continentFilter
+                ? "Bu qit'ada terma jamoa yo'q."
+                : "Hali terma jamoa qo'shilmagan. \"+ Terma jamoa qo'shish\" tugmasi bilan birinchisini yarating."
+              : categoryId
+                ? "Bu kategoriyada klub yo'q."
+                : "Hali klub qo'shilmagan. \"+ Klub qo'shish\" tugmasi bilan birinchi klubni yarating."}
           </div>
         </div>
       ) : (
@@ -168,7 +193,10 @@ export default function SuperadminClubs() {
                       {c.name}
                       {!c.isActive && <span className="sa-badge sa-badge--red" style={{ marginLeft: 8 }}>Yashirilgan</span>}
                     </div>
-                    <div className="sa-table__sub">{c.category?.name ?? c.league} · {c.season} mavsumi · {c.sold} ta sotildi</div>
+                    <div className="sa-table__sub">
+                      {c.type === 'NATIONAL' ? continentLabel(c.continent) : (c.category?.name ?? c.league)} · {c.season} mavsumi ·{' '}
+                      {c.sold} ta sotildi
+                    </div>
                   </div>
                 </div>
                 <div style={{ display: 'flex', gap: 6 }}>
@@ -213,7 +241,8 @@ export default function SuperadminClubs() {
       {editing && (
         <ClubForm
           club={editing === 'new' ? null : editing}
-          categories={categories}
+          categories={clubCategories}
+          initialType={section}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
@@ -266,12 +295,15 @@ const toKitInput = (k) => ({
   isActive: k.isActive,
 });
 
-function ClubForm({ club, categories, onClose, onSaved }) {
+function ClubForm({ club, categories, initialType, onClose, onSaved }) {
   const isEdit = Boolean(club);
+  const [type, setType] = useState(club?.type ?? initialType ?? 'CLUB');
+  const isClubCategory = club?.categoryId && categories.some((cat) => cat.id === club.categoryId);
   const [form, setForm] = useState({
     name: club?.name ?? '',
-    categoryId: club?.categoryId ? String(club.categoryId) : categories[0] ? String(categories[0].id) : NEW_CATEGORY,
+    categoryId: isClubCategory ? String(club.categoryId) : categories[0] ? String(categories[0].id) : NEW_CATEGORY,
     league: '',
+    continent: club?.continent ?? CONTINENTS[0].value,
     season: club?.season ?? '',
     code: club?.code ?? '',
     markColor: club?.markColor ?? '#0e1a3f',
@@ -318,9 +350,13 @@ function ClubForm({ club, categories, onClose, onSaved }) {
         season: form.season.trim(),
         code: form.code.trim().toUpperCase(),
         markColor: form.markColor,
+        type,
         kits: kits.map(toKitInput),
       };
-      if (form.categoryId === NEW_CATEGORY) body.league = form.league.trim();
+      if (type === 'NATIONAL') {
+        body.league = nationalLeague(form.continent);
+        body.continent = form.continent;
+      } else if (form.categoryId === NEW_CATEGORY) body.league = form.league.trim();
       else body.categoryId = Number(form.categoryId);
       if (isEdit) {
         body.isActive = form.isActive;
@@ -336,7 +372,10 @@ function ClubForm({ club, categories, onClose, onSaved }) {
   };
 
   return (
-    <Modal title={isEdit ? `${club.name} — tahrirlash` : 'Yangi klub'} onClose={onClose}>
+    <Modal
+      title={isEdit ? `${club.name} — tahrirlash` : type === 'NATIONAL' ? 'Yangi terma jamoa' : 'Yangi klub'}
+      onClose={onClose}
+    >
       <form onSubmit={submit}>
         {error && <div className="form-error">{error}</div>}
         <div className="form-grid">
@@ -347,14 +386,9 @@ function ClubForm({ club, categories, onClose, onSaved }) {
               <option value="NATIONAL">Davlat terma jamoasi</option>
             </select>
           </label>
-          <label className="field">
-            <span>Kategoriya (liga)</span>
-            <select value={form.categoryId} onChange={set('categoryId')}>
-              {categories.map((cat) => (
-                <option key={cat.id} value={cat.id}>{cat.name}</option>
-              ))}
-              <option value={NEW_CATEGORY}>+ Yangi kategoriya</option>
-            </select>
+          <label className="field field--full">
+            <span>{type === 'NATIONAL' ? 'Davlat nomi' : 'Klub nomi'}</span>
+            <input value={form.name} onChange={set('name')} required minLength={2} maxLength={100} />
           </label>
           {type === 'NATIONAL' ? (
             <label className="field">
@@ -367,15 +401,20 @@ function ClubForm({ club, categories, onClose, onSaved }) {
             </label>
           ) : (
             <label className="field">
-              <span>Liga</span>
-              <input value={form.league} onChange={set('league')} required minLength={2} maxLength={60} />
+              <span>Kategoriya (liga)</span>
+              <select value={form.categoryId} onChange={set('categoryId')}>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
+                ))}
+                <option value={NEW_CATEGORY}>+ Yangi kategoriya</option>
+              </select>
             </label>
           )}
           <label className="field">
             <span>Mavsum</span>
             <input value={form.season} onChange={set('season')} placeholder="2026/27" maxLength={20} />
           </label>
-          {form.categoryId === NEW_CATEGORY && (
+          {type === 'CLUB' && form.categoryId === NEW_CATEGORY && (
             <label className="field field--full">
               <span>Yangi kategoriya nomi</span>
               <input value={form.league} onChange={set('league')} required minLength={2} maxLength={60} placeholder="LaLiga" />
