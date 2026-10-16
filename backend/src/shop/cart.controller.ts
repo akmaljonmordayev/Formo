@@ -14,7 +14,7 @@ import { ParseIdPipe } from '../common/pipes/parse-id.pipe';
 import { CartService } from './cart.service';
 import { AddCartItemDto, ApplyPromocodeDto, CartQueryDto, UpdateCartItemDto } from './dto/cart.dto';
 
-@ApiTags('Savat')
+@ApiTags('Mobil · Savat')
 @ApiBearerAuth()
 @ApiForbiddenResponse({ description: 'Faqat mobil ilova foydalanuvchisi' })
 @Roles(Role.USER)

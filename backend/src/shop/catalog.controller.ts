@@ -15,7 +15,7 @@ import { ParseIdPipe } from '../common/pipes/parse-id.pipe';
 import { CatalogService } from './catalog.service';
 import { ListCatalogClubsQueryDto, PopularClubsQueryDto } from './dto/catalog.dto';
 
-@ApiTags('Katalog')
+@ApiTags('Mobil · Katalog')
 @Controller('catalog')
 export class CatalogController {
   constructor(private readonly catalog: CatalogService) {}

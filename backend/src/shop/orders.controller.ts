@@ -16,7 +16,7 @@ import { DeliveryService } from './delivery.service';
 import { ChangePaymentMethodDto, CheckoutDto, DeliverySlotsQueryDto, MyOrdersQueryDto } from './dto/checkout.dto';
 import { ShopOrdersService } from './orders.service';
 
-@ApiTags('Rasmiylashtirish va buyurtmalar')
+@ApiTags('Mobil · Rasmiylashtirish va buyurtmalar')
 @ApiBearerAuth()
 @ApiForbiddenResponse({ description: 'Faqat mobil ilova foydalanuvchisi' })
 @Roles(Role.USER)
