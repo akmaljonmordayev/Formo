@@ -1,12 +1,12 @@
 export const STATUS_LABELS = {
-  yangi: 'YANGI',
-  bosmada: 'BOSMADA',
+  qabul: 'QABUL QILINDI',
+  bosildi: 'BOSILDI',
   tayyor: 'TAYYOR',
 };
 
 export const STATUS_VARIANTS = {
-  yangi: 'teal',
-  bosmada: 'indigo',
+  qabul: 'teal',
+  bosildi: 'cyan',
   tayyor: 'amber',
 };
 
@@ -22,7 +22,8 @@ export const queueOrders = [
     id: 'F-24822',
     customer: 'DILSHOD',
     initials: 'D',
-    summaryText: 'Futbolka · 7 · qizil XL · 1 dona',
+    kind: 'futbolka',
+    colorKey: 'qizil',
     model: 'Formo Pro 24',
     number: 7,
     size: 'XL',
@@ -33,16 +34,17 @@ export const queueOrders = [
     jerseyColor: '#D72E3F',
     jerseyColorName: 'Qizil',
     location: 'Old · markaz',
-    status: 'yangi',
+    status: 'qabul',
     stage: 2,
-    time: 'Bugun, 14:30',
-    deadlineText: 'Bugun, 14:30 · 2 soat 18 daqiqa',
+    timeOnly: '14:30',
+    deadline: { time: '14:30', h: 2, m: 18 },
   },
   {
     id: 'F-24825',
     customer: 'LOLA',
     initials: 'L',
-    summaryText: 'Futbolka · 11 · oq M · 2 dona',
+    kind: 'futbolka',
+    colorKey: 'oq',
     model: 'Formo Pro 24',
     number: 11,
     size: 'M',
@@ -53,16 +55,17 @@ export const queueOrders = [
     jerseyColor: '#ffffff',
     jerseyColorName: 'Oq',
     location: 'Old · markaz',
-    status: 'bosmada',
+    status: 'bosildi',
     stage: 2,
-    time: 'Bugun, 15:10',
-    deadlineText: 'Bugun, 15:10 · 3 soat 00 daqiqa',
+    timeOnly: '15:10',
+    deadline: { time: '15:10', h: 3, m: 0 },
   },
   {
     id: 'F-24828',
     customer: 'SARDOR',
     initials: 'S',
-    summaryText: 'Oversize · 23 · qora L · 1 dona',
+    kind: 'oversize',
+    colorKey: 'qora',
     model: 'Oversize Street',
     number: 23,
     size: 'L',
@@ -73,16 +76,17 @@ export const queueOrders = [
     jerseyColor: '#111827',
     jerseyColorName: 'Qora',
     location: 'Orqa · markaz',
-    status: 'yangi',
+    status: 'qabul',
     stage: 0,
-    time: 'Bugun, 16:00',
-    deadlineText: 'Bugun, 16:00 · 3 soat 50 daqiqa',
+    timeOnly: '16:00',
+    deadline: { time: '16:00', h: 3, m: 50 },
   },
   {
     id: 'F-24831',
     customer: 'MADINA',
     initials: 'M',
-    summaryText: 'Futbolka · 9 · ko\'k S · 3 dona',
+    kind: 'futbolka',
+    colorKey: 'kok',
     model: 'Formo Pro 24',
     number: 9,
     size: 'S',
@@ -95,16 +99,16 @@ export const queueOrders = [
     location: 'Old · markaz',
     status: 'tayyor',
     stage: 3,
-    time: 'Bugun, 16:45',
-    deadlineText: 'Bugun, 16:45 · Tayyor bo\'ldi',
+    timeOnly: '16:45',
+    deadline: { time: '16:45', done: true },
   },
 ];
 
 export const STOCK_COLORS = [
-  { name: 'Oq', hex: '#ffffff' },
-  { name: 'Qora', hex: '#111827' },
-  { name: 'Qizil', hex: '#D72E3F' },
-  { name: "Ko'k", hex: '#2563eb' },
+  { name: 'Oq', key: 'oq', hex: '#ffffff' },
+  { name: 'Qora', key: 'qora', hex: '#111827' },
+  { name: 'Qizil', key: 'qizil', hex: '#D72E3F' },
+  { name: "Ko'k", key: 'kok', hex: '#2563eb' },
 ];
 
 export const STOCK_SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
@@ -123,9 +127,9 @@ export const defectReasons = [
 ];
 
 export const batches = [
-  { id: 'P-1042', model: 'Formo Pro 24', qty: 250, done: 170, status: 'bosmada', deadline: '10.10.2026' },
+  { id: 'P-1042', model: 'Formo Pro 24', qty: 250, done: 170, status: 'bosildi', deadline: '10.10.2026' },
   { id: 'P-1043', model: 'Oversize Street', qty: 180, done: 180, status: 'tayyor', deadline: '08.10.2026' },
-  { id: 'P-1044', model: 'Formo Pro 24', qty: 120, done: 18, status: 'yangi', deadline: '14.10.2026' },
+  { id: 'P-1044', model: 'Formo Pro 24', qty: 120, done: 18, status: 'qabul', deadline: '14.10.2026' },
 ];
 
 export const employees = [

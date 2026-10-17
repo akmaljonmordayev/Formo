@@ -1,44 +1,50 @@
 import { useMemo, useState } from 'react';
 import OrderDetail from './OrderDetail';
 import QueueList from './QueueList';
+import { useT } from './i18n';
+import { useTailor } from './prefs';
 import { queueOrders as initialOrders } from './mockData';
 
 export default function Navbat() {
-  const [orders, setOrders] = useState(initialOrders);
+  const t = useT();
+  const {
+    orders = initialOrders,
+    orderActionLoading = false,
+    processOrder,
+  } = useTailor() ?? {};
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState('barchasi');
   const [selectedId, setSelectedId] = useState(initialOrders[0].id);
   const [mobileView, setMobileView] = useState('detail');
   const [toastMessage, setToastMessage] = useState('');
+  const [toastError, setToastError] = useState(false);
 
-  const showToast = (msg) => {
+  const showToast = (msg, isError = false) => {
     setToastMessage(msg);
+    setToastError(isError);
     setTimeout(() => setToastMessage(''), 3000);
   };
 
-  const handleStartPress = (id) => {
-    setOrders((prev) =>
-      prev.map((order) => {
-        if (order.id === id) {
-          const nextStatus = order.status === 'yangi' ? 'bosmada' : order.status === 'bosmada' ? 'tayyor' : 'tayyor';
-          const nextStage = nextStatus === 'bosmada' ? 2 : 3;
-          showToast(`Buyurtma #${id} statusi '${nextStatus.toUpperCase()}' ga o'zgardi!`);
-          return {
-            ...order,
-            status: nextStatus,
-            stage: nextStage,
-          };
-        }
-        return order;
-      })
-    );
+  const handleStartPress = async (order) => {
+    if (!processOrder) return;
+    try {
+      await processOrder(order);
+      const nextStatus = order.apiStatus === 'QUALITY_CHECK'
+        ? 'tayyor'
+        : order.status === 'qabul'
+          ? 'bosildi'
+          : 'tayyor';
+      showToast(t('navbat.statusToast', { id: order.id, status: t(`status.${nextStatus}`) }));
+    } catch {
+      // The shell displays the API error; do not show a success toast.
+    }
   };
 
   const counts = useMemo(
     () => ({
       barchasi: orders.length,
-      yangi: orders.filter((o) => o.status === 'yangi').length,
-      bosmada: orders.filter((o) => o.status === 'bosmada').length,
+      qabul: orders.filter((o) => o.status === 'qabul').length,
+      bosildi: orders.filter((o) => o.status === 'bosildi').length,
       tayyor: orders.filter((o) => o.status === 'tayyor').length,
     }),
     [orders]
@@ -68,7 +74,7 @@ export default function Navbat() {
     <div className="relative space-y-4">
       {/* Interactive Toast Notification */}
       {toastMessage && (
-        <div className="fixed top-20 right-6 z-50 rounded-2xl bg-teal-400 px-5 py-3 text-xs font-black text-slate-950 shadow-2xl animate-fade-in flex items-center gap-2">
+        <div className={`fixed top-20 right-6 z-50 rounded-2xl px-5 py-3 text-xs font-black shadow-2xl animate-fade-in flex items-center gap-2 ${toastError ? 'bg-rose-500 text-white' : 'bg-teal-400 text-slate-950'}`}>
           <span>✓</span>
           <span>{toastMessage}</span>
         </div>
@@ -85,7 +91,7 @@ export default function Navbat() {
               : 'bg-white/5 text-slate-400 border border-white/10'
           }`}
         >
-          Navbat
+          {t('navbat.list')}
         </button>
         <button
           type="button"
@@ -96,7 +102,7 @@ export default function Navbat() {
               : 'bg-white/5 text-slate-400 border border-white/10'
           }`}
         >
-          Tafsilot
+          {t('navbat.detail')}
         </button>
       </div>
 
@@ -113,7 +119,12 @@ export default function Navbat() {
           onSelect={handleSelect}
         />
         <div className={`${mobileView === 'detail' ? 'block' : 'hidden'} xl:block`}>
-          <OrderDetail order={selected} onStartPress={handleStartPress} onToast={showToast} />
+          <OrderDetail
+            order={selected}
+            onStartPress={handleStartPress}
+            actionLoading={orderActionLoading}
+            onToast={showToast}
+          />
         </div>
       </div>
     </div>

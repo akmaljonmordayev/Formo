@@ -1,14 +1,16 @@
 import { Check } from 'lucide-react';
+import { useT } from './i18n';
 
-export default function WorkflowTracker({ stage = 0, status = 'yangi' }) {
-  const isBosmada = status === 'bosmada' || stage >= 2;
+export default function WorkflowTracker({ stage = 0, status = 'qabul' }) {
+  const t = useT();
+  const isBosildi = status === 'bosildi' || stage >= 2;
   const isTayyor = status === 'tayyor' || stage >= 3;
 
   const steps = [
-    { id: 'qabul', label: 'Qabul qilindi', done: true },
-    { id: 'tayyorlandi', label: 'Tayyorlandi', done: true },
-    { id: 'bosish', label: 'Bosish', active: isBosmada && !isTayyor, done: isTayyor },
-    { id: 'tayyor', label: 'Tayyor', done: isTayyor },
+    { id: 'qabul', label: t('wf.accepted'), done: true },
+    { id: 'tayyorlandi', label: t('wf.prepared'), done: true },
+    { id: 'bosish', label: t('wf.printing'), active: isBosildi && !isTayyor, done: isTayyor },
+    { id: 'tayyor', label: t('wf.ready'), done: isTayyor },
   ];
 
   return (

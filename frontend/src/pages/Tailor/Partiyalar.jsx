@@ -1,12 +1,12 @@
 import { Layers, Package, Timer } from 'lucide-react';
-import Badge from './ui/Badge';
-import Card from './ui/Card';
-import StatCard from './ui/StatCard';
-import { STATUS_LABELS, STATUS_VARIANTS, batches } from './mockData';
+import { Badge, Card, StatCard } from './ui';
+import { useT } from './i18n';
+import { STATUS_VARIANTS, batches } from './mockData';
 import { cx } from './utils';
 
 export default function Partiyalar() {
-  const active = batches.filter((b) => b.status === 'bosmada').length;
+  const t = useT();
+  const active = batches.filter((b) => b.status === 'bosildi').length;
   const ready = batches.filter((b) => b.status === 'tayyor').length;
   const totalQty = batches.reduce((sum, b) => sum + b.qty, 0);
 
@@ -14,34 +14,34 @@ export default function Partiyalar() {
     <div className="space-y-4">
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard
-          label="Jami partiyalar"
+          label={t('bat.total')}
           value={batches.length}
-          hint={`${totalQty.toLocaleString('uz-UZ')} dona buyurtma`}
+          hint={t('bat.ordersQty', { n: totalQty.toLocaleString(t.locale) })}
           icon={Layers}
           tone="teal"
         />
-        <StatCard label="Bosmada" value={active} hint="jarayonda" icon={Timer} tone="amber" />
-        <StatCard label="Tayyor" value={ready} hint="pickapga tayyor" icon={Package} tone="teal" />
+        <StatCard label={t('bat.inProgress')} value={active} hint={t('bat.inProgressHint')} icon={Timer} tone="amber" />
+        <StatCard label={t('bat.ready')} value={ready} hint={t('bat.readyHint')} icon={Package} tone="teal" />
       </div>
 
       <Card className="overflow-hidden">
         <div className="border-b border-white/10 p-5">
           <h2 className="text-sm font-bold uppercase tracking-widest text-slate-300">
-            Partiyalar ro'yxati
+            {t('bat.list')}
           </h2>
-          <p className="mt-1 text-xs text-slate-500">Model bo'yicha bosma jarayoni</p>
+          <p className="mt-1 text-xs text-slate-500">{t('bat.listHint')}</p>
         </div>
 
         <div className="overflow-x-auto">
           <table className="w-full min-w-[720px] text-sm">
             <thead>
               <tr className="border-b border-white/10 text-left text-xs font-bold uppercase tracking-wider text-slate-500">
-                <th className="px-5 py-3.5">Partiya</th>
-                <th className="px-5 py-3.5">Model</th>
-                <th className="px-5 py-3.5">Miqdor</th>
-                <th className="px-5 py-3.5">Jarayon</th>
-                <th className="px-5 py-3.5">Holat</th>
-                <th className="px-5 py-3.5">Muddat</th>
+                <th className="px-5 py-3.5">{t('bat.col.batch')}</th>
+                <th className="px-5 py-3.5">{t('bat.col.model')}</th>
+                <th className="px-5 py-3.5">{t('bat.col.qty')}</th>
+                <th className="px-5 py-3.5">{t('bat.col.progress')}</th>
+                <th className="px-5 py-3.5">{t('bat.col.status')}</th>
+                <th className="px-5 py-3.5">{t('bat.col.deadline')}</th>
               </tr>
             </thead>
             <tbody>
@@ -55,9 +55,9 @@ export default function Partiyalar() {
                     <td className="px-5 py-4 font-mono font-semibold text-teal-400">{batch.id}</td>
                     <td className="px-5 py-4 font-medium text-white">{batch.model}</td>
                     <td className="px-5 py-4 text-slate-300">
-                      {batch.qty} dona
+                      {t('bat.qtyUnit', { n: batch.qty })}
                       <span className="ml-1 text-xs text-slate-600">
-                        ({batch.done} bajarildi)
+                        {t('bat.doneShort', { n: batch.done })}
                       </span>
                     </td>
                     <td className="w-[220px] px-5 py-4">
@@ -80,7 +80,7 @@ export default function Partiyalar() {
                     </td>
                     <td className="px-5 py-4">
                       <Badge variant={STATUS_VARIANTS[batch.status]}>
-                        {STATUS_LABELS[batch.status]}
+                        {t(`status.${batch.status}`)}
                       </Badge>
                     </td>
                     <td className="px-5 py-4 text-slate-400">{batch.deadline}</td>

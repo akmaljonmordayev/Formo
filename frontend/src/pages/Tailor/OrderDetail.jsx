@@ -1,45 +1,102 @@
+import { useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shirt, Clock, FileText, Image as ImageIcon, Play, CheckCircle, AlertTriangle } from 'lucide-react';
-import Card from './ui/Card';
-import JerseyPreview from './ui/JerseyPreview';
+import { Card, JerseyPreview } from './ui';
 import WorkflowTracker from './WorkflowTracker';
+import { useT, orderDeadline } from './i18n';
 import { cx } from './utils';
 
 const BADGE_STYLES = {
-  YANGI: 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40',
-  BOSMADA: 'bg-blue-500/20 text-blue-400 ring-1 ring-blue-500/40',
-  TAYYOR: 'bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/40',
+  qabul: 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40',
+  bosildi: 'bg-blue-500/20 text-blue-400 ring-1 ring-blue-500/40',
+  tayyor: 'bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/40',
 };
 
 export default function OrderDetail({ order, onStartPress, onToast }) {
   const navigate = useNavigate();
+  const t = useT();
+  const detailRef = useRef(null);
 
   if (!order) {
     return (
       <Card className="flex min-h-[400px] items-center justify-center p-8 text-center text-sm text-slate-400 bg-[#121829] border border-white/10">
-        Buyurtmani tanlang
+        {t('order.select')}
       </Card>
     );
   }
 
-  const badgeText = order.status.toUpperCase();
-  const badgeStyle = BADGE_STYLES[badgeText] ?? BADGE_STYLES.YANGI;
+  const badgeStyle = BADGE_STYLES[order.status] ?? BADGE_STYLES.qabul;
 
   const specs = [
-    { label: 'ISM', value: order.customer },
-    { label: 'RAQAM', value: order.number, isHighlight: true },
-    { label: "O'LCHAM", value: order.size },
-    { label: 'MODEL', value: order.model },
-    { label: 'FUTBOLKA RANGI', value: `${order.jerseyColorName} ${order.jerseyColor}` },
-    { label: 'MATO TURI', value: order.fabric },
-    { label: 'TARKIBI', value: order.composition },
-    { label: 'SONI', value: `${order.qty} dona` },
-    { label: 'BOSMA RANGI', value: order.printColor },
-    { label: 'JOYLASHUVI', value: order.location },
+    { label: t('order.spec.name'), value: order.customer },
+    { label: t('order.spec.number'), value: order.number, isHighlight: true },
+    { label: t('order.spec.size'), value: order.size },
+    { label: t('order.spec.model'), value: order.model },
+    { label: t('order.spec.jerseyColor'), value: `${order.jerseyColorName} ${order.jerseyColor}` },
+    { label: t('order.spec.fabric'), value: order.fabric },
+    { label: t('order.spec.composition'), value: order.composition },
+    { label: t('order.spec.qty'), value: t('order.qtyUnit', { n: order.qty }) },
+    { label: t('order.spec.printColor'), value: order.printColor },
+    { label: t('order.spec.location'), value: order.location },
   ];
 
-  const handleDownload = (type) => {
-    const ext = type.toLowerCase();
+  const workflowLabel =
+    order.status === 'qabul'
+      ? t('order.wfReady')
+      : order.status === 'bosildi'
+        ? t('order.wfPrinting')
+        : t('order.wfDone');
+
+  const handleDownload = async (type) => {
+    if (type === 'PNG') {
+      const svg = detailRef.current?.querySelector('[data-jersey-preview]');
+      if (!svg) {
+        onToast?.(t('order.downloadError'), true);
+        return;
+      }
+
+      const exportSvg = svg.cloneNode(true);
+      exportSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      exportSvg.setAttribute('width', '960');
+      exportSvg.setAttribute('height', '1040');
+      const svgBlob = new Blob([new XMLSerializer().serializeToString(exportSvg)], {
+        type: 'image/svg+xml;charset=utf-8',
+      });
+      const svgUrl = URL.createObjectURL(svgBlob);
+      try {
+        const image = new Image();
+        image.src = svgUrl;
+        await new Promise((resolve, reject) => {
+          image.onload = resolve;
+          image.onerror = () => reject(new Error('Futbolka rasmini tayyorlab bo‘lmadi'));
+        });
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 960;
+        canvas.height = 1040;
+        const context = canvas.getContext('2d');
+        if (!context) throw new Error('PNG eksporti bu brauzerda ishlamaydi');
+        context.drawImage(image, 0, 0, canvas.width, canvas.height);
+        const pngBlob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/png'));
+        if (!pngBlob) throw new Error('PNG faylini yaratib bo‘lmadi');
+
+        const pngUrl = URL.createObjectURL(pngBlob);
+        const anchor = document.createElement('a');
+        anchor.href = pngUrl;
+        anchor.download = `${order.id}.png`;
+        document.body.appendChild(anchor);
+        anchor.click();
+        anchor.remove();
+        window.setTimeout(() => URL.revokeObjectURL(pngUrl), 1000);
+        onToast?.(t('order.downloadToast', { id: order.id, type }));
+      } catch {
+        onToast?.(t('order.downloadError'), true);
+      } finally {
+        URL.revokeObjectURL(svgUrl);
+      }
+      return;
+    }
+
     const blob = new Blob(
       [`Formo tikuv sex\nBuyurtma: ${order.id}\nMijoz: ${order.customer}\nFormat: ${type}\n`],
       { type: 'text/plain;charset=utf-8' }
@@ -47,13 +104,14 @@ export default function OrderDetail({ order, onStartPress, onToast }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `${order.id}.${ext === 'png' ? 'txt' : 'txt'}`;
+    a.download = `${order.id}.txt`;
     a.click();
     URL.revokeObjectURL(url);
-    if (onToast) onToast(`#${order.id} buyurtma ${type} fayli yuklab olindi`);
+    if (onToast) onToast(t('order.downloadToast', { id: order.id, type }));
   };
 
   return (
+    <div ref={detailRef}>
     <Card className="flex flex-col gap-5 overflow-hidden bg-[#121829] p-5 border border-white/10">
       {/* Top Header inside Detail Card */}
       <div className="flex items-center justify-between border-b border-white/10 pb-4">
@@ -64,13 +122,13 @@ export default function OrderDetail({ order, onStartPress, onToast }) {
           <div>
             <h2 className="text-xl font-black tracking-wide text-white">{order.customer}</h2>
             <p className="text-xs font-semibold text-slate-400">
-              #{order.id} · {order.qty} dona
+              #{order.id} · {t('order.qtyUnit', { n: order.qty })}
             </p>
           </div>
         </div>
 
         <span className={cx('rounded-full px-3 py-1 text-xs font-extrabold uppercase', badgeStyle)}>
-          {badgeText}
+          {t(`status.${order.status}`)}
         </span>
       </div>
 
@@ -81,6 +139,7 @@ export default function OrderDetail({ order, onStartPress, onToast }) {
           color={order.jerseyColor}
           number={order.number}
           name={order.customer}
+          colorKey={order.colorKey}
         />
 
         {/* Right: Key-Value Spec Grid */}
@@ -110,10 +169,10 @@ export default function OrderDetail({ order, onStartPress, onToast }) {
         </div>
         <div>
           <span className="block text-[10px] font-bold uppercase tracking-widest text-amber-400/80">
-            MUDDAT
+            {t('order.deadline')}
           </span>
           <p className="text-sm font-extrabold text-amber-200">
-            {order.deadlineText}
+            {orderDeadline(t, order)}
           </p>
         </div>
       </div>
@@ -122,11 +181,9 @@ export default function OrderDetail({ order, onStartPress, onToast }) {
       <div className="rounded-2xl border border-white/10 bg-[#0e1424] p-4">
         <div className="flex items-center justify-between pb-3">
           <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-300">
-            Ish jarayoni
+            {t('order.workflow')}
           </h3>
-          <span className="text-xs font-bold text-teal-400">
-            {order.status === 'yangi' ? 'Bosmaga tayyor' : order.status === 'bosmada' ? 'Bosilmoqda' : 'Tayyor bo\'ldi'}
-          </span>
+          <span className="text-xs font-bold text-teal-400">{workflowLabel}</span>
         </div>
         <WorkflowTracker stage={order.stage} status={order.status} />
       </div>
@@ -140,7 +197,7 @@ export default function OrderDetail({ order, onStartPress, onToast }) {
             className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-slate-300 transition hover:bg-white/10 hover:text-white"
           >
             <FileText className="h-4 w-4" />
-            <span>PDF yuklash</span>
+            <span>{t('order.downloadPdf')}</span>
           </button>
           <button
             type="button"
@@ -148,15 +205,15 @@ export default function OrderDetail({ order, onStartPress, onToast }) {
             className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-slate-300 transition hover:bg-white/10 hover:text-white"
           >
             <ImageIcon className="h-4 w-4" />
-            <span>PNG yuklash</span>
+            <span>{t('order.downloadPng')}</span>
           </button>
           <button
             type="button"
-            onClick={() => navigate('/tailor/brak')}
+            onClick={() => navigate('/tailor/brak', { state: { order } })}
             className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-xs font-bold text-rose-300 transition hover:bg-rose-500/20"
           >
             <AlertTriangle className="h-4 w-4" />
-            <span>Brak</span>
+            <span>{t('order.defect')}</span>
           </button>
         </div>
 
@@ -165,31 +222,32 @@ export default function OrderDetail({ order, onStartPress, onToast }) {
           onClick={() => onStartPress(order.id)}
           className={cx(
             'flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-extrabold text-slate-950 shadow-glow transition active:scale-95',
-            order.status === 'bosmada'
+            order.status === 'bosildi'
               ? 'bg-amber-400 hover:bg-amber-300'
               : order.status === 'tayyor'
-              ? 'bg-emerald-400 hover:bg-emerald-300 text-slate-950'
-              : 'bg-teal-400 hover:bg-teal-300'
+                ? 'bg-emerald-400 hover:bg-emerald-300 text-slate-950'
+                : 'bg-teal-400 hover:bg-teal-300'
           )}
         >
-          {order.status === 'yangi' ? (
+          {order.status === 'qabul' ? (
             <>
               <Play className="h-4 w-4 fill-current" />
-              <span>Bosishni boshlash</span>
+              <span>{t('order.startPrint')}</span>
             </>
-          ) : order.status === 'bosmada' ? (
+          ) : order.status === 'bosildi' ? (
             <>
               <CheckCircle className="h-4 w-4" />
-              <span>Tayyor deb belgilash</span>
+              <span>{t('order.markReady')}</span>
             </>
           ) : (
             <>
               <CheckCircle className="h-4 w-4" />
-              <span>Bajarildi</span>
+              <span>{t('order.completed')}</span>
             </>
           )}
         </button>
       </div>
     </Card>
+    </div>
   );
 }
