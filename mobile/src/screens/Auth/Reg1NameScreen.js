@@ -66,6 +66,10 @@ export default function Reg1NameScreen({ onNext, onBack, initial = {}, initialDa
             <Text style={styles.label}>First name *</Text>
             <TextInput
               ref={firstNameRef}
+              // Fabric: `inputFocused` below adds shadowColor/elevation; without
+              // pinning the stacking-context trait the differ would remove+insert
+              // this node on focus and native focus would be lost immediately.
+              collapsable={false}
               value={firstName}
               onChangeText={setFirstName}
               placeholder="e.g. Aziz"
@@ -82,6 +86,7 @@ export default function Reg1NameScreen({ onNext, onBack, initial = {}, initialDa
             <Text style={[styles.label, { marginTop: 18 }]}>Last name</Text>
             <TextInput
               ref={lastNameRef}
+              collapsable={false}
               value={lastName}
               onChangeText={setLastName}
               placeholder="e.g. Karimov"
