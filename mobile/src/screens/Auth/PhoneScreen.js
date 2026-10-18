@@ -122,7 +122,15 @@ export default function PhoneScreen({
 
           <View style={styles.card}>
             <Text style={styles.inputLabel}>Phone number</Text>
-            <View style={[styles.phoneInputRow, phoneFocused && styles.fieldFocused]}>
+            {/* `collapsable={false}`: `fieldFocused` adds shadowColor/elevation, which
+                flips the Fabric FormsStackingContext trait on focus. The differ then
+                removes+inserts this subtree, so the TextInput inside loses native
+                focus the moment it gains it (focus jumps / keyboard bounce). Pinning
+                the trait keeps the native view tree stable. */}
+            <View
+              collapsable={false}
+              style={[styles.phoneInputRow, phoneFocused && styles.fieldFocused]}
+            >
               <View style={styles.flagBox}>
                 <Text style={styles.flagText}>🇺🇿</Text>
                 <Text style={styles.codeText}>+998</Text>
@@ -149,7 +157,10 @@ export default function PhoneScreen({
             {usePassword && (
               <View style={{ marginTop: 16 }}>
                 <Text style={styles.inputLabel}>Password</Text>
-                <View style={[styles.passwordRow, passwordFocused && styles.fieldFocused]}>
+                <View
+                  collapsable={false}
+                  style={[styles.passwordRow, passwordFocused && styles.fieldFocused]}
+                >
                   <TextInput
                     ref={passwordRef}
                     value={password}
