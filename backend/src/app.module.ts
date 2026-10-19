@@ -8,6 +8,7 @@ import { validateEnv } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
 import { RolesGuard } from './common/guards/roles.guard';
+import { NotifyModule } from './notify/notify.module';
 import { PrismaModule } from './prisma/prisma.module';
 import { ShopModule } from './shop/shop.module';
 
@@ -17,6 +18,7 @@ import { ShopModule } from './shop/shop.module';
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnv }),
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: Number(process.env.THROTTLE_LIMIT ?? 120) }]),
     PrismaModule,
+    NotifyModule,
     AuthModule,
     AdminModule,
     ShopModule,

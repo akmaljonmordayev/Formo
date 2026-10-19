@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { diagnosticsApi, securityApi } from '../../../features/platform/platformApi';
+import { diagnosticsApi, securityApi, settingsApi } from '../../../features/platform/platformApi';
 import { useAuth } from '../../../hooks/useAuth';
 import {
   DEFAULT_GENERAL,
@@ -615,11 +615,46 @@ function NotificationsSection({ settings, onSaved }) {
   const [n, setN] = useState({ ...DEFAULT_NOTIFICATIONS, ...(settings[SETTING_KEYS.notifications] ?? {}) });
   const { saving, error, notice, save } = useSaver(SETTING_KEYS.notifications, onSaved);
   const flip = (key) => () => setN((p) => ({ ...p, [key]: !p[key] }));
+  const [configured, setConfigured] = useState(null);
+  const [testing, setTesting] = useState(false);
+  const [testResult, setTestResult] = useState(null);
+
+  useEffect(() => {
+    let active = true;
+    settingsApi
+      .notificationsStatus()
+      .then((d) => active && setConfigured(Boolean(d?.telegramConfigured)))
+      .catch(() => active && setConfigured(false));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  const sendTest = async () => {
+    setTesting(true);
+    setTestResult(null);
+    try {
+      const r = await settingsApi.notificationsTest();
+      setTestResult(r?.sent ? { ok: true, text: t('Sinov xabari yuborildi') } : { ok: false, text: r?.reason || t('Yuborilmadi') });
+    } catch (e) {
+      setTestResult({ ok: false, text: e.message });
+    } finally {
+      setTesting(false);
+    }
+  };
 
   return (
     <>
+      <p className="sa-table__sub" style={{ marginBottom: 10 }}>
+        {t('Adminlarga qaysi hodisalar haqida xabar yuborilishi.')}{' '}
+        {t('Quyidagi sozlamalar jonli ishlaydi: hodisa yuz berganda Telegramga xabar ketadi.')}
+      </p>
       <p className="sa-table__sub" style={{ marginBottom: 18 }}>
-        {t('Adminlarga qaysi hodisalar haqida xabar yuborilishi.')}
+        {configured === null
+          ? t('Telegram holati tekshirilmoqda...')
+          : configured
+            ? t('Telegram bot serverda sozlangan')
+            : t('Telegram bot serverda sozlanmagan (TELEGRAM_BOT_TOKEN)')}
       </p>
       <Messages error={error} notice={notice} />
       <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 18 }}>
@@ -637,7 +672,20 @@ function NotificationsSection({ settings, onSaved }) {
           maxLength={40}
         />
       </div>
-      <SaveButton saving={saving} onClick={() => save({ ...n, telegramChatId: n.telegramChatId.trim() })} />
+      <p className="sa-table__sub" style={{ margin: '8px 0 14px' }}>
+        {t('Chat ID ni to‘ldiring va botni shu chatga qo‘shing — xabarlar shu yerga yuboriladi.')}
+      </p>
+      <div style={{ display: 'flex', gap: 10, alignItems: 'center', flexWrap: 'wrap' }}>
+        <SaveButton saving={saving} onClick={() => save({ ...n, telegramChatId: n.telegramChatId.trim() })} />
+        <button type="button" className="sa-btn sa-btn--ghost" onClick={sendTest} disabled={testing}>
+          {testing ? t('Yuborilmoqda...') : t('Sinov xabari yuborish')}
+        </button>
+        {testResult && (
+          <span className="sa-table__sub" style={{ marginTop: 0, color: testResult.ok ? 'var(--sa-green, #22c55e)' : 'var(--sa-red, #ef4444)' }}>
+            {testResult.text}
+          </span>
+        )}
+      </div>
     </>
   );
 }

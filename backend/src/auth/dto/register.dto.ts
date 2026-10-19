@@ -60,3 +60,32 @@ export class RegisterDto {
   @Max(250)
   weight?: number;
 }
+
+/** Mobil profil: faqat o'lchamlar va jins (telefon/parol alohida oqim). `null` — qiymatni tozalaydi */
+export class UpdateProfileDto {
+  @ApiPropertyOptional({ enum: Gender, nullable: true })
+  @IsOptional()
+  @IsEnum(Gender)
+  gender?: Gender | null;
+
+  @ApiPropertyOptional({ example: 25, nullable: true })
+  @IsOptional()
+  @IsInt()
+  @Min(3)
+  @Max(100)
+  age?: number | null;
+
+  @ApiPropertyOptional({ example: 178, nullable: true, description: 'sm' })
+  @IsOptional()
+  @IsInt()
+  @Min(50)
+  @Max(250)
+  height?: number | null;
+
+  @ApiPropertyOptional({ example: 72, nullable: true, description: 'kg' })
+  @IsOptional()
+  @IsInt()
+  @Min(10)
+  @Max(250)
+  weight?: number | null;
+}

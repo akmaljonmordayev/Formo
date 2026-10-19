@@ -68,14 +68,16 @@ Mock ma’lumot yo‘q — hammasi `/api` dan:
 | Asosiy | `GET /catalog/clubs/popular`, `GET /orders/active`, bildirishnomalar tugmasi |
 | Katalog | `GET /catalog/categories`, `GET /catalog/clubs?categoryId&search`, `GET /catalog/favorites`, `PUT/DELETE /catalog/clubs/:id/favorite` |
 | Klub (Product) | `GET /catalog/clubs/:id` — Uy / Mehmon / Uchinchi formalar narxi bilan |
-| Studiya | `POST /cart/items` — `kitId`, `shirtSize`, `printName`, `printNumber`, `withShorts`, `shortsSize`, `numberOnShorts` |
+| Studiya (maxsus dizayn) | `GET /app/config` → `studio` (yoqilgan rang/gradient/HEX, shrift, yamoq, qadoq, narxlar), `POST /cart/items` — `design`, `shirtSize`, `printName`, `printNumber`, `quantity` |
+| Studiya (klub formasi) | `POST /cart/items` — `kitId`, `shirtSize`, `printName`, `printNumber`, `withShorts`, `shortsSize`, `numberOnShorts` |
+| Profil | `GET/PATCH /auth/me` (`gender`, `age`, `height`, `weight`), `GET /addresses` (Manzillarim) |
 | Savat | `GET /cart`, `PATCH/DELETE /cart/items/:id`, `DELETE /cart`, `POST /cart/promocode` |
 | Rasmiylashtirish | `GET/POST /addresses`, `GET /checkout/delivery-slots`, `POST /orders/checkout` (CASH → `NEW`, CLICK/PAYME → `PENDING_PAYMENT`) |
 | Buyurtmalar | `GET /orders`, `GET /orders/:id` (timeline), `POST /orders/:id/cancel`, `POST /orders/:id/payment/confirm` (demo), `PATCH /orders/:id/payment-method` |
 | Bildirishnomalar | `GET /notifications` |
 | Sozlamalar | `GET /app/config` — buyurtma qoidalari (to‘xtatish, minimal summa, naqd, o‘lchamlar) va aloqa |
 
-Buyurtma holati operator/sex panelida o‘zgaradi; Buyurtmalar ekranlari har 20 soniyada va pastga tortilganda yangilanadi. Profil o‘lchovlari (bo‘y, vazn...) uchun backendda tahrirlash endpointi yo‘q — ular qurilmada saqlanadi.
+Buyurtma holati operator/sex panelida o‘zgaradi; Buyurtmalar ekranlari har 20 soniyada va pastga tortilganda yangilanadi. Profil o‘lchovlari (jins, yosh, bo‘y, vazn) serverda saqlanadi (`PATCH /auth/me`).
 
 ## Tilni almashtirish
 
@@ -85,7 +87,7 @@ Profil → Sozlamalar → Ilova tili bo‘limida o‘zbekcha, ruscha yoki ingliz
 
 - klublar katalogi, qidiruv, ligalar bo‘yicha filtr va sevimli klublar;
 - klub formalari (narx tarkibi, o‘lchamlar);
-- studiya: o‘lcham, ism/raqam bosmasi, shortik;
+- studiya: maxsus dizayn (rang, gradient, o‘z rangi, shrift, yamoq, sovg‘a qutisi) yoki klub formasi (o‘lcham, ism/raqam, shortik);
 - server savati va promokod;
 - rasmiylashtirish: manzil, yetkazish kuni/vaqti, to‘lov usuli;
 - buyurtmalar va jonli holat (timeline), bekor qilish, demo to‘lov;

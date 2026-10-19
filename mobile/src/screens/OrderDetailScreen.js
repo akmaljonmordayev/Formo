@@ -5,6 +5,7 @@ import { colors, radii, spacing } from '../constants/theme';
 import { Button, Card, Header, Overline, Screen, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
 import { JerseyPreview } from '../components/ui/JerseyPreview';
+import { designText, itemPreview } from '../features/studio';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { PAYMENT_METHODS, paymentText, statusText, useOrder } from '../features/orders';
 import { errorText } from '../utils/errors';
@@ -140,14 +141,15 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
           {order.items.map((item) => (
             <View key={item.id} style={styles.item}>
               <View style={styles.thumb}>
-                <JerseyPreview
-                  product={{ color: item.bgColor || '#242749', accent: item.textColor || '#FFFFFF' }}
-                  number={item.printNumber || ''}
-                  tiny
-                />
+                <JerseyPreview product={itemPreview(item)} number={item.printNumber || ''} tiny />
               </View>
               <View style={{ flex: 1 }}>
-                <Text style={styles.itemTitle} numberOfLines={1}>{item.clubName} · {item.kitLabel}</Text>
+                <Text style={styles.itemTitle} numberOfLines={1}>
+                  {item.design ? t('customJersey') : `${item.clubName} · ${item.kitLabel}`}
+                </Text>
+                {item.design ? (
+                  <Text style={styles.itemSub} numberOfLines={1}>{designText(t, item.design)}</Text>
+                ) : null}
                 <Text style={styles.itemSub} numberOfLines={1}>
                   {[
                     [item.printName, item.printNumber].filter(Boolean).join(' · '),

@@ -147,7 +147,7 @@ export function JerseyPreview({
       <div className="flex w-full items-center justify-between pt-2">
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-300">
           <span className="h-3 w-3 rounded-full ring-2 ring-white/20" style={{ backgroundColor: color }} />
-          <span>{t(`color.${colorKey}`)}</span>
+          <span>{colorKey ? t(`color.${colorKey}`) : color}</span>
         </div>
         <button
           type="button"

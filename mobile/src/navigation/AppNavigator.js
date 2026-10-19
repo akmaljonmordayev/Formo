@@ -76,6 +76,11 @@ export default function AppNavigator({ store, t, auth }) {
   }, [route, refreshConfig]);
 
   const navigate = (next) => setRoute(next);
+  // Tab/bosh sahifadan studiyaga kirilsa — maxsus dizayn rejimi (klub formasi faqat klub sahifasidan)
+  const navigateTab = (next) => {
+    if (next === 'studio') setStudioKit(null);
+    setRoute(next);
+  };
   const openCart = (from) => {
     setCartFrom(from);
     setRoute('cart');
@@ -153,7 +158,7 @@ export default function AppNavigator({ store, t, auth }) {
     route === 'home' ? (
       <HomeScreen
         t={t}
-        onNavigate={navigate}
+        onNavigate={navigateTab}
         onClub={openClub}
         onOrder={(id) => openOrder(id, 'home')}
         onNotifications={() => openNotifications('home')}
@@ -175,6 +180,9 @@ export default function AppNavigator({ store, t, auth }) {
         kit={studioKit}
         cart={cart}
         rules={config.rules}
+        studio={config.studio}
+        studioError={config.error}
+        onRetryConfig={refreshConfig}
         onOpenCart={() => openCart('studio')}
         onPickKit={() => navigate('catalog')}
         onBack={() => navigate('home')}
@@ -240,7 +248,7 @@ export default function AppNavigator({ store, t, auth }) {
     <>
       {content}
       {!hideTabs && (
-        <BottomTabs active={route} onChange={navigate} t={t} />
+        <BottomTabs active={route} onChange={navigateTab} t={t} />
       )}
     </>
   );

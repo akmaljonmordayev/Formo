@@ -18,6 +18,7 @@ import { randomUUID } from 'crypto';
 import { AuditService } from '../admin/audit.service';
 import { OrderHistoryService } from '../admin/order-history.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
+import { NotifyService } from '../notify/notify.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddressesService, formatAddress } from './addresses.service';
 import { CartService, lineProblem, toCartItem } from './cart.service';
@@ -25,6 +26,8 @@ import { dayLabel, DeliveryService, todayLocal } from './delivery.service';
 import { ChangePaymentMethodDto, CheckoutDto, MyOrdersQueryDto } from './dto/checkout.dto';
 import { summarize } from './pricing';
 import { RulesService } from './rules.service';
+import { CUSTOM_TITLE, designSummary } from './studio';
+import { StudioService } from './studio.service';
 
 /** Click/Payme: buyurtma to'lov uchun shuncha vaqt band turadi */
 export const PAYMENT_HOLD_MS = 30 * 60 * 1000;
@@ -121,6 +124,8 @@ export class ShopOrdersService {
     private readonly audit: AuditService,
     private readonly history: OrderHistoryService,
     private readonly rules: RulesService,
+    private readonly notify: NotifyService,
+    private readonly studio: StudioService,
   ) {}
 
   /** Muddati o'tgan to'lanmagan buyurtmalarni bekor qiladi (slot va promokod bo'shaydi) */
@@ -131,10 +136,11 @@ export class ShopOrdersService {
         paymentExpiresAt: { lt: new Date() },
         ...(customerId && { customerId }),
       },
-      select: { id: true, promocodeId: true },
+      select: { id: true, code: true, promocodeId: true },
     });
     for (const o of stale) {
       await this.release(o.id, PaymentStatus.FAILED, OrderStatus.PENDING_PAYMENT, null, "To'lov muddati tugadi");
+      void this.notify.notify('paymentFailed', `❌ To'lov kutilib bekor qilindi: ${o.code}`);
     }
   }
 
@@ -176,10 +182,11 @@ export class ShopOrdersService {
         const problems = lines
           .map((l) => [l, lineProblem(l)] as const)
           .filter(([, p]) => p)
-          .map(([l, p]) => `${l.kit.club.name} · ${l.kit.label}: ${p}`);
+          .map(([l, p]) => `${l.kit ? `${l.kit.club.name} · ${l.kit.label}` : CUSTOM_TITLE}: ${p}`);
         if (problems.length) throw new BadRequestException(`Savatni yangilang — ${problems.join('; ')}`);
 
-        const items = lines.map(toCartItem);
+        const studioPrices = await this.studio.prices(tx);
+        const items = lines.map((l) => toCartItem(l, studioPrices));
         const subtotal = items.reduce((s, i) => s + i.totalPrice, 0);
         await this.rules.assertCheckout(
           {
@@ -210,9 +217,9 @@ export class ShopOrdersService {
             customerName: customer.fullName,
             customerPhone: customer.phone,
             // Admin paneldagi ro'yxat uchun qisqa ma'lumot — birinchi mahsulotdan
-            clubId: first.club.id,
-            kitLabel: first.kit.label,
-            productType: OrderProductType.CLUB_KIT,
+            clubId: first.club?.id ?? null,
+            kitLabel: first.kit?.label ?? CUSTOM_TITLE,
+            productType: first.kit ? OrderProductType.CLUB_KIT : OrderProductType.CUSTOM_DESIGN,
             printName: first.printName,
             printNumber: first.printNumber,
             size: first.shirtSize,
@@ -234,8 +241,9 @@ export class ShopOrdersService {
             items: {
               create: items.map((i) => ({
                 kitId: i.kitId,
-                clubName: i.club.name,
-                kitLabel: i.kit.label,
+                clubName: i.club?.name ?? CUSTOM_TITLE,
+                kitLabel: i.kit?.label ?? (i.design ? designSummary(i.design) : CUSTOM_TITLE),
+                design: (i.design ?? undefined) as unknown as Prisma.InputJsonObject | undefined,
                 printName: i.printName,
                 printNumber: i.printNumber,
                 numberOnShorts: i.numberOnShorts,
@@ -265,6 +273,8 @@ export class ShopOrdersService {
       category: AuditCategory.ORDER,
       context: order.code,
     });
+    // Naqd buyurtma darhol operatorga tushadi; onlayn to'lovlar to'lovdan keyin (confirmPayment)
+    if (order.status === OrderStatus.NEW) void this.announceNew(order.code, order.customerName, order.totalSum);
     return { ...toOrderView(order), payment: this.paymentInfo(order) };
   }
 
@@ -338,7 +348,12 @@ export class ShopOrdersService {
     });
 
     await this.audit.log({ actor: user, action: "To'lov qabul qilindi", category: AuditCategory.PAYMENT, context: order.code });
+    void this.announceNew(order.code, order.customerName, order.totalSum);
     return this.get(user.id, id);
+  }
+
+  private announceNew(code: string, customer: string, total: number) {
+    return this.notify.notify('newOrder', `🆕 Yangi buyurtma ${code} · ${customer} · ${total.toLocaleString('ru-RU')} so'm`);
   }
 
   /** "Boshqa usulni tanlash" */

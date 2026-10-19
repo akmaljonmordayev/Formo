@@ -1,15 +1,16 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { Bell, BellOff } from 'lucide-react';
-import { ordersApi } from '../../../features/platform/platformApi';
+import { AlertTriangle, Bell, BellOff } from 'lucide-react';
+import { defectsApi, ordersApi } from '../../../features/platform/platformApi';
 import { useT } from '../i18n';
 
 const TABS = ['notif.all', 'notif.unread'];
 const SEEN_KEY = 'formo_operator_seen_orders';
+const SEEN_DEFECTS_KEY = 'formo_operator_seen_defects';
 
-const loadSeen = () => {
+const loadSeen = (key = SEEN_KEY) => {
   try {
-    const saved = JSON.parse(localStorage.getItem(SEEN_KEY) || '[]');
+    const saved = JSON.parse(localStorage.getItem(key) || '[]');
     return Array.isArray(saved) ? saved : [];
   } catch {
     return [];
@@ -22,14 +23,20 @@ export default function OperatorNotifications() {
   const t = useT();
   const [tab, setTab] = useState(TABS[0]);
   const [orders, setOrders] = useState([]);
-  const [seen, setSeen] = useState(loadSeen);
+  const [defects, setDefects] = useState([]);
+  const [seen, setSeen] = useState(() => loadSeen());
+  const [seenDefects, setSeenDefects] = useState(() => loadSeen(SEEN_DEFECTS_KEY));
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     try {
-      const data = await ordersApi.list({ status: 'NEW', page: 1, limit: 50 });
+      const [data, def] = await Promise.all([
+        ordersApi.list({ status: 'NEW', page: 1, limit: 50 }),
+        defectsApi.list({ status: 'OPEN', page: 1, limit: 20 }),
+      ]);
       setOrders(data.items);
+      setDefects(def.items);
       setError('');
     } catch (err) {
       setError(err.message);
@@ -46,16 +53,23 @@ export default function OperatorNotifications() {
 
   const markAllRead = () => {
     const ids = orders.map((o) => o.id);
+    const defectIds = defects.map((d) => d.id);
     try {
       localStorage.setItem(SEEN_KEY, JSON.stringify(ids));
+      localStorage.setItem(SEEN_DEFECTS_KEY, JSON.stringify(defectIds));
     } catch {
       // brauzer saqlashga ruxsat bermasa — faqat joriy sessiya uchun
     }
     setSeen(ids);
+    setSeenDefects(defectIds);
   };
 
-  const unread = orders.filter((o) => !seen.includes(o.id));
-  const shown = tab === TABS[0] ? orders : unread;
+  const unreadOrders = orders.filter((o) => !seen.includes(o.id));
+  const unreadDefects = defects.filter((d) => !seenDefects.includes(d.id));
+  const unreadCount = unreadOrders.length + unreadDefects.length;
+  const shownOrders = tab === TABS[0] ? orders : unreadOrders;
+  const shownDefects = tab === TABS[0] ? defects : unreadDefects;
+  const isEmpty = !shownOrders.length && !shownDefects.length;
   const date = (iso) => new Date(iso).toLocaleString(t.locale, { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' });
 
   return (
@@ -66,7 +80,7 @@ export default function OperatorNotifications() {
           <p>{t('notif.subtitle')}</p>
         </div>
         <div className="op-row" style={{ gap: 8 }}>
-          {unread.length > 0 && (
+          {unreadCount > 0 && (
             <button type="button" className="op-b" onClick={markAllRead}>
               {t('notif.markRead')}
             </button>
@@ -88,7 +102,7 @@ export default function OperatorNotifications() {
             onClick={() => setTab(key)}
           >
             {t(key)}
-            {key === TABS[1] && unread.length > 0 ? ` · ${unread.length}` : ''}
+            {key === TABS[1] && unreadCount > 0 ? ` · ${unreadCount}` : ''}
           </button>
         ))}
       </div>
@@ -99,11 +113,11 @@ export default function OperatorNotifications() {
             {error}
           </div>
         )}
-        {shown.length ? (
+        {!isEmpty ? (
           <div className="op-sc">
             <table className="op-tb">
               <tbody>
-                {shown.map((o) => (
+                {shownOrders.map((o) => (
                   <tr key={o.id}>
                     <td style={{ width: 32 }}>
                       <Bell size={16} aria-hidden="true" />
@@ -115,6 +129,25 @@ export default function OperatorNotifications() {
                     <td className="op-mono">{date(o.updatedAt ?? o.createdAt)}</td>
                     <td>
                       <Link to="/operator/orders" className="op-b is-sm">
+                        {t('notif.open')}
+                      </Link>
+                    </td>
+                  </tr>
+                ))}
+                {shownDefects.map((d) => (
+                  <tr key={`d${d.id}`}>
+                    <td style={{ width: 32 }}>
+                      <AlertTriangle size={16} aria-hidden="true" />
+                    </td>
+                    <td>
+                      <b>
+                        {t('notif.newDefect', { code: d.order?.code, reason: t(`defects.reason.${d.reason}`), qty: d.qty })}
+                      </b>
+                      <div className="op-sub">{d.workshop?.workshopName || d.workshop?.fullName}</div>
+                    </td>
+                    <td className="op-mono">{date(d.createdAt)}</td>
+                    <td>
+                      <Link to="/operator/defects" className="op-b is-sm">
                         {t('notif.open')}
                       </Link>
                     </td>

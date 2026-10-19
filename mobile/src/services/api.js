@@ -150,6 +150,13 @@ export const auth = {
   /** Fetch the currently authenticated user's profile. */
   me: () => request('/auth/me'),
 
+  /**
+   * PATCH /auth/me — profil o'lchovlari. Faqat shu maydonlar (boshqasi → 400); null qiymatni tozalaydi.
+   * @param {{gender?: 'MALE'|'FEMALE'|null, age?: number|null, height?: number|null, weight?: number|null}} fields
+   * @returns {Promise<object>} yangilangan user
+   */
+  updateMe: (fields) => request('/auth/me', { method: 'PATCH', body: fields }),
+
   /** Invalidate the current session on the server and clear local tokens. */
   async logout() {
     try {

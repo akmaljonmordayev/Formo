@@ -13,13 +13,14 @@ import {
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { errorText as apiErrorText } from '../../utils/errors';
 import LanguageSwitch from './LanguageSwitch';
 
 /**
  * CompleteProfileScreen — login/parol bilan kirgan, lekin o'lchovlari
  * (gender/age/height/weight) bo'sh qolgan foydalanuvchilar uchun qisqa so'rovnoma.
- * RegisterScreen step 2 bilan bir xil uslubda. Saqlash auth.updateUser orqali;
- * backend endpointi hozircha yo'q bo'lsa, useAuth qiymatlarni qurilmada saqlaydi.
+ * RegisterScreen step 2 bilan bir xil uslubda. Saqlash auth.updateUser orqali
+ * (PATCH /auth/me); so'rov o'tmasa xato matni ko'rsatiladi.
  *
  * Props:
  *   auth       — useAuth() object { user, updateUser }
@@ -91,7 +92,7 @@ export default function CompleteProfileScreen({ auth, t, language, onLanguage, o
     try {
       await auth.updateUser(fields);
     } catch (err) {
-      setValidationError(err?.message || t('authError'));
+      setValidationError(apiErrorText(err, t));
     } finally {
       setSaving(false);
     }

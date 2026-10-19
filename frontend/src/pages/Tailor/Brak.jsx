@@ -1,77 +1,75 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, CheckCircle2, Eye, Image as ImageIcon, Move, RefreshCw, Ruler, Shirt, Upload, X } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, CheckCircle2, Eye, HelpCircle, Move, RefreshCw, Ruler, Shirt } from 'lucide-react';
 import { Card } from './ui';
 import { useT } from './i18n';
 import { cx } from './utils';
 import { useTailor } from './prefs';
+import { createDefect, listDefects } from './tailorApi';
+
+const REASON_CODES = {
+  'bosma-siljidi': 'PRINT_SHIFT',
+  'mato-nuqsoni': 'FABRIC',
+  'notogri-olcham': 'WRONG_SIZE',
+  boshqa: 'OTHER',
+};
+const REASON_KEYS = { PRINT_SHIFT: 'brak.reason.shift', FABRIC: 'brak.reason.fabric', WRONG_SIZE: 'brak.reason.size', OTHER: 'brak.reason.other' };
 
 export default function Brak() {
   const navigate = useNavigate();
   const location = useLocation();
   const { orders = [], ordersError = '', ordersLoading = false } = useTailor() ?? {};
   const t = useT();
-  const photoInputRef = useRef(null);
   const routedOrder = location.state?.order;
   const order = orders.find((item) => item.id === routedOrder?.id) ?? routedOrder ?? orders[0];
   const [reason, setReason] = useState('bosma-siljidi');
   const [note, setNote] = useState('');
   const [submitted, setSubmitted] = useState(false);
-  const [photo, setPhoto] = useState(null);
-  const [photoError, setPhotoError] = useState('');
+  const [qty, setQty] = useState('1');
+  const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [reports, setReports] = useState([]);
 
-  useEffect(() => () => {
-    if (photo?.url) URL.revokeObjectURL(photo.url);
-  }, [photo]);
-
-  const handlePhotoChange = (event) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    if (!['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
-      setPhotoError(t('brak.photoTypeError'));
-      event.target.value = '';
-      return;
+  const loadReports = useCallback(async () => {
+    try {
+      const data = await listDefects(10);
+      setReports(data?.items ?? []);
+    } catch {
+      setReports([]);
     }
-    if (file.size > 10 * 1024 * 1024) {
-      setPhotoError(t('brak.photoSizeError'));
-      event.target.value = '';
-      return;
-    }
+  }, []);
 
-    setPhotoError('');
-    setPhoto({ file, url: URL.createObjectURL(file) });
-  };
-
-  const removePhoto = () => {
-    setPhoto(null);
-    if (photoInputRef.current) photoInputRef.current.value = '';
-  };
+  useEffect(() => {
+    loadReports();
+  }, [loadReports]);
 
   const reasons = [
     { id: 'bosma-siljidi', label: t('brak.reason.shift'), icon: Move },
     { id: 'mato-nuqsoni', label: t('brak.reason.fabric'), icon: Eye },
     { id: 'notogri-olcham', label: t('brak.reason.size'), icon: Ruler },
+    { id: 'boshqa', label: t('brak.reason.other'), icon: HelpCircle },
   ];
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    if (submitting) return;
+    const count = Number(qty);
+    if (!Number.isInteger(count) || count < 1 || count > 1000) {
+      setSubmitError(t('brak.qtyInvalid'));
+      return;
+    }
+    setSubmitting(true);
     setSubmitError('');
     try {
-      const reports = JSON.parse(localStorage.getItem('formo_tailor_defect_reports') || '[]');
-      if (!Array.isArray(reports)) throw new Error('Invalid defect report storage');
-      reports.push({
-        orderId: order.id,
-        reason,
-        note: note.trim(),
-        photoName: photo?.file.name ?? null,
-        createdAt: new Date().toISOString(),
-      });
-      localStorage.setItem('formo_tailor_defect_reports', JSON.stringify(reports));
+      const body = { orderId: order.apiId, reason: REASON_CODES[reason], qty: count };
+      if (note.trim()) body.note = note.trim();
+      await createDefect(body);
       setSubmitted(true);
-    } catch {
-      setSubmitError(t('brak.persistError'));
+      loadReports();
+    } catch (err) {
+      setSubmitError(err?.message || t('brak.persistError'));
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -92,14 +90,6 @@ export default function Brak() {
           </div>
           <h2 className="mt-5 text-xl font-extrabold text-white">{t('brak.success.title')}</h2>
           <p className="mt-2 text-xs text-slate-400">{t('brak.success.desc', { id: order.id })}</p>
-          <p className="mt-2 text-xs text-slate-500">{t('brak.localOnly')}</p>
-          {photo?.url && (
-            <img
-              src={photo.url}
-              alt={t('brak.photoPreviewAlt')}
-              className="mt-5 max-h-56 rounded-xl border border-white/10 object-contain"
-            />
-          )}
           <div className="mt-6 flex gap-3">
             <button
               type="button"
@@ -134,7 +124,7 @@ export default function Brak() {
             <div>
               <h3 className="text-base font-extrabold text-white">{order.customer} · {order.number}</h3>
               <p className="text-xs font-semibold text-slate-400">
-                {order.jerseyColorName || (order.colorKey ? t(`color.${order.colorKey}`) : order.jerseyColor || '—')} · {order.size} · {t('unit.donaCount', { n: order.qty ?? 1 })}
+                {order.model || '—'} · {order.size} · {t('unit.donaCount', { n: order.qty ?? 1 })}
               </p>
             </div>
           </div>
@@ -144,10 +134,8 @@ export default function Brak() {
             <span className="block text-[10px] font-bold uppercase tracking-wider opacity-80">
               {t('brak.loss')}
             </span>
-            <p className="mt-1 text-sm font-extrabold text-white">{t('brak.lossValue', { n: 1 })}</p>
+            <p className="mt-1 text-sm font-extrabold text-white">{t('brak.lossValue', { n: Number(qty) || 1 })}</p>
           </div>
-
-          <p className="border-t border-white/10 pt-4 text-xs leading-5 text-slate-400">{t('brak.localOnly')}</p>
         </Card>
 
         {/* Right Column Card: Defect Selection & Form */}
@@ -158,7 +146,7 @@ export default function Brak() {
               <p className="mt-1 text-xs text-slate-400">{t('brak.reasonsHint')}</p>
 
               {/* 3 Interactive Cards */}
-              <div className="mt-4 grid gap-3 sm:grid-cols-3">
+              <div className="mt-4 grid gap-3 sm:grid-cols-2">
                 {reasons.map((item) => {
                   const Icon = item.icon;
                   const isSelected = reason === item.id;
@@ -196,6 +184,7 @@ export default function Brak() {
               </label>
               <textarea
                 rows={3}
+                maxLength={500}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
                 className="w-full resize-none rounded-xl border border-white/10 bg-[#0e1424] p-3 text-xs text-white outline-none focus:border-blue-500"
@@ -203,41 +192,18 @@ export default function Brak() {
             </div>
 
             <div>
-              <span className="mb-2 block text-xs font-extrabold uppercase tracking-wider text-slate-300">
-                {t('brak.photoLabel')}
-              </span>
+              <label htmlFor="brak-qty" className="mb-2 block text-xs font-extrabold uppercase tracking-wider text-slate-300">
+                {t('brak.qty')}
+              </label>
               <input
-                ref={photoInputRef}
-                type="file"
-                accept="image/png,image/jpeg,image/webp"
-                onChange={handlePhotoChange}
-                className="sr-only"
-                aria-label={t('brak.photoLabel')}
+                id="brak-qty"
+                type="number"
+                min={1}
+                max={1000}
+                value={qty}
+                onChange={(e) => setQty(e.target.value)}
+                className="w-32 rounded-xl border border-white/10 bg-[#0e1424] p-3 text-xs text-white outline-none focus:border-blue-500"
               />
-              {photo ? (
-                <div className="flex items-center gap-4 rounded-xl border border-white/10 bg-[#0e1424] p-3">
-                  <img src={photo.url} alt={t('brak.photoPreviewAlt')} className="h-20 w-20 rounded-lg object-cover" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-xs font-bold text-white">{photo.file.name}</p>
-                    <button type="button" onClick={removePhoto} className="mt-2 flex items-center gap-1 text-xs font-bold text-rose-300">
-                      <X className="h-3.5 w-3.5" />
-                      {t('brak.photoRemove')}
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <button
-                  type="button"
-                  onClick={() => photoInputRef.current?.click()}
-                  className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 bg-[#0e1424] px-4 py-5 text-xs font-bold text-slate-300 transition hover:border-teal-400 hover:text-white"
-                >
-                  <Upload className="h-4 w-4" />
-                  <ImageIcon className="h-4 w-4" />
-                  {t('brak.photoUpload')}
-                </button>
-              )}
-              <p className="mt-2 text-[10px] text-slate-500">{t('brak.photoHint')}</p>
-              {photoError && <p role="alert" className="mt-2 text-xs text-rose-300">{photoError}</p>}
             </div>
 
             {/* Auto Re-print Banner Notice */}
@@ -262,7 +228,8 @@ export default function Brak() {
               </button>
               <button
                 type="submit"
-                className="flex items-center gap-2 rounded-xl bg-rose-600 px-6 py-3 text-xs font-extrabold text-white shadow-lg transition hover:bg-rose-500 active:scale-95"
+                disabled={submitting}
+                className="flex items-center gap-2 rounded-xl bg-rose-600 disabled:opacity-60 px-6 py-3 text-xs font-extrabold text-white shadow-lg transition hover:bg-rose-500 active:scale-95"
               >
                 <AlertTriangle className="h-4 w-4" />
                 <span>{t('brak.confirm')}</span>
@@ -272,6 +239,34 @@ export default function Brak() {
           </form>
         </Card>
       </div>
+
+      {reports.length > 0 && (
+        <Card className="bg-[#121829] p-5 border border-white/10">
+          <h3 className="text-sm font-extrabold text-white">{t('brak.history')}</h3>
+          <ul className="mt-3 divide-y divide-white/10">
+            {reports.map((r) => (
+              <li key={r.id} className="flex flex-wrap items-center justify-between gap-2 py-2.5 text-xs">
+                <div className="min-w-0">
+                  <span className="font-bold text-white">#{r.order?.code ?? r.id}</span>
+                  <span className="ml-2 text-slate-400">
+                    {t(REASON_KEYS[r.reason] ?? 'brak.reason.other')} · {t('unit.donaCount', { n: r.qty })}
+                  </span>
+                  {r.note && <p className="mt-0.5 truncate text-slate-500">{r.note}</p>}
+                  {r.resolvedNote && <p className="mt-0.5 text-emerald-300">{r.resolvedNote}</p>}
+                </div>
+                <span
+                  className={cx(
+                    'rounded-full px-2.5 py-0.5 text-[10px] font-bold',
+                    r.status === 'RESOLVED' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-300'
+                  )}
+                >
+                  {t(r.status === 'RESOLVED' ? 'brak.status.resolved' : 'brak.status.open')}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </Card>
+      )}
     </div>
   );
 }
