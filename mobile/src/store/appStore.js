@@ -84,6 +84,7 @@ export function useAppStore() {
       setLanguage,
       // cart
       cart,
+      updateCart,
       addToCart,
       removeFromCart,
       clearCart,
@@ -95,6 +96,7 @@ export function useAppStore() {
       language,
       setLanguage,
       cart,
+      updateCart,
       addToCart,
       removeFromCart,
       clearCart,

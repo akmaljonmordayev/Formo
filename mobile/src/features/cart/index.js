@@ -46,7 +46,7 @@ export default function useCart(store) {
       };
 
       // Throws on error — intentionally not caught here
-      const createdOrder = await api.orders.create(payload);
+      const createdOrder = await api.orders.checkout(payload);
       clearCart();
       return createdOrder;
     },

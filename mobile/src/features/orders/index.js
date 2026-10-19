@@ -15,31 +15,36 @@ export default function useOrders() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState(null);
 
+  const normalizeOrders = useCallback((payload) => {
+    if (Array.isArray(payload)) return payload;
+    if (payload && Array.isArray(payload.items)) return payload.items;
+    return [];
+  }, []);
+
   const fetchOrders = useCallback(async () => {
     setIsLoading(true);
     setError(null);
     try {
       const data = await api.orders.list();
-      setOrders(Array.isArray(data) ? data : []);
+      setOrders(normalizeOrders(data));
     } catch (err) {
-      // Endpoint not yet deployed (or network down) — show empty, keep the error
       setError(err instanceof Error ? err : new Error(String(err)));
       setOrders([]);
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [normalizeOrders]);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
 
   /**
-   * Creates a new order and prepends it to local state.
+   * Creates a new order and prepends it to local state after the backend confirms it.
    * Throws on failure — the caller is responsible for handling the error.
    */
   const createOrder = useCallback(async (payload) => {
-    const created = await api.orders.create(payload);
+    const created = await api.orders.checkout(payload);
     setOrders((current) => [created, ...current]);
     return created;
   }, []);

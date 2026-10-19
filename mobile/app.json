@@ -5,6 +5,7 @@
     "version": "0.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
+    "newArchEnabled": false,
     "splash": {
       "backgroundColor": "#070A24"
     },
@@ -15,6 +16,17 @@
     "android": {
       "package": "com.formo.app",
       "softwareKeyboardLayoutMode": "resize"
+    },
+    "updates": {
+      "enabled": false
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
     }
   }
 }

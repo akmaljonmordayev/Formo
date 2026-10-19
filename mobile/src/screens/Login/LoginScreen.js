@@ -11,10 +11,8 @@ import {
   useWindowDimensions,
   View,
 } from 'react-native';
-import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import Jersey, { KITS } from '../../components/ui/Jersey';
 import LanguageSwitch from './LanguageSwitch';
 
 /**
@@ -56,23 +54,13 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
   const [digits, setDigits] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [passwordFocused, setPasswordFocused] = useState(false);
   const [fieldFocused, setFieldFocused] = useState(false);
   const [validationError, setValidationError] = useState(null);
-  const [kitIndex, setKitIndex] = useState(0);
-  const [autoKit, setAutoKit] = useState(true);
+  const phoneRef = useRef(null);
+  const passwordRef = useRef(null);
   const shake = useRef(new Animated.Value(0)).current;
 
-  // Formalar o'z-o'zidan almashib turadi, foydalanuvchi tanlasa to'xtaydi
-  useEffect(() => {
-    if (!autoKit) return undefined;
-    const id = setInterval(() => setKitIndex((i) => (i + 1) % KITS.length), 3600);
-    return () => clearInterval(id);
-  }, [autoKit]);
-
-  const kit = KITS[kitIndex];
   const phoneComplete = digits.length === 9;
-  const number = digits.length >= 2 ? digits.slice(-2) : '10';
 
   const errorText = validationError || (auth.error ? auth.error.message || t(auth.error.key) : null);
   const canSubmit = phoneComplete && password.length > 0 && !auth.isLoading;
@@ -104,8 +92,10 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
     }
     if (!password) return;
 
-    const success = await auth.login(`+998${digits}`, password);
-    if (success) {
+    // auth.login resolves to { success, user } or { success: false, error }.
+    // The object itself is always truthy, so check `.success` explicitly.
+    const result = await auth.login(`+998${digits}`, password);
+    if (result?.success) {
       if (onLogin) onLogin();
     } else {
       runShake();
@@ -118,9 +108,7 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
 
   return (
     <View style={styles.root}>
-      <LinearGradient colors={[palette.ink, palette.navy]} style={StyleSheet.absoluteFill} />
-      <View style={[styles.glow, { backgroundColor: kit.to, top: -90, left: -70 }]} />
-      <View style={[styles.glow, { backgroundColor: palette.orange, bottom: -80, right: -70, opacity: 0.1 }]} />
+      <View style={styles.backdrop} />
 
       <View style={[styles.topBar, { paddingTop: insets.top + (compact ? 12 : 20) }]}>
         <View style={styles.brand}>
@@ -139,53 +127,16 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
           automaticallyAdjustKeyboardInsets
           showsVerticalScrollIndicator={false}
         >
-          <Animated.View style={[styles.jerseyWrap, compact && styles.jerseyWrapCompact, shakeStyle]}>
-            <Jersey
-              kit={kit}
-              name="FORMO"
-              number={number}
-              flipped={passwordFocused && !showPassword}
-              error={!!errorText}
-              size={compact ? 154 : 202}
-            />
-          </Animated.View>
-
-          <View style={styles.kits}>
-            {KITS.map((k, i) => (
-              <Pressable
-                key={k.id}
-                accessibilityRole="button"
-                accessibilityLabel={k.name}
-                onPress={() => {
-                  setAutoKit(false);
-                  setKitIndex(i);
-                }}
-                style={[
-                  styles.swatch,
-                  { backgroundColor: k.from, borderColor: k.trim },
-                  i === kitIndex && styles.swatchActive,
-                ]}
-              />
-            ))}
-            <Text style={styles.kitName}>{kit.name}</Text>
-          </View>
-
-          {compact ? null : <Text style={styles.tagline}>{t('loginTagline')}</Text>}
-
-          <Animated.View style={[styles.tagWrap, compact && styles.tagWrapCompact, shakeStyle]}>
-            <View style={styles.string} />
-            <View style={[styles.tag, compact && styles.tagCompact, fieldFocused && styles.tagFlat]}>
-              <View style={styles.tagHole} />
-              <View style={styles.tagInner} pointerEvents="none" />
-
-              <View style={styles.tagMeta}>
+          <Animated.View style={[styles.cardWrap, shakeStyle]}>
+            <View style={[styles.card, fieldFocused && styles.cardFocused]}>
+              <View style={styles.cardHeader}>
                 <Text style={styles.tagMetaText}>FORMO · PANEL</Text>
                 <Text style={styles.tagMetaText}>№ 0001</Text>
               </View>
 
-              <Text style={styles.tagTitleLine}>{t('loginTitleTop')}</Text>
-              <Text style={styles.tagTitleLine}>
-                <Text style={[styles.tagTitleAccent, { color: kit.to }]}>{t('loginTitleAccent')}</Text>
+              <Text style={styles.titleLine}>{t('loginTitleTop')}</Text>
+              <Text style={styles.titleLine}>
+                <Text style={styles.titleAccent}>{t('loginTitleAccent')}</Text>
                 {t('loginTitleRest') ? ` ${t('loginTitleRest')}` : ''}
               </Text>
               <Text style={styles.tagSubtitle}>{t('loginSubtitle')}</Text>
@@ -194,6 +145,7 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
               <View style={[styles.inputRow, phoneComplete && styles.inputRowComplete]}>
                 <Text style={styles.prefix}>+998</Text>
                 <TextInput
+                  ref={phoneRef}
                   value={formatPhone(digits)}
                   onChangeText={handleDigitsChange}
                   placeholder="90 123 45 67"
@@ -203,6 +155,9 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
                   style={styles.input}
                   onFocus={() => setFieldFocused(true)}
                   onBlur={() => setFieldFocused(false)}
+                  onSubmitEditing={() => passwordRef.current?.focus()}
+                  returnKeyType="next"
+                  blurOnSubmit={false}
                 />
                 {phoneComplete && (
                   <View style={styles.check}>
@@ -214,6 +169,7 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
               <Text style={styles.fieldLabel}>{t('password')}</Text>
               <View style={styles.inputRow}>
                 <TextInput
+                  ref={passwordRef}
                   value={password}
                   onChangeText={(v) => {
                     setPassword(v);
@@ -224,18 +180,19 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
                   secureTextEntry={!showPassword}
                   selectionColor={palette.orange}
                   style={styles.input}
-                  onFocus={() => {
-                    setPasswordFocused(true);
-                    setFieldFocused(true);
-                  }}
-                  onBlur={() => {
-                    setPasswordFocused(false);
-                    setFieldFocused(false);
-                  }}
+                  onFocus={() => setFieldFocused(true)}
+                  onBlur={() => setFieldFocused(false)}
                   onSubmitEditing={handleLogin}
                   returnKeyType="done"
                 />
-                <Pressable onPress={() => setShowPassword((v) => !v)} style={styles.eye} hitSlop={6}>
+                <Pressable
+                  onPress={() => {
+                    setShowPassword((v) => !v);
+                    passwordRef.current?.focus();
+                  }}
+                  style={styles.eye}
+                  hitSlop={8}
+                >
                   <Text style={styles.eyeText}>{showPassword ? t('hidePassword') : t('showPassword')}</Text>
                 </Pressable>
               </View>
@@ -275,8 +232,13 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
 
 const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: palette.ink },
+  backdrop: {
+    position: 'absolute',
+    inset: 0,
+    backgroundColor: palette.ink,
+    borderWidth: 0,
+  },
   flex: { flex: 1 },
-  glow: { position: 'absolute', width: 380, height: 380, borderRadius: 190, opacity: 0.16 },
   topBar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -304,94 +266,34 @@ const styles = StyleSheet.create({
   },
   badgeText: { color: palette.muted, fontSize: 11, fontWeight: '600', letterSpacing: 1.5, textTransform: 'uppercase' },
 
-  jerseyWrap: { alignItems: 'center', marginTop: 14, marginBottom: 8 },
-  jerseyWrapCompact: { marginTop: 6, marginBottom: 4 },
-
-  kits: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  swatch: { width: 26, height: 26, borderRadius: 13, borderWidth: 2 },
-  swatchActive: { transform: [{ scale: 1.15 }], borderColor: palette.paper },
-  kitName: {
-    marginLeft: 8,
-    minWidth: 92,
-    color: palette.muted,
-    fontSize: 12,
-    fontWeight: '600',
-    letterSpacing: 2,
-    textTransform: 'uppercase',
-  },
-
-  tagline: {
-    marginTop: 16,
-    color: 'rgba(243,245,249,0.86)',
-    fontSize: 18,
-    fontWeight: '500',
-    lineHeight: 24,
-    textAlign: 'center',
-  },
-
-  tagWrap: { marginTop: 24, alignItems: 'center', alignSelf: 'stretch' },
-  tagWrapCompact: { marginTop: 16 },
-  string: {
-    position: 'absolute',
-    top: 0,
-    width: 2,
-    height: 46,
-    borderRadius: 2,
-    backgroundColor: palette.orange,
-  },
-  tag: {
+  cardWrap: { marginTop: 24, alignItems: 'center', alignSelf: 'stretch' },
+  card: {
     width: '100%',
     maxWidth: 420,
     backgroundColor: palette.paper,
-    borderRadius: 26,
-    borderBottomLeftRadius: 18,
-    borderBottomRightRadius: 18,
+    borderRadius: 24,
     paddingHorizontal: 22,
-    paddingTop: 42,
-    paddingBottom: 22,
-    transform: [{ rotate: '1.5deg' }],
+    paddingTop: 20,
+    paddingBottom: 20,
     shadowColor: '#000',
-    shadowOpacity: 0.5,
-    shadowRadius: 30,
-    shadowOffset: { width: 0, height: 24 },
-    elevation: 12,
+    shadowOpacity: 0.22,
+    shadowRadius: 18,
+    shadowOffset: { width: 0, height: 10 },
+    elevation: 8,
   },
-  tagFlat: { transform: [{ rotate: '0deg' }] },
-  tagCompact: { paddingTop: 38, paddingBottom: 18 },
-  tagHole: {
-    position: 'absolute',
-    top: 16,
-    left: '50%',
-    marginLeft: -9,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: palette.ink,
-    borderWidth: 3,
-    borderColor: '#E3E7F0',
-  },
-  tagInner: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    right: 10,
-    bottom: 10,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(14,26,63,0.22)',
-    borderRadius: 18,
-  },
-  tagMeta: {
+  cardFocused: { shadowOpacity: 0.28 },
+  cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: palette.line,
     paddingBottom: 12,
     marginBottom: 18,
   },
   tagMetaText: { color: 'rgba(14,26,63,0.5)', fontSize: 10.5, fontWeight: '700', letterSpacing: 1.8 },
-  tagTitleLine: { color: palette.navy, fontSize: 26, fontWeight: '700', lineHeight: 30 },
-  tagTitleAccent: {},
+  titleLine: { color: palette.navy, fontSize: 26, fontWeight: '700', lineHeight: 30 },
+  titleAccent: { color: palette.orange },
   tagSubtitle: { color: 'rgba(14,26,63,0.6)', fontSize: 14, marginTop: 6, marginBottom: 20 },
 
   fieldLabel: {

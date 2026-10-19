@@ -60,6 +60,15 @@ Kodda: `import { auth, api } from './services/api'` → `auth.register(...)`, `a
 
 Sozlamalarni o'zgartirish (ixtiyoriy): ildizda `.env` yarating, masalan `SUPERADMIN_PASSWORD=...` yoki port band bo'lsa `FORMO_WEB_PORT=5174`, `FORMO_API_PORT=3002`, `FORMO_DB_PORT=5436`.
 
+## SMS OTP production setup
+
+Formo mobile app currently contains a development-only fallback OTP flow. The backend does not expose real SMS endpoints yet. In production, replace it with a real SMS provider and keep server-side verification enabled:
+
+1. Add backend endpoints `POST /api/auth/otp/send` and `POST /api/auth/otp/verify`.
+2. Store an OTP secret per phone number, send one-time codes via Twilio/ClickSend/etc., and validate them server-side before allowing registration or login.
+3. Configure provider credentials in backend environment variables (for example `SMS_ACCOUNT_SID`, `SMS_AUTH_TOKEN`, `SMS_FROM` or provider-specific keys).
+4. Keep the mobile app in development mode only while the SMS provider is not configured; the current local fallback is intentionally labeled as `Development-only mock OTP` and never represents real SMS delivery.
+
 ## Testlar va CI
 
 | Buyruq | Nima tekshiradi |

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -12,7 +12,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useToast } from '../../components/ui/Toast';
-import { colors, radii } from '../../constants/theme';
+import { colors } from '../../constants/theme';
 import { formatPhone } from '../../services/api';
 
 export default function PhoneScreen({
@@ -21,37 +21,56 @@ export default function PhoneScreen({
   onBack,
   onRequestOtp,
   onPasswordLogin,
+  onRegister,
 }) {
   const toast = useToast();
-  const [digits, setDigits] = useState('');
+  const [rawDigits, setRawDigits] = useState('');
   const [agree, setAgree] = useState(true);
   const [loading, setLoading] = useState(false);
   const [usePassword, setUsePassword] = useState(false);
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+
+  // Focus state — faqat style uchun, focus management uchun emas
   const [phoneFocused, setPhoneFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
 
-  const phoneRef = React.useRef(null);
-  const passwordRef = React.useRef(null);
+  const phoneRef = useRef(null);
+  const passwordRef = useRef(null);
 
-  const focusNextField = () => {
-    if (usePassword) passwordRef.current?.focus();
-  };
-
-  const cleanDigits = digits.replace(/\D/g, '').slice(0, 9);
+  // 9 ta raqam (998 prefikssiz)
+  const cleanDigits = rawDigits.replace(/\D/g, '').slice(0, 9);
   const isComplete = cleanDigits.length === 9;
 
-  const handleDigitsChange = (text) => {
+  const handleDigitsChange = useCallback((text) => {
+    // +998... formatidagi paste ni ham qabul qilish
     let d = text.replace(/\D/g, '');
-    if (d.startsWith('998')) d = d.slice(3);
-    setDigits(d.slice(0, 9));
-  };
+    if (d.length > 9 && d.startsWith('998')) d = d.slice(3);
+    if (d.length > 9 && d.startsWith('8')) d = d.slice(1);
+    setRawDigits(d.slice(0, 9));
+  }, []);
 
-  const handleProceed = async () => {
+  // SMS/OTP yuborish — parol rejimidan qat'i nazar bir xil yo'l.
+  const sendOtp = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await auth.requestOtp(cleanDigits);
+      if (res?.isDemo) {
+        toast.show(res.message || "Demo rejim: kod 123456", 'demo', 4000);
+      }
+      onRequestOtp?.({ phone: cleanDigits, isDemo: Boolean(res?.isDemo) });
+    } catch (err) {
+      toast.show(err.message || 'SMS yuborishda xatolik', 'error');
+    } finally {
+      setLoading(false);
+    }
+  }, [auth, cleanDigits, onRequestOtp, toast]);
+
+  const handleProceed = useCallback(async () => {
     if (loading) return;
+
     if (!isComplete) {
-      toast.show('9 xonali telefon raqamni to‘liq kiriting', 'error');
+      toast.show('9 ta raqamli telefon raqamni kiriting', 'error');
       return;
     }
     if (!agree) {
@@ -67,72 +86,91 @@ export default function PhoneScreen({
       setLoading(true);
       try {
         const res = await auth.login(cleanDigits, password);
-        if (!res.success) {
-          toast.show(res.error?.message || 'Telefon raqam yoki parol noto‘g‘ri', 'error');
-          return;
+        if (!res?.success) {
+          toast.show(res?.error?.message || "Telefon raqam yoki parol noto'g'ri", 'error');
+        } else {
+          onPasswordLogin?.({ phone: `+998${cleanDigits}`, password });
         }
-        onPasswordLogin?.({ phone: `+998${cleanDigits}`, password });
       } catch (err) {
-        toast.show(err.message || 'Kirishda xatolik yuz berdi', 'error');
+        toast.show(err.message || 'Kirishda xatolik', 'error');
       } finally {
         setLoading(false);
       }
       return;
     }
 
-    setLoading(true);
-    try {
-      const res = await auth.requestOtp(cleanDigits);
-      if (res.isDemo) {
-        toast.show(res.message, 'demo', 4000);
-      } else {
-        toast.show('SMS tasdiqlash kodi yuborildi', 'success');
-      }
-      onRequestOtp?.({ phone: cleanDigits, isDemo: res.isDemo });
-    } catch (err) {
-      toast.show(err.message || 'SMS kod yuborishda xatolik', 'error');
-    } finally {
-      setLoading(false);
+    // SMS OTP yo'li
+    await sendOtp();
+  }, [loading, isComplete, agree, usePassword, password, cleanDigits, auth, onPasswordLogin, sendOtp, toast]);
+
+  const handleRegisterPress = useCallback(() => {
+    if (!isComplete) {
+      toast.show('Avval telefon raqamingizni kiriting', 'error');
+      return;
     }
-  };
+    // Ro'yxatdan o'tish har doim SMS/OTP yo'lidan boradi — joriy rejimga
+    // qarab emas (aks holda parol rejimida noto'g'ri tarmoqqa tushib qolardi).
+    setUsePassword(false);
+    setPassword('');
+    sendOtp();
+  }, [isComplete, sendOtp, toast]);
+
+  const togglePasswordMode = useCallback(() => {
+    // Rejim almashganda fokus KO'CHIRILMAYDI. Fokus faqat foydalanuvchi
+    // input'ni o'zi bosganda yoki aniq "keyingi/tasdiqlash" bosqichida
+    // o'zgaradi. Aks holda rejim almashtirishda berilgan `focus()` chaqiruvi
+    // Android'ning o'z fokus boshqaruvi (input mount/unmount bo'lganda)
+    // bilan "poyga"ga tushib, fokus kutilmaganda boshqa maydonga sakraydi.
+    setUsePassword((v) => !v);
+    setPassword('');
+  }, []);
 
   return (
     <SafeAreaView style={styles.safe}>
       <KeyboardAvoidingView
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         style={{ flex: 1 }}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
       >
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <ScrollView
+          contentContainerStyle={styles.scroll}
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Back tugmasi */}
           {Boolean(onBack) && (
-            <Pressable onPress={onBack} hitSlop={10} style={styles.backBtn}>
+            <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}>
               <MaterialCommunityIcons name="arrow-left" size={24} color="#F3F5F9" />
             </Pressable>
           )}
 
+          {/* Header */}
           <View style={styles.header}>
             <View style={styles.iconCircle}>
               <MaterialCommunityIcons name="cellphone-check" size={32} color={colors.accent} />
             </View>
-            <Text style={styles.eyebrow}>FORMO · SIGN IN</Text>
-            <Text style={styles.title}>Welcome back</Text>
+            <Text style={styles.eyebrow}>FORMO · KIRISH</Text>
+            <Text style={styles.title}>Xush kelibsiz</Text>
             <Text style={styles.subtitle}>
-              Use your phone number to continue or create a new account in seconds.
+              Telefon raqamingizni kiriting — kirish yoki ro'yxatdan o'tish
             </Text>
           </View>
 
+          {/* Form Card */}
           <View style={styles.card}>
-            <Text style={styles.inputLabel}>Phone number</Text>
-            {/* `collapsable={false}`: `fieldFocused` adds shadowColor/elevation, which
-                flips the Fabric FormsStackingContext trait on focus. The differ then
-                removes+inserts this subtree, so the TextInput inside loses native
-                focus the moment it gains it (focus jumps / keyboard bounce). Pinning
-                the trait keeps the native view tree stable. */}
-            <View
+            {/* --- Telefon raqam --- */}
+            <Text style={styles.inputLabel}>Telefon raqam</Text>
+            <Pressable
+              // Fabric: `fieldFocused` adds shadowColor/elevation, which flips the
+              // FormsStackingContext trait on focus and makes the differ emit
+              // remove+insert for this subtree — the TextInput inside would lose
+              // native focus right after gaining it. Pinning the trait prevents it.
               collapsable={false}
-              style={[styles.phoneInputRow, phoneFocused && styles.fieldFocused]}
+              onPress={() => phoneRef.current?.focus()}
+              style={[styles.phoneRow, phoneFocused && styles.fieldFocused]}
             >
               <View style={styles.flagBox}>
-                <Text style={styles.flagText}>🇺🇿</Text>
+                <Text style={styles.flagEmoji}>🇺🇿</Text>
                 <Text style={styles.codeText}>+998</Text>
               </View>
               <TextInput
@@ -145,18 +183,31 @@ export default function PhoneScreen({
                 maxLength={12}
                 autoCapitalize="none"
                 autoCorrect={false}
+                importantForAutofill="no"
                 onFocus={() => setPhoneFocused(true)}
                 onBlur={() => setPhoneFocused(false)}
-                onSubmitEditing={focusNextField}
                 returnKeyType={usePassword ? 'next' : 'done'}
+                onSubmitEditing={() => {
+                  if (usePassword && isComplete) {
+                    passwordRef.current?.focus();
+                  } else {
+                    handleProceed();
+                  }
+                }}
                 blurOnSubmit={false}
                 style={styles.phoneInput}
               />
-            </View>
+              {isComplete && (
+                <View style={styles.checkDot}>
+                  <MaterialCommunityIcons name="check" size={13} color="#080C24" />
+                </View>
+              )}
+            </Pressable>
 
+            {/* --- Parol (faqat parol rejimida) --- */}
             {usePassword && (
               <View style={{ marginTop: 16 }}>
-                <Text style={styles.inputLabel}>Password</Text>
+                <Text style={styles.inputLabel}>Parol</Text>
                 <View
                   collapsable={false}
                   style={[styles.passwordRow, passwordFocused && styles.fieldFocused]}
@@ -165,20 +216,23 @@ export default function PhoneScreen({
                     ref={passwordRef}
                     value={password}
                     onChangeText={setPassword}
-                    placeholder="Enter your password"
+                    placeholder="Parolingizni kiriting"
                     placeholderTextColor={colors.caption}
                     secureTextEntry={!showPassword}
                     autoCapitalize="none"
                     autoCorrect={false}
+                    importantForAutofill="no"
                     onFocus={() => setPasswordFocused(true)}
                     onBlur={() => setPasswordFocused(false)}
                     onSubmitEditing={handleProceed}
                     returnKeyType="done"
+                    blurOnSubmit
                     style={styles.passwordInput}
                   />
                   <Pressable
                     onPress={() => setShowPassword((v) => !v)}
-                    hitSlop={10}
+                    hitSlop={12}
+                    style={styles.eyeBtn}
                   >
                     <MaterialCommunityIcons
                       name={showPassword ? 'eye-off-outline' : 'eye-outline'}
@@ -190,34 +244,80 @@ export default function PhoneScreen({
               </View>
             )}
 
-            <Pressable onPress={() => setAgree(!agree)} style={styles.agreeRow}>
+            {/* --- Rozilik --- */}
+            <Pressable
+              onPress={() => setAgree((v) => !v)}
+              style={styles.agreeRow}
+              hitSlop={6}
+            >
               <View style={[styles.checkbox, agree && styles.checkboxChecked]}>
-                {agree && <MaterialCommunityIcons name="check" size={14} color="#080C24" />}
+                {agree && (
+                  <MaterialCommunityIcons name="check" size={13} color="#080C24" />
+                )}
               </View>
-              <Text style={styles.agreeText}>I agree to the terms and privacy policy.</Text>
+              <Text style={styles.agreeText}>
+                Foydalanish shartlari va maxfiylik siyosatiga roziman
+              </Text>
             </Pressable>
 
+            {/* --- Asosiy tugma --- */}
             <Pressable
-              disabled={!isComplete || loading}
               onPress={handleProceed}
+              disabled={!isComplete || loading}
               style={[
                 styles.submitBtn,
-                (!isComplete || loading) && { opacity: 0.5 },
+                (!isComplete || loading) && styles.submitBtnDisabled,
               ]}
             >
-              <Text style={styles.submitBtnText}>
-                {loading ? 'Please wait…' : usePassword ? 'Sign in' : 'Send code'}
-              </Text>
-              {!loading && (
-                <MaterialCommunityIcons name="arrow-right" size={20} color="#080C24" />
+              {loading ? (
+                <Text style={styles.submitBtnText}>Iltimos kuting…</Text>
+              ) : (
+                <>
+                  <Text style={styles.submitBtnText}>
+                    {usePassword ? 'Kirish' : 'SMS kod yuborish'}
+                  </Text>
+                  <View style={styles.submitArrow}>
+                    <MaterialCommunityIcons name="arrow-right" size={18} color="#080C24" />
+                  </View>
+                </>
               )}
             </Pressable>
 
-            <Pressable onPress={() => setUsePassword(!usePassword)} style={styles.toggleRow}>
+            {/* --- Rejim almashtirish --- */}
+            <Pressable
+              onPress={togglePasswordMode}
+              style={styles.toggleRow}
+              hitSlop={8}
+            >
+              <MaterialCommunityIcons
+                name={usePassword ? 'message-text-outline' : 'lock-outline'}
+                size={15}
+                color={colors.teal}
+              />
               <Text style={styles.toggleText}>
-                {usePassword ? 'Use SMS verification instead' : 'Use password to sign in'}
+                {usePassword ? 'SMS tasdiqlash orqali kirish' : 'Parol orqali kirish'}
               </Text>
             </Pressable>
+
+            {/* --- Separator --- */}
+            <View style={styles.divider} />
+
+            {/* --- Ro'yxatdan o'tish havolasi --- */}
+            <Pressable onPress={handleRegisterPress} hitSlop={6} style={styles.registerRow}>
+              <Text style={styles.registerText}>
+                Akkauntingiz yo'qmi?{'  '}
+                <Text style={styles.registerLink}>SMS orqali ro'yxatdan o'ting →</Text>
+              </Text>
+            </Pressable>
+          </View>
+
+          {/* Demo info */}
+          <View style={styles.demoCard}>
+            <MaterialCommunityIcons name="information-outline" size={15} color={colors.accent} />
+            <Text style={styles.demoText}>
+              Demo rejim: SMS kodi{' '}
+              <Text style={styles.demoCode}>123456</Text>
+            </Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -234,7 +334,7 @@ const styles = StyleSheet.create({
     flexGrow: 1,
     paddingHorizontal: 20,
     paddingTop: 12,
-    paddingBottom: 36,
+    paddingBottom: 48,
   },
   backBtn: {
     width: 40,
@@ -249,33 +349,33 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: 'center',
-    marginBottom: 24,
+    marginBottom: 28,
   },
   iconCircle: {
-    width: 74,
-    height: 74,
+    width: 72,
+    height: 72,
     borderRadius: 22,
     backgroundColor: 'rgba(242, 163, 58, 0.12)',
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
+    marginBottom: 14,
     shadowColor: colors.accent,
-    shadowOpacity: 0.25,
+    shadowOpacity: 0.28,
     shadowRadius: 18,
     elevation: 8,
   },
   eyebrow: {
     color: colors.accent,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '800',
-    letterSpacing: 1,
+    letterSpacing: 1.4,
     textTransform: 'uppercase',
     marginBottom: 8,
   },
   title: {
-    fontSize: 28,
+    fontSize: 30,
     fontWeight: '900',
     color: '#F3F5F9',
     textAlign: 'center',
@@ -294,9 +394,6 @@ const styles = StyleSheet.create({
     padding: 20,
     borderWidth: 1,
     borderColor: 'rgba(243, 245, 249, 0.12)',
-    shadowColor: '#000',
-    shadowOpacity: 0.18,
-    shadowRadius: 18,
     elevation: 4,
   },
   inputLabel: {
@@ -304,37 +401,35 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     color: '#A9B0D0',
     marginBottom: 8,
-    letterSpacing: 0.3,
+    letterSpacing: 0.4,
   },
-  phoneInputRow: {
+  phoneRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#121A42',
     borderRadius: 16,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: 'rgba(243, 245, 249, 0.12)',
     overflow: 'hidden',
   },
   fieldFocused: {
-    borderColor: 'rgba(242, 163, 58, 0.8)',
+    borderColor: 'rgba(242, 163, 58, 0.75)',
     shadowColor: colors.accent,
-    shadowOpacity: 0.2,
-    shadowRadius: 10,
-    elevation: 4,
+    shadowOpacity: 0.18,
+    shadowRadius: 8,
+    elevation: 3,
   },
   flagBox: {
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 12,
-    paddingVertical: 12,
+    paddingVertical: 14,
     backgroundColor: '#1B2560',
     borderRightWidth: 1,
-    borderRightColor: 'rgba(243, 245, 249, 0.14)',
-    gap: 6,
+    borderRightColor: 'rgba(243, 245, 249, 0.12)',
+    gap: 5,
   },
-  flagText: {
-    fontSize: 16,
-  },
+  flagEmoji: { fontSize: 16 },
   codeText: {
     color: '#F3F5F9',
     fontSize: 14,
@@ -343,44 +438,58 @@ const styles = StyleSheet.create({
   phoneInput: {
     flex: 1,
     color: '#F3F5F9',
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700',
     paddingHorizontal: 14,
-    paddingVertical: 13,
-    letterSpacing: 1,
+    paddingVertical: 14,
+    letterSpacing: 1.2,
+  },
+  checkDot: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: colors.teal,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
   },
   passwordRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: '#121A42',
     borderRadius: 16,
-    borderWidth: 1,
+    borderWidth: 1.5,
     borderColor: 'rgba(243, 245, 249, 0.12)',
-    paddingHorizontal: 14,
+    paddingRight: 4,
   },
   passwordInput: {
     flex: 1,
     color: '#F3F5F9',
-    fontSize: 15,
+    fontSize: 16,
     fontWeight: '600',
-    paddingVertical: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 14,
+  },
+  eyeBtn: {
+    padding: 10,
   },
   agreeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    marginTop: 18,
+    marginTop: 16,
     marginBottom: 18,
+    gap: 10,
   },
   checkbox: {
-    width: 18,
-    height: 18,
+    width: 20,
+    height: 20,
     borderRadius: 6,
     backgroundColor: '#121A42',
-    borderWidth: 1,
-    borderColor: 'rgba(243, 245, 249, 0.12)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(243, 245, 249, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    flexShrink: 0,
   },
   checkboxChecked: {
     backgroundColor: colors.accent,
@@ -395,28 +504,87 @@ const styles = StyleSheet.create({
   submitBtn: {
     backgroundColor: colors.accent,
     borderRadius: 18,
-    height: 52,
+    height: 54,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
+    gap: 10,
     shadowColor: colors.accent,
     shadowOpacity: 0.28,
     shadowRadius: 12,
     elevation: 8,
+  },
+  submitBtnDisabled: {
+    opacity: 0.45,
   },
   submitBtnText: {
     color: '#080C24',
     fontSize: 15,
     fontWeight: '800',
   },
-  toggleRow: {
-    marginTop: 16,
+  submitArrow: {
+    width: 30,
+    height: 30,
+    borderRadius: 10,
+    backgroundColor: 'rgba(8,12,36,0.18)',
     alignItems: 'center',
+    justifyContent: 'center',
+  },
+  toggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 16,
+    paddingVertical: 4,
   },
   toggleText: {
-    color: '#D7DBF2',
+    color: colors.teal,
     fontSize: 13,
     fontWeight: '700',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: 'rgba(243, 245, 249, 0.07)',
+    marginTop: 18,
+    marginBottom: 4,
+  },
+  registerRow: {
+    marginTop: 14,
+    alignItems: 'center',
+    paddingBottom: 2,
+  },
+  registerText: {
+    color: '#A9B0D0',
+    fontSize: 13,
+    textAlign: 'center',
+    lineHeight: 20,
+  },
+  registerLink: {
+    color: colors.teal,
+    fontWeight: '800',
+  },
+  demoCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 14,
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    backgroundColor: 'rgba(242, 163, 58, 0.07)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(242, 163, 58, 0.18)',
+  },
+  demoText: {
+    color: '#A9B0D0',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  demoCode: {
+    color: colors.accent,
+    fontWeight: '900',
+    letterSpacing: 0.5,
   },
 });

@@ -1,12 +1,16 @@
 import * as storage from '../utils/storage';
 
-// mobile/.env:  EXPO_PUBLIC_API_URL=http://<kompyuter-IP>:3001/api
-// Telefonda "localhost" ishlamaydi — kompyuterning Wi-Fi IP manzili kerak.
-// Android emulator uchun: http://10.0.2.2:3001/api
+/**
+ * API client for Formo Mobile App.
+ * Base host: https://api.formo.uz
+ * Global prefix: /api
+ * Ensures NO duplicated '/api/api/' paths.
+ */
 const BASE_URL = (() => {
-  const raw = (process.env.EXPO_PUBLIC_API_URL || 'https://api.formo.uz/api').trim().replace(/\/+$/, '');
-  if (!raw) return 'https://api.formo.uz/api';
-  return raw.endsWith('/api') ? raw : `${raw}/api`;
+  const envUrl = process.env.EXPO_PUBLIC_API_URL;
+  if (!envUrl) return 'https://api.formo.uz/api';
+  const clean = envUrl.trim().replace(/\/+$/, '');
+  return clean.endsWith('/api') ? clean : `${clean}/api`;
 })();
 
 // ─── Error types ─────────────────────────────────────────────────────────────
@@ -26,12 +30,48 @@ export class AuthError extends ApiError {
   }
 }
 
-// Sessiya muddati tugaganda (refresh ham ishlamasa) chaqiriladigan callback
 let sessionExpiredHandler = null;
 
-// ─── Phone helper (kept local so api.js has no extra deps) ───────────────────
+// ─── API → App data mappers ──────────────────────────────────────────────────
+// Backend sends bgColor/textColor; JerseyVisualizer uses color/trim/ink.
 
-/** "+998 90 123 45 67" / "901234567" -> "+998901234567" */
+export function mapApiKit(apiKit) {
+  return {
+    id: String(apiKit.id),
+    name: apiKit.title || apiKit.label || 'Forma',
+    label: apiKit.label || apiKit.title || 'Uy',
+    color: apiKit.bgColor || '#F3F5F9',
+    trim: apiKit.textColor || '#F2A33A',
+    ink: apiKit.textColor || '#0E1A3F',
+    pattern: apiKit.pattern || 'none',
+    price: apiKit.price || 189000,
+    priceBreakdown: apiKit.priceBreakdown || {},
+    sizes: apiKit.sizes || [],
+    includes: apiKit.includes || 'Futbolka + shortik',
+  };
+}
+
+export function mapApiClub(apiClub) {
+  const kits = Array.isArray(apiClub.kits)
+    ? apiClub.kits.map(mapApiKit)
+    : [{ id: 'home', name: 'Uy formasi', label: 'Uy', color: apiClub.markColor || '#F3F5F9', trim: '#F2A33A', ink: '#0E1A3F', price: 189000, sizes: [], pattern: 'none' }];
+
+  return {
+    id: String(apiClub.id),
+    name: apiClub.name,
+    league: apiClub.league || apiClub.category?.name || 'Liga',
+    ini: apiClub.code || apiClub.name.slice(0, 3).toUpperCase(),
+    c1: apiClub.markColor || kits[0]?.color || '#F3F5F9',
+    c2: kits[0]?.trim || '#F2A33A',
+    kits,
+    season: apiClub.season,
+    category: apiClub.category,
+    ordersCount: apiClub.ordersCount || 0,
+  };
+}
+
+// ─── Phone normalization helper ──────────────────────────────────────────────
+
 export function normalizePhone(raw) {
   let digits = String(raw || '').replace(/\D/g, '');
   if (digits.startsWith('998')) digits = digits.slice(3);
@@ -39,22 +79,50 @@ export function normalizePhone(raw) {
   return `+998${digits}`;
 }
 
-// ─── Core request helper ─────────────────────────────────────────────────────
+export function formatPhone(raw) {
+  let digits = String(raw || '').replace(/\D/g, '');
+  if (digits.startsWith('998')) digits = digits.slice(3);
+  digits = digits.slice(0, 9);
+  const parts = [
+    digits.slice(0, 2),
+    digits.slice(2, 5),
+    digits.slice(5, 7),
+    digits.slice(7, 9),
+  ].filter(Boolean);
+  return parts.join(' ');
+}
 
-async function rawRequest(path, { method = 'GET', body, auth = true } = {}) {
+// ─── Core fetch with timeout ─────────────────────────────────────────────────
+
+async function rawRequest(path, { method = 'GET', body, auth = true, timeoutMs = 15000 } = {}) {
   const token = await storage.getToken();
+  const url = `${BASE_URL}${path.startsWith('/') ? path : `/${path}`}`;
 
-  const response = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(auth && token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
-  const data = await response.json().catch(() => null);
-  return { response, data };
+  try {
+    const response = await fetch(url, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        Accept: 'application/json',
+        ...(auth && token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal: controller.signal,
+    });
+
+    const data = await response.json().catch(() => null);
+    return { response, data };
+  } catch (err) {
+    if (err.name === 'AbortError') {
+      throw new ApiError('So‘rov vaqti tugadi (Timeout). Tarmoqni tekshiring', 0);
+    }
+    throw new ApiError('Tarmoqqa ulanib bo‘lmadi', 0);
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 const errorMessage = (data, fallback) => {
@@ -75,10 +143,10 @@ async function refreshTokens() {
       body: { refreshToken },
       auth: false,
     });
-    if (!response.ok) return false;
+    if (!response || !response.ok || !data?.accessToken) return false;
 
     await storage.setToken(data.accessToken);
-    await storage.setRefreshToken(data.refreshToken);
+    if (data.refreshToken) await storage.setRefreshToken(data.refreshToken);
     return true;
   })().finally(() => {
     refreshing = null;
@@ -86,12 +154,13 @@ async function refreshTokens() {
   return refreshing;
 }
 
-async function request(path, options = {}) {
+export async function request(path, options = {}) {
   let { response, data } = await rawRequest(path, options);
 
-  // 401 — bir marta token yangilab ko'rishga urinamiz
+  // 401 — attempt token refresh once
   if (response.status === 401 && options.auth !== false) {
-    if (await refreshTokens()) {
+    const refreshed = await refreshTokens();
+    if (refreshed) {
       ({ response, data } = await rawRequest(path, options));
     } else {
       await storage.removeToken();
@@ -103,7 +172,7 @@ async function request(path, options = {}) {
 
   if (!response.ok) {
     if (response.status === 429) {
-      throw new ApiError("Juda ko'p urinish. Birozdan so'ng qayta urinib ko'ring", 429);
+      throw new ApiError('Juda ko‘p urinish. Birozdan so‘ng qayta urinib ko‘ring', 429);
     }
     throw new ApiError(errorMessage(data, `API error: ${response.status}`), response.status);
   }
@@ -117,85 +186,175 @@ async function storeSession(data) {
   return data?.user;
 }
 
-// ─── Auth API ────────────────────────────────────────────────────────────────
-
-export const auth = {
-  /**
-   * Login with phone + password. Phone: "+998XXXXXXXXX".
-   * @returns {Promise<object>} user object
-   */
-  async login(phone, password) {
-    const data = await request('/auth/login', {
-      method: 'POST',
-      auth: false,
-      body: { phone: normalizePhone(phone), password },
-    });
-    return storeSession(data);
-  },
-
-  /**
-   * Register a new user.
-   * @param {{phone, password, fullName, gender?, age?, height?, weight?}} payload
-   * @returns {Promise<object>} user object
-   */
-  async register(payload) {
-    const data = await request('/auth/register', {
-      method: 'POST',
-      auth: false,
-      body: { ...payload, phone: normalizePhone(payload.phone) },
-    });
-    return storeSession(data);
-  },
-
-  /** Fetch the currently authenticated user's profile. */
-  me: () => request('/auth/me'),
-
-  /**
-   * Update the current user's profile fields (age, height, weight, gender, address...).
-   * @returns {Promise<object>} updated user object
-   */
-  updateMe(fields) {
-    return request('/auth/me', { method: 'PATCH', body: fields });
-  },
-
-  /** Invalidate the current session on the server and clear local tokens. */
-  async logout() {
-    try {
-      if (await storage.getToken()) await request('/auth/logout', { method: 'POST' });
-    } finally {
-      await storage.removeToken();
-      await storage.removeRefreshToken();
-    }
-  },
-
-  /** Sessiya tugaganda (refresh ham o'tmasa) chaqiriladi — login ekraniga qaytarish uchun */
-  onSessionExpired(callback) {
-    sessionExpiredHandler = callback;
-  },
-};
-
-// ─── Public API object ───────────────────────────────────────────────────────
+// ─── API Endpoints ───────────────────────────────────────────────────────────
 
 export const api = {
-  auth,
-
-  // ── Products ─────────────────────────────────────────────────────────────────
-  products: {
-    /** List all products. NOTE: endpoint not yet deployed — callers must handle errors. */
-    list: () => request('/products'),
-  },
-
-  // ── Orders ───────────────────────────────────────────────────────────────────
-  orders: {
-    /** List current user's orders. NOTE: endpoint not yet deployed — callers must handle errors. */
-    list: () => request('/orders'),
-
-    /** Create a new order. */
-    create(payload) {
-      return request('/orders', { method: 'POST', body: payload });
+  // ── Authentication ──
+  auth: {
+    async login(phone, password) {
+      const data = await request('/auth/login', {
+        method: 'POST',
+        auth: false,
+        body: { phone: normalizePhone(phone), password },
+      });
+      return storeSession(data);
     },
 
-    /** Fetch a single order by ID. */
-    get: (id) => request(`/orders/${id}`),
+    async register(payload) {
+      // Whitelist to exactly the fields the backend RegisterDto accepts.
+      // The API runs with `forbidNonWhitelisted: true`, so sending anything
+      // else (e.g. favoriteClub / jerseyName / jerseyNumber) is a 400.
+      const body = {
+        phone: normalizePhone(payload.phone),
+        password: payload.password,
+        fullName: payload.fullName,
+      };
+      if (payload.gender != null) body.gender = payload.gender;
+      if (payload.age != null) body.age = payload.age;
+      if (payload.height != null) body.height = payload.height;
+      if (payload.weight != null) body.weight = payload.weight;
+
+      const data = await request('/auth/register', {
+        method: 'POST',
+        auth: false,
+        body,
+      });
+      return storeSession(data);
+    },
+
+    me: () => request('/auth/me'),
+
+    updateMe(fields) {
+      return request('/auth/me', { method: 'PATCH', body: fields });
+    },
+
+    changePassword(oldPassword, newPassword) {
+      return request('/auth/password', {
+        method: 'PATCH',
+        body: { oldPassword, newPassword },
+      });
+    },
+
+    async logout() {
+      try {
+        if (await storage.getToken()) {
+          await request('/auth/logout', { method: 'POST' }).catch(() => null);
+        }
+      } finally {
+        await storage.removeToken();
+        await storage.removeRefreshToken();
+      }
+    },
+
+    onSessionExpired(callback) {
+      sessionExpiredHandler = callback;
+    },
+  },
+
+  // ── Catalog ──
+  catalog: {
+    getCategories: () => request('/catalog/categories'),
+
+    getClubs(params = {}) {
+      const query = new URLSearchParams();
+      if (params.search) query.append('search', params.search);
+      if (params.categoryId) query.append('categoryId', String(params.categoryId));
+      if (params.page) query.append('page', String(params.page));
+      if (params.limit) query.append('limit', String(params.limit));
+      const qs = query.toString();
+      return request(`/catalog/clubs${qs ? `?${qs}` : ''}`);
+    },
+
+    getPopularClubs(limit = 6) {
+      return request(`/catalog/clubs/popular?limit=${limit}`);
+    },
+
+    getClub: (id) => request(`/catalog/clubs/${id}`),
+
+    getKit: (id) => request(`/catalog/kits/${id}`),
+
+    getFavorites: () => request('/catalog/favorites'),
+
+    addFavorite: (clubId) => request(`/catalog/clubs/${clubId}/favorite`, { method: 'PUT' }),
+
+    removeFavorite: (clubId) => request(`/catalog/clubs/${clubId}/favorite`, { method: 'DELETE' }),
+  },
+
+  // ── Cart ──
+  cart: {
+    getCart(promocode = '') {
+      const qs = promocode ? `?promocode=${encodeURIComponent(promocode)}` : '';
+      return request(`/cart${qs}`);
+    },
+
+    addItem(dto) {
+      return request('/cart/items', { method: 'POST', body: dto });
+    },
+
+    updateItem(id, dto) {
+      return request(`/cart/items/${id}`, { method: 'PATCH', body: dto });
+    },
+
+    removeItem(id) {
+      return request(`/cart/items/${id}`, { method: 'DELETE' });
+    },
+
+    clearCart() {
+      return request('/cart', { method: 'DELETE' });
+    },
+
+    applyPromocode(code) {
+      return request('/cart/promocode', { method: 'POST', body: { code } });
+    },
+  },
+
+  // ── Orders & Checkout ──
+  orders: {
+    getDeliverySlots(days = 7) {
+      return request(`/checkout/delivery-slots?days=${days}`);
+    },
+
+    checkout(dto) {
+      return request('/orders/checkout', { method: 'POST', body: dto });
+    },
+
+    list(query = {}) {
+      const qs = query.status ? `?status=${query.status}` : '';
+      return request(`/orders${qs}`);
+    },
+
+    getActive() {
+      return request('/orders/active');
+    },
+
+    get(id) {
+      return request(`/orders/${id}`);
+    },
+
+    getById(id) {
+      return request(`/orders/${id}`);
+    },
+
+    confirmPayment(id) {
+      return request(`/orders/${id}/payment/confirm`, { method: 'POST' });
+    },
+
+    changePaymentMethod(id, dto) {
+      return request(`/orders/${id}/payment-method`, { method: 'PATCH', body: dto });
+    },
+
+    cancel(id) {
+      return request(`/orders/${id}/cancel`, { method: 'POST' });
+    },
+  },
+
+  // ── Addresses ──
+  addresses: {
+    list: () => request('/addresses'),
+    create: (dto) => request('/addresses', { method: 'POST', body: dto }),
+    update: (id, dto) => request(`/addresses/${id}`, { method: 'PATCH', body: dto }),
+    remove: (id) => request(`/addresses/${id}`, { method: 'DELETE' }),
   },
 };
+
+export default api;

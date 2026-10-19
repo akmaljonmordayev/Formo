@@ -1,407 +1,366 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
-import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, spacing } from '../constants/theme';
-import { Button, Card, Header, Screen, Segment } from '../components/ui/Common';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { ConfirmModal } from '../components/ui/Modals';
+import { useToast } from '../components/ui/Toast';
+import { colors, radii } from '../constants/theme';
 import { formatUzPhone } from '../utils/phone';
 
-/** dd.mm.yyyy without relying on full ICU date formatting. */
-function formatDate(value) {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  return `${day}.${month}.${date.getFullYear()}`;
-}
+export default function ProfileScreen({
+  auth,
+  t,
+  onNavigate,
+  onEditProfile,
+  onAddresses,
+  onSettings,
+  onOrders,
+  onHelp,
+}) {
+  const toast = useToast();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
-/**
- * ProfileScreen — real data from GET /auth/me only; no mock fallback.
- * "Personal data" opens a modal that saves via auth.updateUser (PATCH /auth/me).
- * Backend hozircha bu endpointni bermaydi — bunday holatda useAuth qiymatlarni
- * qurilmada (lokal overlay) saqlaydi va UI baribir yangilanadi.
- */
-export default function ProfileScreen({ t, onSettings, onOrders, auth }) {
-  const [editVisible, setEditVisible] = useState(false);
-  const [logoutRequested, setLogoutRequested] = useState(false);
+  // Refresh user data from server when profile screen opens
+  useEffect(() => {
+    if (auth?.isAuthenticated && auth?.refreshUser) {
+      auth.refreshUser().catch(() => null);
+    }
+  }, [auth?.isAuthenticated]);
 
   const user = auth?.user || {};
-  const name = user.fullName || '—';
-  const phone = user.phone ? formatUzPhone(user.phone) : '—';
+  const name = user.fullName || 'Mehmon Foydalanuvchi';
+  const phone = user.phone ? formatUzPhone(user.phone) : '+998 90 000-00-00';
   const avatarInitial = (user.fullName || 'F')[0].toUpperCase();
 
-  const stats = useMemo(
-    () => [
-      { icon: 'calendar-outline', value: user.age != null ? String(user.age) : '—', label: t('age') },
-      { icon: 'ruler-height', value: user.height != null ? String(user.height) : '—', label: `${t('height')}, sm` },
-      { icon: 'scale-bathroom', value: user.weight != null ? String(user.weight) : '—', label: `${t('weight')}, kg` },
-    ],
-    [user.age, user.height, user.weight, t],
-  );
+  const handleShareApp = () => {
+    toast.show('Ulashish havolasi nusxalandi: https://formo.uz', 'success');
+  };
 
-  const requestLogout = () => {
-    if (logoutRequested) {
-      setLogoutRequested(false);
-      auth?.logout?.();
-      return;
-    }
-    setLogoutRequested(true);
-    Alert.alert(t('logout'), t('logoutConfirm'), [
-      { text: t('back'), onPress: () => setLogoutRequested(false), style: 'cancel' },
-      { text: t('logout'), style: 'destructive', onPress: () => { setLogoutRequested(false); auth?.logout?.(); } },
-    ]);
+  const handleConfirmLogout = () => {
+    setShowLogoutModal(false);
+    auth?.logout?.();
+    toast.show('Tizimdan chiqildi', 'info');
   };
 
   return (
-    <Screen>
-      <Header
-        title={t('myProfile')}
-        right={
-          <Pressable onPress={onSettings} style={styles.headerButton} hitSlop={8}>
-            <MaterialCommunityIcons name="cog-outline" size={20} color={colors.text} />
-          </Pressable>
-        }
-      />
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
+      <View style={styles.topBar}>
+        <Text style={styles.topTitle}>Profil</Text>
+        <Pressable onPress={onSettings} hitSlop={10} style={styles.iconBtn}>
+          <MaterialCommunityIcons name="cog-outline" size={22} color="#F3F5F9" />
+        </Pressable>
+      </View>
 
-      <Card style={styles.profile}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{avatarInitial}</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{name}</Text>
-          <Text style={styles.phone}>{phone}</Text>
-          <Text style={styles.memberSince}>
-            {t('memberSince')}: {formatDate(user.createdAt)}
-          </Text>
-        </View>
-      </Card>
-
-      <View style={styles.stats}>
-        {stats.map((stat) => (
-          <View key={stat.label} style={styles.stat}>
-            <MaterialCommunityIcons name={stat.icon} size={16} color={colors.accent} />
-            <Text style={styles.statValue}>{stat.value}</Text>
-            <Text style={styles.statLabel}>{stat.label}</Text>
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* User Card */}
+        <View style={styles.userCard}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{avatarInitial}</Text>
           </View>
-        ))}
-      </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.userName}>{name}</Text>
+            <Text style={styles.userPhone}>{phone}</Text>
+            <Text style={styles.memberBadge}>Formo Club a‘zosi</Text>
+          </View>
+          <Pressable onPress={onEditProfile} hitSlop={8} style={styles.editBtn}>
+            <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.accent} />
+          </Pressable>
+        </View>
 
-      <View style={styles.group}>
-        <Row
-          icon="account-details-outline"
-          title={t('personalData')}
-          sub={t('personalDataSub')}
-          onPress={() => setEditVisible(true)}
-        />
-        <Row icon="clipboard-list-outline" title={t('myOrders')} onPress={onOrders} />
-        <Row icon="cog-outline" title={t('settings')} sub={t('languageSub')} onPress={onSettings} last />
-      </View>
+        {/* Stats Chips */}
+        <View style={styles.statsRow}>
+          <View style={styles.statChip}>
+            <MaterialCommunityIcons name="gender-male-female" size={18} color={colors.teal} />
+            <Text style={styles.statVal}>{user.gender === 'FEMALE' ? 'Ayol' : 'Erkak'}</Text>
+            <Text style={styles.statLabel}>Jinsi</Text>
+          </View>
 
-      <Button variant="secondary" style={styles.logout} onPress={requestLogout}>
-        {t('logout')}
-      </Button>
+          <View style={styles.statChip}>
+            <MaterialCommunityIcons name="calendar-clock" size={18} color={colors.accent} />
+            <Text style={styles.statVal}>{user.age ? `${user.age}` : '—'}</Text>
+            <Text style={styles.statLabel}>Yoshi</Text>
+          </View>
 
-      <EditProfileModal
-        visible={editVisible}
-        t={t}
-        user={user}
-        onClose={() => setEditVisible(false)}
-        auth={auth}
+          <View style={styles.statChip}>
+            <MaterialCommunityIcons name="human-male" size={18} color={colors.teal} />
+            <Text style={styles.statVal}>{user.height ? `${user.height} sm` : '—'}</Text>
+            <Text style={styles.statLabel}>Bo‘yi</Text>
+          </View>
+
+          <View style={styles.statChip}>
+            <MaterialCommunityIcons name="weight-kilogram" size={18} color={colors.accent} />
+            <Text style={styles.statVal}>{user.weight ? `${user.weight} kg` : '—'}</Text>
+            <Text style={styles.statLabel}>Vazni</Text>
+          </View>
+        </View>
+
+        {/* Menu Section 1 */}
+        <View style={styles.menuGroup}>
+          <MenuItem
+            icon="account-edit-outline"
+            iconColor={colors.accent}
+            title="Mening ma‘lumotlarim"
+            sub="Ism, yosh, bo‘y va vazn ko‘rsatkichlari"
+            onPress={onEditProfile}
+          />
+          <MenuItem
+            icon="map-marker-radius-outline"
+            iconColor={colors.teal}
+            title="Saqlangan manzillar"
+            sub="Yetkazib berish manzillari"
+            onPress={onAddresses}
+          />
+          <MenuItem
+            icon="clipboard-list-outline"
+            iconColor={colors.accent}
+            title="Mening buyurtmalarim"
+            sub="Barcha buyurtmalar va kuzatuv"
+            onPress={onOrders}
+            last
+          />
+        </View>
+
+        {/* Menu Section 2 */}
+        <View style={styles.menuGroup}>
+          <MenuItem
+            icon="cog-outline"
+            iconColor="#8D95BD"
+            title="Sozlamalar"
+            sub="Bildirishnomalar va til"
+            onPress={onSettings}
+          />
+          <MenuItem
+            icon="help-circle-outline"
+            iconColor={colors.teal}
+            title="Yordam va FAQ"
+            sub="Ko‘p beriladigan savollar va qo‘llab-quvvatlash"
+            onPress={onHelp}
+          />
+          <MenuItem
+            icon="share-variant-outline"
+            iconColor={colors.accent}
+            title="Ilovani ulashish"
+            sub="Do‘stlarga tavsiya qilish"
+            onPress={handleShareApp}
+            last
+          />
+        </View>
+
+        {/* Logout Button */}
+        <Pressable onPress={() => setShowLogoutModal(true)} style={styles.logoutBtn}>
+          <MaterialCommunityIcons name="logout" size={20} color="#E8543F" />
+          <Text style={styles.logoutBtnText}>Tizimdan chiqish</Text>
+        </Pressable>
+
+        <Text style={styles.versionText}>Formo Mobile v1.0.0 (Expo 57)</Text>
+      </ScrollView>
+
+      {/* Logout confirm modal */}
+      <ConfirmModal
+        visible={showLogoutModal}
+        title="Tizimdan chiqish"
+        message="Haqiqatan ham o‘z hisobingizdan chiqmoqchimisiz?"
+        confirmText="Chiqish"
+        confirmColor="#E8543F"
+        onConfirm={handleConfirmLogout}
+        onCancel={() => setShowLogoutModal(false)}
       />
-    </Screen>
+    </SafeAreaView>
   );
 }
 
-function Row({ icon, title, sub, onPress, last }) {
-  const content = (
-    <View style={[styles.row, last && styles.rowLast]}>
-      <View style={styles.rowIcon}>
-        <MaterialCommunityIcons name={icon} size={18} color={colors.accent} />
+function MenuItem({ icon, iconColor, title, sub, onPress, last }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.menuItem, last && { borderBottomWidth: 0 }]}
+    >
+      <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(243, 245, 249, 0.05)' }]}>
+        <MaterialCommunityIcons name={icon} size={22} color={iconColor} />
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.rowTitle}>{title}</Text>
-        {sub ? <Text style={styles.rowSub}>{sub}</Text> : null}
+        <Text style={styles.menuTitle}>{title}</Text>
+        {Boolean(sub) && <Text style={styles.menuSub}>{sub}</Text>}
       </View>
-      <MaterialCommunityIcons name="chevron-right" size={20} color={colors.muted} />
-    </View>
-  );
-  return onPress ? <Pressable onPress={onPress}>{content}</Pressable> : content;
-}
-
-/** Modal-style editor for the measurements collected during registration. */
-function EditProfileModal({ visible, onClose, user, auth, t }) {
-  const [gender, setGender] = useState(user.gender || null);
-  const [age, setAge] = useState(user.age != null ? String(user.age) : '');
-  const [height, setHeight] = useState(user.height != null ? String(user.height) : '');
-  const [weight, setWeight] = useState(user.weight != null ? String(user.weight) : '');
-  const [address, setAddress] = useState(user.address || '');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState(null);
-  const [savedFlash, setSavedFlash] = useState(false);
-
-  // Re-hydrate from the latest server user whenever the modal opens
-  React.useEffect(() => {
-    if (visible) {
-      setGender(user.gender || null);
-      setAge(user.age != null ? String(user.age) : '');
-      setHeight(user.height != null ? String(user.height) : '');
-      setWeight(user.weight != null ? String(user.weight) : '');
-      setAddress(user.address || '');
-      setError(null);
-      setSavedFlash(false);
-    }
-  }, [visible, user]);
-
-  const parseIntOrNull = (raw, min, max) => {
-    if (!raw.trim()) return null;
-    const value = Number(raw);
-    if (!Number.isInteger(value) || value < min || value > max) return NaN;
-    return value;
-  };
-
-  const handleSave = async () => {
-    setError(null);
-
-    const ageValue = parseIntOrNull(age, 1, 120);
-    const heightValue = parseIntOrNull(height, 50, 250);
-    const weightValue = parseIntOrNull(weight, 20, 300);
-    if ([ageValue, heightValue, weightValue].some(Number.isNaN)) {
-      setError(t('invalidValue'));
-      return;
-    }
-
-    setSaving(true);
-    try {
-      await auth.updateUser({
-        gender,
-        age: ageValue,
-        height: heightValue,
-        weight: weightValue,
-        address: address.trim() || null,
-      });
-      setSavedFlash(true);
-      setTimeout(() => {
-        setSavedFlash(false);
-        onClose();
-      }, 600);
-    } catch (err) {
-      setError(err?.message || t('networkError'));
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const genderLabel =
-    gender === 'MALE' ? t('male') : gender === 'FEMALE' ? t('female') : t('male');
-
-  return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.modalBackdrop}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
-        <View style={styles.modalCard}>
-          <View style={styles.modalHeader}>
-            <Text style={styles.modalTitle}>{t('editProfile')}</Text>
-            <Pressable onPress={onClose} hitSlop={10}>
-              <MaterialCommunityIcons name="close" size={22} color={colors.muted} />
-            </Pressable>
-          </View>
-
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            <Text style={styles.modalLabel}>{t('gender')}</Text>
-            <Segment
-              wide
-              style={styles.modalSegment}
-              options={[t('male'), t('female')]}
-              value={genderLabel}
-              onChange={(value) => setGender(value === t('male') ? 'MALE' : 'FEMALE')}
-            />
-
-            <View style={styles.modalMetrics}>
-              <ModalInput label={t('age')} value={age} onChangeText={setAge} placeholder="25" />
-              <ModalInput label={`${t('height')}, sm`} value={height} onChangeText={setHeight} placeholder="178" />
-              <ModalInput label={`${t('weight')}, kg`} value={weight} onChangeText={setWeight} placeholder="76" />
-            </View>
-
-            <Text style={styles.modalLabel}>{t('address')}</Text>
-            <TextInput
-              value={address}
-              onChangeText={setAddress}
-              placeholder="—"
-              placeholderTextColor={colors.muted}
-              style={styles.modalInput}
-              selectionColor={colors.accent}
-            />
-
-            {error ? <Text style={styles.modalError}>{error}</Text> : null}
-            {savedFlash ? <Text style={styles.modalSaved}>{t('saved')}</Text> : null}
-
-            <Button style={styles.modalSave} onPress={handleSave} disabled={saving}>
-              {saving ? '…' : t('save')}
-            </Button>
-          </ScrollView>
-        </View>
-      </KeyboardAvoidingView>
-    </Modal>
-  );
-}
-
-function ModalInput({ label, value, onChangeText, placeholder }) {
-  return (
-    <View style={styles.modalMetric}>
-      <Text style={styles.modalLabel}>{label}</Text>
-      <TextInput
-        value={value}
-        onChangeText={onChangeText}
-        placeholder={placeholder}
-        placeholderTextColor={colors.muted}
-        keyboardType="number-pad"
-        maxLength={3}
-        style={styles.modalInput}
-        selectionColor={colors.accent}
-      />
-    </View>
+      <MaterialCommunityIcons name="chevron-right" size={22} color="#6F77A0" />
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  headerButton: {
+  safe: {
+    flex: 1,
+    backgroundColor: '#050818',
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  topTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#F3F5F9',
+  },
+  iconBtn: {
     width: 40,
     height: 40,
     borderRadius: radii.md,
-    backgroundColor: '#141A3E',
+    backgroundColor: '#0E1A3F',
     borderWidth: 1,
-    borderColor: '#232A57',
+    borderColor: 'rgba(243, 245, 249, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  profile: {
+  scroll: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 110,
+  },
+  userCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.md,
-    backgroundColor: 'transparent',
-    borderColor: 'transparent',
-    padding: 0,
+    backgroundColor: '#0E1A3F',
+    borderRadius: radii.xl,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(243, 245, 249, 0.12)',
+    marginBottom: 16,
+    gap: 14,
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#151B42',
-    borderWidth: 1.5,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: 'rgba(242, 163, 58, 0.15)',
+    borderWidth: 2,
     borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: colors.accent, fontWeight: '900', fontSize: 22 },
-  name: { color: colors.text, fontSize: 16, fontWeight: '800' },
-  phone: { color: colors.muted, fontSize: 12, marginTop: 4 },
-  memberSince: { color: '#59618D', fontSize: 10, marginTop: 3 },
-  stats: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
-  stat: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
+  avatarText: {
+    color: colors.accent,
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  userName: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#F3F5F9',
+  },
+  userPhone: {
+    fontSize: 12,
+    color: '#8D95BD',
+    marginTop: 3,
+  },
+  memberBadge: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.teal,
+    marginTop: 4,
+    textTransform: 'uppercase',
+  },
+  editBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#121A42',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#1B2150',
+    borderColor: 'rgba(242, 163, 58, 0.3)',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 20,
+  },
+  statChip: {
+    flex: 1,
+    backgroundColor: '#0E1A3F',
+    borderRadius: radii.md,
     paddingVertical: 10,
     paddingHorizontal: 6,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(243, 245, 249, 0.08)',
     gap: 2,
   },
-  statValue: { color: colors.text, fontSize: 15, fontWeight: '900' },
-  statLabel: { color: colors.muted, fontSize: 9, textAlign: 'center' },
-  group: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: '#1B2150',
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    overflow: 'hidden',
+  statVal: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#F3F5F9',
+    marginTop: 2,
   },
-  row: {
+  statLabel: {
+    fontSize: 10,
+    color: '#8D95BD',
+  },
+  menuGroup: {
+    backgroundColor: '#0E1A3F',
+    borderRadius: radii.xl,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(243, 245, 249, 0.12)',
+    marginBottom: 16,
+  },
+  menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#171C3F',
+    borderBottomColor: 'rgba(243, 245, 249, 0.08)',
+    gap: 12,
   },
-  rowLast: { borderBottomWidth: 0 },
-  rowIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    backgroundColor: '#171E4B',
-    borderWidth: 1,
-    borderColor: '#232A57',
+  menuIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  rowTitle: { color: colors.text, fontSize: 13, fontWeight: '700' },
-  rowSub: { color: colors.muted, fontSize: 11, marginTop: 3 },
-  logout: { marginTop: spacing.sm },
-
-  // Edit modal
-  modalBackdrop: {
-    flex: 1,
-    backgroundColor: 'rgba(4, 6, 20, 0.72)',
-    justifyContent: 'center',
-    paddingHorizontal: 24,
+  menuTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#F3F5F9',
   },
-  modalCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: '#242B58',
-    padding: spacing.xl,
-    maxHeight: '86%',
+  menuSub: {
+    fontSize: 11,
+    color: '#8D95BD',
+    marginTop: 2,
   },
-  modalHeader: {
+  logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-  },
-  modalTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
-  modalLabel: {
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginBottom: 6,
-    marginTop: spacing.md,
-  },
-  modalSegment: { alignSelf: 'stretch' },
-  modalMetrics: { flexDirection: 'row', gap: spacing.sm },
-  modalMetric: { flex: 1 },
-  modalInput: {
-    backgroundColor: '#0E1330',
-    borderWidth: 1.5,
-    borderColor: '#232A57',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(232, 84, 63, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(232, 84, 63, 0.35)',
     borderRadius: radii.md,
-    paddingVertical: 12,
-    paddingHorizontal: spacing.md,
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '600',
+    paddingVertical: 14,
+    marginTop: 4,
+    marginBottom: 16,
   },
-  modalError: { color: '#E8543F', fontSize: 12, marginTop: spacing.md },
-  modalSaved: { color: colors.teal, fontSize: 12, marginTop: spacing.md, fontWeight: '700' },
-  modalSave: { marginTop: spacing.lg },
+  logoutBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#E8543F',
+  },
+  versionText: {
+    textAlign: 'center',
+    fontSize: 11,
+    color: '#6F77A0',
+    marginBottom: 16,
+  },
 });
