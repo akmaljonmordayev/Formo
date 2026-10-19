@@ -2,18 +2,8 @@ import { AlertCircle, AlertTriangle, FilePlus } from 'lucide-react';
 import { Card } from './ui';
 import { useT } from './i18n';
 
-export default function StockAlerts({ onCreateDoc }) {
+export default function StockAlerts({ zeroItems = [], lowItems = [], onCreateDoc }) {
   const t = useT();
-
-  const zeroItems = [
-    { color: 'qora', size: 'XXL' },
-    { color: 'qizil', size: 'XXL' },
-  ];
-  const lowItems = [
-    { color: 'oq', size: 'XXL', qty: 3 },
-    { color: 'qizil', size: 'L', qty: 3 },
-    { color: 'kok', size: 'XXL', qty: 1 },
-  ];
 
   return (
     <div className="flex flex-col gap-4">

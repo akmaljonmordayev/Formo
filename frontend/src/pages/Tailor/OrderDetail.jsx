@@ -219,7 +219,7 @@ export default function OrderDetail({ order, onStartPress, onToast }) {
 
         <button
           type="button"
-          onClick={() => onStartPress(order.id)}
+          onClick={() => onStartPress(order)}
           className={cx(
             'flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-extrabold text-slate-950 shadow-glow transition active:scale-95',
             order.status === 'bosildi'

@@ -10,22 +10,22 @@ import { initialsOf, prettyPhone } from './utils';
 const profileKey = (userId) => `formo_tailor_profile_${userId ?? 'current'}`;
 
 function loadProfile(user, language = 'uz') {
-  const fallback = {
+  const baseProfile = {
     id: user?.id ?? null,
     name: user?.fullName ?? '',
     initials: initialsOf(user?.fullName),
     phone: user?.phone ?? '',
-    roleKey: 'lead',
+    roleKey: user?.roleKey ?? '',
     factory: user?.workshopName ?? '',
-    shiftStart: '09:00',
-    shiftEnd: '18:00',
+    shiftStart: user?.shiftStart ?? '',
+    shiftEnd: user?.shiftEnd ?? '',
     lang: language,
   };
   try {
     const saved = JSON.parse(localStorage.getItem(profileKey(user?.id)) || 'null');
-    return saved ? { ...fallback, ...saved, id: fallback.id, lang: language } : fallback;
+    return saved ? { ...baseProfile, ...saved, id: baseProfile.id, lang: language } : baseProfile;
   } catch {
-    return fallback;
+    return baseProfile;
   }
 }
 
@@ -34,6 +34,7 @@ export default function Profile() {
   const { prefs, savePrefs } = useTailor();
   const t = useT();
   const [notice, setNotice] = useState(null);
+  const [preferenceSaving, setPreferenceSaving] = useState(false);
   const [profile, setProfile] = useState(() => loadProfile(user, prefs.lang));
   const [modalOpen, setModalOpen] = useState(false);
   const name = profile.name || user?.fullName || '';
@@ -42,11 +43,11 @@ export default function Profile() {
     setProfile(loadProfile(user, prefs.lang));
   }, [user, prefs.lang]);
 
-  const saveProfile = (updated) => {
+  const saveProfile = async (updated) => {
     try {
+      if (updated.lang !== prefs.lang) await savePrefs({ ...prefs, lang: updated.lang });
       localStorage.setItem(profileKey(user?.id), JSON.stringify(updated));
       setProfile(updated);
-      if (updated.lang !== prefs.lang) savePrefs({ ...prefs, lang: updated.lang });
       window.dispatchEvent(new CustomEvent('formo:tailor-profile-updated', { detail: updated }));
       setModalOpen(false);
       setNotice({ text: t('profile.savedToast'), error: false });
@@ -55,9 +56,9 @@ export default function Profile() {
     }
   };
 
-  const changeLanguage = (lang) => {
+  const changeLanguage = async (lang) => {
     try {
-      savePrefs({ ...prefs, lang });
+      await savePrefs({ ...prefs, lang });
       setProfile((current) => ({ ...current, lang }));
       setNotice({ text: translate(lang, lang === 'ru' ? 'profile.langToastRu' : 'profile.langToast'), error: false });
     } catch {
@@ -65,15 +66,19 @@ export default function Profile() {
     }
   };
 
-  const togglePreference = (key) => {
+  const togglePreference = async (key) => {
+    if (preferenceSaving) return;
+    setPreferenceSaving(true);
     try {
-      savePrefs({
+      await savePrefs({
         ...prefs,
         notifications: { ...prefs.notifications, [key]: !prefs.notifications[key] },
       });
       setNotice({ text: t('profile.notifToast'), error: false });
     } catch {
-      setNotice({ text: t('profile.persistError'), error: true });
+      setNotice({ text: t('profile.preferenceError'), error: true });
+    } finally {
+      setPreferenceSaving(false);
     }
   };
 
@@ -124,7 +129,7 @@ export default function Profile() {
               { label: t('profile.nameLabel'), value: name, Icon: User },
               { label: t('profile.phoneLabel'), value: prettyPhone(profile.phone || user?.phone), Icon: Phone },
               { label: t('profile.workshopLabel'), value: profile.factory || user?.workshopName || t('profile.workshopMissing'), Icon: Factory },
-              { label: t('profile.shiftLabel'), value: `${profile.shiftStart} — ${profile.shiftEnd}`, Icon: Clock },
+              { label: t('profile.shiftLabel'), value: profile.shiftStart || profile.shiftEnd ? `${profile.shiftStart || '—'} — ${profile.shiftEnd || '—'}` : '—', Icon: Clock },
             ].map(({ label, value, Icon }) => (
               <label key={label} className="block">
                 <span className="mb-1 block text-[11px] font-bold text-slate-400">{label}</span>
@@ -175,6 +180,7 @@ export default function Profile() {
                   checked={prefs.notifications[key]}
                   onChange={() => togglePreference(key)}
                   ariaLabel={t(labelKey)}
+                  disabled={preferenceSaving}
                 />
               </div>
             ))}

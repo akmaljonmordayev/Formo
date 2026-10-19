@@ -180,7 +180,7 @@ export function StatCard({ label, value, hint, icon: Icon, tone = 'teal' }) {
   );
 }
 
-export function Toggle({ checked, onChange, label, description, ariaLabel }) {
+export function Toggle({ checked, onChange, label, description, ariaLabel, disabled = false }) {
   return (
     <div className="flex select-none items-center justify-between gap-4 py-3">
       <span className="min-w-0">
@@ -192,9 +192,10 @@ export function Toggle({ checked, onChange, label, description, ariaLabel }) {
         role="switch"
         aria-checked={checked}
         aria-label={ariaLabel ?? label}
+        disabled={disabled}
         onClick={() => onChange && onChange(!checked)}
         className={cx(
-          'relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400',
+          'relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 ease-in-out focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-400 disabled:cursor-not-allowed disabled:opacity-50',
           checked ? 'bg-teal-400' : 'bg-white/10'
         )}
       >
