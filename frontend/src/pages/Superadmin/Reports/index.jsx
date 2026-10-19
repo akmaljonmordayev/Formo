@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { reportsApi, money } from '../../../features/platform/platformApi';
+import { reportsApi } from '../../../features/platform/platformApi';
 import { downloadCsv } from '../../../utils/csvExport';
+import { useT, useMoney } from '../i18n';
 
 const RANGES = [
   { label: '7 kun', days: 7 },
@@ -12,6 +13,8 @@ const PRODUCT_LABEL = { CLUB_KIT: 'Klub formalari', CUSTOM_DESIGN: "O'z dizayni"
 const PRODUCT_COLOR = { CLUB_KIT: 'var(--sa-blue)', CUSTOM_DESIGN: 'var(--sa-teal)' };
 
 export default function SuperadminReports() {
+  const money = useMoney();
+  const t = useT();
   const [range, setRange] = useState(RANGES[1]);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -33,7 +36,7 @@ export default function SuperadminReports() {
   const byProductType = data?.byProductType ?? {};
   const total = Object.values(byProductType).reduce((s, v) => s + v, 0);
   const breakdown = Object.entries(byProductType).map(([type, sum]) => ({
-    label: PRODUCT_LABEL[type] ?? type,
+    label: PRODUCT_LABEL[type] ? t(PRODUCT_LABEL[type]) : type,
     color: PRODUCT_COLOR[type] ?? 'var(--sa-accent)',
     pct: total ? Math.round((sum / total) * 100) : 0,
     sum,
@@ -43,9 +46,9 @@ export default function SuperadminReports() {
     downloadCsv(
       `hisobot-${range.days}kun-${new Date().toISOString().slice(0, 10)}.csv`,
       [
-        ['Mahsulot turi', (r) => r.label],
-        ["Summa (so'm)", (r) => r.sum],
-        ['Ulushi (%)', (r) => r.pct],
+        [t('Mahsulot turi'), (r) => r.label],
+        [t("Summa (so'm)"), (r) => r.sum],
+        [t('Ulushi (%)'), (r) => r.pct],
       ],
       breakdown,
     );
@@ -53,9 +56,9 @@ export default function SuperadminReports() {
 
   const STATS = data
     ? [
-        { label: 'Tushum', value: money(data.revenue), delta: `${data.revenueDeltaPct > 0 ? '+' : ''}${data.revenueDeltaPct}%`, up: data.revenueDeltaPct > 0 },
-        { label: 'Buyurtmalar', value: String(data.ordersCount), delta: `${data.ordersDeltaPct > 0 ? '+' : ''}${data.ordersDeltaPct}%`, up: data.ordersDeltaPct > 0 },
-        { label: "O'rtacha chek", value: money(data.avgCheck), delta: '' },
+        { label: t('Tushum'), value: money(data.revenue), delta: `${data.revenueDeltaPct > 0 ? '+' : ''}${data.revenueDeltaPct}%`, up: data.revenueDeltaPct > 0 },
+        { label: t('Buyurtmalar'), value: String(data.ordersCount), delta: `${data.ordersDeltaPct > 0 ? '+' : ''}${data.ordersDeltaPct}%`, up: data.ordersDeltaPct > 0 },
+        { label: t("O'rtacha chek"), value: money(data.avgCheck), delta: '' },
       ]
     : [];
 
@@ -63,16 +66,16 @@ export default function SuperadminReports() {
     <>
       <div className="sa-head">
         <div>
-          <h1>Hisobotlar</h1>
-          <p>Tushum va mahsulot turlari bo'yicha taqsimot · {range.label}.</p>
+          <h1>{t("Hisobotlar")}</h1>
+          <p>{t("Tushum va mahsulot turlari bo'yicha taqsimot")} · {t(range.label)}.</p>
         </div>
-        <button type="button" className="sa-btn sa-btn--ghost" onClick={exportCsv} disabled={!breakdown.length}>Excel eksport</button>
+        <button type="button" className="sa-btn sa-btn--ghost" onClick={exportCsv} disabled={!breakdown.length}>{t("Excel eksport")}</button>
       </div>
 
       <div className="sa-tabs">
         {RANGES.map((r) => (
           <button key={r.label} type="button" className={`sa-tab${range.label === r.label ? ' is-active' : ''}`} onClick={() => setRange(r)}>
-            {r.label}
+            {t(r.label)}
           </button>
         ))}
       </div>
@@ -93,12 +96,12 @@ export default function SuperadminReports() {
 
       <div className="sa-panel">
         <div className="sa-panel__head">
-          <div className="sa-panel__title">Tushum tarkibi</div>
-          <span className="sa-panel__sub">so'm</span>
+          <div className="sa-panel__title">{t("Tushum tarkibi")}</div>
+          <span className="sa-panel__sub">{t("so'm")}</span>
         </div>
         {breakdown.length === 0 ? (
           <div className="sa-table__sub" style={{ padding: '12px 0' }}>
-            {loading ? 'Yuklanmoqda...' : "Bu davrda tushum yo'q"}
+            {loading ? t('Yuklanmoqda...') : t("Bu davrda tushum yo'q")}
           </div>
         ) : (
           <>
@@ -123,11 +126,11 @@ export default function SuperadminReports() {
 
       <div className="sa-panel">
         <div className="sa-panel__head">
-          <div className="sa-panel__title">Mijoz yo'li</div>
-          <span className="sa-panel__sub">ilovaga kirgandan to'lovgacha</span>
+          <div className="sa-panel__title">{t("Mijoz yo'li")}</div>
+          <span className="sa-panel__sub">{t("ilovaga kirgandan to'lovgacha")}</span>
         </div>
         <div className="sa-table__sub" style={{ padding: '8px 0' }}>
-          Konversiya voronkasi uchun ilovada foydalanuvchi hodisalarini yozib borish kerak — bu analitika tizimi hali ulanmagan.
+          {t("Konversiya voronkasi uchun ilovada foydalanuvchi hodisalarini yozib borish kerak — bu analitika tizimi hali ulanmagan.")}
         </div>
       </div>
     </>

@@ -1,9 +1,15 @@
 import { useEffect, useState } from 'react';
 import { categoriesApi } from '../../../features/platform/platformApi';
-import Modal, { ConfirmModal } from '../../../components/ui/Modal';
+import Modal from '../../../components/ui/Modal';
+import { ConfirmModal } from '../ui';
+import { useT } from '../i18n';
 
 // Ligalar: ilova katalogidagi filtr chiplari. Klubi bor kategoriyani o'chirib bo'lmaydi (backend 409 qaytaradi)
+// Terma jamoa qo'shilganda qit'a nomidan avtomatik yaratiladigan kategoriyalar (Klublar sahifasi filtrlarida ko'rinmaydi)
+const NATIONAL_RE = / terma jamoalari$/;
+
 export default function SuperadminCategories() {
+  const t = useT();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -54,37 +60,42 @@ export default function SuperadminCategories() {
     <>
       <div className="sa-head">
         <div>
-          <h1>Kategoriyalar</h1>
-          <p>Ligalar — ilova katalogidagi filtrlar. Nomi o'zgarsa klublardagi liga nomi ham yangilanadi.</p>
+          <h1>{t("Kategoriyalar")}</h1>
+          <p>{t("Ligalar — ilova katalogidagi filtrlar. Nomi o'zgarsa klublardagi liga nomi ham yangilanadi.")}</p>
         </div>
-        <button type="button" className="sa-btn" onClick={() => setEditing('new')}>+ Kategoriya</button>
+        <button type="button" className="sa-btn" onClick={() => setEditing('new')}>{t("+ Kategoriya")}</button>
       </div>
 
       {error && <div className="form-error">{error}</div>}
 
       {loading ? (
-        <div className="sa-table__sub" style={{ padding: 20 }}>Yuklanmoqda...</div>
+        <div className="sa-table__sub" style={{ padding: 20 }}>{t("Yuklanmoqda...")}</div>
       ) : items.length === 0 ? (
         <div className="sa-panel">
-          <div className="sa-table__sub">Hali kategoriya yo'q. "+ Kategoriya" bilan birinchisini qo'shing.</div>
+          <div className="sa-table__sub">{t("Hali kategoriya yo'q. «+ Kategoriya» bilan birinchisini qo'shing.")}</div>
         </div>
       ) : (
         <div className="sa-table-wrap">
           <table className="sa-table">
             <thead>
               <tr>
-                <th>Nomi</th>
-                <th>Slug</th>
-                <th>Tartib</th>
-                <th>Klublar</th>
-                <th>Ilovada</th>
+                <th>{t("Nomi")}</th>
+                <th>{t("Slug")}</th>
+                <th>{t("Tartib")}</th>
+                <th>{t("Klublar")}</th>
+                <th>{t("Ilovada")}</th>
                 <th />
               </tr>
             </thead>
             <tbody>
               {items.map((c) => (
                 <tr key={c.id}>
-                  <td><b>{c.name}</b></td>
+                  <td>
+                    <b>{c.name}</b>
+                    {NATIONAL_RE.test(c.name) && (
+                      <span className="sa-badge sa-badge--violet" style={{ marginLeft: 8 }}>{t('terma jamoalar · avto')}</span>
+                    )}
+                  </td>
                   <td className="sa-table__sub" style={{ marginTop: 0 }}>{c.slug}</td>
                   <td>{c.sortOrder}</td>
                   <td>{c.clubsCount}</td>
@@ -97,7 +108,7 @@ export default function SuperadminCategories() {
                         display: 'inline-block', width: 36, height: 20, borderRadius: 999, border: 'none', cursor: 'pointer',
                         background: c.isActive ? 'var(--sa-teal)' : 'rgba(255,255,255,0.12)', position: 'relative', padding: 0,
                       }}
-                      aria-label={c.isActive ? 'Yashirish' : "Ko'rsatish"}
+                      aria-label={c.isActive ? t('Yashirish') : t("Ko'rsatish")}
                     >
                       <span
                         style={{
@@ -108,15 +119,15 @@ export default function SuperadminCategories() {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end' }}>
-                      <button type="button" className="sa-btn sa-btn--ghost" onClick={() => setEditing(c)}>Tahrirlash</button>
+                      <button type="button" className="sa-btn sa-btn--ghost" onClick={() => setEditing(c)}>{t("Tahrirlash")}</button>
                       <button
                         type="button"
                         className="sa-btn sa-btn--ghost"
                         disabled={c.clubsCount > 0}
-                        title={c.clubsCount > 0 ? "Avval klublarni boshqa kategoriyaga o'tkazing" : undefined}
+                        title={c.clubsCount > 0 ? t("Avval klublarni boshqa kategoriyaga o'tkazing") : undefined}
                         onClick={() => setDeleting(c)}
                       >
-                        O'chirish
+                        {t("O'chirish")}
                       </button>
                     </div>
                   </td>
@@ -141,8 +152,8 @@ export default function SuperadminCategories() {
 
       {deleting && (
         <ConfirmModal
-          title="Kategoriyani o'chirish"
-          text={`«${deleting.name}» kategoriyasi o'chiriladi.`}
+          title={t("Kategoriyani o'chirish")}
+          text={t("«{name}» kategoriyasi o'chiriladi.", { name: deleting.name })}
           busy={busy}
           onConfirm={remove}
           onClose={() => setDeleting(null)}
@@ -153,6 +164,7 @@ export default function SuperadminCategories() {
 }
 
 function CategoryForm({ category, nextOrder, onClose, onSaved }) {
+  const t = useT();
   const isEdit = Boolean(category);
   const [form, setForm] = useState({
     name: category?.name ?? '',
@@ -181,16 +193,16 @@ function CategoryForm({ category, nextOrder, onClose, onSaved }) {
   };
 
   return (
-    <Modal title={isEdit ? 'Kategoriyani tahrirlash' : 'Yangi kategoriya'} onClose={onClose}>
+    <Modal title={isEdit ? t("Kategoriyani tahrirlash") : t("Yangi kategoriya")} onClose={onClose}>
       <form onSubmit={submit}>
         {error && <div className="form-error">{error}</div>}
         <div className="form-grid">
           <label className="field field--full">
-            <span>Nomi</span>
+            <span>{t("Nomi")}</span>
             <input value={form.name} onChange={set('name')} required minLength={2} maxLength={60} placeholder="LaLiga" />
           </label>
           <label className="field">
-            <span>Slug</span>
+            <span>{t("Slug")}</span>
             <input
               value={form.slug}
               onChange={set('slug')}
@@ -198,20 +210,20 @@ function CategoryForm({ category, nextOrder, onClose, onSaved }) {
               pattern="[a-z0-9]+(-[a-z0-9]+)*"
               placeholder="laliga"
             />
-            <small>Bo'sh qolsa nomdan yasaladi</small>
+            <small>{t("Bo'sh qolsa nomdan yasaladi")}</small>
           </label>
           <label className="field">
-            <span>Tartib</span>
+            <span>{t("Tartib")}</span>
             <input type="number" min={0} max={10000} value={form.sortOrder} onChange={set('sortOrder')} />
-            <small>Kichigi oldinda</small>
+            <small>{t("Kichigi oldinda")}</small>
           </label>
         </div>
         <div className="modal__foot" style={{ padding: '14px 0 0' }}>
           <button type="button" className="btn btn--ghost" onClick={onClose}>
-            Bekor qilish
+            {t("Bekor qilish")}
           </button>
           <button type="submit" className="btn btn--accent" disabled={saving}>
-            {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+            {saving ? t("Saqlanmoqda...") : t("Saqlash")}
           </button>
         </div>
       </form>

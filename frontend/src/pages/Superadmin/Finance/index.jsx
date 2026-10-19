@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { financeApi, money, PAYMENT_METHOD } from '../../../features/platform/platformApi';
+import { financeApi, PAYMENT_METHOD } from '../../../features/platform/platformApi';
 import { downloadCsv } from '../../../utils/csvExport';
+import { useT, useMoney } from '../i18n';
 
 const RANGES = [
   { label: 'Bugun', days: 1 },
@@ -11,6 +12,8 @@ const RANGES = [
 const METHOD_COLOR = { CLICK: '#5b7cfa', PAYME: '#19a7a1', CASH: '#f2a33a' };
 
 export default function SuperadminFinance() {
+  const money = useMoney();
+  const t = useT();
   const [range, setRange] = useState(RANGES[2]);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -37,10 +40,10 @@ export default function SuperadminFinance() {
     downloadCsv(
       `moliya-${range.days}kun-${new Date().toISOString().slice(0, 10)}.csv`,
       [
-        ["To'lov usuli", ([method]) => PAYMENT_METHOD[method] ?? method],
-        ['Soni', ([, m]) => m.count],
-        ["Summa (so'm)", ([, m]) => m.sum],
-        ['Ulushi (%)', ([, m]) => (totalByMethod ? Math.round((m.sum / totalByMethod) * 100) : 0)],
+        [t("To'lov usuli"), ([method]) => t(PAYMENT_METHOD[method] ?? method)],
+        [t('Soni'), ([, m]) => m.count],
+        [t("Summa (so'm)"), ([, m]) => m.sum],
+        [t('Ulushi (%)'), ([, m]) => (totalByMethod ? Math.round((m.sum / totalByMethod) * 100) : 0)],
       ],
       methods,
     );
@@ -48,8 +51,8 @@ export default function SuperadminFinance() {
 
   const STATS = data
     ? [
-        { label: 'Tushum', value: money(data.revenue), delta: `${data.revenueDeltaPct > 0 ? '+' : ''}${data.revenueDeltaPct}% oldingi davrga` },
-        { label: 'Qaytarishlar', value: money(data.refunded), delta: data.revenue ? `${Math.round((data.refunded / (data.revenue || 1)) * 1000) / 10}% tushumdan` : '—' },
+        { label: t('Tushum'), value: money(data.revenue), delta: t('{pct}% oldingi davrga', { pct: `${data.revenueDeltaPct > 0 ? '+' : ''}${data.revenueDeltaPct}` }) },
+        { label: t('Qaytarishlar'), value: money(data.refunded), delta: data.revenue ? t('{pct}% tushumdan', { pct: Math.round((data.refunded / (data.revenue || 1)) * 1000) / 10 }) : '—' },
       ]
     : [];
 
@@ -57,16 +60,16 @@ export default function SuperadminFinance() {
     <>
       <div className="sa-head">
         <div>
-          <h1>Moliya</h1>
-          <p>Tushum, to'lov usullari va qaytarishlar.</p>
+          <h1>{t("Moliya")}</h1>
+          <p>{t("Tushum, to'lov usullari va qaytarishlar.")}</p>
         </div>
-        <button type="button" className="sa-btn sa-btn--ghost" onClick={exportCsv} disabled={!methods.length}>Excel eksport</button>
+        <button type="button" className="sa-btn sa-btn--ghost" onClick={exportCsv} disabled={!methods.length}>{t("Excel eksport")}</button>
       </div>
 
       <div className="sa-tabs">
         {RANGES.map((r) => (
           <button key={r.label} type="button" className={`sa-tab${range.label === r.label ? ' is-active' : ''}`} onClick={() => setRange(r)}>
-            {r.label}
+            {t(r.label)}
           </button>
         ))}
       </div>
@@ -85,12 +88,12 @@ export default function SuperadminFinance() {
 
       <div className="sa-panel">
         <div className="sa-panel__head">
-          <div className="sa-panel__title">To'lov usullari</div>
-          <span className="sa-panel__sub">ulushi</span>
+          <div className="sa-panel__title">{t("To'lov usullari")}</div>
+          <span className="sa-panel__sub">{t("ulushi")}</span>
         </div>
         {methods.length === 0 ? (
           <div className="sa-table__sub" style={{ padding: '12px 0' }}>
-            {loading ? 'Yuklanmoqda...' : "Bu davrda to'lov yo'q"}
+            {loading ? t('Yuklanmoqda...') : t("Bu davrda to'lov yo'q")}
           </div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -98,8 +101,8 @@ export default function SuperadminFinance() {
               <div key={method} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: 10, borderRadius: 12, background: 'var(--sa-surface-2)', border: '1px solid var(--sa-line)' }}>
                 <span style={{ width: 6, alignSelf: 'stretch', borderRadius: 4, background: METHOD_COLOR[method] ?? '#888' }} />
                 <div style={{ flex: 1 }}>
-                  <b style={{ fontSize: 13.5 }}>{PAYMENT_METHOD[method] ?? method}</b>
-                  <div className="sa-table__sub">{m.count} ta to'lov</div>
+                  <b style={{ fontSize: 13.5 }}>{t(PAYMENT_METHOD[method] ?? method)}</b>
+                  <div className="sa-table__sub">{t("{n} ta to'lov", { n: m.count })}</div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <b>{money(m.sum)}</b>

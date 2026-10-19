@@ -16,7 +16,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
-import SuperadminLayout from '../../components/layout/SuperadminLayout';
+import AdminLayout from './AdminLayout';
 import Dashboard from './Dashboard';
 import CustomersUsers from './Users';
 import Factories_ from './Factories';
@@ -37,7 +37,8 @@ import AuditLog from './AuditLog';
 
 const BASE = '/superadmin';
 
-export const superadminLayout = SuperadminLayout;
+// Til (uz / ўз / ru) konteksti va tarjima qilingan menyu shu wrapper ichida
+export const superadminLayout = AdminLayout;
 
 // Hali dark-dizaynga ko'chirilmagan, lekin ishlaydigan (real backend chaqiradigan) sahifalar —
 // ichidagi matn (navy/oq) dark fon ustida o'qilishi uchun oq kartaga o'raladi
