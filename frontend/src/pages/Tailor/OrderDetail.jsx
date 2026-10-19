@@ -1,21 +1,34 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shirt, Clock, FileText, Image as ImageIcon, Play, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Shirt, Clock, FileText, Image as ImageIcon, Play, CheckCircle, AlertTriangle, Truck, XCircle } from 'lucide-react';
 import { Card, JerseyPreview } from './ui';
 import WorkflowTracker from './WorkflowTracker';
 import { useT, orderDeadline } from './i18n';
 import { cx } from './utils';
 
 const BADGE_STYLES = {
+  yangi: 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40',
   qabul: 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40',
   bosildi: 'bg-blue-500/20 text-blue-400 ring-1 ring-blue-500/40',
   tayyor: 'bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/40',
 };
 
-export default function OrderDetail({ order, onStartPress, onToast }) {
+export default function OrderDetail({ order, onStartPress, onReject, actionLoading = false, onToast }) {
   const navigate = useNavigate();
   const t = useT();
   const detailRef = useRef(null);
+  const [rejecting, setRejecting] = useState(false);
+  const [reason, setReason] = useState('');
+
+  const submitReject = async () => {
+    const text = reason.trim();
+    if (!text || !onReject) return;
+    const ok = await onReject(order, text);
+    if (ok) {
+      setRejecting(false);
+      setReason('');
+    }
+  };
 
   if (!order) {
     return (
@@ -41,7 +54,7 @@ export default function OrderDetail({ order, onStartPress, onToast }) {
   ];
 
   const workflowLabel =
-    order.status === 'qabul'
+    order.status === 'yangi' || order.status === 'qabul'
       ? t('order.wfReady')
       : order.status === 'bosildi'
         ? t('order.wfPrinting')
@@ -217,35 +230,92 @@ export default function OrderDetail({ order, onStartPress, onToast }) {
           </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => onStartPress(order)}
-          className={cx(
-            'flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-extrabold text-slate-950 shadow-glow transition active:scale-95',
-            order.status === 'bosildi'
-              ? 'bg-amber-400 hover:bg-amber-300'
-              : order.status === 'tayyor'
-                ? 'bg-emerald-400 hover:bg-emerald-300 text-slate-950'
-                : 'bg-teal-400 hover:bg-teal-300'
-          )}
-        >
-          {order.status === 'qabul' ? (
-            <>
-              <Play className="h-4 w-4 fill-current" />
-              <span>{t('order.startPrint')}</span>
-            </>
-          ) : order.status === 'bosildi' ? (
-            <>
-              <CheckCircle className="h-4 w-4" />
-              <span>{t('order.markReady')}</span>
-            </>
-          ) : (
-            <>
-              <CheckCircle className="h-4 w-4" />
-              <span>{t('order.completed')}</span>
-            </>
-          )}
-        </button>
+        {order.status === 'yangi' ? (
+          <div className="flex flex-col items-end gap-2">
+            {rejecting && (
+              <div className="flex w-full min-w-[260px] flex-col gap-2">
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  maxLength={500}
+                  rows={2}
+                  placeholder={t('order.rejectReason')}
+                  aria-label={t('order.rejectReason')}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-slate-500"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setRejecting(false); setReason(''); }}
+                    className="rounded-xl border border-white/10 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-white/10"
+                  >
+                    {t('order.cancel')}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={actionLoading || !reason.trim()}
+                    onClick={submitReject}
+                    className="rounded-xl bg-rose-500 px-4 py-2 text-xs font-extrabold text-white hover:bg-rose-400 disabled:opacity-50"
+                  >
+                    {t('order.rejectConfirm')}
+                  </button>
+                </div>
+              </div>
+            )}
+            {!rejecting && (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRejecting(true)}
+                  className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-5 py-3 text-sm font-bold text-rose-300 transition hover:bg-rose-500/20"
+                >
+                  <XCircle className="h-4 w-4" />
+                  <span>{t('order.reject')}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={() => onStartPress(order)}
+                  className="flex items-center gap-2 rounded-xl bg-teal-400 px-6 py-3 text-sm font-extrabold text-slate-950 shadow-glow transition hover:bg-teal-300 active:scale-95 disabled:opacity-60"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  <span>{t('order.accept')}</span>
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            disabled={actionLoading}
+            onClick={() => onStartPress(order)}
+            className={cx(
+              'flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-extrabold text-slate-950 shadow-glow transition active:scale-95 disabled:opacity-60',
+              order.status === 'bosildi'
+                ? 'bg-amber-400 hover:bg-amber-300'
+                : order.status === 'tayyor'
+                  ? 'bg-emerald-400 hover:bg-emerald-300 text-slate-950'
+                  : 'bg-teal-400 hover:bg-teal-300'
+            )}
+          >
+            {order.status === 'qabul' ? (
+              <>
+                <Play className="h-4 w-4 fill-current" />
+                <span>{t('order.startPrint')}</span>
+              </>
+            ) : order.status === 'bosildi' ? (
+              <>
+                <CheckCircle className="h-4 w-4" />
+                <span>{t('order.markReady')}</span>
+              </>
+            ) : (
+              <>
+                <Truck className="h-4 w-4" />
+                <span>{t('order.handToCourier')}</span>
+              </>
+            )}
+          </button>
+        )}
       </div>
     </Card>
     </div>

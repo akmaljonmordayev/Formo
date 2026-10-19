@@ -13,6 +13,14 @@ const ACTIVE_STATUSES: OrderStatus[] = [
   OrderStatus.READY,
   OrderStatus.DELIVERING,
 ];
+const WORKSHOP_STAGES: OrderStatus[] = [
+  OrderStatus.SENT_TO_WORKSHOP,
+  OrderStatus.ACCEPTED,
+  OrderStatus.PRINTING,
+  OrderStatus.QUALITY_CHECK,
+  OrderStatus.READY,
+  OrderStatus.DELIVERING,
+];
 const REVENUE_STATUSES: OrderStatus[] = [
   OrderStatus.NEW,
   OrderStatus.SENT_TO_WORKSHOP,
@@ -48,10 +56,11 @@ export class OrdersService {
   ) {}
 
   async list(query: ListOrdersQueryDto) {
-    const { search, status, workshopId, page = 1, limit = 20 } = query;
+    const { search, status, paymentStatus, workshopId, page = 1, limit = 20 } = query;
     const where: Prisma.OrderWhereInput = {};
     if (status) where.status = status;
     if (workshopId) where.workshopId = workshopId;
+    if (paymentStatus) where.paymentStatus = paymentStatus;
     if (search) {
       const digits = search.replace(/\D/g, '');
       where.OR = [
@@ -61,7 +70,7 @@ export class OrdersService {
       ];
     }
 
-    const [[items, total], counts] = await Promise.all([
+    const [[items, total], counts, payments] = await Promise.all([
       this.prisma.$transaction([
         this.prisma.order.findMany({
           where,
@@ -73,10 +82,17 @@ export class OrdersService {
         this.prisma.order.count({ where }),
       ]),
       this.prisma.order.groupBy({ by: ['status'], _count: { _all: true } }),
+      // Bekor qilingan buyurtmalar tushum/kutilayotgan summaga kirmaydi
+      this.prisma.order.groupBy({
+        by: ['paymentStatus'],
+        where: { status: { not: OrderStatus.CANCELLED } },
+        _sum: { totalSum: true },
+      }),
     ]);
 
     const byStatus = Object.fromEntries(counts.map((c) => [c.status, c._count._all])) as Record<string, number>;
-    return { items, total, page, limit, byStatus };
+    const paymentTotals = Object.fromEntries(payments.map((p) => [p.paymentStatus, p._sum.totalSum ?? 0])) as Record<string, number>;
+    return { items, total, page, limit, byStatus, paymentTotals };
   }
 
   async get(id: number) {
@@ -126,6 +142,7 @@ export class OrdersService {
   async updateStatus(id: number, dto: UpdateOrderStatusDto, actor: AuditEntry['actor'], ip?: string) {
     const current = await this.prisma.order.findUnique({ where: { id } });
     if (!current) throw new NotFoundException('Buyurtma topilmadi');
+    this.assertTransition(current, dto);
 
     const order = await this.prisma.$transaction(async (tx) => {
       const updated = await tx.order.update({
@@ -148,6 +165,23 @@ export class OrdersService {
     });
 
     return order;
+  }
+
+  /** Yakuniy holatdan qaytib bo'lmaydi; DELIVERED faqat yetkazishdan keyin; sex bosqichlari sexsiz bo'lmaydi */
+  private assertTransition(current: { status: OrderStatus; workshopId: number | null }, dto: UpdateOrderStatusDto) {
+    if (dto.status === current.status) return;
+    if (current.status === OrderStatus.CANCELLED || current.status === OrderStatus.RETURNED) {
+      throw new ConflictException(`Buyurtma ${current.status} holatida — o'zgartirib bo'lmaydi`);
+    }
+    if (current.status === OrderStatus.DELIVERED && dto.status !== OrderStatus.RETURNED) {
+      throw new ConflictException("Yetkazilgan buyurtmani faqat qaytarilgan (RETURNED) deb belgilash mumkin");
+    }
+    if (dto.status === OrderStatus.DELIVERED && current.status !== OrderStatus.DELIVERING) {
+      throw new ConflictException('Yetkazildi deb faqat yetkazishdagi (DELIVERING) buyurtmani belgilash mumkin');
+    }
+    if (WORKSHOP_STAGES.includes(dto.status) && (dto.workshopId ?? current.workshopId) == null) {
+      throw new BadRequestException("Bu holat uchun tikuv sexi kerak — avval buyurtmani sexga yuboring (assign)");
+    }
   }
 
   /** Dashboard/hisobotlar uchun berilgan davr bo'yicha xom buyurtmalar — aggregatsiya shu ustida hisoblanadi */

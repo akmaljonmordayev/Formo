@@ -1,4 +1,5 @@
 export const STATUS_VARIANTS = {
+  yangi: 'amber',
   qabul: 'teal',
   bosildi: 'cyan',
   tayyor: 'amber',

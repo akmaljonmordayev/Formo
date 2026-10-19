@@ -7,12 +7,17 @@ import RegisterScreen from '../screens/Login/RegisterScreen';
 import CompleteProfileScreen from '../screens/Login/CompleteProfileScreen';
 import CartScreen from '../screens/CartScreen';
 import CatalogScreen from '../screens/CatalogScreen';
+import CheckoutScreen from '../screens/CheckoutScreen';
 import HomeScreen from '../screens/HomeScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import OrderDetailScreen from '../screens/OrderDetailScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import ProductScreen from '../screens/ProductScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import StudioScreen from '../screens/StudioScreen';
+import useAppConfig from '../features/config';
+import useCart from '../features/cart';
 import * as storage from '../utils/storage';
 
 const MEASUREMENT_KEYS = ['gender', 'age', 'height', 'weight'];
@@ -28,7 +33,12 @@ const MEASUREMENT_KEYS = ['gender', 'age', 'height', 'weight'];
 export default function AppNavigator({ store, t, auth }) {
   // ─── Main app routes ─────────────────────────────────────────────────────────
   const [route, setRoute] = useState('home');
-  const [selectedProduct, setSelectedProduct] = useState(null);
+  // Klub sahifasi: { clubId, kitId? }; studiyadagi forma; ochilgan buyurtma
+  const [selectedClub, setSelectedClub] = useState(null);
+  const [studioKit, setStudioKit] = useState(null);
+  const [orderId, setOrderId] = useState(null);
+  const [orderFrom, setOrderFrom] = useState('orders');
+  const [notifFrom, setNotifFrom] = useState('home');
 
   // ─── Auth sub-routes (login | register) ──────────────────────────────────────
   const [authRoute, setAuthRoute] = useState('login');
@@ -40,6 +50,12 @@ export default function AppNavigator({ store, t, auth }) {
   // Starts as `true` (hidden) until the stored skip-flag is read, so the survey
   // never flashes while loading.
   const userId = auth.user?.id;
+
+  // Server savati — barcha ekranlar uchun bitta (faqat kirgan foydalanuvchi)
+  const cart = useCart(auth.isAuthenticated);
+  // GET /api/app/config — buyurtma qoidalari va aloqa (Superadmin sozlamalari)
+  const config = useAppConfig();
+  const { refresh: refreshConfig } = config;
   const [profileSkip, setProfileSkip] = useState(true);
 
   useEffect(() => {
@@ -54,14 +70,28 @@ export default function AppNavigator({ store, t, auth }) {
     return () => { cancelled = true; };
   }, [userId]);
 
+  // Buyurtma beriladigan ekranlarga kirganda qoidalarni yangilaymiz
+  useEffect(() => {
+    if (['studio', 'cart', 'checkout'].includes(route)) refreshConfig();
+  }, [route, refreshConfig]);
+
   const navigate = (next) => setRoute(next);
   const openCart = (from) => {
     setCartFrom(from);
     setRoute('cart');
   };
-  const openProduct = (product) => {
-    setSelectedProduct(product);
+  const openClub = (club, kitId) => {
+    setSelectedClub({ clubId: club.id, kitId });
     setRoute('product');
+  };
+  const openOrder = (id, from = route) => {
+    setOrderId(id);
+    setOrderFrom(from === 'order' ? 'orders' : from);
+    setRoute('order');
+  };
+  const openNotifications = (from) => {
+    setNotifFrom(from);
+    setRoute('notifications');
   };
 
   // ─── 1. Full-screen loading while session is being restored ──────────────────
@@ -124,40 +154,53 @@ export default function AppNavigator({ store, t, auth }) {
       <HomeScreen
         t={t}
         onNavigate={navigate}
-        onProduct={openProduct}
+        onClub={openClub}
+        onOrder={(id) => openOrder(id, 'home')}
+        onNotifications={() => openNotifications('home')}
+        rules={config.rules}
         auth={auth}
-        cartCount={store.cart.length}
+        cartCount={cart.count}
         onCart={() => openCart('home')}
       />
     ) : route === 'catalog' ? (
       <CatalogScreen
         t={t}
-        favorites={store.favorites}
-        onToggleFavorite={store.toggleFavorite}
-        onProduct={openProduct}
-        cartCount={store.cart.length}
+        onClub={openClub}
+        cartCount={cart.count}
         onCart={() => openCart('catalog')}
       />
     ) : route === 'studio' ? (
       <StudioScreen
         t={t}
-        addToCart={store.addToCart}
-        cartCount={store.cart.length}
+        kit={studioKit}
+        cart={cart}
+        rules={config.rules}
         onOpenCart={() => openCart('studio')}
+        onPickKit={() => navigate('catalog')}
         onBack={() => navigate('home')}
       />
     ) : route === 'cart' ? (
       <CartScreen
         t={t}
-        cart={store.cart}
-        addToCart={store.addToCart}
-        removeFromCart={store.removeFromCart}
-        clearCart={store.clearCart}
+        cart={cart}
+        rules={config.rules}
         onBack={() => navigate(cartFrom)}
-        onNavigate={navigate}
+        onCheckout={() => navigate('checkout')}
+      />
+    ) : route === 'checkout' ? (
+      <CheckoutScreen
+        t={t}
+        cart={cart}
+        rules={config.rules}
+        onBack={() => navigate('cart')}
+        onPlaced={(order) => openOrder(order.id, 'orders')}
       />
     ) : route === 'orders' ? (
-      <OrdersScreen t={t} />
+      <OrdersScreen t={t} onOrder={(id) => openOrder(id, 'orders')} />
+    ) : route === 'order' ? (
+      <OrderDetailScreen t={t} orderId={orderId} rules={config.rules} onBack={() => navigate(orderFrom)} />
+    ) : route === 'notifications' ? (
+      <NotificationsScreen t={t} onBack={() => navigate(notifFrom)} />
     ) : route === 'profile' ? (
       <ProfileScreen
         t={t}
@@ -171,20 +214,27 @@ export default function AppNavigator({ store, t, auth }) {
         language={store.language}
         setLanguage={store.setLanguage}
         onBack={() => navigate('profile')}
+        onNotifications={() => openNotifications('settings')}
+        general={config.general}
         auth={auth}
       />
     ) : (
       <ProductScreen
         t={t}
-        product={selectedProduct}
+        clubId={selectedClub?.clubId}
+        kitId={selectedClub?.kitId}
+        rules={config.rules}
         onBack={() => navigate('catalog')}
-        onCustomize={() => navigate('studio')}
+        onCustomize={(product) => {
+          setStudioKit(product);
+          navigate('studio');
+        }}
       />
     );
 
   // Tab bar stays visible everywhere in the main app (including the design
   // studio — only full-screen detail/settings pages hide it).
-  const hideTabs = ['product', 'settings'].includes(route);
+  const hideTabs = ['product', 'settings', 'checkout', 'order', 'notifications'].includes(route);
 
   return (
     <>

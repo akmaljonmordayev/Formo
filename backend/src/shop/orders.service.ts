@@ -24,6 +24,7 @@ import { CartService, lineProblem, toCartItem } from './cart.service';
 import { dayLabel, DeliveryService, todayLocal } from './delivery.service';
 import { ChangePaymentMethodDto, CheckoutDto, MyOrdersQueryDto } from './dto/checkout.dto';
 import { summarize } from './pricing';
+import { RulesService } from './rules.service';
 
 /** Click/Payme: buyurtma to'lov uchun shuncha vaqt band turadi */
 export const PAYMENT_HOLD_MS = 30 * 60 * 1000;
@@ -119,6 +120,7 @@ export class ShopOrdersService {
     private readonly addresses: AddressesService,
     private readonly audit: AuditService,
     private readonly history: OrderHistoryService,
+    private readonly rules: RulesService,
   ) {}
 
   /** Muddati o'tgan to'lanmagan buyurtmalarni bekor qiladi (slot va promokod bo'shaydi) */
@@ -159,6 +161,7 @@ export class ShopOrdersService {
   }
 
   async checkout(user: AuthUser, dto: CheckoutDto) {
+    await this.rules.assertAccepting();
     await this.expireStale();
     const [customer, address] = await Promise.all([
       this.prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { fullName: true, phone: true } }),
@@ -178,6 +181,14 @@ export class ShopOrdersService {
 
         const items = lines.map(toCartItem);
         const subtotal = items.reduce((s, i) => s + i.totalPrice, 0);
+        await this.rules.assertCheckout(
+          {
+            subtotal,
+            totalQty: items.reduce((s, i) => s + i.quantity, 0),
+            cash: dto.paymentMethod === PaymentMethod.CASH,
+          },
+          tx,
+        );
         const promo = dto.promocode ? await this.cart.resolvePromo(dto.promocode, subtotal, tx) : null;
         const summary = summarize(subtotal, await this.delivery.fee(tx), promo);
         await this.delivery.assertAvailable(dto.deliveryDate, dto.deliverySlot, tx);
@@ -337,6 +348,7 @@ export class ShopOrdersService {
     if (order.status !== OrderStatus.PENDING_PAYMENT) throw new ConflictException("To'lov usulini endi o'zgartirib bo'lmaydi");
 
     const online = ONLINE.includes(dto.paymentMethod);
+    if (!online) await this.rules.assertCheckout({ subtotal: Number.MAX_SAFE_INTEGER, totalQty: 0, cash: true });
     await this.prisma.$transaction(async (tx) => {
       const { count } = await tx.order.updateMany({
         where: { id, status: OrderStatus.PENDING_PAYMENT },

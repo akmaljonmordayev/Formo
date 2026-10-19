@@ -1,29 +1,27 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
-import { clubs, products } from '../data/mockData';
 import { Header, Screen, SectionTitle } from '../components/ui/Common';
 import CartButton from '../components/ui/CartButton';
+import ErrorView from '../components/ui/ErrorView';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { ProductCard } from '../components/ui/ProductCard';
+import { useCategories, useClubs, useFavorites, usePopularProducts } from '../features/products';
 
-export default function CatalogScreen({ t, favorites, onToggleFavorite, onProduct, cartCount = 0, onCart }) {
+// Katalog: GET /api/catalog/categories (chiplar), /clubs?categoryId&search (klublar),
+// /clubs/popular + /clubs/:id (mashhur modellar), /favorites (sevimli klub).
+export default function CatalogScreen({ t, onClub, cartCount = 0, onCart }) {
   const [query, setQuery] = useState('');
-  const [category, setCategory] = useState('all');
-  const categories = [['all', t('all')], ['football', t('football')], ['street', t('street')], ['kids', t('kids')]];
-  const filtered = useMemo(
-    () => products.filter((item) => (category === 'all' || item.category === category) && item.name.toLowerCase().includes(query.toLowerCase())),
-    [category, query]
-  );
-  const visibleClubs = useMemo(
-    () => clubs.filter((club) => club.name.toLowerCase().includes(query.toLowerCase())),
-    [query]
-  );
-  const favoriteClub = clubs[0];
-  const openClub = (club) => {
-    const product = products.find((item) => item.id === club.product);
-    if (product) onProduct(product);
-  };
+  const [categoryId, setCategoryId] = useState(null);
+  const { categories } = useCategories();
+  const { clubs, isLoading: clubsLoading, error: clubsError, refetch: refetchClubs } = useClubs({ categoryId, search: query });
+  const { products } = usePopularProducts(4);
+  const { favorites, ids: favoriteIds, toggle: toggleFavorite } = useFavorites();
+
+  const favoriteClub = favorites[0] || null;
+  const chips = [{ id: null, name: t('all') }, ...categories];
+
   return (
     <Screen>
       <Header
@@ -37,64 +35,73 @@ export default function CatalogScreen({ t, favorites, onToggleFavorite, onProduc
         <TextInput
           value={query}
           onChangeText={setQuery}
-          placeholder={t('search')}
+          placeholder={t('searchClub')}
           placeholderTextColor={colors.muted}
           style={styles.input}
         />
       </View>
 
       <View style={styles.filters}>
-        {categories.map(([key, label]) => (
+        {chips.map((chip) => (
           <Pressable
-            key={key}
-            onPress={() => setCategory(key)}
-            style={[styles.filter, category === key && styles.activeFilter]}
+            key={chip.id ?? 'all'}
+            onPress={() => setCategoryId(chip.id)}
+            style={[styles.filter, categoryId === chip.id && styles.activeFilter]}
           >
-            <Text style={[styles.filterText, category === key && styles.activeText]}>{label}</Text>
+            <Text style={[styles.filterText, categoryId === chip.id && styles.activeText]}>{chip.name}</Text>
           </Pressable>
         ))}
       </View>
 
-      <Pressable style={styles.favClub} onPress={() => openClub(favoriteClub)}>
-        <View style={[styles.favCrest, { backgroundColor: favoriteClub.color, borderColor: favoriteClub.accent }]}>
-          <Text style={[styles.favCrestCode, { color: favoriteClub.accent }]}>{favoriteClub.code}</Text>
-        </View>
-        <View style={styles.favCopy}>
-          <Text style={styles.favOverline}>{t('favoriteClub')}</Text>
-          <Text style={styles.favName}>{favoriteClub.name}</Text>
-          <Text style={styles.favSub}>{favoriteClub.forms} forma · {favoriteClub.season}</Text>
-        </View>
-      </Pressable>
+      {favoriteClub ? (
+        <Pressable style={styles.favClub} onPress={() => onClub(favoriteClub)}>
+          <View style={[styles.favCrest, { backgroundColor: favoriteClub.color, borderColor: favoriteClub.accent }]}>
+            <Text style={[styles.favCrestCode, { color: favoriteClub.accent }]}>{favoriteClub.code}</Text>
+          </View>
+          <View style={styles.favCopy}>
+            <Text style={styles.favOverline}>{t('favoriteClub')}</Text>
+            <Text style={styles.favName}>{favoriteClub.name}</Text>
+            <Text style={styles.favSub}>{favoriteClub.forms} {t('kitsWord')} · {favoriteClub.season}</Text>
+          </View>
+        </Pressable>
+      ) : null}
 
       <Text style={styles.gridTitle}>{t('allClubs')}</Text>
-      <View style={styles.clubGrid}>
-        {visibleClubs.map((club) => (
-          <Pressable key={club.id} style={styles.clubCard} onPress={() => openClub(club)}>
-            <View style={[styles.clubCrest, { backgroundColor: club.color, borderColor: club.accent }]}>
-              <Text style={[styles.clubCrestCode, { color: club.accent }]}>{club.code}</Text>
-            </View>
-            <Text style={styles.clubName} numberOfLines={1}>{club.name}</Text>
-            <Text style={styles.clubSub} numberOfLines={1}>{club.league} · {club.forms} forma</Text>
-          </Pressable>
-        ))}
-      </View>
-      {visibleClubs.length === 0 ? <Text style={styles.emptyClubs}>{t('noResults')}</Text> : null}
-
-      <View style={styles.modelsBlock}>
-        <SectionTitle title={t('popularModels')} />
-        <View style={styles.grid}>
-          {filtered.map((item) => (
-            <ProductCard
-              key={item.id}
-              product={item}
-              favorite={favorites.includes(item.id)}
-              onFavorite={() => onToggleFavorite(item.id)}
-              onPress={() => onProduct(item)}
-            />
+      {clubsError ? (
+        <ErrorView message={t('loadError')} onRetry={refetchClubs} retryLabel={t('retry')} />
+      ) : clubsLoading && clubs.length === 0 ? (
+        <LoadingSpinner />
+      ) : (
+        <View style={styles.clubGrid}>
+          {clubs.map((club) => (
+            <Pressable key={club.id} style={styles.clubCard} onPress={() => onClub(club)}>
+              <View style={[styles.clubCrest, { backgroundColor: club.color, borderColor: club.accent }]}>
+                <Text style={[styles.clubCrestCode, { color: club.accent }]}>{club.code}</Text>
+              </View>
+              <Text style={styles.clubName} numberOfLines={1}>{club.name}</Text>
+              <Text style={styles.clubSub} numberOfLines={1}>{club.league} · {club.forms} {t('kitsWord')}</Text>
+            </Pressable>
           ))}
         </View>
-        {filtered.length === 0 ? <Text style={styles.emptyClubs}>{t('noResults')}</Text> : null}
-      </View>
+      )}
+      {!clubsLoading && !clubsError && clubs.length === 0 ? <Text style={styles.emptyClubs}>{t('noResults')}</Text> : null}
+
+      {products.length > 0 ? (
+        <View style={styles.modelsBlock}>
+          <SectionTitle title={t('popularModels')} />
+          <View style={styles.grid}>
+            {products.map((item) => (
+              <ProductCard
+                key={item.kitId}
+                product={item}
+                favorite={favoriteIds.includes(item.clubId)}
+                onFavorite={() => toggleFavorite(item.clubId)}
+                onPress={() => onClub({ id: item.clubId }, item.kitId)}
+              />
+            ))}
+          </View>
+        </View>
+      ) : null}
     </Screen>
   );
 }

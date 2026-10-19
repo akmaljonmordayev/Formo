@@ -1,22 +1,50 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, spacing } from '../constants/theme';
 import { Button, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
+import ErrorView from '../components/ui/ErrorView';
 import { JerseyPreview } from '../components/ui/JerseyPreview';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { visibleSizes } from '../features/config';
+import { useClub } from '../features/products';
 
-export default function ProductScreen({ product, t, onBack, onCustomize }) {
+// Klub sahifasi: GET /api/catalog/clubs/:id — formalar (Uy / Mehmon / Uchinchi) narxi bilan.
+export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCustomize }) {
   const [side, setSide] = useState('front');
-  const [variant, setVariant] = useState(0);
-  const variants = [
-    { label: t('kitHome'), color: product.color },
-    { label: t('kitAway'), color: '#242749' },
-    { label: t('kitThird'), color: '#F5A55E' },
-  ];
-  const previewProduct = { ...product, color: variants[variant].color };
+  const [selectedId, setSelectedId] = useState(kitId || null);
+  const { club, products, isLoading, error, refetch } = useClub(clubId);
+
+  // Boshqa klub ochilganda yoki tanlangan forma yo'q bo'lsa — birinchisi
+  useEffect(() => {
+    if (products.length && !products.some((p) => p.kitId === selectedId)) {
+      setSelectedId(products.find((p) => p.kitId === kitId)?.kitId ?? products[0].kitId);
+    }
+  }, [products, selectedId, kitId]);
+
+  const product = products.find((p) => p.kitId === selectedId) || products[0];
+
+  if (!product) {
+    return (
+      <Screen>
+        <Header title={club?.name || t('catalog')} onBack={onBack} />
+        {error ? (
+          <ErrorView message={t('loadError')} onRetry={refetch} retryLabel={t('retry')} />
+        ) : isLoading ? (
+          <LoadingSpinner />
+        ) : (
+          <Text style={styles.description}>{t('noKits')}</Text>
+        )}
+      </Screen>
+    );
+  }
+
+  const available = visibleSizes(product.sizes, rules).filter((s) => s.available).map((s) => s.size);
   const specs = [
-    [t('fabric'), '100%'],
-    [t('designTime'), '48 h'],
-    [t('sizes'), '7–XXL'],
+    [t('kitIncludes'), t('kitIncludesValue')],
+    [t('shirtPrice'), formatMoney(product.priceBreakdown.shirt)],
+    [t('shortsPrice'), formatMoney(product.priceBreakdown.shorts)],
+    [t('printPrice'), formatMoney(product.priceBreakdown.print)],
+    [t('sizes'), available.length ? `${available[0]}–${available[available.length - 1]}` : '—'],
   ];
   return (
     <Screen
@@ -31,7 +59,7 @@ export default function ProductScreen({ product, t, onBack, onCustomize }) {
         </View>
       }
     >
-      <Header title={product.name} subtitle={t('baseKit')} onBack={onBack} />
+      <Header title={club?.name || product.name} subtitle={club?.season || t('baseKit')} onBack={onBack} />
 
       <Segment
         style={styles.segment}
@@ -44,7 +72,7 @@ export default function ProductScreen({ product, t, onBack, onCustomize }) {
         <View style={styles.glow} />
         <Text style={styles.badge}>{product.badge}</Text>
         <JerseyPreview
-          product={previewProduct}
+          product={product}
           number="10"
           large
           side={side}
@@ -53,21 +81,21 @@ export default function ProductScreen({ product, t, onBack, onCustomize }) {
       </View>
 
       <View style={styles.previewRow}>
-        {variants.map((item, index) => (
+        {products.map((item) => (
           <Pressable
-            key={item.label}
-            onPress={() => setVariant(index)}
-            style={[styles.thumb, variant === index && styles.thumbActive]}
+            key={item.kitId}
+            onPress={() => setSelectedId(item.kitId)}
+            style={[styles.thumb, product.kitId === item.kitId && styles.thumbActive]}
           >
             <View style={styles.thumbJersey}>
-              <JerseyPreview product={{ ...product, color: item.color }} number="10" tiny />
+              <JerseyPreview product={item} number="10" tiny />
             </View>
-            <Text style={[styles.thumbLabel, variant === index && styles.thumbLabelActive]}>{item.label}</Text>
+            <Text style={[styles.thumbLabel, product.kitId === item.kitId && styles.thumbLabelActive]}>{item.label}</Text>
           </Pressable>
         ))}
       </View>
 
-      <Text style={styles.description}>{t('description')}</Text>
+      <Text style={styles.description}>{product.description || t('description')}</Text>
 
       <View style={styles.specs}>
         {specs.map(([label, value]) => (

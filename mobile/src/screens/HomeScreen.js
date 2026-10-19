@@ -1,33 +1,25 @@
 import React from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
-import { clubs } from '../data/mockData';
 import { Button, Header, Screen, SectionTitle } from '../components/ui/Common';
 import CartButton from '../components/ui/CartButton';
 import { JerseyPreview } from '../components/ui/JerseyPreview';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
-import useOrders from '../features/orders';
-import useProducts from '../features/products';
+import { statusText, useActiveOrder } from '../features/orders';
+import { usePopularClubs } from '../features/products';
 
-export default function HomeScreen({ t, onNavigate, onProduct, auth, cartCount = 0, onCart }) {
-  const { orders, isLoading: ordersLoading } = useOrders();
-  const { products: apiProducts, isLoading: productsLoading } = useProducts();
-
-  // Most recent real order from the API (empty until the orders endpoint is live)
-  const order = orders[0] || null;
-  const orderStatus = order?.status === 'delivered' ? t('delivered') : t('production');
+export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotifications, rules, auth, cartCount = 0, onCart }) {
+  // GET /api/orders/active — oxirgi yakunlanmagan buyurtma (20 s da yangilanadi)
+  const { order, isLoading: orderLoading } = useActiveOrder();
+  // GET /api/catalog/clubs/popular
+  const { clubs, isLoading: clubsLoading, error: clubsError } = usePopularClubs(8);
 
   // Greeting uses the authenticated user's real name
   const name = auth?.user?.fullName || t('hello');
   const avatarInitial = (auth?.user?.fullName || 'F')[0].toUpperCase();
 
-  // Products with fallback
-  const heroProduct = (apiProducts && apiProducts.length > 0) ? apiProducts[0] : null;
-
-  const openClub = (club) => {
-    const product = apiProducts.find((item) => item.id === club.product);
-    if (product) onProduct(product);
-  };
+  const heroClub = clubs[0] || null;
 
   return (
     <Screen>
@@ -36,6 +28,9 @@ export default function HomeScreen({ t, onNavigate, onProduct, auth, cartCount =
         title={name}
         right={
           <View style={styles.headerRight}>
+            <Pressable onPress={onNotifications} style={styles.bell} hitSlop={6} accessibilityLabel={t('notifications')}>
+              <MaterialCommunityIcons name="bell-outline" size={20} color={colors.text} />
+            </Pressable>
             <CartButton count={cartCount} onPress={onCart} t={t} />
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{avatarInitial}</Text>
@@ -44,6 +39,12 @@ export default function HomeScreen({ t, onNavigate, onProduct, auth, cartCount =
         }
       />
 
+      {rules && !rules.acceptOrders ? (
+        <View style={styles.paused}>
+          <Text style={styles.pausedText}>{rules.pausedMessage || t('ordersPaused')}</Text>
+        </View>
+      ) : null}
+
       <View style={styles.hero}>
         <View style={styles.heroCopy}>
           <Text style={styles.heroTitle}>{t('heroTitle')}</Text>
@@ -51,20 +52,18 @@ export default function HomeScreen({ t, onNavigate, onProduct, auth, cartCount =
           <Button small onPress={() => onNavigate('studio')} style={styles.heroButton}>{t('startShort')}</Button>
         </View>
         <View style={styles.heroJersey}>
-          {heroProduct ? (
-            <JerseyPreview product={heroProduct} number="10" />
-          ) : null}
+          {heroClub ? <JerseyPreview product={heroClub} number="10" /> : null}
         </View>
       </View>
 
-      <Pressable style={styles.track} onPress={() => onNavigate('orders')}>
+      <Pressable style={styles.track} onPress={() => (order ? onOrder(order.id) : onNavigate('orders'))}>
         <View style={styles.trackCopy}>
-          {ordersLoading ? (
+          {orderLoading ? (
             <LoadingSpinner size="small" />
           ) : order ? (
             <>
-              <Text style={styles.trackId}>{order.id}</Text>
-              <Text style={styles.trackStatus}>{orderStatus}</Text>
+              <Text style={styles.trackId}>{order.code}</Text>
+              <Text style={styles.trackStatus}>{statusText(t, order.status, order.statusLabel)}</Text>
             </>
           ) : (
             <Text style={styles.trackStatus}>{t('noOrders')}</Text>
@@ -84,8 +83,9 @@ export default function HomeScreen({ t, onNavigate, onProduct, auth, cartCount =
         showsHorizontalScrollIndicator={false}
         contentContainerStyle={styles.clubRow}
       >
-        {clubs.slice(0, 6).map((club) => (
-          <Pressable key={club.id} style={styles.clubTile} onPress={() => openClub(club)}>
+        {clubsLoading && clubs.length === 0 ? <LoadingSpinner size="small" /> : null}
+        {clubs.map((club) => (
+          <Pressable key={club.id} style={styles.clubTile} onPress={() => onClub(club)}>
             <View style={[styles.crest, { backgroundColor: club.color, borderColor: club.accent }]}>
               <Text style={[styles.crestCode, { color: club.accent }]}>{club.code}</Text>
             </View>
@@ -93,6 +93,7 @@ export default function HomeScreen({ t, onNavigate, onProduct, auth, cartCount =
           </Pressable>
         ))}
       </ScrollView>
+      {clubsError ? <Text style={styles.clubsError}>{t('loadError')}</Text> : null}
 
       <View style={styles.stepsBlock}>
         <SectionTitle title={t('howItWorks')} />
@@ -109,6 +110,25 @@ export default function HomeScreen({ t, onNavigate, onProduct, auth, cartCount =
 
 const styles = StyleSheet.create({
   headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  bell: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.md,
+    backgroundColor: '#141A3E',
+    borderWidth: 1,
+    borderColor: '#232A57',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paused: {
+    backgroundColor: 'rgba(232, 84, 63, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(232, 84, 63, 0.35)',
+    borderRadius: radii.md,
+    padding: spacing.md,
+    marginBottom: 14,
+  },
+  pausedText: { color: '#F2A49A', fontSize: 12, lineHeight: 18 },
   avatar: {
     width: 40,
     height: 40,
@@ -173,6 +193,7 @@ const styles = StyleSheet.create({
   },
   crestCode: { fontSize: 14, fontWeight: '900' },
   clubName: { color: '#B9C0E0', fontSize: 10, marginTop: 6, textAlign: 'center', width: 74 },
+  clubsError: { color: colors.muted, fontSize: 11, marginTop: spacing.xs },
   stepsBlock: { marginTop: spacing.xl },
   step: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 7 },
   stepNum: {

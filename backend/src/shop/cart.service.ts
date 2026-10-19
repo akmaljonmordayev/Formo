@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { visibleClub } from './catalog.service';
 import { DeliveryService } from './delivery.service';
 import { AddCartItemDto, MAX_ITEM_QTY, UpdateCartItemDto } from './dto/cart.dto';
+import { RulesService } from './rules.service';
 import { promoError, summarize, unitPrice } from './pricing';
 
 export const MAX_CART_LINES = 20;
@@ -81,6 +82,7 @@ export class CartService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly delivery: DeliveryService,
+    private readonly rules: RulesService,
   ) {}
 
   lines(userId: number, db: Db = this.prisma) {
@@ -137,17 +139,20 @@ export class CartService {
       shortsSize: dto.shortsSize ?? null,
     });
     const quantity = dto.quantity ?? 1;
+    await this.rules.assertAccepting();
+    await this.rules.assertLine({ ...config, quantity });
 
     // Aynan shu sozlamadagi forma savatda bo'lsa — yangi qator emas, soni oshiriladi
     const same = await this.prisma.cartItem.findFirst({ where: { userId, kitId: kit.id, ...config } });
     if (same) {
       await this.prisma.cartItem.update({
         where: { id: same.id },
-        data: { quantity: Math.min(same.quantity + quantity, MAX_ITEM_QTY) },
+        data: { quantity: Math.min(same.quantity + quantity, MAX_ITEM_QTY, (await this.rules.rules()).maxQtyPerItem) },
       });
     } else {
       const count = await this.prisma.cartItem.count({ where: { userId } });
       if (count >= MAX_CART_LINES) throw new BadRequestException(`Savatda ${MAX_CART_LINES} tadan ortiq mahsulot bo'lmaydi`);
+      await this.rules.assertLineCount(count);
       await this.prisma.cartItem.create({ data: { userId, kitId: kit.id, ...config, quantity } });
     }
     return this.view(userId);
@@ -166,6 +171,7 @@ export class CartService {
       // Shortik qayta qo'shilsa va o'lchami berilmasa — futbolka o'lchami olinadi
       shortsSize: dto.shortsSize ?? line.shortsSize,
     });
+    await this.rules.assertLine({ ...config, quantity: dto.quantity });
     await this.prisma.cartItem.update({
       where: { id },
       data: { ...config, ...(dto.quantity !== undefined && { quantity: dto.quantity }) },

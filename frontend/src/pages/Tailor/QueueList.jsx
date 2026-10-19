@@ -26,6 +26,7 @@ export default function QueueList({
 
   const tabs = [
     { key: 'barchasi', label: t('queue.tab.all') },
+    { key: 'yangi', label: t('queue.tab.yangi') },
     { key: 'qabul', label: t('queue.tab.qabul') },
     { key: 'bosildi', label: t('queue.tab.bosildi') },
     { key: 'tayyor', label: t('queue.tab.tayyor') },
