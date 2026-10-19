@@ -1,10 +1,13 @@
 import { useCallback, useEffect, useState } from 'react';
-import Modal, { ConfirmModal } from '../../../components/ui/Modal';
+import Modal from '../../../components/ui/Modal';
+import { ConfirmModal } from '../ui';
 import PhoneInput, { phoneDigits } from '../../../components/ui/PhoneInput';
 import { formatDate, operatorApi, prettyPhone } from '../../../features/accounts/accountsApi';
+import { useT } from '../i18n';
 
 // Operator — yagona akkaunt: yo'q bo'lsa yaratish, bor bo'lsa tahrirlash/bloklash/o'chirish
 export default function SuperadminOperator() {
+  const t = useT();
   const [operator, setOperator] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -56,12 +59,12 @@ export default function SuperadminOperator() {
     <>
       <div className="page-head">
         <div>
-          <h2>Operator</h2>
-          <p>Tizimda faqat bitta operator akkaunti bo‘ladi</p>
+          <h2>{t("Operator")}</h2>
+          <p>{t("Tizimda faqat bitta operator akkaunti bo‘ladi")}</p>
         </div>
         {!loading && !operator && (
           <button type="button" className="btn btn--accent" onClick={() => setModal('form')}>
-            + Operator yaratish
+            {t("+ Operator yaratish")}
           </button>
         )}
       </div>
@@ -69,7 +72,7 @@ export default function SuperadminOperator() {
       {error && <div className="form-error">{error}</div>}
 
       {loading ? (
-        <p className="muted">Yuklanmoqda...</p>
+        <p className="muted">{t("Yuklanmoqda...")}</p>
       ) : operator ? (
         <div className="card operator-card">
           <div className="operator-card__avatar">{operator.fullName.slice(0, 1).toUpperCase()}</div>
@@ -78,26 +81,26 @@ export default function SuperadminOperator() {
             <div className="mono">{prettyPhone(operator.phone)}</div>
             <div className="operator-card__meta">
               <span className={`badge ${operator.isActive ? 'badge--on' : 'badge--off'}`}>
-                {operator.isActive ? 'Faol' : 'Bloklangan'}
+                {operator.isActive ? t('Faol') : t('Bloklangan')}
               </span>
-              <span className="muted">Yaratilgan: {formatDate(operator.createdAt)}</span>
+              <span className="muted">{t('Yaratilgan')}: {formatDate(operator.createdAt)}</span>
             </div>
           </div>
           <div className="operator-card__actions">
             <button type="button" className="btn btn--ghost btn--sm" onClick={() => setModal('form')}>
-              Tahrirlash
+              {t("Tahrirlash")}
             </button>
             <button type="button" className="btn btn--ghost btn--sm" onClick={toggleActive} disabled={busy}>
-              {operator.isActive ? 'Bloklash' : 'Faollashtirish'}
+              {operator.isActive ? t('Bloklash') : t('Faollashtirish')}
             </button>
             <button type="button" className="btn btn--danger btn--sm" onClick={() => setModal('delete')}>
-              O‘chirish
+              {t("O‘chirish")}
             </button>
           </div>
         </div>
       ) : (
         <div className="card empty-state">
-          <p className="muted">Operator akkaunti hali yaratilmagan.</p>
+          <p className="muted">{t("Operator akkaunti hali yaratilmagan.")}</p>
         </div>
       )}
 
@@ -113,8 +116,8 @@ export default function SuperadminOperator() {
       )}
       {modal === 'delete' && (
         <ConfirmModal
-          title="Operatorni o‘chirish"
-          text={`${operator.fullName} akkaunti o‘chiriladi va u barcha qurilmalardan chiqarib yuboriladi.`}
+          title={t("Operatorni o‘chirish")}
+          text={t("{name} akkaunti o'chiriladi va u barcha qurilmalardan chiqarib yuboriladi.", { name: operator.fullName })}
           busy={busy}
           onConfirm={remove}
           onClose={() => setModal(null)}
@@ -125,6 +128,7 @@ export default function SuperadminOperator() {
 }
 
 function OperatorForm({ operator, onClose, onSaved }) {
+  const t = useT();
   const isEdit = !!operator;
   const [form, setForm] = useState({
     fullName: operator?.fullName ?? '',
@@ -137,7 +141,7 @@ function OperatorForm({ operator, onClose, onSaved }) {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (form.phone.length !== 9) return setError("Telefon raqamni to'liq kiriting");
+    if (form.phone.length !== 9) return setError(t("Telefon raqamni to'liq kiriting"));
     setSaving(true);
     setError('');
     try {
@@ -151,11 +155,11 @@ function OperatorForm({ operator, onClose, onSaved }) {
   };
 
   return (
-    <Modal title={isEdit ? 'Operatorni tahrirlash' : 'Operator yaratish'} onClose={onClose}>
+    <Modal title={isEdit ? t('Operatorni tahrirlash') : t('Operator yaratish')} onClose={onClose}>
       <form onSubmit={submit}>
         {error && <div className="form-error">{error}</div>}
         <label className="field">
-          <span>F.I.Sh.</span>
+          <span>{t("F.I.Sh.")}</span>
           <input
             value={form.fullName}
             onChange={(e) => set('fullName')(e.target.value)}
@@ -165,11 +169,11 @@ function OperatorForm({ operator, onClose, onSaved }) {
           />
         </label>
         <label className="field">
-          <span>Telefon raqam (login)</span>
+          <span>{t("Telefon raqam (login)")}</span>
           <PhoneInput value={form.phone} onChange={set('phone')} required />
         </label>
         <label className="field">
-          <span>{isEdit ? 'Yangi parol' : 'Parol'}</span>
+          <span>{isEdit ? t('Yangi parol') : t('Parol')}</span>
           <input
             type="text"
             value={form.password}
@@ -180,15 +184,15 @@ function OperatorForm({ operator, onClose, onSaved }) {
             autoComplete="new-password"
           />
           <small>
-            {isEdit ? "Bo'sh qoldirilsa o'zgarmaydi. O'zgarsa operator barcha qurilmalardan chiqariladi." : 'Kamida 6 belgi'}
+            {isEdit ? t("Bo'sh qoldirilsa o'zgarmaydi. O'zgarsa operator barcha qurilmalardan chiqariladi.") : t('Kamida 6 belgi')}
           </small>
         </label>
         <div className="modal__foot" style={{ padding: '8px 0 0' }}>
           <button type="button" className="btn btn--ghost" onClick={onClose}>
-            Bekor qilish
+            {t("Bekor qilish")}
           </button>
           <button type="submit" className="btn btn--accent" disabled={saving}>
-            {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+            {saving ? t("Saqlanmoqda...") : t("Saqlash")}
           </button>
         </div>
       </form>

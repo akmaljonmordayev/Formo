@@ -1,6 +1,10 @@
-import { useEffect, useState } from 'react';
-import { categoriesApi, clubsApi, money } from '../../../features/platform/platformApi';
-import Modal, { ConfirmModal } from '../../../components/ui/Modal';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { categoriesApi, clubsApi } from '../../../features/platform/platformApi';
+import Modal from '../../../components/ui/Modal';
+import { ConfirmModal } from '../ui';
+import { FALLBACK_PRICES, kitSetPrice, loadKitPrices } from '../adminApi';
+import { useMoney, useT } from '../i18n';
+import ClubCard from './ClubCard';
 
 const ADULT_SIZES = ['S', 'M', 'L', 'XL', 'XXL', '3XL'];
 const KID_SIZES = ['2-3', '4-5', '6-7', '8-9', '10-11', '12-13'];
@@ -13,14 +17,43 @@ const CONTINENTS = [
   { value: 'OCEANIA', label: 'Okeaniya' },
 ];
 const continentLabel = (v) => CONTINENTS.find((c) => c.value === v)?.label ?? v;
-// Terma jamoalar kategoriyasi qit'a nomidan avtomatik yaratiladi — klub ligalari ro'yxatida ko'rsatilmaydi
+// Terma jamoalar kategoriyasi qit'a nomidan avtomatik yaratiladi — klub ligalari ro'yxatida ko'rsatilmaydi.
+// Nom backendga doim o'zbekcha (lotin) yuboriladi — tarjima faqat ko'rinishda.
 const nationalLeague = (continent) => `${continentLabel(continent)} terma jamoalari`;
 const NATIONAL_LEAGUES = new Set(CONTINENTS.map((c) => nationalLeague(c.value)));
 
+const clubType = (c) => c.type ?? (NATIONAL_LEAGUES.has(c.league) || c.continent ? 'NATIONAL' : 'CLUB');
+const PAGE = 100; // backend limit maksimumi
+
+/**
+ * Barcha sahifalarni yig'ib oladi (avval faqat birinchi 50 tasi ko'rinardi).
+ * Eski backend `type`/`continent` filtrini tanimasa (400) — filtrsiz so'rab, brauzerda ajratiladi.
+ */
+async function fetchClubs(params) {
+  const all = async (p) => {
+    const out = [];
+    for (let page = 1; page <= 20; page += 1) {
+      const d = await clubsApi.list({ ...p, page, limit: PAGE });
+      out.push(...(d.items ?? []));
+      if (out.length >= (d.total ?? 0) || (d.items ?? []).length < PAGE) break;
+    }
+    return out;
+  };
+  try {
+    return await all(params);
+  } catch (e) {
+    if (e.status !== 400) throw e;
+    return all({ categoryId: params.categoryId });
+  }
+}
+
 export default function SuperadminClubs() {
+  const t = useT();
+  const money = useMoney();
   const [section, setSection] = useState('CLUB'); // 'CLUB' | 'NATIONAL'
   const [categoryId, setCategoryId] = useState('');
   const [continentFilter, setContinentFilter] = useState('');
+  const [search, setSearch] = useState('');
   const [categories, setCategories] = useState([]);
   const [clubs, setClubs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -29,24 +62,35 @@ export default function SuperadminClubs() {
   const [deleting, setDeleting] = useState(null);
   const [busy, setBusy] = useState(false);
   const [busyKit, setBusyKit] = useState(null);
+  const [basePrices, setBasePrices] = useState({
+    shirtPrice: FALLBACK_PRICES.shirt,
+    shortsPrice: FALLBACK_PRICES.shorts,
+    printPrice: FALLBACK_PRICES.print,
+  });
+  const reqId = useRef(0);
 
-  const load = () =>
-    clubsApi
-      .list({
-        type: section,
-        categoryId: section === 'CLUB' ? categoryId || undefined : undefined,
-        continent: section === 'NATIONAL' ? continentFilter || undefined : undefined,
-      })
-      .then((d) => setClubs(d.items));
+  const load = async () => {
+    const id = ++reqId.current;
+    const items = await fetchClubs({
+      type: section,
+      categoryId: section === 'CLUB' ? categoryId || undefined : undefined,
+      continent: section === 'NATIONAL' ? continentFilter || undefined : undefined,
+    });
+    // Eski javob yangisini bosib ketmasin (tez-tez tab almashtirilganda boshqa jamoalar formasi chiqib qolardi)
+    if (id !== reqId.current) return;
+    setClubs(items);
+  };
   const loadCategories = () => categoriesApi.list().then(setCategories);
 
   useEffect(() => {
     loadCategories().catch((e) => setError(e.message));
+    loadKitPrices().then(setBasePrices);
   }, []);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setError('');
     load()
       .catch((e) => active && setError(e.message))
       .finally(() => active && setLoading(false));
@@ -88,7 +132,19 @@ export default function SuperadminClubs() {
   };
 
   const clubCategories = categories.filter((c) => !NATIONAL_LEAGUES.has(c.name));
-  const totalClubs = clubCategories.reduce((s, c) => s + c.clubsCount, 0);
+  const totalClubs = clubCategories.reduce((s, c) => s + (c.clubsCount ?? 0), 0);
+
+  // Faqat tanlangan bo'limga tegishlilari: klub ligasida terma jamoa, terma jamoada klub ko'rinmaydi
+  const visible = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return clubs.filter((c) => {
+      if (clubType(c) !== section) return false;
+      if (section === 'CLUB' && categoryId && c.categoryId !== categoryId) return false;
+      if (section === 'NATIONAL' && continentFilter && c.continent !== continentFilter) return false;
+      if (q && !`${c.name} ${c.code} ${c.league ?? ''}`.toLowerCase().includes(q)) return false;
+      return true;
+    });
+  }, [clubs, section, categoryId, continentFilter, search]);
 
   const selectSection = (s) => {
     setSection(s);
@@ -96,36 +152,44 @@ export default function SuperadminClubs() {
     setContinentFilter('');
   };
 
+  const subtitle = (c) =>
+    t('{group} · {season} mavsumi · {n} ta sotildi', {
+      group: clubType(c) === 'NATIONAL' ? t(continentLabel(c.continent)) : (c.category?.name ?? c.league),
+      season: c.season,
+      n: c.sold ?? 0,
+    });
+
   return (
     <>
       <div className="sa-head">
         <div>
-          <h1>Klublar va formalar</h1>
+          <h1>{t('Klublar va formalar')}</h1>
           <p>
-            Ilovadagi «Klub formalari» katalogi: liga klublari va davlat terma jamoalari. Har birida uy, mehmon va
-            uchinchi forma. O'chirilgan forma ilovada ko'rinmaydi.
+            {t(
+              "Ilovadagi «Klub formalari» katalogi: liga klublari va davlat terma jamoalari. Har birida uy, mehmon va uchinchi forma. O'chirilgan forma ilovada ko'rinmaydi.",
+            )}
           </p>
         </div>
         <button type="button" className="sa-btn" onClick={() => setEditing('new')}>
-          {section === 'CLUB' ? "+ Klub qo'shish" : "+ Terma jamoa qo'shish"}
+          {section === 'CLUB' ? t("+ Klub qo'shish") : t("+ Terma jamoa qo'shish")}
         </button>
       </div>
 
       <div className="sa-tabs">
         <button type="button" className={`sa-tab${section === 'CLUB' ? ' is-active' : ''}`} onClick={() => selectSection('CLUB')}>
-          Klub ligalari
+          {t('Klub ligalari')}
         </button>
         <button type="button" className={`sa-tab${section === 'NATIONAL' ? ' is-active' : ''}`} onClick={() => selectSection('NATIONAL')}>
-          Milliy terma jamoalar
+          {t('Milliy terma jamoalar')}
         </button>
       </div>
 
-      <div className="sa-tabs" style={{ justifyContent: 'space-between' }}>
+      <div className="sa-tabs" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
           {section === 'CLUB' ? (
             <>
               <button type="button" className={`sa-tab${!categoryId ? ' is-active' : ''}`} onClick={() => setCategoryId('')}>
-                Barchasi · {categoryId ? totalClubs : clubs.length}
+                {t('Barchasi')} · {categoryId ? totalClubs : visible.length}
               </button>
               {clubCategories.map((cat) => (
                 <button
@@ -134,14 +198,14 @@ export default function SuperadminClubs() {
                   className={`sa-tab${categoryId === cat.id ? ' is-active' : ''}`}
                   onClick={() => setCategoryId(cat.id)}
                 >
-                  {cat.name} · {cat.clubsCount}
+                  {cat.name} · {cat.clubsCount ?? 0}
                 </button>
               ))}
             </>
           ) : (
             <>
               <button type="button" className={`sa-tab${!continentFilter ? ' is-active' : ''}`} onClick={() => setContinentFilter('')}>
-                Barchasi
+                {t('Barchasi')}
               </button>
               {CONTINENTS.map((c) => (
                 <button
@@ -150,90 +214,58 @@ export default function SuperadminClubs() {
                   className={`sa-tab${continentFilter === c.value ? ' is-active' : ''}`}
                   onClick={() => setContinentFilter(c.value)}
                 >
-                  {c.label}
+                  {t(c.label)}
                 </button>
               ))}
             </>
           )}
         </div>
+        <input
+          className="sa-input"
+          type="search"
+          style={{ width: 220 }}
+          placeholder={t('Nomi yoki nishon bo‘yicha')}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      <div className="sa-table__sub" style={{ margin: '-4px 0 14px' }}>
+        {t('Standart to‘plam narxi (Narxlar bo‘limidan): {sum}', {
+          sum: money(kitSetPrice(basePrices)),
+        })}
       </div>
 
       {error && <div className="form-error">{error}</div>}
 
       {loading ? (
-        <div className="sa-table__sub" style={{ padding: 20 }}>Yuklanmoqda...</div>
-      ) : clubs.length === 0 ? (
+        <div className="sa-table__sub" style={{ padding: 20 }}>{t('Yuklanmoqda...')}</div>
+      ) : visible.length === 0 ? (
         <div className="sa-panel">
           <div className="sa-table__sub">
-            {section === 'NATIONAL'
-              ? continentFilter
-                ? "Bu qit'ada terma jamoa yo'q."
-                : "Hali terma jamoa qo'shilmagan. \"+ Terma jamoa qo'shish\" tugmasi bilan birinchisini yarating."
-              : categoryId
-                ? "Bu kategoriyada klub yo'q."
-                : "Hali klub qo'shilmagan. \"+ Klub qo'shish\" tugmasi bilan birinchi klubni yarating."}
+            {search
+              ? t('Qidiruv bo‘yicha hech narsa topilmadi.')
+              : section === 'NATIONAL'
+                ? continentFilter
+                  ? t("Bu qit'ada terma jamoa yo'q.")
+                  : t("Hali terma jamoa qo'shilmagan. «+ Terma jamoa qo'shish» tugmasi bilan birinchisini yarating.")
+                : categoryId
+                  ? t("Bu kategoriyada klub yo'q.")
+                  : t("Hali klub qo'shilmagan. «+ Klub qo'shish» tugmasi bilan birinchi klubni yarating.")}
           </div>
         </div>
       ) : (
         <div className="sa-grid-2">
-          {clubs.map((c) => (
-            <div key={c.id} className="sa-panel" style={c.isActive ? undefined : { opacity: 0.6 }}>
-              <div className="sa-panel__head">
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <span
-                    style={{
-                      display: 'grid', placeItems: 'center', width: 36, height: 36, borderRadius: 10,
-                      background: c.markColor, color: '#fff', fontWeight: 800, fontSize: 12, fontFamily: 'var(--font-display)',
-                    }}
-                  >
-                    {c.code}
-                  </span>
-                  <div>
-                    <div className="sa-panel__title" style={{ fontSize: 14.5 }}>
-                      {c.name}
-                      {!c.isActive && <span className="sa-badge sa-badge--red" style={{ marginLeft: 8 }}>Yashirilgan</span>}
-                    </div>
-                    <div className="sa-table__sub">
-                      {c.type === 'NATIONAL' ? continentLabel(c.continent) : (c.category?.name ?? c.league)} · {c.season} mavsumi ·{' '}
-                      {c.sold} ta sotildi
-                    </div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <button type="button" className="sa-btn sa-btn--ghost" onClick={() => setEditing(c)}>Tahrirlash</button>
-                  <button type="button" className="sa-btn sa-btn--ghost" onClick={() => setDeleting(c)} aria-label={`${c.name} ni o'chirish`}>
-                    O'chirish
-                  </button>
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: `repeat(${c.kits.length || 1}, 1fr)`, gap: 10 }}>
-                {c.kits.map((k) => (
-                  <div key={k.id} style={{ textAlign: 'center', opacity: k.isActive ? 1 : 0.45 }}>
-                    <div
-                      style={{
-                        height: 56, borderRadius: 10, display: 'grid', placeItems: 'center', marginBottom: 6,
-                        background: k.bgColor, color: k.textColor, fontFamily: 'var(--font-display)', fontWeight: 800, fontSize: 18,
-                        border: '1px solid var(--sa-line)',
-                      }}
-                    >
-                      {c.code}
-                    </div>
-                    <div style={{ fontSize: 12, color: 'var(--sa-mu)' }}>{k.label}</div>
-                    <div style={{ fontSize: 11.5, color: 'var(--sa-mu)' }}>{money(k.shirtPrice)}</div>
-                    <button
-                      type="button"
-                      className={`sa-badge sa-badge--${k.isActive ? 'green' : 'red'}`}
-                      style={{ border: 'none', cursor: 'pointer', marginTop: 4 }}
-                      disabled={busyKit === k.id}
-                      onClick={() => toggleKit(k)}
-                      title="Sotuvga chiqarish / olib qo'yish"
-                    >
-                      {k.isActive ? 'Sotuvda' : "Sotuvda yo'q"}
-                    </button>
-                  </div>
-                ))}
-              </div>
-            </div>
+          {visible.map((c) => (
+            <ClubCard
+              key={c.id}
+              club={c}
+              subtitle={subtitle(c)}
+              busyKit={busyKit}
+              onToggleKit={toggleKit}
+              onEdit={() => setEditing(c)}
+              onDelete={() => setDeleting(c)}
+            />
           ))}
         </div>
       )}
@@ -243,6 +275,9 @@ export default function SuperadminClubs() {
           club={editing === 'new' ? null : editing}
           categories={clubCategories}
           initialType={section}
+          initialCategoryId={section === 'CLUB' ? categoryId : ''}
+          initialContinent={section === 'NATIONAL' ? continentFilter : ''}
+          basePrices={basePrices}
           onClose={() => setEditing(null)}
           onSaved={() => {
             setEditing(null);
@@ -253,8 +288,11 @@ export default function SuperadminClubs() {
 
       {deleting && (
         <ConfirmModal
-          title="Klubni o'chirish"
-          text={`${deleting.name} (${deleting.season}) va uning barcha formalari o'chiriladi. Buyurtmalar tarixi saqlanib qoladi.`}
+          title={t("Klubni o'chirish")}
+          text={t("{name} ({season}) va uning barcha formalari o'chiriladi. Buyurtmalar tarixi saqlanib qoladi.", {
+            name: deleting.name,
+            season: deleting.season,
+          })}
           busy={busy}
           onConfirm={remove}
           onClose={() => setDeleting(null)}
@@ -264,21 +302,29 @@ export default function SuperadminClubs() {
   );
 }
 
+// Backendga ketadigan forma nomlari o'zbekcha qoladi (ilova shu nomni ko'rsatadi)
 const KIT_LABELS = ['Uy', 'Mehmon', 'Uchinchi'];
+const KIT_COLORS = {
+  Uy: { bgColor: '#ffffff', textColor: '#0e1a3f' },
+  Mehmon: { bgColor: '#0e1a3f', textColor: '#ffffff' },
+  Uchinchi: { bgColor: '#19a7a1', textColor: '#0e1a3f' },
+};
 const NEW_CATEGORY = 'new';
 
-const emptyKit = (label) => ({
+const emptyKit = (label, prices) => ({
   label,
-  bgColor: '#0e1a3f',
-  textColor: '#ffffff',
+  ...(KIT_COLORS[label] ?? KIT_COLORS.Uy),
   colorsLabel: '',
   description: '',
-  shirtPrice: 99000,
-  shortsPrice: 60000,
-  printPrice: 30000,
-  sizes: [...ADULT_SIZES],
+  shirtPrice: prices.shirtPrice,
+  shortsPrice: prices.shortsPrice,
+  printPrice: prices.printPrice,
+  sizes: [...ADULT_SIZES, ...KID_SIZES],
   isActive: true,
 });
+
+/** Yangi klub/terma jamoa uchun doim 3 ta standart forma: uy, mehmon, uchinchi */
+const defaultKits = (prices) => KIT_LABELS.map((l) => emptyKit(l, prices));
 
 // Backend (forbidNonWhitelisted) faqat DTO maydonlarini qabul qiladi — clubId, sortOrder kabilar olib tashlanadi
 const toKitInput = (k) => ({
@@ -295,16 +341,18 @@ const toKitInput = (k) => ({
   isActive: k.isActive,
 });
 
-function ClubForm({ club, categories, initialType, onClose, onSaved }) {
+function ClubForm({ club, categories, initialType, initialCategoryId, initialContinent, basePrices, onClose, onSaved }) {
+  const t = useT();
   const isEdit = Boolean(club);
-  const [type, setType] = useState(club?.type ?? initialType ?? 'CLUB');
+  const [type, setType] = useState(club ? clubType(club) : (initialType ?? 'CLUB'));
   const isClubCategory = club?.categoryId && categories.some((cat) => cat.id === club.categoryId);
+  const firstCategory = initialCategoryId || categories[0]?.id;
   const [form, setForm] = useState({
     name: club?.name ?? '',
-    categoryId: isClubCategory ? String(club.categoryId) : categories[0] ? String(categories[0].id) : NEW_CATEGORY,
+    categoryId: isClubCategory ? String(club.categoryId) : firstCategory ? String(firstCategory) : NEW_CATEGORY,
     league: '',
-    continent: club?.continent ?? CONTINENTS[0].value,
-    season: club?.season ?? '',
+    continent: club?.continent ?? (initialContinent || CONTINENTS[0].value),
+    season: club?.season ?? '2026/27',
     code: club?.code ?? '',
     markColor: club?.markColor ?? '#0e1a3f',
     isActive: club?.isActive ?? true,
@@ -312,7 +360,7 @@ function ClubForm({ club, categories, initialType, onClose, onSaved }) {
   const [kits, setKits] = useState(() =>
     club?.kits?.length
       ? club.kits.map((k) => ({ ...k, colorsLabel: k.colorsLabel ?? '', description: k.description ?? '' }))
-      : [emptyKit('Uy')],
+      : defaultKits(basePrices),
   );
   const [openKit, setOpenKit] = useState(0);
   const [error, setError] = useState('');
@@ -330,18 +378,23 @@ function ClubForm({ club, categories, initialType, onClose, onSaved }) {
     );
 
   const addKit = () => {
-    const nextLabel = KIT_LABELS.find((l) => !kits.some((k) => k.label === l)) ?? 'Uchinchi';
     if (kits.length >= 3) return;
-    setKits((ks) => [...ks, emptyKit(nextLabel)]);
+    const nextLabel = KIT_LABELS.find((l) => !kits.some((k) => k.label === l)) ?? 'Uchinchi';
+    setKits((ks) => [...ks, emptyKit(nextLabel, basePrices)]);
     setOpenKit(kits.length);
   };
   const removeKit = (i) => {
     setKits((ks) => (ks.length <= 1 ? ks : ks.filter((_, idx) => idx !== i)));
     setOpenKit(0);
   };
+  const applyBasePrices = () => setKits((ks) => ks.map((k) => ({ ...k, ...basePrices })));
 
   const submit = async (e) => {
     e.preventDefault();
+    if (kits.some((k) => !k.sizes.length)) {
+      setError(t("Har bir formada kamida bitta o'lcham tanlang"));
+      return;
+    }
     setSaving(true);
     setError('');
     try {
@@ -373,74 +426,74 @@ function ClubForm({ club, categories, initialType, onClose, onSaved }) {
 
   return (
     <Modal
-      title={isEdit ? `${club.name} — tahrirlash` : type === 'NATIONAL' ? 'Yangi terma jamoa' : 'Yangi klub'}
+      title={isEdit ? t('{name} — tahrirlash', { name: club.name }) : type === 'NATIONAL' ? t('Yangi terma jamoa') : t('Yangi klub')}
       onClose={onClose}
     >
       <form onSubmit={submit}>
         {error && <div className="form-error">{error}</div>}
         <div className="form-grid">
           <label className="field field--full">
-            <span>Turi</span>
+            <span>{t('Turi')}</span>
             <select value={type} onChange={(e) => setType(e.target.value)}>
-              <option value="CLUB">Klub (liga jamoasi)</option>
-              <option value="NATIONAL">Davlat terma jamoasi</option>
+              <option value="CLUB">{t('Klub (liga jamoasi)')}</option>
+              <option value="NATIONAL">{t('Davlat terma jamoasi')}</option>
             </select>
           </label>
           <label className="field field--full">
-            <span>{type === 'NATIONAL' ? 'Davlat nomi' : 'Klub nomi'}</span>
+            <span>{type === 'NATIONAL' ? t('Davlat nomi') : t('Klub nomi')}</span>
             <input value={form.name} onChange={set('name')} required minLength={2} maxLength={100} />
           </label>
           {type === 'NATIONAL' ? (
             <label className="field">
-              <span>Qit'a</span>
+              <span>{t("Qit'a")}</span>
               <select value={form.continent} onChange={set('continent')}>
                 {CONTINENTS.map((c) => (
-                  <option key={c.value} value={c.value}>{c.label}</option>
+                  <option key={c.value} value={c.value}>{t(c.label)}</option>
                 ))}
               </select>
             </label>
           ) : (
             <label className="field">
-              <span>Kategoriya (liga)</span>
+              <span>{t('Kategoriya (liga)')}</span>
               <select value={form.categoryId} onChange={set('categoryId')}>
                 {categories.map((cat) => (
                   <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
-                <option value={NEW_CATEGORY}>+ Yangi kategoriya</option>
+                <option value={NEW_CATEGORY}>{t('+ Yangi kategoriya')}</option>
               </select>
             </label>
           )}
           <label className="field">
-            <span>Mavsum</span>
-            <input value={form.season} onChange={set('season')} placeholder="2026/27" maxLength={20} />
+            <span>{t('Mavsum')}</span>
+            <input value={form.season} onChange={set('season')} placeholder="2026/27" required maxLength={20} />
           </label>
           {type === 'CLUB' && form.categoryId === NEW_CATEGORY && (
             <label className="field field--full">
-              <span>Yangi kategoriya nomi</span>
+              <span>{t('Yangi kategoriya nomi')}</span>
               <input value={form.league} onChange={set('league')} required minLength={2} maxLength={60} placeholder="LaLiga" />
             </label>
           )}
           <label className="field">
-            <span>Nishon harfi</span>
+            <span>{t('Nishon harfi')}</span>
             <input value={form.code} onChange={set('code')} required minLength={1} maxLength={4} placeholder="RM" />
           </label>
           <label className="field">
-            <span>Nishon rangi</span>
+            <span>{t('Nishon rangi')}</span>
             <input type="color" value={form.markColor} onChange={set('markColor')} />
           </label>
           {isEdit && (
             <label className="field">
-              <span>Ilovada</span>
+              <span>{t('Ilovada')}</span>
               <select value={form.isActive ? '1' : '0'} onChange={(e) => setForm((f) => ({ ...f, isActive: e.target.value === '1' }))}>
-                <option value="1">Ko'rinadi</option>
-                <option value="0">Yashirilgan</option>
+                <option value="1">{t("Ko'rinadi")}</option>
+                <option value="0">{t('Yashirilgan')}</option>
               </select>
             </label>
           )}
         </div>
 
         <div style={{ margin: '14px 0 8px', display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-          <span style={{ fontWeight: 600, fontSize: 13.5, marginRight: 6 }}>Formalar</span>
+          <span style={{ fontWeight: 600, fontSize: 13.5, marginRight: 6 }}>{t('Formalar')}</span>
           {kits.map((k, i) => (
             <button
               key={k.id ?? `new-${i}`}
@@ -448,14 +501,23 @@ function ClubForm({ club, categories, initialType, onClose, onSaved }) {
               className={`btn btn--sm ${openKit === i ? 'btn--accent' : 'btn--ghost'}`}
               onClick={() => setOpenKit(i)}
             >
-              {k.label || `Forma ${i + 1}`}
+              {KIT_LABELS.includes(k.label) ? t(k.label) : k.label || t('Forma {n}', { n: i + 1 })}
             </button>
           ))}
           {kits.length < 3 && (
             <button type="button" className="btn btn--ghost btn--sm" onClick={addKit}>
-              + Forma
+              {t('+ Forma')}
             </button>
           )}
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            style={{ marginLeft: 'auto' }}
+            onClick={applyBasePrices}
+            title={t('Narxlar bo‘limidagi standart narxlarni hamma formalarga qo‘yish')}
+          >
+            {t('Standart narxlar')}
+          </button>
         </div>
 
         {kits[openKit] && (
@@ -471,10 +533,10 @@ function ClubForm({ club, categories, initialType, onClose, onSaved }) {
 
         <div className="modal__foot" style={{ padding: '14px 0 0' }}>
           <button type="button" className="btn btn--ghost" onClick={onClose}>
-            Bekor qilish
+            {t('Bekor qilish')}
           </button>
           <button type="submit" className="btn btn--accent" disabled={saving}>
-            {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+            {saving ? t('Saqlanmoqda...') : t('Saqlash')}
           </button>
         </div>
       </form>
@@ -483,52 +545,58 @@ function ClubForm({ club, categories, initialType, onClose, onSaved }) {
 }
 
 function KitFields({ kit, canRemove, onField, onPatch, onToggleSize, onRemove }) {
+  const t = useT();
+  const money = useMoney();
   return (
     <div style={{ padding: 12, borderRadius: 10, border: '1px solid var(--line, #e3e6ef)' }}>
       <div className="form-grid">
         <label className="field">
-          <span>Nomi</span>
+          <span>{t('Nomi')}</span>
           <input value={kit.label} onChange={onField('label')} required minLength={1} maxLength={30} />
         </label>
         <label className="field">
-          <span>Ranglar tavsifi</span>
-          <input value={kit.colorsLabel} onChange={onField('colorsLabel')} maxLength={60} placeholder="Oq / oltin" />
+          <span>{t('Ranglar tavsifi')}</span>
+          <input value={kit.colorsLabel} onChange={onField('colorsLabel')} maxLength={60} placeholder={t('Oq / oltin')} />
         </label>
         <label className="field">
-          <span>Fon rangi</span>
+          <span>{t('Fon rangi')}</span>
           <input type="color" value={kit.bgColor} onChange={onField('bgColor')} />
         </label>
         <label className="field">
-          <span>Matn rangi</span>
+          <span>{t('Matn rangi')}</span>
           <input type="color" value={kit.textColor} onChange={onField('textColor')} />
         </label>
         <label className="field">
-          <span>Futbolka (so'm)</span>
+          <span>{t("Futbolka (so'm)")}</span>
           <input type="number" min={0} max={10000000} value={kit.shirtPrice} onChange={onField('shirtPrice')} required />
         </label>
         <label className="field">
-          <span>Shortik (so'm)</span>
+          <span>{t("Shortik (so'm)")}</span>
           <input type="number" min={0} max={10000000} value={kit.shortsPrice} onChange={onField('shortsPrice')} required />
         </label>
         <label className="field">
-          <span>Ism + raqam (so'm)</span>
+          <span>{t("Ism + raqam (so'm)")}</span>
           <input type="number" min={0} max={10000000} value={kit.printPrice} onChange={onField('printPrice')} required />
         </label>
         <label className="field">
-          <span>Sotuvda</span>
+          <span>{t('Sotuvda')}</span>
           <select value={kit.isActive ? '1' : '0'} onChange={(e) => onPatch({ isActive: e.target.value === '1' })}>
-            <option value="1">Ha</option>
-            <option value="0">Yo'q</option>
+            <option value="1">{t('Ha')}</option>
+            <option value="0">{t("Yo'q")}</option>
           </select>
         </label>
         <label className="field field--full">
-          <span>Tavsif</span>
-          <input value={kit.description} onChange={onField('description')} maxLength={500} placeholder="Dry-fit polyester · DTF bosma" />
+          <span>{t('Tavsif')}</span>
+          <input value={kit.description} onChange={onField('description')} maxLength={500} placeholder="Dry-fit polyester · DTF" />
         </label>
       </div>
 
+      <div style={{ marginTop: 6, fontSize: 12.5 }} className="muted">
+        {t('To‘plam narxi (futbolka + shortik + ism/raqam): {sum}', { sum: money(kitSetPrice(kit)) })}
+      </div>
+
       <div style={{ marginTop: 10, fontSize: 13 }}>
-        <div className="muted" style={{ marginBottom: 6 }}>O'lchamlar</div>
+        <div className="muted" style={{ marginBottom: 6 }}>{t("O'lchamlar")}</div>
         {[ADULT_SIZES, KID_SIZES].map((group, gi) => (
           <div key={gi} style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 6 }}>
             {group.map((size) => (
@@ -548,7 +616,7 @@ function KitFields({ kit, canRemove, onField, onPatch, onToggleSize, onRemove })
 
       {canRemove && (
         <button type="button" className="btn btn--ghost btn--sm" onClick={onRemove} style={{ marginTop: 6 }}>
-          Bu formani o'chirish
+          {t("Bu formani o'chirish")}
         </button>
       )}
     </div>
