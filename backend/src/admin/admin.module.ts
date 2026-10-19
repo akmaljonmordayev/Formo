@@ -25,6 +25,7 @@ import { SettingsController } from './settings.controller';
 import { SettingsService } from './settings.service';
 import { UsersController } from './users.controller';
 import { WorkshopOrdersController } from './workshop-orders.controller';
+import { WorkshopPanelController } from './workshop-panel.controller';
 import { WorkshopOrdersService } from './workshop-orders.service';
 import { WorkshopsController } from './workshops.controller';
 
@@ -39,6 +40,7 @@ import { WorkshopsController } from './workshops.controller';
     ClubsController,
     OrdersController,
     WorkshopOrdersController,
+    WorkshopPanelController,
     InsightsController,
     InventoryController,
     PricingController,

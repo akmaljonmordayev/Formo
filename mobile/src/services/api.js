@@ -150,14 +150,6 @@ export const auth = {
   /** Fetch the currently authenticated user's profile. */
   me: () => request('/auth/me'),
 
-  /**
-   * Update the current user's profile fields (age, height, weight, gender, address...).
-   * @returns {Promise<object>} updated user object
-   */
-  updateMe(fields) {
-    return request('/auth/me', { method: 'PATCH', body: fields });
-  },
-
   /** Invalidate the current session on the server and clear local tokens. */
   async logout() {
     try {
@@ -174,28 +166,113 @@ export const auth = {
   },
 };
 
+// ─── Shop API (role USER) ───────────────────────────────────────────────────
+
+/** { a: 1, b: undefined } -> "?a=1" */
+function query(params = {}) {
+  const parts = Object.entries(params)
+    .filter(([, value]) => value !== undefined && value !== null && value !== '')
+    .map(([key, value]) => `${encodeURIComponent(key)}=${encodeURIComponent(value)}`);
+  return parts.length ? `?${parts.join('&')}` : '';
+}
+
+/** Katalog: GET'lar ochiq (public), sevimlilar — faqat USER */
+export const catalog = {
+  /** [{ id, name, slug, clubsCount }] */
+  categories: () => request('/catalog/categories'),
+
+  /** { items: [club card], total, page, limit } — club card: { id, name, league, season, code, markColor, category, kitsCount } */
+  clubs: ({ categoryId, category, search, page, limit } = {}) =>
+    request(`/catalog/clubs${query({ categoryId, category, search, page, limit })}`),
+
+  /** [club card + ordersCount] */
+  popular: (limit) => request(`/catalog/clubs/popular${query({ limit })}`),
+
+  /** Club + kits: [{ id, label, title, bgColor, textColor, price, priceBreakdown, sizes, ... }] */
+  club: (id) => request(`/catalog/clubs/${id}`),
+
+  /** Kit + { club, siblings, sizeGroups } */
+  kit: (id) => request(`/catalog/kits/${id}`),
+
+  favorites: () => request('/catalog/favorites'),
+  addFavorite: (clubId) => request(`/catalog/clubs/${clubId}/favorite`, { method: 'PUT' }),
+  removeFavorite: (clubId) => request(`/catalog/clubs/${clubId}/favorite`, { method: 'DELETE' }),
+};
+
+/**
+ * Server savati. Har bir o'zgartiruvchi so'rov butun savatni qaytaradi:
+ * { items, count, promocode, summary: { subtotal, discount, delivery, total } }
+ */
+export const cart = {
+  /** Promokod berilsa chegirma bilan hisoblanadi (yaroqsiz bo'lsa 400). */
+  view: (promocode) => request(`/cart${query({ promocode })}`),
+
+  /** @param {{kitId, shirtSize, printName?, printNumber?, numberOnShorts?, withShorts?, shortsSize?, quantity?}} item */
+  add: (item) => request('/cart/items', { method: 'POST', body: item }),
+
+  update: (id, fields) => request(`/cart/items/${id}`, { method: 'PATCH', body: fields }),
+  remove: (id) => request(`/cart/items/${id}`, { method: 'DELETE' }),
+  clear: () => request('/cart', { method: 'DELETE' }),
+
+  /** Promokodni tekshirish — chegirmali savat yoki 400 (sababi `message`da). */
+  applyPromocode: (code) => request('/cart/promocode', { method: 'POST', body: { code } }),
+};
+
+/** Yetkazish manzillari: { id, label, address, apartment, latitude, longitude, isDefault } */
+export const addresses = {
+  list: () => request('/addresses'),
+  create: (payload) => request('/addresses', { method: 'POST', body: payload }),
+  update: (id, fields) => request(`/addresses/${id}`, { method: 'PATCH', body: fields }),
+  remove: (id) => request(`/addresses/${id}`, { method: 'DELETE' }),
+};
+
+/** Rasmiylashtirish va buyurtmalarim */
+export const orders = {
+  /** { fee, days: [{ date: 'YYYY-MM-DD', dayLabel, slots: [{ slot, start, end, remaining, available }] }] } */
+  deliverySlots: (days) => request(`/checkout/delivery-slots${query({ days })}`),
+
+  /**
+   * Savatdan buyurtma: CASH -> NEW (operatorga tushadi), CLICK/PAYME -> PENDING_PAYMENT.
+   * @param {{addressId, deliveryDate, deliverySlot, paymentMethod, promocode?, comment?}} payload
+   */
+  checkout: (payload) => request('/orders/checkout', { method: 'POST', body: payload }),
+
+  /** { items: [order view], total, page, limit } */
+  list: ({ status, page, limit } = {}) => request(`/orders${query({ status, page, limit })}`),
+
+  /** { order: order view | null } — bosh sahifadagi "Kuzatish" kartasi */
+  active: () => request('/orders/active'),
+
+  /** Order view + timeline, canCancel, payment */
+  get: (id) => request(`/orders/${id}`),
+
+  cancel: (id) => request(`/orders/${id}/cancel`, { method: 'POST' }),
+
+  /** Demo to'lov (backend PAYMENT_DEMO o'chirilgan bo'lsa 403) */
+  confirmPayment: (id) => request(`/orders/${id}/payment/confirm`, { method: 'POST' }),
+
+  changePaymentMethod: (id, paymentMethod) =>
+    request(`/orders/${id}/payment-method`, { method: 'PATCH', body: { paymentMethod } }),
+};
+
+/** Superadmin sozlamalarining ochiq ko'rinishi: { general, rules } (public) */
+export const appConfig = {
+  get: () => request('/app/config', { auth: false }),
+};
+
+/** Bildirishnomalar (Superadmin push kampaniyalari): { items: [{ id, title, message, sentAt }] } */
+export const notifications = {
+  list: () => request('/notifications'),
+};
+
 // ─── Public API object ───────────────────────────────────────────────────────
 
 export const api = {
   auth,
-
-  // ── Products ─────────────────────────────────────────────────────────────────
-  products: {
-    /** List all products. NOTE: endpoint not yet deployed — callers must handle errors. */
-    list: () => request('/products'),
-  },
-
-  // ── Orders ───────────────────────────────────────────────────────────────────
-  orders: {
-    /** List current user's orders. NOTE: endpoint not yet deployed — callers must handle errors. */
-    list: () => request('/orders'),
-
-    /** Create a new order. */
-    create(payload) {
-      return request('/orders', { method: 'POST', body: payload });
-    },
-
-    /** Fetch a single order by ID. */
-    get: (id) => request(`/orders/${id}`),
-  },
+  catalog,
+  cart,
+  addresses,
+  orders,
+  appConfig,
+  notifications,
 };

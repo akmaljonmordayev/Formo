@@ -52,22 +52,30 @@ Expo SDK 57 uchun React `19.2.3`, React Native `0.86.3` va Metro `0.84.x` versiy
 
 - `src/screens/` — har bir asosiy ekran alohida modulda.
 - `src/components/ui/` — qayta ishlatiladigan UI komponentlari.
-- `src/navigation/` — ilova marshrutlari va ekranlar o‘rtasidagi o‘tishlar.
-- `src/store/` — savat, sevimlilar va til holati.
+- `src/navigation/` — ilova marshrutlari; server savati (`useCart`) va ilova sozlamalari (`useAppConfig`) shu yerda bir marta yaratiladi.
+- `src/features/` — API ustidagi hooklar: `products` (katalog), `cart`, `checkout` (manzil, slotlar), `orders`, `config`, `notifications`, `auth`.
+- `src/store/` — faqat ilova tili (qurilmada).
 - `src/i18n/` — o‘zbekcha (`uz`) asosiy til, ruscha (`ru`) va inglizcha (`en`) tarjimalar.
-- `src/data/` — vaqtinchalik mock ma’lumotlar.
-- `src/services/api.js` — backend ulanishi uchun yagona API adapter.
+- `src/services/api.js` — backend ulanishi uchun yagona API adapter (token yangilash shu yerda).
 - `src/constants/` — ranglar, radiuslar va umumiy dizayn tokenlari.
 
-## Backend ulash
+## Ma’lumot oqimi (backend)
 
-`.env` fayliga quyidagini qo‘shing:
+Mock ma’lumot yo‘q — hammasi `/api` dan:
 
-```env
-EXPO_PUBLIC_API_URL=https://api.example.com
-```
+| Ekran | Endpointlar |
+|---|---|
+| Asosiy | `GET /catalog/clubs/popular`, `GET /orders/active`, bildirishnomalar tugmasi |
+| Katalog | `GET /catalog/categories`, `GET /catalog/clubs?categoryId&search`, `GET /catalog/favorites`, `PUT/DELETE /catalog/clubs/:id/favorite` |
+| Klub (Product) | `GET /catalog/clubs/:id` — Uy / Mehmon / Uchinchi formalar narxi bilan |
+| Studiya | `POST /cart/items` — `kitId`, `shirtSize`, `printName`, `printNumber`, `withShorts`, `shortsSize`, `numberOnShorts` |
+| Savat | `GET /cart`, `PATCH/DELETE /cart/items/:id`, `DELETE /cart`, `POST /cart/promocode` |
+| Rasmiylashtirish | `GET/POST /addresses`, `GET /checkout/delivery-slots`, `POST /orders/checkout` (CASH → `NEW`, CLICK/PAYME → `PENDING_PAYMENT`) |
+| Buyurtmalar | `GET /orders`, `GET /orders/:id` (timeline), `POST /orders/:id/cancel`, `POST /orders/:id/payment/confirm` (demo), `PATCH /orders/:id/payment-method` |
+| Bildirishnomalar | `GET /notifications` |
+| Sozlamalar | `GET /app/config` — buyurtma qoidalari (to‘xtatish, minimal summa, naqd, o‘lchamlar) va aloqa |
 
-`src/services/api.js` dagi metodlar backend endpointlariga moslashtiriladi. Ekranlar API tafsilotlarini bilmaydi — ular faqat service qatlamidan ma’lumot oladi.
+Buyurtma holati operator/sex panelida o‘zgaradi; Buyurtmalar ekranlari har 20 soniyada va pastga tortilganda yangilanadi. Profil o‘lchovlari (bo‘y, vazn...) uchun backendda tahrirlash endpointi yo‘q — ular qurilmada saqlanadi.
 
 ## Tilni almashtirish
 
@@ -75,11 +83,12 @@ Profil → Sozlamalar → Ilova tili bo‘limida o‘zbekcha, ruscha yoki ingliz
 
 ## Hozirgi funksiyalar
 
-- katalog va model qidiruvi;
-- mahsulot tafsilotlari;
-- forma rangi, ism va raqamni tanlash;
-- mahalliy savat;
-- mock buyurtma va buyurtma holati;
-- profil va til sozlamalari.
+- klublar katalogi, qidiruv, ligalar bo‘yicha filtr va sevimli klublar;
+- klub formalari (narx tarkibi, o‘lchamlar);
+- studiya: o‘lcham, ism/raqam bosmasi, shortik;
+- server savati va promokod;
+- rasmiylashtirish: manzil, yetkazish kuni/vaqti, to‘lov usuli;
+- buyurtmalar va jonli holat (timeline), bekor qilish, demo to‘lov;
+- bildirishnomalar, profil va til sozlamalari.
 
-AR kamera, to‘lov va server autentifikatsiyasi keyingi backend/native integratsiya bosqichlari uchun ajratilgan.
+AR kamera va haqiqiy Click/Payme to‘lovi keyingi bosqichlar uchun ajratilgan.

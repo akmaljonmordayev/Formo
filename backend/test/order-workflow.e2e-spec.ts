@@ -22,6 +22,7 @@ describe('Buyurtma oqimi: operator → tikuv sexi (e2e)', () => {
     get: (url: string) => api(app).get(url).set(bearer(token)),
     post: (url: string, body?: object) => api(app).post(url).set(bearer(token)).send(body),
     patch: (url: string, body?: object) => api(app).patch(url).set(bearer(token)).send(body),
+    put: (url: string, body?: object) => api(app).put(url).set(bearer(token)).send(body),
   });
 
   async function workshop(workshopName: string) {
@@ -226,5 +227,50 @@ describe('Buyurtma oqimi: operator → tikuv sexi (e2e)', () => {
     expect(actions).toEqual(
       expect.arrayContaining(['Sex buyurtmani qabul qildi', 'Sex buyurtmani rad etdi', 'Sex: yetkazishga berildi']),
     );
+  });
+  it('sex paneli: production/stats faqat o‘z buyurtmalarini ko‘rsatadi; zaxira umumiy; /admin ga TAILOR kira olmaydi', async () => {
+    const id = await placeOrder();
+    await as(operator).post(`/api/admin/orders/${id}/assign`, { workshopId: sexA.id }).expect(200);
+    await as(sexA.token).post(`/api/workshop/orders/${id}/accept`).expect(200);
+
+    const prodA = await as(sexA.token).get('/api/workshop/production').expect(200);
+    expect(prodA.body.columns.ACCEPTED.map((o: { id: number }) => o.id)).toContain(id);
+    expect(prodA.body.activeCount).toBeGreaterThanOrEqual(1);
+    const prodB = await as(sexB.token).get('/api/workshop/production').expect(200);
+    const idsB = Object.values(prodB.body.columns as Record<string, { id: number }[]>).flatMap((col) => col.map((o) => o.id));
+    expect(idsB).not.toContain(id);
+
+    const stats = await as(sexA.token).get('/api/workshop/stats?days=7').expect(200);
+    expect(stats.body.ordersCount).toBeGreaterThanOrEqual(1);
+    expect(stats.body.dailyTrend).toHaveLength(7);
+
+    await as(sexA.token)
+      .put('/api/workshop/inventory', { items: [{ productType: 'TSHIRT', color: 'Oq', size: 'M', qty: 12 }] })
+      .expect(200);
+    const stock = await as(sexB.token).get('/api/workshop/inventory?productType=TSHIRT').expect(200);
+    expect(stock.body).toEqual(expect.arrayContaining([expect.objectContaining({ color: 'Oq', size: 'M', qty: 12 })]));
+
+    for (const path of ['/api/admin/orders', '/api/admin/inventory', '/api/admin/production', '/api/admin/dashboard']) {
+      await as(sexA.token).get(path).expect(403);
+    }
+    for (const token of [user, operator]) {
+      await as(token).get('/api/workshop/production').expect(403);
+      await as(token).get('/api/workshop/inventory').expect(403);
+    }
+  });
+
+  it('operator holat o‘tishlari: DELIVERED faqat DELIVERING dan, yakuniy holatdan qaytib bo‘lmaydi', async () => {
+    const id = await placeOrder();
+    await as(operator).post(`/api/admin/orders/${id}/assign`, { workshopId: sexA.id }).expect(200);
+    await as(sexA.token).post(`/api/workshop/orders/${id}/accept`).expect(200);
+
+    await as(operator).patch(`/api/admin/orders/${id}/status`, { status: 'DELIVERED' }).expect(409);
+    for (const status of ['READY', 'DELIVERING']) {
+      await as(sexA.token).patch(`/api/workshop/orders/${id}/status`, { status }).expect(200);
+    }
+    await as(operator).patch(`/api/admin/orders/${id}/status`, { status: 'DELIVERED' }).expect(200);
+    await as(operator).patch(`/api/admin/orders/${id}/status`, { status: 'PRINTING' }).expect(409);
+    await as(operator).patch(`/api/admin/orders/${id}/status`, { status: 'RETURNED' }).expect(200);
+    await as(operator).patch(`/api/admin/orders/${id}/status`, { status: 'NEW' }).expect(409);
   });
 });

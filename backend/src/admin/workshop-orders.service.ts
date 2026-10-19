@@ -35,6 +35,16 @@ const FLOW: OrderStatus[] = [
   OrderStatus.DELIVERING,
 ];
 
+const PRODUCTION_COLUMNS: OrderStatus[] = [
+  OrderStatus.ACCEPTED,
+  OrderStatus.PRINTING,
+  OrderStatus.QUALITY_CHECK,
+  OrderStatus.READY,
+];
+const ACTIVE_STATUSES: OrderStatus[] = [OrderStatus.SENT_TO_WORKSHOP, ...FLOW];
+// Qabul qilingandan 21 soatdan ko'p o'tgan, hali tayyor bo'lmagan vazifalar "kechikkan" (admin paneli bilan bir xil qoida)
+const LATE_AFTER_MS = 21 * 60 * 60 * 1000;
+
 const ACTION: Partial<Record<OrderStatus, string>> = {
   PRINTING: 'Sex: bosish boshlandi',
   QUALITY_CHECK: 'Sex: sifat nazoratiga o‘tkazildi',
@@ -78,6 +88,63 @@ export class WorkshopOrdersService {
     const order = await this.prisma.order.findFirst({ where: { id, workshopId: workshop.id }, select });
     if (!order) throw new NotFoundException('Buyurtma topilmadi');
     return order;
+  }
+
+  /** Sexning o'z ishlab chiqarish taxtasi: faqat shu sexga biriktirilgan buyurtmalar, bosqichlar bo'yicha */
+  async production(workshop: AuthUser) {
+    const [orders, me] = await Promise.all([
+      this.prisma.order.findMany({
+        where: { workshopId: workshop.id, status: { in: PRODUCTION_COLUMNS } },
+        select,
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.prisma.user.findUnique({ where: { id: workshop.id }, select: { dailyCapacity: true } }),
+    ]);
+    const lateBefore = new Date(Date.now() - LATE_AFTER_MS);
+    const activeCount = await this.prisma.order.count({
+      where: { workshopId: workshop.id, status: { in: ACTIVE_STATUSES } },
+    });
+    const capacity = me?.dailyCapacity ?? null;
+    return {
+      activeCount,
+      capacity,
+      loadPct: capacity ? Math.round((activeCount / capacity) * 100) : null,
+      lateCount: orders.filter((o) => o.status !== OrderStatus.READY && o.createdAt < lateBefore).length,
+      columns: Object.fromEntries(PRODUCTION_COLUMNS.map((s) => [s, orders.filter((o) => o.status === s)])),
+    };
+  }
+
+  /** Sex statistikasi: davr bo'yicha buyurtmalar soni va kunlik dinamika (faqat o'z buyurtmalari) */
+  async stats(workshop: AuthUser, days: number) {
+    const from = new Date();
+    from.setDate(from.getDate() - days);
+    const [inPeriod, production] = await Promise.all([
+      this.prisma.order.findMany({
+        where: { workshopId: workshop.id, createdAt: { gte: from } },
+        select: { status: true, createdAt: true },
+      }),
+      this.production(workshop),
+    ]);
+
+    const buckets = new Map<string, number>();
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      buckets.set(d.toISOString().slice(0, 10), 0);
+    }
+    for (const o of inPeriod) {
+      const key = o.createdAt.toISOString().slice(0, 10);
+      if (buckets.has(key)) buckets.set(key, (buckets.get(key) ?? 0) + 1);
+    }
+
+    return {
+      ordersCount: inPeriod.length,
+      activeCount: production.activeCount,
+      capacity: production.capacity,
+      loadPct: production.loadPct,
+      lateCount: production.lateCount,
+      dailyTrend: Array.from(buckets.entries()).map(([date, count]) => ({ date, count })),
+    };
   }
 
   /** Sex yuborilgan buyurtmani ko'rib chiqib tasdiqlaydi → ACCEPTED (navbatda) */

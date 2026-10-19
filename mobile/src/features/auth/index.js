@@ -18,9 +18,10 @@ function toAuthError(err, fallbackKey) {
 }
 
 /**
- * Backend hozircha profilni tahrirlash endpointini bermaydi (PATCH /auth/me → 404).
- * Shuning uchun o'lchov maydonlari (gender/age/height/weight) qurilmada lokal
- * saqlanadi va server javobiga "bo'shliqni to'ldiruvchi" qatlam sifatida qo'shiladi.
+ * Backend profilni tahrirlash endpointini bermaydi (faqat GET /auth/me va
+ * PATCH /auth/password bor). Shuning uchun o'lchov maydonlari
+ * (gender/age/height/weight/address) qurilmada lokal saqlanadi va server
+ * javobi ustiga qatlam sifatida qo'yiladi — foydalanuvchi o'zi saqlagan qiymat ustun.
  */
 const PROFILE_KEYS = ['gender', 'age', 'height', 'weight', 'address'];
 const overlayStorageKey = (id) => `formo_profile_overlay_${id}`;
@@ -29,7 +30,7 @@ function applyOverlay(base, overlay) {
   if (!base || !overlay) return base;
   const merged = { ...base };
   PROFILE_KEYS.forEach((key) => {
-    if (merged[key] == null && overlay[key] != null) merged[key] = overlay[key];
+    if (overlay[key] !== undefined) merged[key] = overlay[key];
   });
   return merged;
 }
@@ -50,7 +51,7 @@ async function writeOverlay(id, fields) {
   const current = (await readOverlay(id)) || {};
   const next = { ...current };
   PROFILE_KEYS.forEach((key) => {
-    if (fields[key] != null) next[key] = fields[key];
+    if (fields[key] !== undefined) next[key] = fields[key];
   });
   await storage.setItem(overlayStorageKey(id), JSON.stringify(next));
   return next;
@@ -176,25 +177,14 @@ export default function useAuth() {
     return merged;
   }, []);
 
-  // ─── Update profile via API; refreshes local user on success ─────────────────
-  // Endpoint mavjud bo'lmasa (404/405) o'lchovlar qurilmada saqlanadi — ekranlar
-  // baribir yangilangan userni ko'radi.
+  // ─── Update profile fields (device-local overlay, see note above) ─────────────
   const updateUser = useCallback(
     async (fields) => {
-      try {
-        const me = await api.auth.updateMe(fields);
-        const merged = await mergeWithOverlay(me);
-        setUser(merged);
-        return merged;
-      } catch (err) {
-        const endpointMissing = err instanceof ApiError && (err.status === 404 || err.status === 405);
-        if (!endpointMissing || !user?.id) throw err;
-
-        const overlay = await writeOverlay(user.id, fields);
-        const merged = applyOverlay(user, overlay);
-        setUser(merged);
-        return merged;
-      }
+      if (!user?.id) throw new Error('Not authenticated');
+      const overlay = await writeOverlay(user.id, fields);
+      const merged = applyOverlay(user, overlay);
+      setUser(merged);
+      return merged;
     },
     [user]
   );

@@ -28,9 +28,9 @@ function formatDate(value) {
 
 /**
  * ProfileScreen — real data from GET /auth/me only; no mock fallback.
- * "Personal data" opens a modal that saves via auth.updateUser (PATCH /auth/me).
- * Backend hozircha bu endpointni bermaydi — bunday holatda useAuth qiymatlarni
- * qurilmada (lokal overlay) saqlaydi va UI baribir yangilanadi.
+ * "Personal data" opens a modal that saves via auth.updateUser. Backend profilni
+ * tahrirlash endpointini bermaydi — useAuth qiymatlarni qurilmada (lokal overlay)
+ * saqlaydi va UI baribir yangilanadi.
  */
 export default function ProfileScreen({ t, onSettings, onOrders, auth }) {
   const [editVisible, setEditVisible] = useState(false);

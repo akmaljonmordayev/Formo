@@ -65,6 +65,16 @@ const uz = {
   'status.qabul': 'Qabul qilindi',
   'status.bosildi': 'Bosildi',
   'status.tayyor': 'Tayyor',
+  'status.yangi': 'Yangi',
+  'status.yetkazishda': 'Yetkazishda',
+  'queue.tab.yangi': 'Yangi',
+  'order.accept': 'Qabul qilish',
+  'order.reject': 'Rad etish',
+  'order.rejectReason': 'Rad etish sababi (operatorga ko\'rinadi)',
+  'order.rejectConfirm': 'Rad etishni tasdiqlash',
+  'order.cancel': 'Bekor qilish',
+  'order.handToCourier': 'Yetkazishga berish',
+  'navbat.rejectToast': "#{id} buyurtma rad etildi va operatorga qaytarildi",
   'status.all': 'Barchasi',
 
   // ---------- queue ----------
@@ -421,6 +431,16 @@ const ru = {
   'status.qabul': 'Принят',
   'status.bosildi': 'Напечатан',
   'status.tayyor': 'Готов',
+  'status.yangi': 'Новый',
+  'status.yetkazishda': 'Доставляется',
+  'queue.tab.yangi': 'Новые',
+  'order.accept': 'Принять',
+  'order.reject': 'Отклонить',
+  'order.rejectReason': 'Причина отказа (увидит оператор)',
+  'order.rejectConfirm': 'Подтвердить отказ',
+  'order.cancel': 'Отмена',
+  'order.handToCourier': 'Передать в доставку',
+  'navbat.rejectToast': "Заказ #{id} отклонён и возвращён оператору",
   'status.all': 'Все',
 
   // ---------- queue ----------

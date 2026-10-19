@@ -40,6 +40,7 @@ export const categoriesApi = {
 
 export const ordersApi = {
   list: (params) => api(`/admin/orders${qs(params)}`),
+  assign: (id, body) => api(`/admin/orders/${id}/assign`, { method: 'POST', body }),
   updateStatus: (id, body) => api(`/admin/orders/${id}/status`, { method: 'PATCH', body }),
 };
 

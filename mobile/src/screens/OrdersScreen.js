@@ -1,21 +1,26 @@
 import React, { useState } from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { colors, radii, spacing } from '../constants/theme';
-import useOrders from '../features/orders';
+import useOrders, { isFinal, progressOf, statusText } from '../features/orders';
 import { Card, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
+import ErrorView from '../components/ui/ErrorView';
 import { JerseyPreview } from '../components/ui/JerseyPreview';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { errorText } from '../utils/errors';
+import { formatDate } from '../utils/formatters';
 
-export default function OrdersScreen({ t }) {
+// Buyurtmalarim: GET /api/orders — 20 s da va pastga tortilganda yangilanadi,
+// shuning uchun operator/sex o'zgartirgan holat shu yerda ko'rinadi.
+export default function OrdersScreen({ t, onOrder }) {
   const [tab, setTab] = useState('active');
-  const { orders, isLoading, refetch } = useOrders();
+  const { orders, isLoading, error, refetch } = useOrders();
 
   const activeLabel = t('tabActive');
   const doneLabel = t('tabDone');
-  const filtered = orders.filter((order) => (tab === 'active' ? order.status === 'production' : order.status === 'delivered'));
+  const filtered = orders.filter((order) => (tab === 'active' ? !isFinal(order) : isFinal(order)));
 
-  // Active order for tracker card — safe fallback when array is empty
-  const activeOrder = orders[0] || null;
+  // Kuzatish kartasi — eng oxirgi yakunlanmagan buyurtma
+  const activeOrder = orders.find((order) => !isFinal(order)) || null;
 
   return (
     <Screen scroll={false}>
@@ -24,7 +29,7 @@ export default function OrdersScreen({ t }) {
         contentContainerStyle={styles.content}
         refreshControl={
           <RefreshControl
-            refreshing={isLoading}
+            refreshing={isLoading && orders.length > 0}
             onRefresh={refetch}
             tintColor={colors.accent}
             colors={[colors.accent]}
@@ -33,32 +38,40 @@ export default function OrdersScreen({ t }) {
       >
         <Header title={t('myOrders')} />
 
-        {isLoading && orders.length === 0 ? (
+        {error && orders.length === 0 ? (
+          <ErrorView message={errorText(error, t)} onRetry={refetch} retryLabel={t('retry')} />
+        ) : isLoading && orders.length === 0 ? (
           <LoadingSpinner />
         ) : (
           <>
-            <Card style={styles.tracker}>
-              {activeOrder ? (
-                <>
-                  <View style={styles.row}>
-                    <Text style={styles.overline}>{t('activeOrder')}</Text>
-                    <Text style={styles.id}>{activeOrder.id}</Text>
-                  </View>
-                  <Text style={styles.trackerTitle}>{t('production')}</Text>
-                  <Text style={styles.trackerSub}>{activeOrder.date || '—'} · {t('trackStage')}</Text>
-                  <View style={styles.progress}>
-                    <View style={styles.done} />
-                  </View>
-                  <View style={styles.labels}>
-                    <Text style={styles.labelText}>{t('trackDesign')}</Text>
-                    <Text style={styles.labelText}>{t('trackProduction')}</Text>
-                    <Text style={styles.labelText}>{t('trackDelivery')}</Text>
-                  </View>
-                </>
-              ) : (
-                <Text style={styles.noOrdersText}>{t('noOrders')}</Text>
-              )}
-            </Card>
+            <Pressable onPress={() => activeOrder && onOrder(activeOrder.id)}>
+              <Card style={styles.tracker}>
+                {activeOrder ? (
+                  <>
+                    <View style={styles.row}>
+                      <Text style={styles.overline}>{t('activeOrder')}</Text>
+                      <Text style={styles.id}>{activeOrder.code}</Text>
+                    </View>
+                    <Text style={styles.trackerTitle}>{statusText(t, activeOrder.status, activeOrder.statusLabel)}</Text>
+                    <Text style={styles.trackerSub}>
+                      {activeOrder.delivery.date
+                        ? `${activeOrder.delivery.date.split('-').reverse().join('.')} · ${activeOrder.delivery.slot}`
+                        : '—'}
+                    </Text>
+                    <View style={styles.progress}>
+                      <View style={[styles.done, { width: `${Math.round(progressOf(activeOrder) * 100)}%` }]} />
+                    </View>
+                    <View style={styles.labels}>
+                      <Text style={styles.labelText}>{t('trackDesign')}</Text>
+                      <Text style={styles.labelText}>{t('trackProduction')}</Text>
+                      <Text style={styles.labelText}>{t('trackDelivery')}</Text>
+                    </View>
+                  </>
+                ) : (
+                  <Text style={styles.noOrdersText}>{t('noOrders')}</Text>
+                )}
+              </Card>
+            </Pressable>
 
             <Segment
               wide
@@ -69,36 +82,45 @@ export default function OrdersScreen({ t }) {
             />
 
             <View style={styles.list}>
-              {filtered.map((order, index) => {
-                const production = order.status === 'production';
+              {filtered.map((order) => {
+                const delivered = order.status === 'DELIVERED';
+                const stopped = ['CANCELLED', 'RETURNED'].includes(order.status);
+                const first = order.items[0] || {};
+                const more = order.items.length > 1 ? ` +${order.items.length - 1}` : '';
                 return (
-                  <Card key={order.id} style={styles.order}>
-                    <View style={styles.orderTop}>
-                      <Text style={styles.id}>{order.id}</Text>
-                      <View style={[styles.pill, !production && styles.pillGreen]}>
-                        <Text style={[styles.pillText, !production && styles.pillTextGreen]}>
-                          {production ? t('production') : t('delivered')}
-                        </Text>
+                  <Pressable key={order.id} onPress={() => onOrder(order.id)}>
+                    <Card style={styles.order}>
+                      <View style={styles.orderTop}>
+                        <Text style={styles.id}>{order.code}</Text>
+                        <View style={[styles.pill, delivered && styles.pillGreen, stopped && styles.pillRed]}>
+                          <Text style={[styles.pillText, delivered && styles.pillTextGreen, stopped && styles.pillTextRed]}>
+                            {statusText(t, order.status, order.statusLabel)}
+                          </Text>
+                        </View>
                       </View>
-                    </View>
-                    <View style={styles.orderBody}>
-                      <View style={styles.thumb}>
-                        <JerseyPreview
-                          product={{ color: index ? '#F29C59' : '#5A66DE', accent: '#BFD5FF' }}
-                          number="10"
-                          tiny
-                        />
+                      <View style={styles.orderBody}>
+                        <View style={styles.thumb}>
+                          <JerseyPreview
+                            product={{ color: first.bgColor || '#242749', accent: first.textColor || '#FFFFFF' }}
+                            number={first.printNumber || ''}
+                            tiny
+                          />
+                        </View>
+                        <View style={styles.orderCopy}>
+                          <Text style={styles.product} numberOfLines={1}>
+                            {first.clubName} · {first.kitLabel}{more}
+                          </Text>
+                          <Text style={styles.meta}>{order.itemsCount} {t('pcs')} · {formatDate(order.createdAt)}</Text>
+                        </View>
+                        <Text style={styles.total}>{formatMoney(order.summary.total)}</Text>
                       </View>
-                      <View style={styles.orderCopy}>
-                        <Text style={styles.product}>{order.product}</Text>
-                        <Text style={styles.meta}>{order.size} · {order.date}</Text>
-                      </View>
-                      <Text style={styles.total}>{formatMoney(order.total)}</Text>
-                    </View>
-                    <View style={styles.bar}>
-                      <View style={[styles.barDone, { width: production ? '58%' : '100%' }]} />
-                    </View>
-                  </Card>
+                      {!stopped ? (
+                        <View style={styles.bar}>
+                          <View style={[styles.barDone, { width: `${Math.round(progressOf(order) * 100)}%` }]} />
+                        </View>
+                      ) : null}
+                    </Card>
+                  </Pressable>
                 );
               })}
               {filtered.length === 0 ? <Text style={styles.empty}>{t('noOrders')}</Text> : null}
@@ -119,7 +141,7 @@ const styles = StyleSheet.create({
   trackerTitle: { color: colors.text, fontSize: 18, fontWeight: '800', marginTop: spacing.md },
   trackerSub: { color: colors.muted, fontSize: 12, marginTop: 5 },
   progress: { height: 5, borderRadius: 3, backgroundColor: '#242B58', marginTop: spacing.lg, overflow: 'hidden' },
-  done: { height: 5, width: '58%', backgroundColor: colors.accent },
+  done: { height: 5, backgroundColor: colors.accent },
   labels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm },
   labelText: { color: colors.muted, fontSize: 10 },
   noOrdersText: { color: colors.muted, fontSize: 13, textAlign: 'center', paddingVertical: spacing.md },
@@ -136,7 +158,9 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   pillGreen: { backgroundColor: 'rgba(63, 217, 183, 0.1)', borderColor: 'rgba(63, 217, 183, 0.35)' },
+  pillRed: { backgroundColor: 'rgba(232, 84, 63, 0.1)', borderColor: 'rgba(232, 84, 63, 0.35)' },
   pillText: { color: colors.accent, fontSize: 10, fontWeight: '800' },
+  pillTextRed: { color: '#E8543F' },
   pillTextGreen: { color: colors.teal },
   orderBody: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   thumb: {

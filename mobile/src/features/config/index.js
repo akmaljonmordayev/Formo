@@ -1,0 +1,66 @@
+import { useCallback, useEffect, useState } from 'react';
+import { api } from '../../services/api';
+
+// Backend default'lari (backend/src/shop/rules.service.ts) — config yuklanguncha shular
+export const DEFAULT_CONFIG = {
+  general: {
+    companyName: 'Formo',
+    supportPhone: '',
+    supportTelegram: '',
+    supportEmail: '',
+    workHoursFrom: '09:00',
+    workHoursTo: '21:00',
+    maintenance: false,
+  },
+  rules: {
+    acceptOrders: true,
+    pausedMessage: '',
+    minOrderSum: 0,
+    maxItemsPerOrder: 20,
+    maxQtyPerItem: 10,
+    productionDaysMin: 2,
+    productionDaysMax: 5,
+    allowCash: true,
+    printNameMaxLength: 12,
+    printNumberMin: 0,
+    printNumberMax: 99,
+    allowKidsSizes: true,
+    cancelWindowHours: 2,
+    returnDays: 3,
+    terms: '',
+  },
+};
+
+/** Bolalar o'lchamlari "2-3" ... "12-13" ko'rinishida */
+export const isKidSize = (size) => /^\d+-\d+$/.test(size);
+
+/** allowKidsSizes=false bo'lsa bolalar o'lchamlari ko'rsatilmaydi */
+export const visibleSizes = (sizes, rules) =>
+  rules.allowKidsSizes ? sizes : sizes.filter((s) => !isKidSize(s.size));
+
+/**
+ * GET /api/app/config — buyurtma qoidalari va aloqa ma'lumotlari.
+ * Server bu qoidalarni baribir o'zi tekshiradi; ilova faqat UI'ni moslaydi.
+ * Yuklab bo'lmasa default'lar qoladi (server xatosi baribir ko'rsatiladi).
+ */
+export default function useAppConfig() {
+  const [config, setConfig] = useState(DEFAULT_CONFIG);
+
+  const refresh = useCallback(async () => {
+    try {
+      const data = await api.appConfig.get();
+      setConfig({
+        general: { ...DEFAULT_CONFIG.general, ...data?.general },
+        rules: { ...DEFAULT_CONFIG.rules, ...data?.rules },
+      });
+    } catch {
+      // Tarmoq xatosi — oldingi qiymatlar qoladi
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+  }, [refresh]);
+
+  return { ...config, refresh };
+}

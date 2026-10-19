@@ -38,7 +38,7 @@ function SidebarContent({ onNavigate }) {
     return () => window.removeEventListener('formo:tailor-profile-updated', onProfileUpdated);
   }, [user?.id]);
 
-  const queueCount = orders?.filter((order) => order.status === 'qabul').length ?? 0;
+  const queueCount = orders?.filter((order) => order.status === 'yangi' || order.status === 'qabul').length ?? 0;
   const shiftTotal = orders?.length ?? 0;
   const shiftDone = orders?.filter((order) => order.status === 'tayyor').length ?? 0;
 

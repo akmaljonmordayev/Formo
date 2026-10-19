@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { OrderStatus } from '@prisma/client';
+import { OrderStatus, PaymentStatus } from '@prisma/client';
 import { IsEnum, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
 import { CleanText } from '../../common/utils/no-html';
 
@@ -16,6 +16,11 @@ export class ListOrdersQueryDto {
   @IsOptional()
   @IsEnum(OrderStatus)
   status?: OrderStatus;
+
+  @ApiPropertyOptional({ enum: PaymentStatus, description: "To'lov holati bo'yicha filtr (operator To'lovlar sahifasi)" })
+  @IsOptional()
+  @IsEnum(PaymentStatus)
+  paymentStatus?: PaymentStatus;
 
   @ApiPropertyOptional({ description: 'Tikuv sexi (workshop) id' })
   @IsOptional()
@@ -74,7 +79,7 @@ export class AssignWorkshopDto {
 }
 
 /** Tikuv sexi o'z buyurtmalari ro'yxatida — boshqa sex bo'yicha filtr kerak emas */
-export class WorkshopOrdersQueryDto extends OmitType(ListOrdersQueryDto, ['workshopId'] as const) {}
+export class WorkshopOrdersQueryDto extends OmitType(ListOrdersQueryDto, ['workshopId', 'paymentStatus'] as const) {}
 
 export class RejectOrderDto {
   @ApiProperty({ description: 'Rad etish sababi (operatorga ko‘rinadi)', example: "Bu o'lchamdagi mato tugagan", maxLength: 500 })
