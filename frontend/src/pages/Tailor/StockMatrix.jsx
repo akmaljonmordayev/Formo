@@ -1,6 +1,6 @@
 import { Card } from './ui';
 import { useT } from './i18n';
-import { STOCK_COLORS, STOCK_SIZES, stockMatrix as defaultMatrix } from './mockData';
+import { STOCK_COLORS, STOCK_SIZES } from './tailorConstants';
 import { cx } from './utils';
 
 export function stockCellState(qty) {
@@ -9,8 +9,11 @@ export function stockCellState(qty) {
   return { status: 'dona', bg: 'bg-[#0e1424] text-slate-300 border border-white/5' };
 }
 
-export default function StockMatrix({ matrix = defaultMatrix }) {
+export default function StockMatrix({ matrix }) {
   const t = useT();
+  if (!matrix) {
+    return <Card className="p-5 text-sm text-slate-400">{t('api.empty')}</Card>;
+  }
   return (
     <Card className="flex flex-col justify-between overflow-hidden bg-[#121829] p-5 border border-white/10">
       <div className="overflow-x-auto">

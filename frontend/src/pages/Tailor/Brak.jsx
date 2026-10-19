@@ -5,27 +5,21 @@ import { Card } from './ui';
 import { useT } from './i18n';
 import { cx } from './utils';
 import { useTailor } from './prefs';
-import { queueOrders as initialOrders } from './mockData';
 
 export default function Brak() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { orders = initialOrders } = useTailor() ?? {};
+  const { orders = [], ordersError = '', ordersLoading = false } = useTailor() ?? {};
   const t = useT();
   const photoInputRef = useRef(null);
   const routedOrder = location.state?.order;
-  const order = orders.find((item) => item.id === routedOrder?.id) ?? routedOrder ?? orders[0] ?? initialOrders[0];
+  const order = orders.find((item) => item.id === routedOrder?.id) ?? routedOrder ?? orders[0];
   const [reason, setReason] = useState('bosma-siljidi');
   const [note, setNote] = useState('');
-  const [noteEdited, setNoteEdited] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [photo, setPhoto] = useState(null);
   const [photoError, setPhotoError] = useState('');
   const [submitError, setSubmitError] = useState('');
-
-  useEffect(() => {
-    if (!noteEdited) setNote(t('brak.noteDefault'));
-  }, [noteEdited, t]);
 
   useEffect(() => () => {
     if (photo?.url) URL.revokeObjectURL(photo.url);
@@ -80,6 +74,14 @@ export default function Brak() {
       setSubmitError(t('brak.persistError'));
     }
   };
+
+  if (!order) {
+    return (
+      <Card className="mx-auto flex min-h-60 max-w-xl items-center justify-center p-8 text-center text-sm text-slate-400">
+        {ordersLoading ? t('api.loading') : ordersError || t('api.empty')}
+      </Card>
+    );
+  }
 
   if (submitted) {
     return (
@@ -195,10 +197,7 @@ export default function Brak() {
               <textarea
                 rows={3}
                 value={note}
-                onChange={(e) => {
-                  setNote(e.target.value);
-                  setNoteEdited(true);
-                }}
+                onChange={(e) => setNote(e.target.value)}
                 className="w-full resize-none rounded-xl border border-white/10 bg-[#0e1424] p-3 text-xs text-white outline-none focus:border-blue-500"
               />
             </div>

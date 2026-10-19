@@ -83,6 +83,11 @@ export const updateTailorOrderStatus = (orderId, status) =>
   api(`/admin/orders/${orderId}/status`, { method: 'PATCH', body: { status } });
 
 export const tailorInventoryApi = {
-  list: () => api('/admin/inventory'),
+  list: () => api('/admin/inventory?productType=TSHIRT'),
   save: (items) => api('/admin/inventory', { method: 'PUT', body: { items } }),
 };
+
+export const getTailorProduction = () => api('/admin/production');
+
+export const getTailorDashboard = (days) =>
+  api(`/admin/dashboard?days=${encodeURIComponent(days)}`);

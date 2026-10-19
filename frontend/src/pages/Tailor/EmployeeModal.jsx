@@ -12,10 +12,10 @@ export default function EmployeeModal({ open, employee, onClose, onSave, title, 
     name: '',
     initials: '',
     phone: '',
-    roleKey: 'printer',
-    factory: 'Chilonzor',
-    shiftStart: '09:00',
-    shiftEnd: '18:00',
+    roleKey: '',
+    factory: '',
+    shiftStart: '',
+    shiftEnd: '',
     lang: 'uz',
   });
 
@@ -41,7 +41,7 @@ export default function EmployeeModal({ open, employee, onClose, onSave, title, 
       .slice(0, 2)
       .toUpperCase();
 
-    onSave({ ...form, initials: initials || 'AK' });
+    onSave({ ...form, initials });
   };
 
   return (
@@ -68,7 +68,7 @@ export default function EmployeeModal({ open, employee, onClose, onSave, title, 
             {/* Avatar Upload */}
             <div className="flex items-center gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-teal-500/20 text-base font-black text-teal-400 ring-2 ring-teal-500/40">
-                {form.initials || 'AK'}
+                {form.initials}
               </div>
               <div>
                 <span className="block text-xs font-extrabold text-white">{t('emp.photo')}</span>

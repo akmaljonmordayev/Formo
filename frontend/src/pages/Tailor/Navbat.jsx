@@ -3,18 +3,19 @@ import OrderDetail from './OrderDetail';
 import QueueList from './QueueList';
 import { useT } from './i18n';
 import { useTailor } from './prefs';
-import { queueOrders as initialOrders } from './mockData';
 
 export default function Navbat() {
   const t = useT();
   const {
-    orders = initialOrders,
+    orders = [],
+    ordersError = '',
+    ordersLoading = false,
     orderActionLoading = false,
     processOrder,
   } = useTailor() ?? {};
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState('barchasi');
-  const [selectedId, setSelectedId] = useState(initialOrders[0].id);
+  const [selectedId, setSelectedId] = useState(null);
   const [mobileView, setMobileView] = useState('detail');
   const [toastMessage, setToastMessage] = useState('');
   const [toastError, setToastError] = useState(false);
@@ -35,8 +36,8 @@ export default function Navbat() {
           ? 'bosildi'
           : 'tayyor';
       showToast(t('navbat.statusToast', { id: order.id, status: t(`status.${nextStatus}`) }));
-    } catch {
-      // The shell displays the API error; do not show a success toast.
+    } catch (requestError) {
+      showToast(requestError.message, true);
     }
   };
 
@@ -79,6 +80,12 @@ export default function Navbat() {
           <span>{toastMessage}</span>
         </div>
       )}
+      {ordersError && (
+        <div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
+          {ordersError}
+        </div>
+      )}
+      {ordersLoading && <div role="status" className="text-xs text-slate-400">{t('api.loading')}</div>}
 
       {/* Mobile view toggle */}
       <div className="flex gap-2 xl:hidden">
@@ -111,6 +118,7 @@ export default function Navbat() {
           className={`${mobileView === 'list' ? 'block' : 'hidden'} xl:block`}
           orders={filtered}
           counts={counts}
+          loading={ordersLoading}
           activeTab={tab}
           onTabChange={setTab}
           query={query}

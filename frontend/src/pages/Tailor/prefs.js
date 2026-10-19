@@ -2,9 +2,10 @@ import { createContext, useContext } from 'react';
 
 // Tailor panel sozlamalari faqat shu qurilmada saqlanadi (backendda bunday maydon yo'q)
 const PREFS_KEY = 'formo_tailor_prefs';
+const preferencesKey = (userId) => userId ? `${PREFS_KEY}_${userId}` : PREFS_KEY;
 
 export const DEFAULT_PREFS = {
-  lang: 'uz', // uz | ru
+  lang: 'uz',
   notifications: { newOrders: true, deadline: true, summary: true },
 };
 
@@ -27,19 +28,16 @@ function write(key, value) {
   }
 }
 
-export function loadPrefs() {
-  const saved = read(PREFS_KEY);
-  if (!saved) return DEFAULT_PREFS;
+export function loadPrefs(userId) {
+  const saved = read(preferencesKey(userId));
   return {
     ...DEFAULT_PREFS,
-    ...saved,
-    lang: ['uz', 'ru'].includes(saved.lang) ? saved.lang : 'uz',
-    notifications: { ...DEFAULT_PREFS.notifications, ...saved.notifications },
+    lang: ['uz', 'uz-Cyrl', 'ru'].includes(saved?.lang) ? saved.lang : 'uz',
   };
 }
 
-export const storePrefs = (prefs) => {
-  if (!write(PREFS_KEY, prefs)) throw new Error('Browser storage is unavailable');
+export const storePrefs = (prefs, userId) => {
+  if (!write(preferencesKey(userId), prefs)) throw new Error('Browser storage is unavailable');
 };
 
 export const TailorContext = createContext(null);
