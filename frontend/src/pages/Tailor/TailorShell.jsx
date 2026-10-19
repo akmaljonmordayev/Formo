@@ -66,7 +66,7 @@ export default function TailorShell({ title, subtitle, children }) {
     } finally {
       setOrdersLoading(false);
     }
-  }, [user?.id]);
+  }, []);
 
   const processOrder = useCallback(async (order) => {
     if (!order.apiBacked || !order.apiId || !order.apiStatus) {
