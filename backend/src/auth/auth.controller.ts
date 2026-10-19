@@ -18,7 +18,7 @@ import { AuthResponseDto, MessageResponseDto, UserResponseDto } from './dto/auth
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { RefreshDto } from './dto/refresh.dto';
-import { RegisterDto } from './dto/register.dto';
+import { RegisterDto, UpdateProfileDto } from './dto/register.dto';
 
 const AUTH_LIMIT = { default: { limit: Number(process.env.THROTTLE_AUTH_LIMIT ?? 10), ttl: 60_000 } };
 
@@ -95,6 +95,14 @@ export class AuthController {
   @ApiOkResponse({ type: UserResponseDto })
   me(@CurrentUser() user: AuthUser) {
     return this.auth.me(user.id);
+  }
+
+  @ApiBearerAuth()
+  @Patch('me')
+  @ApiOperation({ summary: "Profilni yangilash: jins, yosh, bo'y, vazn (null — tozalash)" })
+  @ApiOkResponse({ type: UserResponseDto })
+  updateMe(@CurrentUser() user: AuthUser, @Body() dto: UpdateProfileDto) {
+    return this.auth.updateProfile(user.id, dto);
   }
 
   @ApiBearerAuth()

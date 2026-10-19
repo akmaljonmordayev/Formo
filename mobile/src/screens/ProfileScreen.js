@@ -14,6 +14,8 @@ import {
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
 import { Button, Card, Header, Screen, Segment } from '../components/ui/Common';
+import { useAddresses } from '../features/checkout';
+import { errorText } from '../utils/errors';
 import { formatUzPhone } from '../utils/phone';
 
 /** dd.mm.yyyy without relying on full ICU date formatting. */
@@ -28,13 +30,15 @@ function formatDate(value) {
 
 /**
  * ProfileScreen — real data from GET /auth/me only; no mock fallback.
- * "Personal data" opens a modal that saves via auth.updateUser. Backend profilni
- * tahrirlash endpointini bermaydi — useAuth qiymatlarni qurilmada (lokal overlay)
- * saqlaydi va UI baribir yangilanadi.
+ * "Personal data" opens a modal that saves via auth.updateUser (PATCH /auth/me:
+ * gender/age/height/weight). Profilda manzil maydoni yo'q — "Manzillarim"
+ * rasmiylashtirishda saqlangan manzillarni ko'rsatadi (GET /addresses).
  */
 export default function ProfileScreen({ t, onSettings, onOrders, auth }) {
   const [editVisible, setEditVisible] = useState(false);
   const [logoutRequested, setLogoutRequested] = useState(false);
+  const [addressesOpen, setAddressesOpen] = useState(false);
+  const { addresses, isLoading: addressesLoading, error: addressesError, refetch: refetchAddresses } = useAddresses();
 
   const user = auth?.user || {};
   const name = user.fullName || '—';
@@ -104,6 +108,39 @@ export default function ProfileScreen({ t, onSettings, onOrders, auth }) {
           sub={t('personalDataSub')}
           onPress={() => setEditVisible(true)}
         />
+        <Row
+          icon="map-marker-outline"
+          title={t('addresses')}
+          sub={
+            addressesLoading
+              ? '…'
+              : addressesError
+                ? errorText(addressesError, t)
+                : addresses.length
+                  ? `${addresses.length} ${t('addressesSaved')}`
+                  : t('addressesEmpty')
+          }
+          expanded={addressesOpen}
+          onPress={() => {
+            if (addressesError) refetchAddresses();
+            setAddressesOpen((open) => !open);
+          }}
+        />
+        {addressesOpen && addresses.length ? (
+          <View style={styles.addressList}>
+            {addresses.map((item) => (
+              <View key={item.id} style={styles.addressItem}>
+                <Text style={styles.addressLabel}>
+                  {item.label || t('address')}
+                  {item.isDefault ? ` · ${t('addressDefault')}` : ''}
+                </Text>
+                <Text style={styles.addressText}>
+                  {[item.address, item.apartment].filter(Boolean).join(', ')}
+                </Text>
+              </View>
+            ))}
+          </View>
+        ) : null}
         <Row icon="clipboard-list-outline" title={t('myOrders')} onPress={onOrders} />
         <Row icon="cog-outline" title={t('settings')} sub={t('languageSub')} onPress={onSettings} last />
       </View>
@@ -123,7 +160,7 @@ export default function ProfileScreen({ t, onSettings, onOrders, auth }) {
   );
 }
 
-function Row({ icon, title, sub, onPress, last }) {
+function Row({ icon, title, sub, onPress, last, expanded }) {
   const content = (
     <View style={[styles.row, last && styles.rowLast]}>
       <View style={styles.rowIcon}>
@@ -133,7 +170,11 @@ function Row({ icon, title, sub, onPress, last }) {
         <Text style={styles.rowTitle}>{title}</Text>
         {sub ? <Text style={styles.rowSub}>{sub}</Text> : null}
       </View>
-      <MaterialCommunityIcons name="chevron-right" size={20} color={colors.muted} />
+      <MaterialCommunityIcons
+        name={expanded === undefined ? 'chevron-right' : expanded ? 'chevron-up' : 'chevron-down'}
+        size={20}
+        color={colors.muted}
+      />
     </View>
   );
   return onPress ? <Pressable onPress={onPress}>{content}</Pressable> : content;
@@ -145,7 +186,6 @@ function EditProfileModal({ visible, onClose, user, auth, t }) {
   const [age, setAge] = useState(user.age != null ? String(user.age) : '');
   const [height, setHeight] = useState(user.height != null ? String(user.height) : '');
   const [weight, setWeight] = useState(user.weight != null ? String(user.weight) : '');
-  const [address, setAddress] = useState(user.address || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState(null);
   const [savedFlash, setSavedFlash] = useState(false);
@@ -157,7 +197,6 @@ function EditProfileModal({ visible, onClose, user, auth, t }) {
       setAge(user.age != null ? String(user.age) : '');
       setHeight(user.height != null ? String(user.height) : '');
       setWeight(user.weight != null ? String(user.weight) : '');
-      setAddress(user.address || '');
       setError(null);
       setSavedFlash(false);
     }
@@ -173,9 +212,10 @@ function EditProfileModal({ visible, onClose, user, auth, t }) {
   const handleSave = async () => {
     setError(null);
 
-    const ageValue = parseIntOrNull(age, 1, 120);
+    // Backend chegaralari (UpdateProfileDto): yosh 3–100, bo'y 50–250, vazn 10–250
+    const ageValue = parseIntOrNull(age, 3, 100);
     const heightValue = parseIntOrNull(height, 50, 250);
-    const weightValue = parseIntOrNull(weight, 20, 300);
+    const weightValue = parseIntOrNull(weight, 10, 250);
     if ([ageValue, heightValue, weightValue].some(Number.isNaN)) {
       setError(t('invalidValue'));
       return;
@@ -188,7 +228,6 @@ function EditProfileModal({ visible, onClose, user, auth, t }) {
         age: ageValue,
         height: heightValue,
         weight: weightValue,
-        address: address.trim() || null,
       });
       setSavedFlash(true);
       setTimeout(() => {
@@ -196,14 +235,13 @@ function EditProfileModal({ visible, onClose, user, auth, t }) {
         onClose();
       }, 600);
     } catch (err) {
-      setError(err?.message || t('networkError'));
+      setError(errorText(err, t));
     } finally {
       setSaving(false);
     }
   };
 
-  const genderLabel =
-    gender === 'MALE' ? t('male') : gender === 'FEMALE' ? t('female') : t('male');
+  const genderLabel = gender === 'MALE' ? t('male') : gender === 'FEMALE' ? t('female') : null;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -234,16 +272,6 @@ function EditProfileModal({ visible, onClose, user, auth, t }) {
               <ModalInput label={`${t('height')}, sm`} value={height} onChangeText={setHeight} placeholder="178" />
               <ModalInput label={`${t('weight')}, kg`} value={weight} onChangeText={setWeight} placeholder="76" />
             </View>
-
-            <Text style={styles.modalLabel}>{t('address')}</Text>
-            <TextInput
-              value={address}
-              onChangeText={setAddress}
-              placeholder="—"
-              placeholderTextColor={colors.muted}
-              style={styles.modalInput}
-              selectionColor={colors.accent}
-            />
 
             {error ? <Text style={styles.modalError}>{error}</Text> : null}
             {savedFlash ? <Text style={styles.modalSaved}>{t('saved')}</Text> : null}
@@ -355,6 +383,10 @@ const styles = StyleSheet.create({
   rowTitle: { color: colors.text, fontSize: 13, fontWeight: '700' },
   rowSub: { color: colors.muted, fontSize: 11, marginTop: 3 },
   logout: { marginTop: spacing.sm },
+  addressList: { paddingBottom: spacing.sm, borderBottomWidth: 1, borderBottomColor: '#171C3F' },
+  addressItem: { paddingVertical: 8, paddingLeft: 46 },
+  addressLabel: { color: colors.text, fontSize: 12, fontWeight: '700' },
+  addressText: { color: colors.muted, fontSize: 11, marginTop: 2 },
 
   // Edit modal
   modalBackdrop: {

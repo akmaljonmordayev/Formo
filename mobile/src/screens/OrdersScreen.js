@@ -5,6 +5,7 @@ import useOrders, { isFinal, progressOf, statusText } from '../features/orders';
 import { Card, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
 import { JerseyPreview } from '../components/ui/JerseyPreview';
+import { designText, itemPreview } from '../features/studio';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { errorText } from '../utils/errors';
 import { formatDate } from '../utils/formatters';
@@ -100,15 +101,14 @@ export default function OrdersScreen({ t, onOrder }) {
                       </View>
                       <View style={styles.orderBody}>
                         <View style={styles.thumb}>
-                          <JerseyPreview
-                            product={{ color: first.bgColor || '#242749', accent: first.textColor || '#FFFFFF' }}
-                            number={first.printNumber || ''}
-                            tiny
-                          />
+                          <JerseyPreview product={itemPreview(first)} number={first.printNumber || ''} tiny />
                         </View>
                         <View style={styles.orderCopy}>
                           <Text style={styles.product} numberOfLines={1}>
-                            {first.clubName} · {first.kitLabel}{more}
+                            {first.design
+                              ? `${t('customDesign')} · ${designText(t, first.design)}`
+                              : `${first.clubName} · ${first.kitLabel}`}
+                            {more}
                           </Text>
                           <Text style={styles.meta}>{order.itemsCount} {t('pcs')} · {formatDate(order.createdAt)}</Text>
                         </View>

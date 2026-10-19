@@ -59,6 +59,11 @@ const orderToQueueItem = (order) => {
     deadline: order.deliverySlot
       ? { time: order.deliverySlot, done: status === 'tayyor' }
       : null,
+    design: line?.design ?? null,
+    clubName: line?.clubName ?? '',
+    kitLabel: line?.kitLabel ?? '',
+    isCustomDesign: Boolean(line && (line.kitId == null || line.design)),
+    apiItems: order.items ?? [],
     apiSummary: details.join(' · '),
     apiPrintName: line?.printName ?? order.printName ?? '',
     apiOrder: order,
@@ -99,3 +104,22 @@ export const getTailorProduction = () => api('/workshop/production');
 
 export const getTailorDashboard = (days) =>
   api(`/workshop/stats?days=${encodeURIComponent(days)}`);
+
+// ---------- chat ----------
+export const listChatMessages = (after) =>
+  api(after ? `/workshop/chat/messages?after=${encodeURIComponent(after)}` : '/workshop/chat/messages');
+export const sendChatMessage = (text) =>
+  api('/workshop/chat/messages', { method: 'POST', body: { text } });
+export const getChatUnread = () => api('/workshop/chat/unread');
+
+// ---------- defects ----------
+export const createDefect = (body) => api('/workshop/defects', { method: 'POST', body });
+export const listDefects = (limit = 10) => api(`/workshop/defects?page=1&limit=${limit}`);
+
+// ---------- profile / employees ----------
+export const getWorkshopProfile = () => api('/workshop/profile');
+export const updateWorkshopProfile = (body) => api('/workshop/profile', { method: 'PATCH', body });
+export const listEmployees = () => api('/workshop/employees');
+export const createEmployee = (body) => api('/workshop/employees', { method: 'POST', body });
+export const updateEmployee = (id, body) => api(`/workshop/employees/${id}`, { method: 'PATCH', body });
+export const deleteEmployee = (id) => api(`/workshop/employees/${id}`, { method: 'DELETE' });

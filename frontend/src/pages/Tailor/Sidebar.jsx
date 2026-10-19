@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation, useNavigate } from 'react-router-dom';
 import { Boxes, ClipboardList, Layers, LogOut, Settings2, BarChart3, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { FormoLogo } from './ui';
 import { useT } from './i18n';
 import { useTailor } from './prefs';
 import { cx, initialsOf } from './utils';
+import { getChatUnread, getWorkshopProfile } from './tailorApi';
 
 const NAV_ITEMS = [
   { to: '/tailor', key: 'nav.queue', icon: ClipboardList, queueBadge: true, end: true },
@@ -16,27 +17,47 @@ const NAV_ITEMS = [
   { to: '/tailor/profil', key: 'nav.profile', icon: Settings2 },
 ];
 
-function readProfile(userId) {
-  try {
-    return JSON.parse(localStorage.getItem(`formo_tailor_profile_${userId ?? 'current'}`) || 'null');
-  } catch {
-    return null;
-  }
-}
-
 function SidebarContent({ onNavigate }) {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const t = useT();
   const { orders } = useTailor() ?? {};
-  const [profile, setProfile] = useState(() => readProfile(user?.id));
+  const { pathname } = useLocation();
+  const [profile, setProfile] = useState(null);
+  const [unread, setUnread] = useState(0);
 
   useEffect(() => {
-    setProfile(readProfile(user?.id));
+    let cancelled = false;
+    getWorkshopProfile()
+      .then((data) => {
+        if (!cancelled && data) setProfile({ name: data.fullName, factory: data.workshopName });
+      })
+      .catch(() => {});
     const onProfileUpdated = (event) => setProfile(event.detail);
     window.addEventListener('formo:tailor-profile-updated', onProfileUpdated);
-    return () => window.removeEventListener('formo:tailor-profile-updated', onProfileUpdated);
+    return () => {
+      cancelled = true;
+      window.removeEventListener('formo:tailor-profile-updated', onProfileUpdated);
+    };
   }, [user?.id]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      if (document.hidden) return;
+      getChatUnread()
+        .then((data) => {
+          if (!cancelled) setUnread(Number(data?.unread) || 0);
+        })
+        .catch(() => {});
+    };
+    load();
+    const timer = window.setInterval(load, 20000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [pathname]);
 
   const queueCount = orders?.filter((order) => order.status === 'yangi' || order.status === 'qabul').length ?? 0;
   const shiftTotal = orders?.length ?? 0;
@@ -60,8 +81,8 @@ function SidebarContent({ onNavigate }) {
       </div>
 
       <nav className="mt-2 flex flex-col gap-1">
-        {NAV_ITEMS.map(({ to, key, icon: Icon, queueBadge, end }) => {
-          const badge = queueBadge ? queueCount : undefined;
+        {NAV_ITEMS.map(({ to, key, icon: Icon, queueBadge, chatBadge, end }) => {
+          const badge = queueBadge ? queueCount : chatBadge ? unread : undefined;
           return (
             <NavLink
               key={to}

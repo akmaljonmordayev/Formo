@@ -6,6 +6,7 @@ import { Button, Card, Header, Screen, formatMoney } from '../components/ui/Comm
 import ErrorView from '../components/ui/ErrorView';
 import { JerseyPreview } from '../components/ui/JerseyPreview';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { designText, itemPreview } from '../features/studio';
 import { errorText } from '../utils/errors';
 
 // Server savati (/api/cart): yakunlar serverdan, promokod — POST /api/cart/promocode.
@@ -84,14 +85,12 @@ export default function CartScreen({ t, cart, rules, onBack, onCheckout }) {
             {items.map((item) => (
               <View key={item.id} style={[styles.item, !item.available && styles.itemOff]}>
                 <View style={styles.thumb}>
-                  <JerseyPreview
-                    product={{ color: item.kit.bgColor, accent: item.kit.textColor }}
-                    number={item.printNumber || ''}
-                    tiny
-                  />
+                  <JerseyPreview product={itemPreview(item)} number={item.printNumber || ''} tiny />
                 </View>
                 <View style={styles.itemCopy}>
-                  <Text style={styles.name} numberOfLines={1}>{item.title}</Text>
+                  {/* Maxsus dizayn qatorida klub/forma yo'q (kitId, club, kit — null) */}
+                  <Text style={styles.name} numberOfLines={1}>{item.design ? t('customJersey') : item.title}</Text>
+                  {item.design ? <Text style={styles.sub} numberOfLines={1}>{designText(t, item.design)}</Text> : null}
                   {item.subtitle ? <Text style={styles.sub} numberOfLines={1}>{item.subtitle}</Text> : null}
                   {item.problem ? <Text style={styles.problem}>{item.problem}</Text> : null}
                   <View style={styles.qtyRow}>

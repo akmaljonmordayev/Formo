@@ -1,33 +1,13 @@
-import { useEffect, useState } from 'react';
-import { Clock, Edit3, Factory, Globe, Phone, ShieldCheck, User, Check } from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
+import { Briefcase, Clock, Edit3, Factory, Gauge, Globe, MapPin, Phone, Plus, ShieldCheck, Trash2, User, Check } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { Card, Toggle } from './ui';
 import EmployeeModal from './EmployeeModal';
+import ProfileModal from './ProfileModal';
 import { useTailor } from './prefs';
 import { LANGS, translate, useT } from './i18n';
 import { initialsOf, prettyPhone } from './utils';
-
-const profileKey = (userId) => `formo_tailor_profile_${userId ?? 'current'}`;
-
-function loadProfile(user, language = 'uz') {
-  const baseProfile = {
-    id: user?.id ?? null,
-    name: user?.fullName ?? '',
-    initials: initialsOf(user?.fullName),
-    phone: user?.phone ?? '',
-    roleKey: user?.roleKey ?? '',
-    factory: user?.workshopName ?? '',
-    shiftStart: user?.shiftStart ?? '',
-    shiftEnd: user?.shiftEnd ?? '',
-    lang: language,
-  };
-  try {
-    const saved = JSON.parse(localStorage.getItem(profileKey(user?.id)) || 'null');
-    return saved ? { ...baseProfile, ...saved, id: baseProfile.id, lang: language } : baseProfile;
-  } catch {
-    return baseProfile;
-  }
-}
+import { deleteEmployee, getWorkshopProfile, listEmployees } from './tailorApi';
 
 export default function Profile() {
   const { user } = useAuth();
@@ -35,31 +15,89 @@ export default function Profile() {
   const t = useT();
   const [notice, setNotice] = useState(null);
   const [preferenceSaving, setPreferenceSaving] = useState(false);
-  const [profile, setProfile] = useState(() => loadProfile(user, prefs.lang));
+  const [profile, setProfile] = useState(null);
+  const [profileError, setProfileError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
-  const name = profile.name || user?.fullName || '';
+  const [employees, setEmployees] = useState([]);
+  const [employeesError, setEmployeesError] = useState('');
+  const [employeesLoading, setEmployeesLoading] = useState(true);
+  const [employeeModal, setEmployeeModal] = useState({ open: false, employee: null });
+  const [deleting, setDeleting] = useState(null);
+  const [deleteBusy, setDeleteBusy] = useState(false);
+  const name = profile?.fullName || user?.fullName || '';
+
+  const loadEmployees = useCallback(async () => {
+    try {
+      const data = await listEmployees();
+      setEmployees(Array.isArray(data) ? data : data?.items ?? []);
+      setEmployeesError('');
+    } catch (err) {
+      setEmployeesError(err?.message || t('profile.employeesError'));
+    } finally {
+      setEmployeesLoading(false);
+    }
+  }, [t]);
 
   useEffect(() => {
-    setProfile(loadProfile(user, prefs.lang));
-  }, [user, prefs.lang]);
+    let cancelled = false;
+    getWorkshopProfile()
+      .then((data) => {
+        if (!cancelled) setProfile(data);
+      })
+      .catch((err) => {
+        if (!cancelled) setProfileError(err?.message || t('profile.loadError'));
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [t]);
 
-  const saveProfile = async (updated) => {
+  useEffect(() => {
+    loadEmployees();
+  }, [loadEmployees]);
+
+  const onProfileSaved = (saved) => {
+    setProfile(saved);
+    window.dispatchEvent(
+      new CustomEvent('formo:tailor-profile-updated', {
+        detail: { ...saved, name: saved.fullName, factory: saved.workshopName },
+      })
+    );
+    setModalOpen(false);
+    setNotice({ text: t('profile.savedToast'), error: false });
+  };
+
+  const onEmployeeSaved = async () => {
+    setEmployeeModal({ open: false, employee: null });
+    await loadEmployees();
+    setNotice({ text: t('profile.employeeSaved'), error: false });
+  };
+
+  const confirmDelete = async () => {
+    if (!deleting || deleteBusy) return;
+    setDeleteBusy(true);
     try {
-      if (updated.lang !== prefs.lang) await savePrefs({ ...prefs, lang: updated.lang });
-      localStorage.setItem(profileKey(user?.id), JSON.stringify(updated));
-      setProfile(updated);
-      window.dispatchEvent(new CustomEvent('formo:tailor-profile-updated', { detail: updated }));
-      setModalOpen(false);
-      setNotice({ text: t('profile.savedToast'), error: false });
-    } catch {
-      setNotice({ text: t('profile.persistError'), error: true });
+      await deleteEmployee(deleting.id);
+      setDeleting(null);
+      await loadEmployees();
+      setNotice({ text: t('profile.employeeDeleted'), error: false });
+    } catch (err) {
+      setDeleting(null);
+      setNotice({ text: err?.message || t('profile.employeesError'), error: true });
+    } finally {
+      setDeleteBusy(false);
     }
   };
+
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timer = window.setTimeout(() => setNotice(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
   const changeLanguage = async (lang) => {
     try {
       await savePrefs({ ...prefs, lang });
-      setProfile((current) => ({ ...current, lang }));
       setNotice({ text: translate(lang, lang === 'ru' ? 'profile.langToastRu' : 'profile.langToast'), error: false });
     } catch {
       setNotice({ text: translate(lang, 'profile.persistError'), error: true });
@@ -114,8 +152,9 @@ export default function Profile() {
           </div>
           <button
             type="button"
+            disabled={!profile}
             onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 rounded-xl bg-teal-400 px-5 py-2.5 text-xs font-extrabold text-slate-950 shadow-glow transition hover:bg-teal-300 active:scale-95"
+            className="flex items-center gap-2 rounded-xl bg-teal-400 px-5 py-2.5 text-xs font-extrabold text-slate-950 shadow-glow transition hover:bg-teal-300 active:scale-95 disabled:opacity-50"
           >
             <Edit3 className="h-4 w-4" />
             <span>{t('profile.edit')}</span>
@@ -127,9 +166,11 @@ export default function Profile() {
           <div className="grid gap-4 sm:grid-cols-2">
             {[
               { label: t('profile.nameLabel'), value: name, Icon: User },
-              { label: t('profile.phoneLabel'), value: prettyPhone(profile.phone || user?.phone), Icon: Phone },
-              { label: t('profile.workshopLabel'), value: profile.factory || user?.workshopName || t('profile.workshopMissing'), Icon: Factory },
-              { label: t('profile.shiftLabel'), value: profile.shiftStart || profile.shiftEnd ? `${profile.shiftStart || '—'} — ${profile.shiftEnd || '—'}` : '—', Icon: Clock },
+              { label: t('profile.phoneLabel'), value: prettyPhone(profile?.phone || user?.phone || ''), Icon: Phone },
+              { label: t('profile.workshopLabel'), value: profile?.workshopName || user?.workshopName || t('profile.workshopMissing'), Icon: Factory },
+              { label: t('profile.addressLabel'), value: profile?.address || '—', Icon: MapPin },
+              { label: t('profile.capacityLabel'), value: profile?.dailyCapacity != null ? t('profile.capacityUnit', { n: profile.dailyCapacity }) : '—', Icon: Gauge },
+              { label: t('profile.shiftLabel'), value: profile?.shiftStart || profile?.shiftEnd ? `${profile.shiftStart || '—'} — ${profile.shiftEnd || '—'}` : '—', Icon: Clock },
             ].map(({ label, value, Icon }) => (
               <label key={label} className="block">
                 <span className="mb-1 block text-[11px] font-bold text-slate-400">{label}</span>
@@ -161,6 +202,62 @@ export default function Profile() {
             </label>
           </div>
           <p className="mt-3 text-xs leading-5 text-slate-400">{t('profile.accountReadOnly')}</p>
+          {profileError && <p role="alert" className="mt-2 text-xs text-rose-300">{profileError}</p>}
+        </section>
+
+        <section className="border-t border-white/10 pt-5">
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">{t('profile.employees')}</h3>
+            <button
+              type="button"
+              onClick={() => setEmployeeModal({ open: true, employee: null })}
+              className="flex items-center gap-1.5 rounded-xl bg-teal-400 px-3.5 py-2 text-xs font-extrabold text-slate-950 hover:bg-teal-300"
+            >
+              <Plus className="h-4 w-4" />
+              {t('profile.employeeAdd')}
+            </button>
+          </div>
+          {employeesLoading && <p className="text-xs text-slate-400">{t('api.loading')}</p>}
+          {employeesError && <p role="alert" className="text-xs text-rose-300">{employeesError}</p>}
+          {!employeesLoading && !employeesError && employees.length === 0 && (
+            <p className="text-xs text-slate-400">{t('profile.employeesEmpty')}</p>
+          )}
+          <ul className="flex flex-col gap-2">
+            {employees.map((emp) => (
+              <li key={emp.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#0e1424] px-3.5 py-3">
+                <div className="flex min-w-0 items-center gap-3">
+                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-500/20 text-xs font-black text-teal-300">
+                    {initialsOf(emp.fullName)}
+                  </span>
+                  <div className="min-w-0">
+                    <p className="truncate text-xs font-extrabold text-white">{emp.fullName}</p>
+                    <p className="flex items-center gap-1 truncate text-[10px] text-slate-400">
+                      <Briefcase className="h-3 w-3" aria-hidden="true" />
+                      {emp.role}{emp.phone ? ` · ${prettyPhone(emp.phone)}` : ''}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex shrink-0 gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setEmployeeModal({ open: true, employee: emp })}
+                    aria-label={t('profile.edit')}
+                    className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white"
+                  >
+                    <Edit3 className="h-4 w-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setDeleting(emp)}
+                    aria-label={t('profile.employeeDelete')}
+                    className="rounded-lg p-1.5 text-rose-300 hover:bg-rose-500/10"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                  </button>
+                </div>
+              </li>
+            ))}
+          </ul>
         </section>
 
         <section className="border-t border-white/10 pt-5">
@@ -193,14 +290,38 @@ export default function Profile() {
           <p className="text-xs leading-relaxed font-medium">{t('profile.backendNote')}</p>
         </div>
       </Card>
+      <ProfileModal open={modalOpen} profile={profile} onClose={() => setModalOpen(false)} onSaved={onProfileSaved} />
       <EmployeeModal
-        open={modalOpen}
-        employee={profile}
-        title={t('profile.edit')}
-        showRole={false}
-        onClose={() => setModalOpen(false)}
-        onSave={saveProfile}
+        open={employeeModal.open}
+        employee={employeeModal.employee}
+        onClose={() => setEmployeeModal({ open: false, employee: null })}
+        onSaved={onEmployeeSaved}
       />
+      {deleting && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
+          <div role="dialog" aria-modal="true" className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#121829] p-6">
+            <h3 className="text-base font-black text-white">{t('profile.employeeDelete')}</h3>
+            <p className="mt-2 text-xs text-slate-400">{t('profile.employeeDeleteConfirm', { name: deleting.fullName })}</p>
+            <div className="mt-5 flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setDeleting(null)}
+                className="rounded-xl border border-white/10 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-white/10"
+              >
+                {t('emp.cancel')}
+              </button>
+              <button
+                type="button"
+                disabled={deleteBusy}
+                onClick={confirmDelete}
+                className="rounded-xl bg-rose-500 px-4 py-2 text-xs font-extrabold text-white hover:bg-rose-400 disabled:opacity-50"
+              >
+                {t('profile.employeeDelete')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

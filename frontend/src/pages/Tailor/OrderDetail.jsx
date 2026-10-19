@@ -40,18 +40,32 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
 
   const badgeStyle = BADGE_STYLES[order.status] ?? BADGE_STYLES.qabul;
 
+  const design = order.design;
+  const colorOf = (c) => {
+    if (!c) return null;
+    if (c.type === 'custom') return { text: c.hex, swatch: c.hex };
+    if (c.type === 'gradient') return { text: `${t('order.spec.gradient')} ${c.id ?? ''}`.trim() };
+    return { text: c.id ?? c.hex ?? '', swatch: c.hex };
+  };
+  const designColor = colorOf(design?.color);
   const specs = [
-    { label: t('order.spec.name'), value: order.customer },
+    { label: t('order.spec.name'), value: order.apiPrintName || order.customer },
     { label: t('order.spec.number'), value: order.number, isHighlight: true },
     { label: t('order.spec.size'), value: order.size },
-    { label: t('order.spec.model'), value: order.model },
-    { label: t('order.spec.jerseyColor'), value: `${order.jerseyColorName} ${order.jerseyColor}` },
-    { label: t('order.spec.fabric'), value: order.fabric },
-    { label: t('order.spec.composition'), value: order.composition },
     { label: t('order.spec.qty'), value: t('order.qtyUnit', { n: order.qty }) },
-    { label: t('order.spec.printColor'), value: order.printColor },
-    { label: t('order.spec.location'), value: order.location },
-  ];
+    ...(design
+      ? [
+          { label: t('order.spec.design'), value: t('order.spec.customDesign') },
+          { label: t('order.spec.designColor'), value: designColor?.text, swatch: designColor?.swatch },
+          { label: t('order.spec.font'), value: design.font },
+          { label: t('order.spec.patch'), value: design.patch || t('order.spec.none') },
+          { label: t('order.spec.package'), value: design.package },
+        ]
+      : [
+          { label: t('order.spec.club'), value: order.clubName },
+          { label: t('order.spec.kit'), value: order.kitLabel },
+        ]),
+  ].filter((item) => item.value !== undefined && item.value !== null && item.value !== '');
 
   const workflowLabel =
     order.status === 'yangi' || order.status === 'qabul'
@@ -149,7 +163,7 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
       <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
         {/* Left: Jersey Visual Preview */}
         <JerseyPreview
-          color={order.jerseyColor}
+          color={design?.color?.hex || order.jerseyColor}
           number={order.number}
           name={order.customer}
           colorKey={order.colorKey}
@@ -168,6 +182,13 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
                   item.isHighlight ? 'text-cyan-400 text-lg' : 'text-white'
                 )}
               >
+                {item.swatch && (
+                  <span
+                    className="mr-1.5 inline-block h-3 w-3 rounded-full align-middle ring-1 ring-white/30"
+                    style={{ backgroundColor: item.swatch }}
+                    aria-hidden="true"
+                  />
+                )}
                 {item.value}
               </span>
             </div>

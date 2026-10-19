@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react';
-import { FileBarChart } from 'lucide-react';
+import { ordersApi } from '../../../features/platform/platformApi';
 import { workshopsApi } from '../../../features/accounts/accountsApi';
 import { useT } from '../i18n';
 
+const PRODUCTION = ['ACCEPTED', 'PRINTING', 'QUALITY_CHECK', 'READY'];
 const SAMPLE = 100; // API bitta sahifada ko'pi bilan 100 ta qaytaradi
 
 // Oxirgi 6 oy: har oyga qo'shilgan sexlar soni
@@ -24,6 +25,7 @@ function byMonth(items, locale) {
 export default function OperatorReports() {
   const t = useT();
   const [data, setData] = useState(null);
+  const [orders, setOrders] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -43,6 +45,23 @@ export default function OperatorReports() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    ordersApi
+      .list({ page: 1, limit: 1 })
+      .then((res) => !cancelled && setOrders({ total: res.total ?? 0, by: res.byStatus ?? {}, paid: res.paymentTotals?.PAID ?? 0 }))
+      .catch((err) => {
+        if (cancelled) return;
+        setError(err.message);
+        setOrders({ total: 0, by: {}, paid: 0 });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const production = orders ? PRODUCTION.reduce((n, k) => n + (orders.by[k] ?? 0), 0) : 0;
+  const okv = (v) => (orders ? v : <span className="op-sk" style={{ width: 48, height: 32 }} />);
   const months = data ? byMonth(data.items, t.locale) : [];
   const max = Math.max(1, ...months.map((m) => m.n));
   const rate = data?.total ? Math.round((data.active / data.total) * 100) : null;
@@ -110,10 +129,35 @@ export default function OperatorReports() {
         </section>
 
         <section className="op-cd op-pd op-lav" aria-labelledby="rep-orders">
-          <span className="op-eyebrow">{t('dash.notConnected')}</span>
           <h2 id="rep-orders">{t('rep.ordersRep')}</h2>
           <p>{t('rep.ordersRepHint')}</p>
-          <FileBarChart size={40} strokeWidth={1.5} aria-hidden="true" style={{ color: 'var(--op-lav)' }} />
+          <div className="op-legend">
+            <div>
+              <i />
+              <span>{t('dash.ordersTotal')}</span>
+              <b>{okv(orders?.total)}</b>
+            </div>
+            <div>
+              <i />
+              <span>{t('dash.inProduction')}</span>
+              <b>{okv(production)}</b>
+            </div>
+            <div>
+              <i className="is-ok" />
+              <span>{t('dash.delivered')}</span>
+              <b>{okv(orders?.by.DELIVERED ?? 0)}</b>
+            </div>
+            <div>
+              <i className="is-off" />
+              <span>{t('dash.cancelled')}</span>
+              <b>{okv(orders?.by.CANCELLED ?? 0)}</b>
+            </div>
+            <div>
+              <i />
+              <span>{t('dash.revenue')}</span>
+              <b>{okv(`${Number(orders?.paid ?? 0).toLocaleString(t.locale)} ${t('pay.currency')}`)}</b>
+            </div>
+          </div>
         </section>
       </div>
     </>

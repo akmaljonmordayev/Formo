@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   BarChart3,
   Factory,
   History,
@@ -24,6 +25,7 @@ import Operator from './Operator';
 import Orders from './Orders';
 import DesignStudio from './Dashboard/DesignStudio';
 import Production from './Production';
+import Defects from './Defects';
 import Clubs from './Clubs';
 import Categories from './Categories';
 import Inventory from './Inventory';
@@ -54,6 +56,7 @@ export const superadminRoutes = [
   { path: '', element: <Dashboard /> },
   { path: 'orders', element: <Orders /> },
   { path: 'production', element: <Production /> },
+  { path: 'defects', element: <Defects /> },
   { path: 'clubs', element: <Clubs /> },
   { path: 'categories', element: <Categories /> },
   { path: 'design-studio', element: <DesignStudio /> },
@@ -75,6 +78,7 @@ export const superadminMenu = [
   { to: BASE, label: 'Dashboard', end: true, icon: LayoutDashboard, group: 'Asosiy' },
   { to: `${BASE}/orders`, label: 'Buyurtmalar', icon: ShoppingBag, group: 'Asosiy', badge: 2 },
   { to: `${BASE}/production`, label: 'Ishlab chiqarish', icon: Factory, group: 'Asosiy', badge: 2 },
+  { to: `${BASE}/defects`, label: 'Nuqsonlar (brak)', icon: AlertTriangle, group: 'Asosiy' },
 
   { to: `${BASE}/clubs`, label: 'Klublar va formalar', icon: Shirt, group: 'Katalog' },
   { to: `${BASE}/categories`, label: 'Kategoriyalar', icon: Layers, group: 'Katalog' },

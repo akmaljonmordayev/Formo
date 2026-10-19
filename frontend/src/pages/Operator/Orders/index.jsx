@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import { ChevronLeft, ChevronRight, ShoppingBag } from 'lucide-react';
 import { ordersApi } from '../../../features/platform/platformApi';
 import { prettyPhone, workshopsApi } from '../../../features/accounts/accountsApi';
@@ -26,6 +26,56 @@ function badgeClass(status) {
   if (status === 'DELIVERED') return 'is-ok';
   if (status === 'CANCELLED' || status === 'RETURNED') return 'is-off';
   return '';
+}
+
+function designSummary(design, t) {
+  if (!design) return '';
+  const c = design.color;
+  const color = c ? (c.type === 'gradient' ? `${t('orders.line.gradient')} ${c.id ?? ''}` : c.hex || c.id || '') : '';
+  const parts = [];
+  if (color) parts.push(`${t('orders.line.color')}: ${color.trim()}`);
+  if (design.font) parts.push(`${t('orders.line.font')}: ${design.font}`);
+  if (design.patch) parts.push(`${t('orders.line.patch')}: ${typeof design.patch === 'string' ? design.patch : design.patch.id ?? design.patch.name ?? '✓'}`);
+  if (design.package) parts.push(`${t('orders.line.package')}: ${typeof design.package === 'string' ? design.package : design.package.id ?? design.package.name ?? '✓'}`);
+  return parts.join(' · ');
+}
+
+function OrderDetails({ order, t, date }) {
+  const lines = order.items ?? [];
+  const delivery = [order.deliveryAddress, order.deliveryDate && date(order.deliveryDate), order.deliverySlot].filter(Boolean).join(' · ');
+  return (
+    <div style={{ padding: '4px 4px 8px' }}>
+      {lines.length ? (
+        <ul style={{ margin: 0, paddingLeft: 18, display: 'grid', gap: 6 }}>
+          {lines.map((l, i) => (
+            <li key={l.id ?? i}>
+              <b>{l.kitId == null ? t('orders.line.custom') : [l.clubName, l.kitLabel].filter(Boolean).join(' · ')}</b>
+              {' — '}
+              {t('orders.line.size')}: {l.shirtSize}, {t('orders.line.qty')}: {l.quantity}
+              {(l.printName || l.printNumber) && (
+                <>
+                  , {t('orders.line.print')}: {[l.printName, l.printNumber].filter(Boolean).join(' ')}
+                </>
+              )}
+              {l.kitId == null && l.design && <div className="op-sub">{designSummary(l.design, t)}</div>}
+            </li>
+          ))}
+        </ul>
+      ) : (
+        <span className="op-sub">{t('orders.noLines')}</span>
+      )}
+      {delivery && (
+        <div className="op-sub" style={{ marginTop: 8 }}>
+          {t('orders.delivery')}: {delivery}
+        </div>
+      )}
+      {order.comment && (
+        <div className="op-sub">
+          {t('orders.comment')}: {order.comment}
+        </div>
+      )}
+    </div>
+  );
 }
 
 function OrderActions({ order, workshops, onDone, onError }) {
@@ -118,6 +168,7 @@ export default function OperatorOrders() {
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [openId, setOpenId] = useState(null);
   const debouncedQuery = useDebounced(query, 300);
 
   const load = useCallback(async () => {
@@ -211,7 +262,8 @@ export default function OperatorOrders() {
               </thead>
               <tbody>
                 {data.items.map((o) => (
-                  <tr key={o.id}>
+                  <Fragment key={o.id}>
+                  <tr>
                     <td className="op-mono">
                       <b>{o.code}</b>
                     </td>
@@ -225,9 +277,27 @@ export default function OperatorOrders() {
                     </td>
                     <td className="op-mono">{date(o.createdAt)}</td>
                     <td>
-                      <OrderActions order={o} workshops={workshops} onDone={load} onError={setError} />
+                      <div className="op-row is-w" style={{ gap: 6 }}>
+                        <button
+                          type="button"
+                          className="op-b is-line is-sm"
+                          aria-expanded={openId === o.id}
+                          onClick={() => setOpenId(openId === o.id ? null : o.id)}
+                        >
+                          {t(openId === o.id ? 'orders.hideDetails' : 'orders.details')}
+                        </button>
+                        <OrderActions order={o} workshops={workshops} onDone={load} onError={setError} />
+                      </div>
                     </td>
                   </tr>
+                  {openId === o.id && (
+                    <tr>
+                      <td colSpan={6}>
+                        <OrderDetails order={o} t={t} date={date} />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

@@ -245,17 +245,39 @@ function OrderModal({ order, onClose, onSaved }) {
           <>
             <div style={{ margin: '0 0 8px', fontWeight: 600, fontSize: 13.5 }}>{t("Mahsulotlar")}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
-              {order.items.map((it) => (
-                <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13 }}>
-                  <span>
-                    {it.clubName} · {it.kitLabel} · {it.shirtSize}
-                    {it.withShorts && it.shortsSize ? ` / ${it.shortsSize}` : ''}
-                    {(it.printName || it.printNumber) && ` · ${[it.printName, it.printNumber].filter(Boolean).join(' ')}`}
-                    {' '}× {it.quantity}
-                  </span>
-                  <b>{money(it.totalPrice)}</b>
-                </div>
-              ))}
+              {order.items.map((it) => {
+                const custom = it.kitId == null || it.design;
+                const d = it.design;
+                return (
+                  <div key={it.id} style={{ fontSize: 13 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                      <span>
+                        <b>{custom ? t('Maxsus dizayn') : it.clubName}</b>
+                        {!custom && it.kitLabel ? ` · ${it.kitLabel}` : ''} · {it.shirtSize}
+                        {it.withShorts && it.shortsSize ? ` / ${it.shortsSize}` : ''}
+                        {(it.printName || it.printNumber) && ` · ${[it.printName, it.printNumber].filter(Boolean).join(' ')}`}
+                        {' '}× {it.quantity}
+                      </span>
+                      <b>{money(it.totalPrice)}</b>
+                    </div>
+                    {custom && d && (
+                      <div className="sa-table__sub" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginTop: 2 }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          {t('Rang')}:
+                          {d.color?.hex && (
+                            <span style={{ width: 14, height: 14, borderRadius: 4, background: d.color.hex, border: '1px solid var(--sa-line)' }} />
+                          )}
+                          {d.color?.hex || d.color?.id || '—'}
+                          {d.color?.type === 'gradient' ? ` (${t('gradient')})` : ''}
+                        </span>
+                        {d.font && <span>{t('Shrift')}: {d.font}</span>}
+                        <span>{t('Patch')}: {d.patch ? (typeof d.patch === 'string' ? d.patch : JSON.stringify(d.patch)) : t("yo'q")}</span>
+                        {d.package && <span>{t('Paket')}: {typeof d.package === 'string' ? d.package : JSON.stringify(d.package)}</span>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </>
         )}
