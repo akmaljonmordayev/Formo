@@ -45,10 +45,10 @@ export default function EmployeeModal({ open, employee, onClose, onSave, title, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm animate-fade-in">
-      <div className="flex h-full w-full max-w-lg flex-col justify-between border-l border-white/10 bg-[#121829] p-6 text-slate-200 shadow-2xl">
+    <div className="tailor-profile-overlay fixed inset-0 z-50 flex justify-end bg-black/70 backdrop-blur-sm animate-fade-in">
+      <div className="tailor-profile-drawer flex h-full w-full max-w-lg flex-col border-l border-white/10 bg-[#121829] p-6 text-slate-200 shadow-2xl">
         {/* Drawer Header */}
-        <div>
+        <div className="flex min-h-0 flex-1 flex-col">
           <div className="flex items-start justify-between border-b border-white/10 pb-4">
             <div>
               <h2 className="text-lg font-black text-white">{title || t('emp.title')}</h2>
@@ -64,7 +64,7 @@ export default function EmployeeModal({ open, employee, onClose, onSave, title, 
           </div>
 
           {/* Form */}
-          <form id="employeeForm" onSubmit={handleSubmit} className="mt-5 space-y-4">
+          <form id="employeeForm" onSubmit={handleSubmit} className="mt-5 min-h-0 flex-1 space-y-4 overflow-y-auto pb-4">
             {/* Avatar Upload */}
             <div className="flex items-center gap-4">
               <div className="flex h-14 w-14 items-center justify-center rounded-full bg-teal-500/20 text-base font-black text-teal-400 ring-2 ring-teal-500/40">
@@ -218,7 +218,7 @@ export default function EmployeeModal({ open, employee, onClose, onSave, title, 
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-end gap-3 border-t border-white/10 pt-4">
+        <div className="sticky bottom-0 flex shrink-0 items-center justify-end gap-3 border-t border-white/10 bg-[#121829] pt-4">
           <button
             type="button"
             onClick={onClose}

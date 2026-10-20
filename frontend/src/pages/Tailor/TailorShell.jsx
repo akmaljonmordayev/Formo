@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bell, Menu } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import './tailor.css';
 import Sidebar from './Sidebar';
 import { LANGS, translate } from './i18n';
 import { TailorContext, loadPrefs, storePrefs } from './prefs';
@@ -187,7 +188,7 @@ export default function TailorShell({ title, subtitle, children }) {
 
   return (
     <TailorContext.Provider value={ctxValue}>
-      <div className="min-h-screen bg-[#0b0f19] text-slate-200">
+      <div className="tailor-app min-h-screen bg-[#0b0f19] text-slate-200">
         <style>{OUTER_CHROME_CSS}</style>
 
         <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
