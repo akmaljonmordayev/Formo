@@ -51,48 +51,23 @@ export default function useOrders() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-<<<<<<< HEAD
-  const normalizeOrders = useCallback((payload) => {
-    if (Array.isArray(payload)) return payload;
-    if (payload && Array.isArray(payload.items)) return payload.items;
-    return [];
-  }, []);
-
-  const fetchOrders = useCallback(async () => {
-    setIsLoading(true);
-    setError(null);
-    try {
-      const data = await api.orders.list();
-      setOrders(normalizeOrders(data));
-=======
   const fetchOrders = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setIsLoading(true);
     try {
       const data = await api.orders.list({ limit: 50 });
       setOrders(data?.items || []);
       setError(null);
->>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       if (!silent) setIsLoading(false);
     }
-  }, [normalizeOrders]);
+  }, []);
 
   useEffect(() => {
     fetchOrders();
   }, [fetchOrders]);
 
-<<<<<<< HEAD
-  /**
-   * Creates a new order and prepends it to local state after the backend confirms it.
-   * Throws on failure — the caller is responsible for handling the error.
-   */
-  const createOrder = useCallback(async (payload) => {
-    const created = await api.orders.checkout(payload);
-    setOrders((current) => [created, ...current]);
-    return created;
-=======
   usePolling(() => fetchOrders({ silent: true }));
 
   return { orders, isLoading, error, refetch: fetchOrders };
@@ -114,7 +89,6 @@ export function useActiveOrder() {
     } finally {
       setIsLoading(false);
     }
->>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
   }, []);
 
   useEffect(() => {
