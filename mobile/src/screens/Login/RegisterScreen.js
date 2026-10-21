@@ -118,7 +118,7 @@ export default function RegisterScreen({ auth, t, language, onLanguage, onLogin 
   }
 
   function validateStep1() {
-    if (!fullName.trim()) return t('nameRequired');
+    if (!fullName.trim()) return t('fullName') + ': ?';
     if (!isValidUzPhone(phoneDigits)) return t('phoneInvalid');
     if (password.length < 6) return t('passwordShort');
     if (password !== confirmPassword) return t('confirmPassword');
@@ -140,18 +140,15 @@ export default function RegisterScreen({ auth, t, language, onLanguage, onLogin 
     let weightValue = null;
 
     if (!skipMeasurements) {
-      // Ranges mirror the backend RegisterDto (age 3–100, height 50–250,
-      // weight 10–250) so the client never sends values the API rejects.
-      ageValue = parseBoundedInt(age, 3, 100);
+      ageValue = parseBoundedInt(age, 1, 120);
       heightValue = parseBoundedInt(height, 50, 250);
-      weightValue = parseBoundedInt(weight, 10, 250);
+      weightValue = parseBoundedInt(weight, 20, 300);
       if ([ageValue, heightValue, weightValue].some(Number.isNaN)) {
         return setValidationError(t('invalidValue'));
       }
     }
 
-    // auth.register resolves to { success, user } or { success: false, error }.
-    const result = await auth.register({
+    const success = await auth.register({
       fullName: fullName.trim(),
       phone: `+998${phoneDigits}`,
       password,
@@ -160,7 +157,7 @@ export default function RegisterScreen({ auth, t, language, onLanguage, onLogin 
       ...(heightValue != null ? { height: heightValue } : {}),
       ...(weightValue != null ? { weight: weightValue } : {}),
     });
-    if (result?.success && onLogin) onLogin();
+    if (success && onLogin) onLogin();
   }
 
   const metaRight = step === 1 ? t('regStepAccount') : t('regStepAbout');
