@@ -7,6 +7,8 @@ import RegisterScreen from '../screens/Login/RegisterScreen';
 import CompleteProfileScreen from '../screens/Login/CompleteProfileScreen';
 import CartScreen from '../screens/CartScreen';
 import CatalogScreen from '../screens/CatalogScreen';
+import ChatListScreen from '../screens/ChatListScreen';
+import ChatScreen from '../screens/ChatScreen';
 import CheckoutScreen from '../screens/CheckoutScreen';
 import HomeScreen from '../screens/HomeScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
@@ -18,6 +20,7 @@ import SettingsScreen from '../screens/SettingsScreen';
 import StudioScreen from '../screens/StudioScreen';
 import useAppConfig from '../features/config';
 import useCart from '../features/cart';
+import { useChatUnread } from '../features/chat';
 import * as storage from '../utils/storage';
 
 const MEASUREMENT_KEYS = ['gender', 'age', 'height', 'weight'];
@@ -39,6 +42,10 @@ export default function AppNavigator({ store, t, auth }) {
   const [orderId, setOrderId] = useState(null);
   const [orderFrom, setOrderFrom] = useState('orders');
   const [notifFrom, setNotifFrom] = useState('home');
+  // Chat: ochilgan suhbat / buyurtma bo'yicha suhbat va ortga qaytish yo'li
+  const [chatId, setChatId] = useState(null);
+  const [chatOrderId, setChatOrderId] = useState(null);
+  const [chatFrom, setChatFrom] = useState('chats');
 
   // ─── Auth sub-routes (login | register) ──────────────────────────────────────
   const [authRoute, setAuthRoute] = useState('login');
@@ -56,6 +63,9 @@ export default function AppNavigator({ store, t, auth }) {
   // GET /api/app/config — buyurtma qoidalari va aloqa (Superadmin sozlamalari)
   const config = useAppConfig();
   const { refresh: refreshConfig } = config;
+  // O'qilmagan xabarlar — Profil badge'i uchun bitta polling
+  const chatUnread = useChatUnread(auth.isAuthenticated);
+  const { refresh: refreshChatUnread } = chatUnread;
   const [profileSkip, setProfileSkip] = useState(true);
 
   useEffect(() => {
@@ -75,6 +85,11 @@ export default function AppNavigator({ store, t, auth }) {
     if (['studio', 'cart', 'checkout'].includes(route)) refreshConfig();
   }, [route, refreshConfig]);
 
+  // Chatdan chiqilganda o'qilmagan badge'ni darhol yangilaymiz
+  useEffect(() => {
+    if (route !== 'chat' && route !== 'chats') refreshChatUnread();
+  }, [route, refreshChatUnread]);
+
   const navigate = (next) => setRoute(next);
   // Tab/bosh sahifadan studiyaga kirilsa — maxsus dizayn rejimi (klub formasi faqat klub sahifasidan)
   const navigateTab = (next) => {
@@ -93,6 +108,16 @@ export default function AppNavigator({ store, t, auth }) {
     setOrderId(id);
     setOrderFrom(from === 'order' ? 'orders' : from);
     setRoute('order');
+  };
+  const openChats = (from = route) => {
+    setChatFrom(from);
+    setRoute('chats');
+  };
+  const openChat = ({ conversationId, orderId: forOrderId } = {}, from = route) => {
+    setChatId(conversationId || null);
+    setChatOrderId(forOrderId || null);
+    setChatFrom(from === 'chat' ? 'chats' : from);
+    setRoute('chat');
   };
   const openNotifications = (from) => {
     setNotifFrom(from);
@@ -206,7 +231,26 @@ export default function AppNavigator({ store, t, auth }) {
     ) : route === 'orders' ? (
       <OrdersScreen t={t} onOrder={(id) => openOrder(id, 'orders')} />
     ) : route === 'order' ? (
-      <OrderDetailScreen t={t} orderId={orderId} rules={config.rules} onBack={() => navigate(orderFrom)} />
+      <OrderDetailScreen
+        t={t}
+        orderId={orderId}
+        rules={config.rules}
+        onBack={() => navigate(orderFrom)}
+        onChat={() => openChat({ orderId }, 'order')}
+      />
+    ) : route === 'chats' ? (
+      <ChatListScreen
+        t={t}
+        onBack={() => navigate(chatFrom)}
+        onOpenChat={(id) => openChat({ conversationId: id }, 'chats')}
+      />
+    ) : route === 'chat' ? (
+      <ChatScreen
+        t={t}
+        conversationId={chatId}
+        orderId={chatOrderId}
+        onBack={() => navigate(chatFrom)}
+      />
     ) : route === 'notifications' ? (
       <NotificationsScreen t={t} onBack={() => navigate(notifFrom)} />
     ) : route === 'profile' ? (
@@ -215,6 +259,8 @@ export default function AppNavigator({ store, t, auth }) {
         auth={auth}
         onSettings={() => navigate('settings')}
         onOrders={() => navigate('orders')}
+        onChats={() => openChats('profile')}
+        chatUnread={chatUnread.total}
       />
     ) : route === 'settings' ? (
       <SettingsScreen
@@ -242,7 +288,7 @@ export default function AppNavigator({ store, t, auth }) {
 
   // Tab bar stays visible everywhere in the main app (including the design
   // studio — only full-screen detail/settings pages hide it).
-  const hideTabs = ['product', 'settings', 'checkout', 'order', 'notifications'].includes(route);
+  const hideTabs = ['product', 'settings', 'checkout', 'order', 'notifications', 'chats', 'chat'].includes(route);
 
   return (
     <>

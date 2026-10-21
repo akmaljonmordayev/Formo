@@ -272,6 +272,27 @@ export const notifications = {
   list: () => request('/notifications'),
 };
 
+/** Universal chat (USER <-> OPERATOR/SUPERADMIN): suhbatlar va xabarlar */
+export const chat = {
+  /** [{ id, counterpart, order, lastMessage, unread }] — yangisi birinchi */
+  conversations: (orderId) => request(`/chat/conversations${query({ orderId })}`),
+
+  /** Suhbat ochish/yaratish: {} -> yordam (operator), { orderId } -> buyurtma suhbati */
+  open: ({ role, participantId, orderId } = {}) =>
+    request('/chat/conversations', { method: 'POST', body: { role, participantId, orderId } }),
+
+  /** { items: [{ id, text, mine, senderId, senderRole, createdAt, readAt }] } — eskisi birinchi */
+  messages: (id, { after, before } = {}) =>
+    request(`/chat/conversations/${id}/messages${query({ after, before })}`),
+
+  send: (id, text) => request(`/chat/conversations/${id}/messages`, { method: 'POST', body: { text } }),
+
+  read: (id) => request(`/chat/conversations/${id}/read`, { method: 'POST' }),
+
+  /** { total } — o'qilmagan xabarlar soni */
+  unread: () => request('/chat/unread'),
+};
+
 // ─── Public API object ───────────────────────────────────────────────────────
 
 export const api = {
@@ -282,4 +303,5 @@ export const api = {
   orders,
   appConfig,
   notifications,
+  chat,
 };

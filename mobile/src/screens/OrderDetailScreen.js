@@ -22,7 +22,7 @@ const timeOf = (iso) => {
  * Holat operator/sex tomonida o'zgaradi — ekran 20 s da va pastga tortilganda yangilanadi.
  * Amallar: POST /:id/cancel, POST /:id/payment/confirm (demo), PATCH /:id/payment-method.
  */
-export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
+export default function OrderDetailScreen({ t, orderId, rules, onBack, onChat }) {
   const { order, isLoading, error, refetch, cancel, confirmPayment, changePaymentMethod } = useOrder(orderId);
   const [busy, setBusy] = useState(null);
   const [actionError, setActionError] = useState(null);
@@ -182,6 +182,12 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
 
         {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
 
+        {onChat ? (
+          <Button variant="secondary" onPress={onChat} style={styles.chatButton}>
+            {t('writeToOperator')}
+          </Button>
+        ) : null}
+
         {order.canCancel ? (
           <Button variant="danger" disabled={busy != null} onPress={askCancel}>
             {busy === 'cancel' ? t('checkingOut') : t('cancelOrder')}
@@ -207,6 +213,7 @@ function Row({ label, value, strong }) {
 
 const styles = StyleSheet.create({
   content: { paddingTop: 16, paddingHorizontal: spacing.xl, paddingBottom: 40 },
+  chatButton: { marginBottom: spacing.md },
   payCard: { backgroundColor: '#141A40', borderColor: 'rgba(245, 165, 94, 0.45)', marginBottom: spacing.lg },
   payTitle: { color: colors.accent, fontSize: 15, fontWeight: '800' },
   paySub: { color: colors.muted, fontSize: 12, marginTop: 4 },

@@ -300,6 +300,12 @@ const uz = {
   'msg.noPreview': 'Xabarlar yo‘q',
   'msg.you': 'Siz: ',
   'msg.emptyHint': 'Xabarlar shu yerda ko‘rinadi.',
+  'msg.newChat': 'Yangi suhbat',
+  'msg.pickContact': 'Suhbatdoshni tanlang',
+  'msg.order': 'Buyurtma',
+  'msg.sendError': 'Xabarni yuborib bo‘lmadi.',
+  'msg.loadError': 'Xabarlarni yuklab bo‘lmadi.',
+  'role.USER': 'Mijoz',
   'dash.ordersHint': 'Yangi va jarayondagi buyurtmalar umumiy ko‘rinishi.',
 };
 
@@ -587,6 +593,12 @@ const ru = {
   'msg.noPreview': 'Нет сообщений',
   'msg.you': 'Вы: ',
   'msg.emptyHint': 'Сообщения появятся здесь.',
+  'msg.newChat': 'Новый диалог',
+  'msg.pickContact': 'Выберите собеседника',
+  'msg.order': 'Заказ',
+  'msg.sendError': 'Не удалось отправить сообщение.',
+  'msg.loadError': 'Не удалось загрузить сообщения.',
+  'role.USER': 'Клиент',
   'dash.ordersHint': 'Обзор новых и текущих заказов.',
 };
 
@@ -874,6 +886,12 @@ const en = {
   'msg.noPreview': 'No messages yet',
   'msg.you': 'You: ',
   'msg.emptyHint': 'Messages appear here.',
+  'msg.newChat': 'New chat',
+  'msg.pickContact': 'Pick who to write to',
+  'msg.order': 'Order',
+  'msg.sendError': 'Could not send the message.',
+  'msg.loadError': 'Could not load messages.',
+  'role.USER': 'Customer',
   'dash.ordersHint': 'Overview of new and in-progress orders.',
 };
 

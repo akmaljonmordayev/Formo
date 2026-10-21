@@ -81,46 +81,88 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
   });
 
   // ---------------------------------------------------------------------------
-  describe('Operator ↔ sex yozishmasi', () => {
+  describe('Chat: barcha rollar', () => {
+    let opSex: number; // operator ↔ sexA
+    let saSex: number; // superadmin ↔ sexA
+    let userOp: number; // user ↔ operator
+
+    const open = (token: string, body: object) => as(token).post('/api/chat/conversations', body);
+
     it('operator sexga yozadi, sex ko‘radi va o‘qilgan bo‘ladi; javob operatorga o‘qilmagan bo‘lib tushadi', async () => {
-      await as(operator).post(`/api/admin/chat/${sexA.id}/messages`, { text: 'Bugun 20 ta forma kerak' }).expect(201);
-      expect((await as(sexA.token).get('/api/workshop/chat/unread').expect(200)).body.unread).toBe(1);
+      opSex = (await open(operator, { participantId: sexA.id }).expect(200)).body.id;
+      await as(operator).post(`/api/chat/conversations/${opSex}/messages`, { text: 'Bugun 20 ta forma kerak' }).expect(201);
+      expect((await as(sexA.token).get('/api/chat/unread').expect(200)).body.total).toBe(1);
 
-      const seen = await as(sexA.token).get('/api/workshop/chat/messages').expect(200);
-      expect(seen.body.items).toEqual([expect.objectContaining({ text: 'Bugun 20 ta forma kerak', fromWorkshop: false })]);
-      expect((await as(sexA.token).get('/api/workshop/chat/unread').expect(200)).body.unread).toBe(0);
+      const list = await as(sexA.token).get('/api/chat/conversations').expect(200);
+      expect(list.body).toEqual([
+        expect.objectContaining({ id: opSex, unread: 1, counterpart: expect.objectContaining({ role: 'OPERATOR' }) }),
+      ]);
 
-      const reply = await as(sexA.token).post('/api/workshop/chat/messages', { text: 'Tayyor bo‘ladi' }).expect(201);
-      expect(reply.body).toMatchObject({ fromWorkshop: true, workshopId: sexA.id });
+      const seen = await as(sexA.token).get(`/api/chat/conversations/${opSex}/messages`).expect(200);
+      expect(seen.body.items).toEqual([expect.objectContaining({ text: 'Bugun 20 ta forma kerak', mine: false, senderRole: 'OPERATOR' })]);
+      expect((await as(sexA.token).get('/api/chat/unread').expect(200)).body.total).toBe(0);
 
-      const threads = await as(operator).get('/api/admin/chat/threads').expect(200);
-      const a = threads.body.find((t: { workshopId: number }) => t.workshopId === sexA.id);
-      expect(a).toMatchObject({ unread: 1, lastMessage: { text: 'Tayyor bo‘ladi', fromWorkshop: true } });
-      expect(threads.body[0].workshopId).toBe(sexA.id); // oxirgi yozilgan birinchi
-      const b = threads.body.find((t: { workshopId: number }) => t.workshopId === sexB.id);
-      expect(b).toMatchObject({ unread: 0, lastMessage: null });
+      const reply = await as(sexA.token).post(`/api/chat/conversations/${opSex}/messages`, { text: 'Tayyor bo‘ladi' }).expect(201);
+      expect(reply.body).toMatchObject({ mine: true, senderId: sexA.id, senderRole: 'TAILOR' });
+
+      const threads = await as(operator).get('/api/chat/conversations').expect(200);
+      expect(threads.body[0]).toMatchObject({ id: opSex, unread: 1, lastMessage: { text: 'Tayyor bo‘ladi', mine: false } });
+      expect(threads.body[0].counterpart).toMatchObject({ id: sexA.id, name: 'Ipak Yo‘li Tikuv' });
     });
 
-    it('?after faqat yangi xabarlarni qaytaradi; operator ochganda sex xabarlari o‘qiladi', async () => {
-      const all = await as(operator).get(`/api/admin/chat/${sexA.id}/messages`).expect(200);
+    it('suhbat takrorlanmaydi; ?after faqat yangilarini qaytaradi va o‘qilgan deb belgilaydi', async () => {
+      expect((await open(sexA.token, { role: 'OPERATOR' }).expect(200)).body.id).toBe(opSex);
+      const all = await as(operator).get(`/api/chat/conversations/${opSex}/messages`).expect(200);
       expect(all.body.items).toHaveLength(2);
       const lastId = all.body.items[1].id;
-      await as(sexA.token).post('/api/workshop/chat/messages', { text: 'Yana bir xabar' }).expect(201);
-      const fresh = await as(operator).get(`/api/admin/chat/${sexA.id}/messages?after=${lastId}`).expect(200);
+      await as(sexA.token).post(`/api/chat/conversations/${opSex}/messages`, { text: 'Yana bir xabar' }).expect(201);
+      const fresh = await as(operator).get(`/api/chat/conversations/${opSex}/messages?after=${lastId}`).expect(200);
       expect(fresh.body.items.map((m: { text: string }) => m.text)).toEqual(['Yana bir xabar']);
-      const threads = await as(operator).get('/api/admin/chat/threads').expect(200);
-      expect(threads.body.find((t: { workshopId: number }) => t.workshopId === sexA.id).unread).toBe(0);
+      expect((await as(operator).get('/api/chat/unread').expect(200)).body.total).toBe(0);
     });
 
-    it('sexlar bir-birining suhbatini ko‘rmaydi; rol va validatsiya', async () => {
-      const b = await as(sexB.token).get('/api/workshop/chat/messages').expect(200);
-      expect(b.body.items).toEqual([]);
-      await as(user).get('/api/workshop/chat/messages').expect(403);
-      await as(user).get('/api/admin/chat/threads').expect(403);
-      await as(sexA.token).get('/api/admin/chat/threads').expect(403);
-      await as(operator).post(`/api/admin/chat/${sexA.id}/messages`, { text: '   ' }).expect(400);
-      await as(operator).post(`/api/admin/chat/${sexA.id}/messages`, { text: '<script>alert(1)</script>' }).expect(400);
-      await as(operator).post('/api/admin/chat/999999/messages', { text: 'salom' }).expect(404);
+    it('sex ↔ superadmin, operator ↔ superadmin', async () => {
+      saSex = (await open(sexA.token, { role: 'SUPERADMIN' }).expect(200)).body.id;
+      await as(sexA.token).post(`/api/chat/conversations/${saSex}/messages`, { text: 'Superadmin, savol bor' }).expect(201);
+      expect((await as(admin).get('/api/chat/unread').expect(200)).body.total).toBe(1);
+      await as(admin).post(`/api/chat/conversations/${saSex}/messages`, { text: 'Eshitaman' }).expect(201);
+
+      const oa = (await open(operator, { role: 'SUPERADMIN' }).expect(200)).body.id;
+      await as(operator).post(`/api/chat/conversations/${oa}/messages`, { text: 'Hisobot tayyor' }).expect(201);
+    });
+
+    it('user operatorga (va superadminga) yozadi; operator javob beradi', async () => {
+      const opened = (await open(user, {}).expect(200)).body; // USER uchun default — operator
+      expect(opened.counterpart.role).toBe('OPERATOR');
+      userOp = opened.id;
+      await as(user).post(`/api/chat/conversations/${userOp}/messages`, { text: 'Buyurtmam qachon keladi?' }).expect(201);
+      await as(operator).post(`/api/chat/conversations/${userOp}/messages`, { text: 'Ertaga' }).expect(201);
+      expect((await as(user).get('/api/chat/unread').expect(200)).body.total).toBe(1);
+      await open(user, { role: 'SUPERADMIN' }).expect(200);
+      await open(admin, { participantId: (await as(user).get('/api/auth/me').expect(200)).body.id }).expect(200);
+    });
+
+    it('taqiqlangan juftliklar: user ↔ sex, o‘ziga, faol bo‘lmagan, notanish', async () => {
+      await open(user, { participantId: sexA.id }).expect(403);
+      await open(sexA.token, { participantId: (await as(user).get('/api/auth/me').expect(200)).body.id }).expect(403);
+      await open(sexA.token, { participantId: sexB.id }).expect(403);
+      await open(operator, { participantId: 999999 }).expect(404);
+      await open(operator, {}).expect(400); // USER bo‘lmasa — participantId yoki role kerak
+      expect((await as(user).get('/api/chat/contacts').expect(200)).body.map((c: { role: string }) => c.role).sort()).toEqual(['OPERATOR', 'SUPERADMIN']);
+      const tailors = await as(operator).get('/api/chat/contacts?role=TAILOR').expect(200);
+      expect(tailors.body.map((c: { id: number }) => c.id)).toEqual(expect.arrayContaining([sexA.id, sexB.id]));
+      expect((await as(user).get('/api/chat/contacts?role=TAILOR').expect(200)).body).toEqual([]);
+    });
+
+    it('begona suhbatni ko‘rib/yozib/o‘qib bo‘lmaydi (404); validatsiya', async () => {
+      await as(sexB.token).get(`/api/chat/conversations/${opSex}/messages`).expect(404);
+      await as(sexB.token).post(`/api/chat/conversations/${opSex}/messages`, { text: 'salom' }).expect(404);
+      await as(user).post(`/api/chat/conversations/${opSex}/read`).expect(404);
+      expect((await as(sexB.token).get('/api/chat/conversations').expect(200)).body).toEqual([]);
+      await as(operator).post(`/api/chat/conversations/${opSex}/messages`, { text: '   ' }).expect(400);
+      await as(operator).post(`/api/chat/conversations/${opSex}/messages`, { text: '<script>alert(1)</script>' }).expect(400);
+      await as(operator).post('/api/chat/conversations/999999/messages', { text: 'salom' }).expect(404);
+      await api(app).get('/api/chat/unread').expect(401);
       // Saqlangan XSS: matnli maydonlar HTMLni qabul qilmaydi
       await as(sexA.token).post('/api/workshop/employees', { fullName: '<img src=x onerror=alert(1)>', role: 'Tikuvchi' }).expect(400);
       await as(sexA.token).patch('/api/workshop/profile', { address: 'javascript:alert(1)' }).expect(400);
@@ -332,6 +374,28 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
       await as(user).post('/api/cart/items', { kitId, shirtSize: 'S' }).expect(201);
       await checkout(3).expect(201);
       await as(admin).put('/api/admin/inventory', { items: [{ productType: 'TSHIRT', color: 'Oq', size: 'M', qty: 1 }] }).expect(200);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
+  describe('Chat: buyurtmaga bog‘langan suhbat', () => {
+    it('user o‘z buyurtmasi bo‘yicha operatorga, operator esa sexga yozadi; begona buyurtma — 403', async () => {
+      const uc = await as(user).post('/api/chat/conversations', { orderId }).expect(200);
+      expect(uc.body.order).toMatchObject({ id: orderId });
+      expect((await as(user).post('/api/chat/conversations', { orderId }).expect(200)).body.id).toBe(uc.body.id); // takrorlanmaydi
+      await as(user).post(`/api/chat/conversations/${uc.body.id}/messages`, { text: 'Bu buyurtma haqida' }).expect(201);
+      expect((await as(user).get(`/api/chat/conversations?orderId=${orderId}`).expect(200)).body).toHaveLength(1);
+
+      const wc = await as(operator).post('/api/chat/conversations', { participantId: sexA.id, orderId }).expect(200);
+      expect(wc.body.id).not.toBe(uc.body.id);
+      await as(operator).post(`/api/chat/conversations/${wc.body.id}/messages`, { text: 'Shu buyurtma tezroq' }).expect(201);
+      expect((await as(sexA.token).get(`/api/chat/conversations?orderId=${orderId}`).expect(200)).body).toHaveLength(1);
+
+      // sexB bu buyurtmaga biriktirilmagan
+      await as(operator).post('/api/chat/conversations', { participantId: sexB.id, orderId }).expect(403);
+      // boshqa user bu buyurtmani o‘ziniki deb ocha olmaydi
+      const other = await api(app).post('/api/auth/register').send({ phone: nextPhone(), password: 'secret123', fullName: 'Boshqa' }).expect(201);
+      await as(other.body.accessToken).post('/api/chat/conversations', { orderId }).expect(403);
     });
   });
 });
