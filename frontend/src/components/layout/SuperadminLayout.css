@@ -313,11 +313,97 @@
   padding: 24px;
 }
 
-/* Hali dark-dizaynga ko'chirilmagan real sahifalar (Mijozlar/Operator/Sexlar) uchun oq karta */
-.sa-legacy {
-  background: var(--paper, #f3f5f9);
-  border-radius: var(--sa-radius);
-  padding: 22px;
+/* Umumiy ui.css komponentlarida qurilgan sahifalar (Foydalanuvchilar/Operator/Sexlar) —
+   oq karta o'rniga panelning dark fonida, ui.css ranglari shu yerda dark'ga moslanadi */
+.sa-legacy .page-head h2,
+.sa-legacy .operator-card__info,
+.sa-legacy .table,
+.sa-legacy .check {
+  color: var(--sa-ink);
+}
+
+.sa-legacy .page-head p,
+.sa-legacy .muted,
+.sa-legacy .table__sub,
+.sa-legacy .table__empty,
+.sa-legacy .pager,
+.sa-legacy .field small,
+.sa-legacy .input__prefix {
+  color: var(--sa-mu);
+}
+
+.sa-legacy .field > span:first-child,
+.sa-legacy .table th {
+  color: var(--sa-mu-2);
+}
+
+.sa-legacy .card,
+.sa-legacy .table-wrap {
+  background: var(--sa-surface);
+  border-color: var(--sa-line);
+}
+
+.sa-legacy .table th,
+.sa-legacy .table td {
+  border-bottom-color: var(--sa-line);
+}
+
+.sa-legacy .table tbody tr:hover {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.sa-legacy .input,
+.sa-legacy .field > input,
+.sa-legacy .field > select,
+.sa-legacy .toolbar input,
+.sa-legacy .toolbar select {
+  background: var(--sa-surface-2);
+  border-color: var(--sa-line);
+  color: var(--sa-ink);
+}
+
+.sa-legacy .input__prefix {
+  border-right-color: var(--sa-line);
+}
+
+.sa-legacy input::placeholder {
+  color: var(--sa-mu-2);
+}
+
+.sa-legacy select option {
+  background: var(--sa-surface);
+  color: var(--sa-ink);
+}
+
+.sa-legacy .btn--ghost {
+  background: var(--sa-surface);
+  border-color: var(--sa-line);
+  color: var(--sa-ink);
+}
+
+.sa-legacy .btn--ghost:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.sa-legacy .badge--on {
+  background: rgba(57, 195, 123, 0.14);
+  color: var(--sa-green);
+}
+
+.sa-legacy .badge--off {
+  background: rgba(229, 89, 107, 0.14);
+  color: var(--sa-red);
+}
+
+.sa-legacy .form-error {
+  background: rgba(229, 89, 107, 0.12);
+  color: var(--sa-red);
+}
+
+.sa-legacy .modal__box {
+  background: var(--sa-surface);
+  color: var(--sa-ink);
+  border: 1px solid var(--sa-line);
 }
 
 /* ---------- Umumiy sahifa qismlari (barcha Superadmin sahifalarida) ---------- */

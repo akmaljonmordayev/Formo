@@ -42,8 +42,8 @@ const BASE = '/superadmin';
 // Til (uz / ўз / ru) konteksti va tarjima qilingan menyu shu wrapper ichida
 export const superadminLayout = AdminLayout;
 
-// Hali dark-dizaynga ko'chirilmagan, lekin ishlaydigan (real backend chaqiradigan) sahifalar —
-// ichidagi matn (navy/oq) dark fon ustida o'qilishi uchun oq kartaga o'raladi
+// Umumiy ui.css komponentlarida qurilgan (real backend chaqiradigan) sahifalar —
+// .sa-legacy ichida ui.css ranglari panelning dark uslubiga moslanadi (SuperadminLayout.css)
 function legacy(El) {
   return (
     <div className="sa-legacy">
