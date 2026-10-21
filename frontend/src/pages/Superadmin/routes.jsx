@@ -1,9 +1,11 @@
 import {
+  AlertTriangle,
   BarChart3,
   Factory,
   History,
   LayoutDashboard,
   Layers,
+  MessagesSquare,
   Megaphone,
   Package,
   Palette,
@@ -16,7 +18,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
-import SuperadminLayout from '../../components/layout/SuperadminLayout';
+import AdminLayout from './AdminLayout';
 import Dashboard from './Dashboard';
 import CustomersUsers from './Users';
 import Factories_ from './Factories';
@@ -24,6 +26,8 @@ import Operator from './Operator';
 import Orders from './Orders';
 import DesignStudio from './Dashboard/DesignStudio';
 import Production from './Production';
+import Defects from './Defects';
+import Messages from './Messages';
 import Clubs from './Clubs';
 import Categories from './Categories';
 import Inventory from './Inventory';
@@ -37,10 +41,11 @@ import AuditLog from './AuditLog';
 
 const BASE = '/superadmin';
 
-export const superadminLayout = SuperadminLayout;
+// Til (uz / ўз / ru) konteksti va tarjima qilingan menyu shu wrapper ichida
+export const superadminLayout = AdminLayout;
 
-// Hali dark-dizaynga ko'chirilmagan, lekin ishlaydigan (real backend chaqiradigan) sahifalar —
-// ichidagi matn (navy/oq) dark fon ustida o'qilishi uchun oq kartaga o'raladi
+// Umumiy ui.css komponentlarida qurilgan (real backend chaqiradigan) sahifalar —
+// .sa-legacy ichida ui.css ranglari panelning dark uslubiga moslanadi (SuperadminLayout.css)
 function legacy(El) {
   return (
     <div className="sa-legacy">
@@ -53,6 +58,8 @@ export const superadminRoutes = [
   { path: '', element: <Dashboard /> },
   { path: 'orders', element: <Orders /> },
   { path: 'production', element: <Production /> },
+  { path: 'defects', element: <Defects /> },
+  { path: 'messages', element: <Messages /> },
   { path: 'clubs', element: <Clubs /> },
   { path: 'categories', element: <Categories /> },
   { path: 'design-studio', element: <DesignStudio /> },
@@ -74,6 +81,7 @@ export const superadminMenu = [
   { to: BASE, label: 'Dashboard', end: true, icon: LayoutDashboard, group: 'Asosiy' },
   { to: `${BASE}/orders`, label: 'Buyurtmalar', icon: ShoppingBag, group: 'Asosiy', badge: 2 },
   { to: `${BASE}/production`, label: 'Ishlab chiqarish', icon: Factory, group: 'Asosiy', badge: 2 },
+  { to: `${BASE}/defects`, label: 'Nuqsonlar (brak)', icon: AlertTriangle, group: 'Asosiy' },
 
   { to: `${BASE}/clubs`, label: 'Klublar va formalar', icon: Shirt, group: 'Katalog' },
   { to: `${BASE}/categories`, label: 'Kategoriyalar', icon: Layers, group: 'Katalog' },
@@ -88,6 +96,7 @@ export const superadminMenu = [
   { to: `${BASE}/factories`, label: 'Sexlar', icon: Factory, group: 'Operatsiya' },
   { to: `${BASE}/finance`, label: 'Moliya', icon: Wallet, group: 'Operatsiya' },
   { to: `${BASE}/reports`, label: 'Hisobotlar', icon: BarChart3, group: 'Operatsiya' },
+  { to: `${BASE}/messages`, label: 'Xabarlar', icon: MessagesSquare, group: 'Operatsiya' },
 
   { to: `${BASE}/operator`, label: 'Foydalanuvchilar va rollar', icon: ShieldCheck, group: 'Tizim' },
   { to: `${BASE}/settings`, label: 'Sozlamalar', icon: Settings, group: 'Tizim' },

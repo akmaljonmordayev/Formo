@@ -1,6 +1,9 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { AccountsService } from './accounts.service';
+import { AdminDefectsController } from './workshop-ops.controller';
+import { DefectsService } from './defects.service';
+import { WorkshopProfileService } from './workshop-profile.service';
 import { AuditController } from './audit.controller';
 import { AuditService } from './audit.service';
 import { CategoriesController } from './categories.controller';
@@ -25,6 +28,7 @@ import { SettingsController } from './settings.controller';
 import { SettingsService } from './settings.service';
 import { UsersController } from './users.controller';
 import { WorkshopOrdersController } from './workshop-orders.controller';
+import { WorkshopPanelController } from './workshop-panel.controller';
 import { WorkshopOrdersService } from './workshop-orders.service';
 import { WorkshopsController } from './workshops.controller';
 
@@ -39,6 +43,8 @@ import { WorkshopsController } from './workshops.controller';
     ClubsController,
     OrdersController,
     WorkshopOrdersController,
+    WorkshopPanelController,
+    AdminDefectsController,
     InsightsController,
     InventoryController,
     PricingController,
@@ -55,6 +61,8 @@ import { WorkshopsController } from './workshops.controller';
     OrdersService,
     OrderHistoryService,
     WorkshopOrdersService,
+    DefectsService,
+    WorkshopProfileService,
     InventoryService,
     PricingService,
     PromocodesService,

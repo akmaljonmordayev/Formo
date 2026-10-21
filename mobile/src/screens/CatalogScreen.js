@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -186,6 +187,113 @@ export default function CatalogScreen({
         </ScrollView>
       </View>
     </SafeAreaView>
+=======
+import React, { useState } from 'react';
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { colors, radii, spacing } from '../constants/theme';
+import { Header, Screen, SectionTitle } from '../components/ui/Common';
+import CartButton from '../components/ui/CartButton';
+import ErrorView from '../components/ui/ErrorView';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { ProductCard } from '../components/ui/ProductCard';
+import { useCategories, useClubs, useFavorites, usePopularProducts } from '../features/products';
+
+// Katalog: GET /api/catalog/categories (chiplar), /clubs?categoryId&search (klublar),
+// /clubs/popular + /clubs/:id (mashhur modellar), /favorites (sevimli klub).
+export default function CatalogScreen({ t, onClub, cartCount = 0, onCart }) {
+  const [query, setQuery] = useState('');
+  const [categoryId, setCategoryId] = useState(null);
+  const { categories } = useCategories();
+  const { clubs, isLoading: clubsLoading, error: clubsError, refetch: refetchClubs } = useClubs({ categoryId, search: query });
+  const { products } = usePopularProducts(4);
+  const { favorites, ids: favoriteIds, toggle: toggleFavorite } = useFavorites();
+
+  const favoriteClub = favorites[0] || null;
+  const chips = [{ id: null, name: t('all') }, ...categories];
+
+  return (
+    <Screen>
+      <Header
+        title={t('catalog')}
+        subtitle={t('catalogSub')}
+        right={<CartButton count={cartCount} onPress={onCart} t={t} />}
+      />
+
+      <View style={styles.search}>
+        <MaterialCommunityIcons name="magnify" size={20} color={colors.muted} />
+        <TextInput
+          value={query}
+          onChangeText={setQuery}
+          placeholder={t('searchClub')}
+          placeholderTextColor={colors.muted}
+          style={styles.input}
+        />
+      </View>
+
+      <View style={styles.filters}>
+        {chips.map((chip) => (
+          <Pressable
+            key={chip.id ?? 'all'}
+            onPress={() => setCategoryId(chip.id)}
+            style={[styles.filter, categoryId === chip.id && styles.activeFilter]}
+          >
+            <Text style={[styles.filterText, categoryId === chip.id && styles.activeText]}>{chip.name}</Text>
+          </Pressable>
+        ))}
+      </View>
+
+      {favoriteClub ? (
+        <Pressable style={styles.favClub} onPress={() => onClub(favoriteClub)}>
+          <View style={[styles.favCrest, { backgroundColor: favoriteClub.color, borderColor: favoriteClub.accent }]}>
+            <Text style={[styles.favCrestCode, { color: favoriteClub.accent }]}>{favoriteClub.code}</Text>
+          </View>
+          <View style={styles.favCopy}>
+            <Text style={styles.favOverline}>{t('favoriteClub')}</Text>
+            <Text style={styles.favName}>{favoriteClub.name}</Text>
+            <Text style={styles.favSub}>{favoriteClub.forms} {t('kitsWord')} · {favoriteClub.season}</Text>
+          </View>
+        </Pressable>
+      ) : null}
+
+      <Text style={styles.gridTitle}>{t('allClubs')}</Text>
+      {clubsError ? (
+        <ErrorView message={t('loadError')} onRetry={refetchClubs} retryLabel={t('retry')} />
+      ) : clubsLoading && clubs.length === 0 ? (
+        <LoadingSpinner />
+      ) : (
+        <View style={styles.clubGrid}>
+          {clubs.map((club) => (
+            <Pressable key={club.id} style={styles.clubCard} onPress={() => onClub(club)}>
+              <View style={[styles.clubCrest, { backgroundColor: club.color, borderColor: club.accent }]}>
+                <Text style={[styles.clubCrestCode, { color: club.accent }]}>{club.code}</Text>
+              </View>
+              <Text style={styles.clubName} numberOfLines={1}>{club.name}</Text>
+              <Text style={styles.clubSub} numberOfLines={1}>{club.league} · {club.forms} {t('kitsWord')}</Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+      {!clubsLoading && !clubsError && clubs.length === 0 ? <Text style={styles.emptyClubs}>{t('noResults')}</Text> : null}
+
+      {products.length > 0 ? (
+        <View style={styles.modelsBlock}>
+          <SectionTitle title={t('popularModels')} />
+          <View style={styles.grid}>
+            {products.map((item) => (
+              <ProductCard
+                key={item.kitId}
+                product={item}
+                favorite={favoriteIds.includes(item.clubId)}
+                onFavorite={() => toggleFavorite(item.clubId)}
+                onPress={() => onClub({ id: item.clubId }, item.kitId)}
+              />
+            ))}
+          </View>
+        </View>
+      ) : null}
+    </Screen>
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
   );
 }
 

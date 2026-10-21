@@ -1,7 +1,9 @@
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle2, CircleDot, Inbox, Phone, Settings } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
 import { prettyPhone } from '../../../features/accounts/accountsApi';
+import { ordersApi } from '../../../features/platform/platformApi';
 import { formatDateTime, initials, useOperator } from '../prefs';
 import { useT } from '../i18n';
 
@@ -11,11 +13,22 @@ export default function OperatorProfile() {
   const t = useT();
   const name = user?.fullName || t('role.OPERATOR');
 
-  // Buyurtmalar API hali yo'q — raqamlar ulanganda to'ladi
+  const [byStatus, setByStatus] = useState(null);
+  useEffect(() => {
+    // Bitta operator bor, buyurtmalar umumiy: raqamlar holat bo'yicha jami sonlardan
+    ordersApi
+      .list({ page: 1, limit: 1 })
+      .then((d) => setByStatus(d.byStatus ?? {}))
+      .catch(() => setByStatus(null));
+  }, []);
+
+  const count = (...keys) => (byStatus ? keys.reduce((sum, k) => sum + (byStatus[k] ?? 0), 0) : null);
+  const all = byStatus ? Object.values(byStatus).reduce((a, b) => a + b, 0) : null;
+  const closed = count('DELIVERED', 'CANCELLED', 'RETURNED');
   const stats = [
-    { label: t('profile.assigned'), value: '—', icon: Inbox },
-    { label: t('profile.resolved'), value: '—', icon: CheckCircle2 },
-    { label: t('profile.open'), value: '—', icon: CircleDot },
+    { label: t('profile.assigned'), value: all ?? '—', icon: Inbox },
+    { label: t('profile.resolved'), value: count('DELIVERED') ?? '—', icon: CheckCircle2 },
+    { label: t('profile.open'), value: all == null ? '—' : all - closed, icon: CircleDot },
   ];
 
   return (

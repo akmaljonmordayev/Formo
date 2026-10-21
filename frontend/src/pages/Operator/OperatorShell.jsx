@@ -2,6 +2,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { Bell, LogOut, Menu, PanelLeft, Scissors, Settings, UserRound } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import { defectsApi } from '../../features/platform/platformApi';
+import { useChatUnread } from '../../features/chat/useChatUnread';
 import { LANGS, LOCALES, translate } from './i18n';
 import {
   OperatorContext,
@@ -28,6 +30,24 @@ export default function OperatorShell({ menu }) {
   const [collapsed, setCollapsed] = useState(loadCollapsed);
   const [drawer, setDrawer] = useState(false);
   const [profileMenu, setProfileMenu] = useState(false);
+  const [openDefects, setOpenDefects] = useState(0);
+  const unreadChat = useChatUnread();
+
+  // Ochiq nuqsonlar soni (menyudagi belgi) — 30s da yangilanadi
+  useEffect(() => {
+    let cancelled = false;
+    const poll = () =>
+      defectsApi
+        .list({ status: 'OPEN', page: 1, limit: 1 })
+        .then((d) => !cancelled && setOpenDefects(d.openCount ?? 0))
+        .catch(() => {});
+    poll();
+    const timer = setInterval(() => !document.hidden && poll(), 30000);
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, []);
   const [leaving, setLeaving] = useState(false);
   const [toasts, setToasts] = useState([]);
   const [loginAt] = useState(() => rememberLogin(user?.id));
@@ -146,6 +166,8 @@ export default function OperatorShell({ menu }) {
                 >
                   {Icon && <Icon size={16} strokeWidth={1.8} aria-hidden="true" />}
                   <span className="op-lb">{t(label)}</span>
+                  {to.endsWith('/defects') && openDefects > 0 && <span className="op-bd is-ok">{openDefects}</span>}
+                  {to.endsWith('/messages') && unreadChat > 0 && <span className="op-bd is-ok">{unreadChat}</span>}
                 </NavLink>
               ))}
             </div>

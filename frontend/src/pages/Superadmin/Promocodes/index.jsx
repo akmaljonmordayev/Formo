@@ -1,17 +1,19 @@
 import { useEffect, useState } from 'react';
 import { promocodesApi } from '../../../features/platform/platformApi';
 import Modal from '../../../components/ui/Modal';
+import { useT } from '../i18n';
 
 const TYPE_LABEL = { PERCENT: 'Foiz', FIXED: "Qat'iy", FREE_SHIPPING: 'Bepul yetkazish' };
 
-const formatPeriod = (p) => {
-  if (!p.startsAt && !p.endsAt) return 'doimiy';
+const formatPeriod = (p, t) => {
+  if (!p.startsAt && !p.endsAt) return t('doimiy');
   const fmt = (d) => new Date(d).toLocaleDateString('uz-UZ', { day: '2-digit', month: 'short' });
-  if (p.endsAt && new Date(p.endsAt) < new Date()) return 'tugagan';
+  if (p.endsAt && new Date(p.endsAt) < new Date()) return t('tugagan');
   return `${p.startsAt ? fmt(p.startsAt) : '—'} – ${p.endsAt ? fmt(p.endsAt) : '—'}`;
 };
 
 export default function SuperadminPromocodes() {
+  const t = useT();
   const [codes, setCodes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -45,31 +47,31 @@ export default function SuperadminPromocodes() {
     <>
       <div className="sa-head">
         <div>
-          <h1>Promokodlar</h1>
-          <p>Chegirma kodlari. O'chirilgan kod to'lovda qabul qilinmaydi.</p>
+          <h1>{t("Promokodlar")}</h1>
+          <p>{t("Chegirma kodlari. O'chirilgan kod to'lovda qabul qilinmaydi.")}</p>
         </div>
-        <button type="button" className="sa-btn" onClick={() => setEditing('new')}>+ Promokod</button>
+        <button type="button" className="sa-btn" onClick={() => setEditing('new')}>{t("+ Promokod")}</button>
       </div>
 
       {error && <div className="form-error">{error}</div>}
 
       {loading ? (
-        <div className="sa-table__sub" style={{ padding: 20 }}>Yuklanmoqda...</div>
+        <div className="sa-table__sub" style={{ padding: 20 }}>{t("Yuklanmoqda...")}</div>
       ) : codes.length === 0 ? (
         <div className="sa-panel">
-          <div className="sa-table__sub">Hali promokod yaratilmagan. "+ Promokod" bilan birinchisini qo'shing.</div>
+          <div className="sa-table__sub">{t("Hali promokod yaratilmagan. «+ Promokod» bilan birinchisini qo'shing.")}</div>
         </div>
       ) : (
         <div className="sa-table-wrap">
           <table className="sa-table">
             <thead>
               <tr>
-                <th>Kod</th>
-                <th>Turi</th>
-                <th>Qiymat</th>
-                <th>Min. summa</th>
-                <th>Ishlatildi</th>
-                <th>Amal qilish</th>
+                <th>{t("Kod")}</th>
+                <th>{t("Turi")}</th>
+                <th>{t("Qiymat")}</th>
+                <th>{t("Min. summa")}</th>
+                <th>{t("Ishlatildi")}</th>
+                <th>{t("Amal qilish")}</th>
                 <th />
               </tr>
             </thead>
@@ -77,7 +79,7 @@ export default function SuperadminPromocodes() {
               {codes.map((c) => (
                 <tr key={c.id}>
                   <td><b>{c.code}</b></td>
-                  <td>{TYPE_LABEL[c.type] ?? c.type}</td>
+                  <td>{TYPE_LABEL[c.type] ? t(TYPE_LABEL[c.type]) : c.type}</td>
                   <td>{c.type === 'FREE_SHIPPING' ? '—' : c.type === 'PERCENT' ? `${c.value}%` : c.value.toLocaleString('uz-UZ')}</td>
                   <td>{c.minSum ? c.minSum.toLocaleString('uz-UZ') : '—'}</td>
                   <td style={{ minWidth: 150 }}>
@@ -88,10 +90,10 @@ export default function SuperadminPromocodes() {
                       </div>
                     )}
                   </td>
-                  <td>{formatPeriod(c)}</td>
+                  <td>{formatPeriod(c, t)}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <button type="button" className="sa-btn sa-btn--ghost" style={{ marginRight: 10, verticalAlign: 'middle' }} onClick={() => setEditing(c)}>
-                      Tahrirlash
+                      {t("Tahrirlash")}
                     </button>
                     <button
                       type="button"
@@ -101,7 +103,7 @@ export default function SuperadminPromocodes() {
                         display: 'inline-block', width: 36, height: 20, borderRadius: 999, border: 'none', cursor: 'pointer',
                         background: c.isActive ? 'var(--sa-teal)' : 'rgba(255,255,255,0.12)', position: 'relative', padding: 0, verticalAlign: 'middle',
                       }}
-                      aria-label={c.isActive ? "O'chirish" : 'Yoqish'}
+                      aria-label={c.isActive ? t("O'chirish") : t('Yoqish')}
                     >
                       <span
                         style={{
@@ -135,6 +137,7 @@ export default function SuperadminPromocodes() {
 const toDateInput = (iso) => (iso ? new Date(iso).toLocaleDateString('sv-SE') : '');
 
 function PromocodeForm({ promo, onClose, onSaved }) {
+  const t = useT();
   const isEdit = Boolean(promo);
   const [form, setForm] = useState({
     code: promo?.code ?? '',
@@ -176,12 +179,12 @@ function PromocodeForm({ promo, onClose, onSaved }) {
   };
 
   return (
-    <Modal title={isEdit ? `${promo.code} — tahrirlash` : 'Yangi promokod'} onClose={onClose}>
+    <Modal title={isEdit ? t('{name} — tahrirlash', { name: promo.code }) : t('Yangi promokod')} onClose={onClose}>
       <form onSubmit={submit}>
         {error && <div className="form-error">{error}</div>}
         <div className="form-grid">
           <label className="field field--full">
-            <span>Kod</span>
+            <span>{t("Kod")}</span>
             <input
               value={form.code}
               onChange={set('code')}
@@ -191,45 +194,45 @@ function PromocodeForm({ promo, onClose, onSaved }) {
               placeholder="FORMO10"
               style={{ textTransform: 'uppercase' }}
             />
-            <small>Faqat katta harf, raqam, - va _ (3-20 belgi)</small>
+            <small>{t("Faqat katta harf, raqam, - va _ (3-20 belgi)")}</small>
           </label>
           <label className="field">
-            <span>Turi</span>
+            <span>{t("Turi")}</span>
             <select value={form.type} onChange={set('type')}>
-              <option value="PERCENT">Foiz</option>
-              <option value="FIXED">Qat'iy summa</option>
-              <option value="FREE_SHIPPING">Bepul yetkazish</option>
+              <option value="PERCENT">{t("Foiz")}</option>
+              <option value="FIXED">{t("Qat'iy summa")}</option>
+              <option value="FREE_SHIPPING">{t("Bepul yetkazish")}</option>
             </select>
           </label>
           {form.type !== 'FREE_SHIPPING' && (
             <label className="field">
-              <span>{form.type === 'PERCENT' ? 'Qiymat (%)' : "Qiymat (so'm)"}</span>
+              <span>{form.type === 'PERCENT' ? t('Qiymat (%)') : t("Qiymat (so'm)")}</span>
               <input type="number" min={0} value={form.value} onChange={set('value')} />
             </label>
           )}
           <label className="field">
-            <span>Minimal summa (so'm)</span>
+            <span>{t("Minimal summa (so'm)")}</span>
             <input type="number" min={0} value={form.minSum} onChange={set('minSum')} />
           </label>
           <label className="field">
-            <span>Ishlatish limiti</span>
+            <span>{t("Ishlatish limiti")}</span>
             <input type="number" min={1} value={form.usageCap} onChange={set('usageCap')} />
           </label>
           <label className="field">
-            <span>Boshlanishi</span>
+            <span>{t("Boshlanishi")}</span>
             <input type="date" value={form.startsAt} onChange={set('startsAt')} />
           </label>
           <label className="field">
-            <span>Tugashi</span>
+            <span>{t("Tugashi")}</span>
             <input type="date" value={form.endsAt} onChange={set('endsAt')} />
           </label>
         </div>
         <div className="modal__foot" style={{ padding: '14px 0 0' }}>
           <button type="button" className="btn btn--ghost" onClick={onClose}>
-            Bekor qilish
+            {t("Bekor qilish")}
           </button>
           <button type="submit" className="btn btn--accent" disabled={saving}>
-            {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+            {saving ? t("Saqlanmoqda...") : t("Saqlash")}
           </button>
         </div>
       </form>

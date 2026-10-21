@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
-import { campaignsApi, money } from '../../../features/platform/platformApi';
+import { campaignsApi } from '../../../features/platform/platformApi';
 import Modal from '../../../components/ui/Modal';
+import { useT, useMoney } from '../i18n';
 
 const STATUS_LABEL = {
   DRAFT: { label: 'Qoralama', color: 'blue' },
@@ -10,6 +11,13 @@ const STATUS_LABEL = {
 };
 const CHANNEL_LABEL = { PUSH: 'Push', SMS: 'SMS', PUSH_SMS: 'Push + SMS' };
 
+const AUDIENCE_PRESETS = {
+  ALL: 'Barcha mijozlar',
+  ORDERED: 'Buyurtma bergan mijozlar',
+  NO_ORDERS: 'Hali buyurtma bermaganlar',
+  CART: 'Savatida mahsuloti borlar',
+};
+
 // ISO -> <input type="datetime-local"> qiymati (mahalliy vaqt)
 const toLocalInput = (iso) => {
   if (!iso) return '';
@@ -18,6 +26,8 @@ const toLocalInput = (iso) => {
 };
 
 export default function SuperadminCampaigns() {
+  const money = useMoney();
+  const t = useT();
   const [data, setData] = useState({ items: [], totals: { sent: 0, opened: 0, orders: 0, revenue: 0 } });
   const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(true);
@@ -41,20 +51,20 @@ export default function SuperadminCampaigns() {
   const convRate = data.totals.sent ? Math.round((data.totals.orders / data.totals.sent) * 1000) / 10 : 0;
 
   const STATS = [
-    { label: 'Yuborilgan xabarlar', value: data.totals.sent.toLocaleString('uz-UZ'), sub: '' },
-    { label: "O'rtacha ochilish", value: `${openRate}%`, sub: 'faqat push' },
-    { label: 'Kampaniyadan buyurtma', value: String(data.totals.orders), sub: `${convRate}% konversiya` },
-    { label: 'Tushum', value: money(data.totals.revenue), sub: '' },
+    { label: t('Yuborilgan xabarlar'), value: data.totals.sent.toLocaleString('uz-UZ'), sub: '' },
+    { label: t("O'rtacha ochilish"), value: `${openRate}%`, sub: t('faqat push') },
+    { label: t('Kampaniyadan buyurtma'), value: String(data.totals.orders), sub: t('{n}% konversiya', { n: convRate }) },
+    { label: t('Tushum'), value: money(data.totals.revenue), sub: '' },
   ];
 
   return (
     <>
       <div className="sa-head">
         <div>
-          <h1>Kampaniyalar</h1>
-          <p>Mijozlarga push va SMS xabarlar. Kampaniyani bosib tahrirlang yoki natijasini ko'ring.</p>
+          <h1>{t("Kampaniyalar")}</h1>
+          <p>{t("Mijozlarga push va SMS xabarlar. Kampaniyani bosib tahrirlang yoki natijasini ko'ring.")}</p>
         </div>
-        <button type="button" className="sa-btn" onClick={() => setEditing('new')}>+ Kampaniya</button>
+        <button type="button" className="sa-btn" onClick={() => setEditing('new')}>{t("+ Kampaniya")}</button>
       </div>
 
       {error && <div className="form-error">{error}</div>}
@@ -76,18 +86,18 @@ export default function SuperadminCampaigns() {
           { label: 'Rejalashtirilgan', value: 'SCHEDULED' },
           { label: 'Yakunlangan', value: 'COMPLETED' },
           { label: 'Qoralamalar', value: 'DRAFT' },
-        ].map((t) => (
-          <button key={t.value} type="button" className={`sa-tab${statusFilter === t.value ? ' is-active' : ''}`} onClick={() => setStatusFilter(t.value)}>
-            {t.label} · {t.value ? data.items.filter((c) => c.status === t.value).length : data.items.length}
+        ].map((tb) => (
+          <button key={tb.value} type="button" className={`sa-tab${statusFilter === tb.value ? ' is-active' : ''}`} onClick={() => setStatusFilter(tb.value)}>
+            {t(tb.label)} · {tb.value ? data.items.filter((c) => c.status === tb.value).length : data.items.length}
           </button>
         ))}
       </div>
 
       {loading ? (
-        <div className="sa-table__sub" style={{ padding: 20 }}>Yuklanmoqda...</div>
+        <div className="sa-table__sub" style={{ padding: 20 }}>{t("Yuklanmoqda...")}</div>
       ) : campaigns.length === 0 ? (
         <div className="sa-panel">
-          <div className="sa-table__sub">Hali kampaniya yaratilmagan. "+ Kampaniya" bilan birinchisini qo'shing.</div>
+          <div className="sa-table__sub">{t("Hali kampaniya yaratilmagan. «+ Kampaniya» bilan birinchisini qo'shing.")}</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
@@ -107,14 +117,14 @@ export default function SuperadminCampaigns() {
                 <div style={{ flex: 1, minWidth: 260 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 6 }}>
                     <b style={{ fontSize: 15 }}>{c.name}</b>
-                    <span className={`sa-badge sa-badge--${st.color}`}>{st.label}</span>
+                    <span className={`sa-badge sa-badge--${st.color}`}>{t(st.label)}</span>
                   </div>
                   <div className="sa-table__sub" style={{ marginBottom: 6 }}>
-                    Kimga: <b style={{ color: 'var(--sa-ink)' }}>{c.audience}</b> · Kanal:{' '}
+                    {t('Kimga')}: <b style={{ color: 'var(--sa-ink)' }}>{AUDIENCE_PRESETS[c.audience] ? t(AUDIENCE_PRESETS[c.audience]) : c.audience}</b> · {t('Kanal')}:{' '}
                     <b style={{ color: 'var(--sa-ink)' }}>{CHANNEL_LABEL[c.channel]}</b>
                     {c.scheduledAt && (
                       <>
-                        {' '}· Qachon: <b style={{ color: 'var(--sa-ink)' }}>{new Date(c.scheduledAt).toLocaleString('uz-UZ')}</b>
+                        {' '}· {t('Qachon')}: <b style={{ color: 'var(--sa-ink)' }}>{new Date(c.scheduledAt).toLocaleString('uz-UZ')}</b>
                       </>
                     )}
                   </div>
@@ -123,10 +133,10 @@ export default function SuperadminCampaigns() {
                 {hasMetrics ? (
                   <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                     {[
-                      ['yuborildi', `${c.sentCount} kishi`],
-                      ['ochildi', c.openedCount != null ? `${c.openedCount}` : '—'],
-                      ['buyurtma', c.orderCount != null ? `${c.orderCount}` : '—'],
-                      ['tushum', c.revenue != null ? money(c.revenue) : '—'],
+                      [t('yuborildi'), t('{n} kishi', { n: c.sentCount })],
+                      [t('ochildi'), c.openedCount != null ? `${c.openedCount}` : '—'],
+                      [t('buyurtma'), c.orderCount != null ? `${c.orderCount}` : '—'],
+                      [t('tushum'), c.revenue != null ? money(c.revenue) : '—'],
                     ].map(([k, v]) => (
                       <div key={k} style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--sa-surface-2)', border: '1px solid var(--sa-line)', minWidth: 90 }}>
                         <div className="sa-table__sub" style={{ textTransform: 'capitalize' }}>{k}</div>
@@ -136,7 +146,7 @@ export default function SuperadminCampaigns() {
                   </div>
                 ) : (
                   <div style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--sa-surface-2)', border: '1px solid var(--sa-line)', color: 'var(--sa-mu)', fontSize: 12.5 }}>
-                    Natija yuborilgandan keyin ko'rinadi
+                    {t("Natija yuborilgandan keyin ko'rinadi")}
                   </div>
                 )}
               </div>
@@ -160,10 +170,11 @@ export default function SuperadminCampaigns() {
 }
 
 function CampaignForm({ campaign, onClose, onSaved }) {
+  const t = useT();
   const isEdit = Boolean(campaign);
   const [form, setForm] = useState({
     name: campaign?.name ?? '',
-    audience: campaign?.audience ?? '',
+    audience: campaign?.audience ?? 'ALL',
     channel: campaign?.channel ?? 'PUSH',
     scheduledAt: toLocalInput(campaign?.scheduledAt),
     message: campaign?.message ?? '',
@@ -200,26 +211,28 @@ function CampaignForm({ campaign, onClose, onSaved }) {
   };
 
   return (
-    <Modal title={isEdit ? 'Kampaniyani tahrirlash' : 'Yangi kampaniya'} onClose={onClose}>
+    <Modal title={isEdit ? t('Kampaniyani tahrirlash') : t('Yangi kampaniya')} onClose={onClose}>
       <form onSubmit={submit}>
         {error && <div className="form-error">{error}</div>}
         <div className="form-grid">
           <label className="field field--full">
-            <span>Nomi</span>
+            <span>{t("Nomi")}</span>
             <input value={form.name} onChange={set('name')} required minLength={2} maxLength={120} />
           </label>
           <label className="field field--full">
-            <span>Auditoriya</span>
-            <input
-              value={form.audience}
-              onChange={set('audience')}
-              required
-              maxLength={200}
-              placeholder="Savatda qoldirganlar · 7 kun"
-            />
+            <span>{t("Auditoriya")}</span>
+            <select value={form.audience} onChange={set('audience')} required>
+              {Object.entries(AUDIENCE_PRESETS).map(([value, label]) => (
+                <option key={value} value={value}>{t(label)}</option>
+              ))}
+              {form.audience && !AUDIENCE_PRESETS[form.audience] && (
+                <option value={form.audience}>{t('{text} (eski)', { text: form.audience })}</option>
+              )}
+            </select>
+            <small>{t("Mobil ilovadagi Push ro'yxati shu auditoriya bo'yicha mijozlarga ko'rsatiladi")}</small>
           </label>
           <label className="field">
-            <span>Kanal</span>
+            <span>{t("Kanal")}</span>
             <select value={form.channel} onChange={set('channel')}>
               <option value="PUSH">Push</option>
               <option value="SMS">SMS</option>
@@ -227,31 +240,31 @@ function CampaignForm({ campaign, onClose, onSaved }) {
             </select>
           </label>
           <label className="field">
-            <span>Qachon yuborilsin</span>
+            <span>{t("Qachon yuborilsin")}</span>
             <input type="datetime-local" value={form.scheduledAt} onChange={set('scheduledAt')} />
-            {!isEdit && <small>Bo'sh qoldirilsa qoralama sifatida saqlanadi</small>}
+            {!isEdit && <small>{t("Bo'sh qoldirilsa qoralama sifatida saqlanadi")}</small>}
           </label>
           {isEdit && (
             <label className="field">
-              <span>Holat</span>
+              <span>{t("Holat")}</span>
               <select value={form.status} onChange={set('status')}>
                 {Object.entries(STATUS_LABEL).map(([value, s]) => (
-                  <option key={value} value={value}>{s.label}</option>
+                  <option key={value} value={value}>{t(s.label)}</option>
                 ))}
               </select>
             </label>
           )}
           <label className="field field--full">
-            <span>Xabar matni</span>
+            <span>{t("Xabar matni")}</span>
             <textarea value={form.message} onChange={set('message')} required maxLength={500} rows={3} />
           </label>
         </div>
         <div className="modal__foot" style={{ padding: '14px 0 0' }}>
           <button type="button" className="btn btn--ghost" onClick={onClose}>
-            Bekor qilish
+            {t("Bekor qilish")}
           </button>
           <button type="submit" className="btn btn--accent" disabled={saving}>
-            {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+            {saving ? t("Saqlanmoqda...") : t("Saqlash")}
           </button>
         </div>
       </form>

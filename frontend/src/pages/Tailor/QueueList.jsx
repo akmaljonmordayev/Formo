@@ -19,12 +19,14 @@ export default function QueueList({
   selectedId,
   onSelect,
   className,
+  loading = false,
 }) {
   const t = useT();
   const [filterOpen, setFilterOpen] = useState(false);
 
   const tabs = [
     { key: 'barchasi', label: t('queue.tab.all') },
+    { key: 'yangi', label: t('queue.tab.yangi') },
     { key: 'qabul', label: t('queue.tab.qabul') },
     { key: 'bosildi', label: t('queue.tab.bosildi') },
     { key: 'tayyor', label: t('queue.tab.tayyor') },
@@ -106,7 +108,7 @@ export default function QueueList({
       <div className="flex flex-col gap-3 p-3 overflow-y-auto max-h-[calc(100vh-220px)]">
         {orders.length === 0 && (
           <div className="px-4 py-10 text-center text-xs text-slate-500">
-            {t('queue.empty')}
+            {loading ? t('api.loading') : t('queue.empty')}
           </div>
         )}
         {orders.map((order) => {

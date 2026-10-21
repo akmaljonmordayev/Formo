@@ -1,36 +1,32 @@
 import { useCallback } from 'react';
 import { useTailor } from './prefs';
 
-// Tailor paneli uchun 2 til (o'zbekcha/ruscha). Kalit topilmasa o'zbekchaga qaytadi.
 export const LANGS = [
-  { value: 'uz', label: "O'zbekcha" },
-  { value: 'ru', label: 'Русский' },
+  { value: 'uz', label: "O'zbekcha", shortLabel: 'UZ' },
+  { value: 'ru', label: 'Русский', shortLabel: 'RU' },
+  { value: 'uz-Cyrl', label: 'Ўзбекча', shortLabel: 'ЎЗ' },
 ];
 
-export const LOCALES = { uz: 'uz-UZ', ru: 'ru-RU' };
+export const LOCALES = { uz: 'uz-UZ', 'uz-Cyrl': 'uz-Cyrl-UZ', ru: 'ru-RU' };
 
 const uz = {
   // ---------- shell ----------
+  'api.loading': "Ma'lumotlar API dan yuklanmoqda...",
+  'api.saving': 'Saqlanmoqda...',
+  'api.empty': "API dan ma'lumot topilmadi.",
   'shell.openMenu': 'Menyuni ochish',
   'shell.notifications': 'Bildirishnomalar',
   'shell.markAllRead': 'Barchasini o‘qilgan qilish',
   'note.orderStatus.title': 'Buyurtma holati',
   'note.orderStatus.text': '№{code} · {status}',
-  'note.currentStatuses': 'Joriy buyurtma holatlari. Alohida server bildirishnomalari API mavjud emas.',
+  'note.newOrder.title': 'Yangi buyurtma',
+  'note.deadline.title': 'Yetkazish muddati',
+  'note.deadline.text': '№{code} · {date}, {slot}',
+  'note.summary.title': 'Joriy smena xulosasi',
+  'note.summary.text': 'Jami: {count} · navbatda: {accepted} · tayyor: {ready}',
+  'note.currentStatuses': 'Buyurtmalar serverdan jonli ravishda yangilanadi.',
   'shell.lang': 'Til',
 
-  'note.newOrder.title': 'Yangi buyurtma',
-  'note.newOrder.text': '#F-24822 Dilshod — qizil XL navbatga tushdi',
-  'note.newOrder.time': '2 daqiqa oldin',
-  'note.stock.title': 'Zaxira ogohlantirishi',
-  'note.stock.text': 'Qizil XXL va Qora XXL qoldiq nol',
-  'note.stock.time': '18 daqiqa oldin',
-  'note.chat.title': 'Chat xabari',
-  'note.chat.text': "Dilshod: Qizil bo'yoq qoldig'i tugamoqda",
-  'note.chat.time': '32 daqiqa oldin',
-  'note.batch.title': 'Partiya yakunlandi',
-  'note.batch.text': 'P-1043 Oversize Street tayyor',
-  'note.batch.time': 'Bugun, 11:20',
 
   // ---------- sidebar ----------
   'nav.queue': 'Bugungi navbat',
@@ -69,6 +65,16 @@ const uz = {
   'status.qabul': 'Qabul qilindi',
   'status.bosildi': 'Bosildi',
   'status.tayyor': 'Tayyor',
+  'status.yangi': 'Yangi',
+  'status.yetkazishda': 'Yetkazishda',
+  'queue.tab.yangi': 'Yangi',
+  'order.accept': 'Qabul qilish',
+  'order.reject': 'Rad etish',
+  'order.rejectReason': 'Rad etish sababi (operatorga ko\'rinadi)',
+  'order.rejectConfirm': 'Rad etishni tasdiqlash',
+  'order.cancel': 'Bekor qilish',
+  'order.handToCourier': 'Yetkazishga berish',
+  'navbat.rejectToast': "#{id} buyurtma rad etildi va operatorga qaytarildi",
   'status.all': 'Barchasi',
 
   // ---------- queue ----------
@@ -144,80 +150,33 @@ const uz = {
   // ---------- stats ----------
   'stat.title': 'Statistika va Hisobotlar',
   'stat.subtitle': "Sex samaradorligi, bosma hajmi va brak ko'rsatkichlari dinamikasi",
+  'stat.apiOrders': 'Buyurtmalar',
+  'stat.apiOrdersHint': 'tanlangan davrda',
+  'stat.apiActive': 'Faol buyurtmalar',
+  'stat.apiActiveHint': 'ishlab chiqarishda',
+  'stat.apiLate': 'Kechikkan buyurtmalar',
+  'stat.apiLateHint': 'muddatidan o‘tgan',
+  'stat.apiLoad': 'Sex yuklamasi',
+  'stat.apiCapacity': 'Kunlik quvvat: {n}',
+  'stat.workshops': 'Sexlar yuklamasi',
+  'stat.workshopsHint': 'Ishlab chiqarish API orqali olingan sexlar va joriy yuklama.',
+  'stat.col.workshop': 'Sex',
+  'stat.col.active': 'Faol buyurtmalar',
+  'stat.col.capacity': 'Kunlik quvvat',
+  'stat.col.load': 'Yuklama',
   'stat.today': 'bugun',
   'stat.week': 'hafta',
   'stat.month': 'oy',
-  'stat.totalVolume': 'Jami bosma hajmi',
-  'stat.avgTime': "O'rtacha vaqt",
-  'stat.defectRate': 'Brak darajasi',
-  'stat.efficiency': 'Smena samaradorligi',
-  'stat.high': 'Yuqori samaradorlik',
   'stat.volumeChart': 'Bosma hajmi dinamika grafigi',
   'stat.volumeChartHint': "Tanlangan davr ({period}) bo'yicha ishlab chiqarish egri grafigi",
-  'stat.materials': 'Materiallar va Brak ulushi',
-  'stat.whitePaint': "Oq bo'yoq (Plastisol)",
-  'stat.blackPaint': "Qora bo'yoq (Plastisol)",
-  'stat.whiteShort': "Oq bo'yoq",
-  'stat.fabricRolls': 'Interlok mato rollari',
-  'stat.teamRating': 'Xodimlar unumdorligi reytingi',
-  'stat.teamRatingHint': "Bajarilgan buyurtmalar soni va sifat darajasi bo'yicha",
-  'stat.col.employee': 'Xodim',
-  'stat.col.role': 'Rol',
-  'stat.col.done': 'Bajarildi',
-  'stat.col.avg': "O'rtacha vaqt",
-  'stat.col.defects': 'Brak soni',
-  'stat.col.quality': "Sifat ko'rsatkichi",
-  'stat.qtyUnit': '{n} dona',
-  'stat.tQty': '{n} dona',
-  'stat.growth.today': 'Bugungi smena bo‘yicha +5%',
-  'stat.growth.week': 'O‘tgan haftaga nisbatan +14%',
-  'stat.growth.month': 'O‘tgan oyga nisbatan +22%',
-  'stat.avgDiff.today': '1.5 daq tezroq',
-  'stat.avgDiff.week': '2.1 daq tezlashgan',
-  'stat.avgDiff.month': "O'rtacha barqaror",
-  'stat.defectCount': '{n} dona futbolka',
-  'stat.role.printer': 'Bosma operatori',
-  'stat.role.sewer': 'Tikuvchi',
-  'stat.label.dush': 'Dush',
-  'stat.label.sesh': 'Sesh',
-  'stat.label.chor': 'Chor',
-  'stat.label.pay': 'Pay',
-  'stat.label.jum': 'Jum',
-  'stat.label.shan': 'Shan',
-  'stat.label.yak': 'Yak',
-  'stat.label.week1': '1-hafta',
-  'stat.label.week2': '2-hafta',
-  'stat.label.week3': '3-hafta',
-  'stat.label.week4': '4-hafta',
 
   // ---------- chat ----------
   'chat.title': 'Operator bilan Chat',
   'chat.subtitle': "Sex boshlig'i, dizayner va operatorlar o'rtasida real-vaqt muloqoti",
-  'chat.search': 'Suhbat qidirish...',
-  'chat.online': 'Tarmoqda (Online)',
-  'chat.offline': 'Oflayn',
   'chat.placeholder': 'Xabar yozing...',
   'chat.send': 'Yuborish',
   'chat.unavailable': 'Suhbatlar mavjud emas',
   'chat.backendMissing': 'Haqiqiy suhbatlar, xabarlar tarixi va yuborish uchun backendda chat endpointlari kerak. Ushbu serverda bunday API mavjud emas; xabar yuborilmadi.',
-  'chat.file': 'Fayl: {name}',
-  'chat.role.lead': "Smena boshlig'i",
-  'chat.role.printer': 'Bosma operatori',
-  'chat.role.designer': 'Dizayner',
-  'chat.role.general': 'Umumiy kanal',
-  'chat.ch1.name': "Smena boshlig'i (Aziz K.)",
-  'chat.ch1.last': '#F-24822 buyurtma bosmaga topshirildi',
-  'chat.ch2.last': "Qizil bo'yoq qoldig'i tugamoqda",
-  'chat.ch3.last': 'Formo Pro 24 vektori yangilandi',
-  'chat.ch4.name': 'Chilonzor Sex Guruhi',
-  'chat.ch4.last': 'Bugungi smena rejasi: 24 ta buyurtma',
-  'chat.msg1.1': "Salom Dilshod! #F-24822 buyurtma tayyor bo'ldimi?",
-  'chat.msg1.2': 'Salom Aziz aka! Hozir bosishni boshlayman. Mato tayyorlandi.',
-  'chat.msg1.3': '#F-24822 buyurtma bosmaga topshirildi, shoshiling.',
-  'chat.msg2.1': "Salom, zaxirada qizil bo'yoq qoldig'i tugamoqda.",
-  'chat.msg2.2': 'Yangi kirim hujjatini yaratish kerak.',
-  'chat.msg3.1': 'Formo Pro 24 vektori yangilandi, yuklab oling.',
-  'chat.msg4.1': 'Bugungi smena rejasi: 24 ta buyurtma. Hammaga omad!',
 
   // ---------- profile ----------
   'profile.active': 'FAOL',
@@ -231,15 +190,16 @@ const uz = {
   'profile.phoneLabel': 'Telefon',
   'profile.shiftLabel': 'Ish vaqti',
   'profile.langLabel': 'Interfeys tili',
-  'profile.accountReadOnly': 'Tahrirlar ushbu qurilmada saqlanadi. Ism va telefon serverdagi akkaunt ma’lumotlarini o‘zgartirmaydi.',
-  'profile.localNotifications': 'Bu tanlovlar qurilmada saqlanadi; server push-bildirishnomalari API hali mavjud emas.',
-  'profile.backendNote': 'Profil tahrirlari va bildirishnoma sozlamalari faqat ushbu qurilmada saqlanadi; server bilan sinxronlanmaydi.',
+  'profile.accountReadOnly': "Telefon raqami o'zgartirilmaydi. Kunlik quvvatni faqat Superadmin belgilaydi.",
+  'profile.localNotifications': 'Tanlovlar paneldagi bildirishnomalar ro‘yxatini boshqaradi va shu qurilmada saqlanadi.',
+  'profile.backendNote': "Profil ma’lumotlari serverda saqlanadi; bildirishnoma sozlamalari ushbu qurilmada.",
   'profile.persistError': 'Sozlamalarni ushbu qurilmada saqlab bo‘lmadi.',
+  'profile.preferenceError': 'Bildirishnoma sozlamalarini qurilmada saqlab bo‘lmadi.',
   'profile.notifications': 'BILDIRISHNOMALAR',
   'profile.n.newOrders': 'Yangi buyurtmalar',
   'profile.n.newOrdersHint': 'Navbatga yangi vazifa tushganda bildirishnoma yuborish',
   'profile.n.deadline': 'Muddat eslatmalari',
-  'profile.n.deadlineHint': 'Muddatga 30 daqiqa qolganda ogohlantirish',
+  'profile.n.deadlineHint': 'Muddat belgilangan buyurtmalar uchun eslatma ko‘rsatish',
   'profile.n.summary': 'Smena xulosasi',
   'profile.n.summaryHint': 'Kun yakunidagi ishlab chiqarish hisobotini tayyorlash',
   'profile.permInfo': "Smena boshlig'i barcha bosma vazifalarini ko'radi, zaxirani boshqaradi, brakni tasdiqlaydi va hisobotlarni shakllantiradi.",
@@ -277,11 +237,11 @@ const uz = {
   'brak.reason.size': "Noto'g'ri o'lcham",
   'brak.note': 'Izoh',
   'brak.auto.title': 'Qayta bosish vazifasi avtomatik yaratilmaydi',
-  'brak.auto.desc': 'Brak qaydi faqat ushbu qurilmada saqlanadi; yangi buyurtmani navbatga qo‘lda qo‘shish kerak.',
+  'brak.auto.desc': 'Brak hisoboti operatorga yuboriladi; yangi buyurtmani operator navbatga qo‘shadi.',
   'brak.cancel': 'Bekor qilish',
   'brak.confirm': 'Brakni tasdiqlash',
   'brak.success.title': 'Brak muvaffaqiyatli qayd etildi',
-  'brak.success.desc': '#{id} buyurtma uchun brak ushbu qurilmada qayd etildi.',
+  'brak.success.desc': '#{id} buyurtma uchun brak hisoboti operatorga yuborildi.',
   'brak.localOnly': 'Brak qaydlari hozircha faqat ushbu qurilmada saqlanadi; serverga yuborish va qayta bosish vazifasini avtomatik yaratish API mavjud emas.',
   'brak.back': 'Navbatga qaytish',
   'brak.qc': '✕ QC DAN QAYTDI',
@@ -412,18 +372,73 @@ const uz = {
   'order.deadlineFull': '{base} · {h} soat {m} daqiqa',
   'order.deadlineDone': "Tayyor bo'ldi",
   'chat.me': 'Men',
-  'chat.msg1.order': 'Futbolka · 7 · qizil XL · 1 dona',
-  'brak.noteDefault': 'Bosma chap tomonga 12 mm siljigan. Markazlash belgisini tekshirish kerak.',
   'jersey.aria': '{name} futbolka maketi',
   'jersey.view': 'KO‘RINISH',
   'logo.subtitle': 'tikuv sex',
   'common.search': 'Qidirish...',
   'modal.close': 'Yopish',
   'modal.closeWindow': 'Oynani yopish',
+
+  // ---------- yangi (API) ----------
+  'chat.operator': 'Operator',
+  'chat.empty': "Hozircha xabarlar yo'q. Operatorga birinchi xabarni yozing.",
+  'chat.loadError': "Xabarlarni yuklab bo'lmadi.",
+  'chat.sendError': "Xabarni yuborib bo'lmadi.",
+  'chat.search': 'Suhbatdosh qidirish',
+  'chat.newChat': 'Yangi suhbat',
+  'chat.pickContact': 'Suhbatdoshni tanlang',
+  'chat.noContacts': 'Hech kim topilmadi',
+  'chat.pick': 'Suhbatni tanlang',
+  'chat.pickHint': 'Chapdagi ro\'yxatdan suhbatni tanlang yoki yangisini boshlang.',
+  'chat.noThreads': 'Suhbatlar yo\'q',
+  'chat.noPreview': 'Xabarlar yo\'q',
+  'chat.you': 'Siz: ',
+  'chat.back': 'Suhbatlar ro\'yxatiga qaytish',
+  'chat.order': 'Buyurtma',
+  'chat.role.OPERATOR': 'Operator',
+  'chat.role.SUPERADMIN': 'Superadmin',
+  'chat.role.TAILOR': 'Tikuv sexi',
+  'chat.role.USER': 'Mijoz',
+  'brak.reason.other': 'Boshqa',
+  'brak.qty': 'Brak soni',
+  'brak.qtyInvalid': "Soni 1 dan 1000 gacha butun son bo'lishi kerak.",
+  'brak.history': 'Yuborilgan hisobotlar',
+  'brak.status.open': 'OCHIQ',
+  'brak.status.resolved': 'HAL QILINDI',
+  'order.spec.design': 'DIZAYN',
+  'order.spec.customDesign': 'Maxsus (studiya)',
+  'order.spec.designColor': 'RANGI',
+  'order.spec.gradient': 'Gradient',
+  'order.spec.font': 'SHRIFT',
+  'order.spec.patch': 'PATCH',
+  'order.spec.package': 'PAKET',
+  'order.spec.none': "Yo'q",
+  'order.spec.club': 'KLUB',
+  'order.spec.kit': 'KOMPLEKT',
+  'profile.addressLabel': 'Manzil',
+  'profile.capacityLabel': 'Kunlik quvvat',
+  'profile.capacityUnit': '{n} dona/kun',
+  'profile.loadError': "Profilni yuklab bo'lmadi.",
+  'profile.saveError': "Profilni saqlab bo'lmadi.",
+  'profile.employees': 'XODIMLAR',
+  'profile.employeeAdd': "Xodim qo'shish",
+  'profile.employeesEmpty': "Hozircha xodimlar yo'q.",
+  'profile.employeesError': "Xodimlar bilan amalni bajarib bo'lmadi.",
+  'profile.employeeSaved': 'Xodim saqlandi!',
+  'profile.employeeDeleted': "Xodim o'chirildi!",
+  'profile.employeeDelete': "Xodimni o'chirish",
+  'profile.employeeDeleteConfirm': "{name} xodimini o'chirishni tasdiqlaysizmi?",
+  'emp.addTitle': "Xodim qo'shish",
+  'emp.editTitle': 'Xodimni tahrirlash',
+  'emp.saving': 'Saqlanmoqda...',
+  'emp.saveError': "Xodimni saqlab bo'lmadi.",
 };
 
 const ru = {
   // ---------- shell ----------
+  'api.loading': 'Загрузка данных из API...',
+  'api.saving': 'Сохранение...',
+  'api.empty': 'Данные из API не найдены.',
   'shell.openMenu': 'Открыть меню',
   'shell.notifications': 'Уведомления',
   'shell.markAllRead': 'Отметить всё прочитанным',
@@ -432,18 +447,6 @@ const ru = {
   'note.currentStatuses': 'Текущие статусы заказов. Отдельного API серверных уведомлений нет.',
   'shell.lang': 'Язык',
 
-  'note.newOrder.title': 'Новый заказ',
-  'note.newOrder.text': '#F-24822 Дилшод — красный XL добавлен в очередь',
-  'note.newOrder.time': '2 минуты назад',
-  'note.stock.title': 'Предупреждение о запасе',
-  'note.stock.text': 'Красный XXL и чёрный XXL — остаток ноль',
-  'note.stock.time': '18 минут назад',
-  'note.chat.title': 'Сообщение в чате',
-  'note.chat.text': 'Дилшод: красная краска заканчивается',
-  'note.chat.time': '32 минуты назад',
-  'note.batch.title': 'Партия завершена',
-  'note.batch.text': 'P-1043 Oversize Street готов',
-  'note.batch.time': 'Сегодня, 11:20',
 
   // ---------- sidebar ----------
   'nav.queue': 'Очередь на сегодня',
@@ -482,6 +485,16 @@ const ru = {
   'status.qabul': 'Принят',
   'status.bosildi': 'Напечатан',
   'status.tayyor': 'Готов',
+  'status.yangi': 'Новый',
+  'status.yetkazishda': 'Доставляется',
+  'queue.tab.yangi': 'Новые',
+  'order.accept': 'Принять',
+  'order.reject': 'Отклонить',
+  'order.rejectReason': 'Причина отказа (увидит оператор)',
+  'order.rejectConfirm': 'Подтвердить отказ',
+  'order.cancel': 'Отмена',
+  'order.handToCourier': 'Передать в доставку',
+  'navbat.rejectToast': "Заказ #{id} отклонён и возвращён оператору",
   'status.all': 'Все',
 
   // ---------- queue ----------
@@ -557,80 +570,33 @@ const ru = {
   // ---------- stats ----------
   'stat.title': 'Статистика и отчёты',
   'stat.subtitle': 'Динамика эффективности цеха, объёма печати и брака',
+  'stat.apiOrders': 'Заказы',
+  'stat.apiOrdersHint': 'за выбранный период',
+  'stat.apiActive': 'Активные заказы',
+  'stat.apiActiveHint': 'в производстве',
+  'stat.apiLate': 'Просроченные заказы',
+  'stat.apiLateHint': 'с истёкшим сроком',
+  'stat.apiLoad': 'Загрузка цехов',
+  'stat.apiCapacity': 'Дневная мощность: {n}',
+  'stat.workshops': 'Загрузка цехов',
+  'stat.workshopsHint': 'Цеха и текущая загрузка из API производства.',
+  'stat.col.workshop': 'Цех',
+  'stat.col.active': 'Активные заказы',
+  'stat.col.capacity': 'Дневная мощность',
+  'stat.col.load': 'Загрузка',
   'stat.today': 'сегодня',
   'stat.week': 'неделя',
   'stat.month': 'месяц',
-  'stat.totalVolume': 'Общий объём печати',
-  'stat.avgTime': 'Среднее время',
-  'stat.defectRate': 'Уровень брака',
-  'stat.efficiency': 'Эффективность смены',
-  'stat.high': 'Высокая эффективность',
   'stat.volumeChart': 'График динамики объёма печати',
   'stat.volumeChartHint': 'Кривая производства за выбранный период ({period})',
-  'stat.materials': 'Доля материалов и брака',
-  'stat.whitePaint': 'Белая краска (Plastisol)',
-  'stat.blackPaint': 'Чёрная краска (Plastisol)',
-  'stat.whiteShort': 'Белая краска',
-  'stat.fabricRolls': 'Рулоны ткани интерлок',
-  'stat.teamRating': 'Рейтинг продуктивности сотрудников',
-  'stat.teamRatingHint': 'По количеству выполненных заказов и качеству',
-  'stat.col.employee': 'Сотрудник',
-  'stat.col.role': 'Роль',
-  'stat.col.done': 'Выполнено',
-  'stat.col.avg': 'Среднее время',
-  'stat.col.defects': 'Брак',
-  'stat.col.quality': 'Качество',
-  'stat.qtyUnit': '{n} шт.',
-  'stat.tQty': '{n} шт.',
-  'stat.growth.today': '+5% за текущую смену',
-  'stat.growth.week': '+14% к прошлой неделе',
-  'stat.growth.month': '+22% к прошлому месяцу',
-  'stat.avgDiff.today': 'на 1.5 мин быстрее',
-  'stat.avgDiff.week': 'ускорение на 2.1 мин',
-  'stat.avgDiff.month': 'В среднем стабильно',
-  'stat.defectCount': '{n} шт. футболок',
-  'stat.role.printer': 'Оператор печати',
-  'stat.role.sewer': 'Швея',
-  'stat.label.dush': 'Пн',
-  'stat.label.sesh': 'Вт',
-  'stat.label.chor': 'Ср',
-  'stat.label.pay': 'Чт',
-  'stat.label.jum': 'Пт',
-  'stat.label.shan': 'Сб',
-  'stat.label.yak': 'Вс',
-  'stat.label.week1': '1-я неделя',
-  'stat.label.week2': '2-я неделя',
-  'stat.label.week3': '3-я неделя',
-  'stat.label.week4': '4-я неделя',
 
   // ---------- chat ----------
   'chat.title': 'Чат с оператором',
   'chat.subtitle': 'Общение начальника смены, дизайнера и операторов в реальном времени',
-  'chat.search': 'Поиск диалога...',
-  'chat.online': 'В сети (Online)',
-  'chat.offline': 'Не в сети',
   'chat.placeholder': 'Напишите сообщение...',
   'chat.send': 'Отправить',
   'chat.unavailable': 'Диалоги недоступны',
   'chat.backendMissing': 'Для списка диалогов, истории и отправки сообщений нужны chat-endpoints на сервере. В текущем backend такого API нет; сообщения не отправлялись.',
-  'chat.file': 'Файл: {name}',
-  'chat.role.lead': 'Начальник смены',
-  'chat.role.printer': 'Оператор печати',
-  'chat.role.designer': 'Дизайнер',
-  'chat.role.general': 'Общий канал',
-  'chat.ch1.name': 'Начальник смены (Азиз К.)',
-  'chat.ch1.last': 'Заказ #F-24822 передан в печать',
-  'chat.ch2.last': 'Красная краска заканчивается',
-  'chat.ch3.last': 'Вектор Formo Pro 24 обновлён',
-  'chat.ch4.name': 'Группа цеха Чиланзар',
-  'chat.ch4.last': 'План смены на сегодня: 24 заказа',
-  'chat.msg1.1': 'Привет, Дилшод! Заказ #F-24822 готов?',
-  'chat.msg1.2': 'Привет, Азиз ака! Сейчас начну печать. Ткань готова.',
-  'chat.msg1.3': 'Заказ #F-24822 передан в печать, поторопитесь.',
-  'chat.msg2.1': 'Здравствуйте, на складе заканчивается красная краска.',
-  'chat.msg2.2': 'Нужно создать новый приходный документ.',
-  'chat.msg3.1': 'Вектор Formo Pro 24 обновлён, скачайте.',
-  'chat.msg4.1': 'План смены на сегодня: 24 заказа. Всем удачи!',
 
   // ---------- profile ----------
   'profile.active': 'АКТИВНЫЙ',
@@ -644,15 +610,16 @@ const ru = {
   'profile.phoneLabel': 'Телефон',
   'profile.shiftLabel': 'Рабочее время',
   'profile.langLabel': 'Язык интерфейса',
-  'profile.accountReadOnly': 'Изменения сохраняются только на этом устройстве. Имя и телефон на сервере не меняются.',
-  'profile.localNotifications': 'Эти настройки хранятся на устройстве; API серверных push-уведомлений пока нет.',
-  'profile.backendNote': 'Изменения профиля и уведомлений сохраняются только на этом устройстве и не синхронизируются с сервером.',
+  'profile.accountReadOnly': 'Номер телефона изменить нельзя. Дневную мощность задаёт только Суперадмин.',
+  'profile.localNotifications': 'Настройки управляют списком уведомлений в панели и сохраняются на этом устройстве.',
+  'profile.backendNote': 'Данные профиля хранятся на сервере; настройки уведомлений — на этом устройстве.',
   'profile.persistError': 'Не удалось сохранить настройки на этом устройстве.',
+  'profile.preferenceError': 'Не удалось сохранить настройки уведомлений на устройстве.',
   'profile.notifications': 'УВЕДОМЛЕНИЯ',
   'profile.n.newOrders': 'Новые заказы',
   'profile.n.newOrdersHint': 'Уведомлять при появлении нового задания в очереди',
   'profile.n.deadline': 'Напоминания о сроках',
-  'profile.n.deadlineHint': 'Предупреждение за 30 минут до окончания срока',
+  'profile.n.deadlineHint': 'Показывать напоминания по заказам с указанным сроком',
   'profile.n.summary': 'Итоги смены',
   'profile.n.summaryHint': 'Формирование отчёта в конце рабочей смены',
   'profile.permInfo': 'Начальник смены просматривает все задачи печати, управляет запасами, подтверждает брак и формирует отчёты.',
@@ -690,11 +657,11 @@ const ru = {
   'brak.reason.size': 'Неверный размер',
   'brak.note': 'Комментарий',
   'brak.auto.title': 'Задание на перепечатку автоматически не создаётся',
-  'brak.auto.desc': 'Запись о браке сохраняется только на этом устройстве; новый заказ нужно добавить в очередь вручную.',
+  'brak.auto.desc': 'Отчёт о браке отправляется оператору; новый заказ добавит оператор.',
   'brak.cancel': 'Отмена',
   'brak.confirm': 'Подтвердить брак',
   'brak.success.title': 'Брак успешно зарегистрирован',
-  'brak.success.desc': 'Брак по заказу #{id} записан на этом устройстве.',
+  'brak.success.desc': 'Отчёт о браке по заказу #{id} отправлен оператору.',
   'brak.localOnly': 'Записи о браке пока хранятся только на этом устройстве; API для отправки на сервер и автоматического создания перепечатки отсутствует.',
   'brak.back': 'Вернуться к очереди',
   'brak.qc': '✕ ВОЗВРАТ ОТ QC',
@@ -825,21 +792,124 @@ const ru = {
   'order.deadlineFull': '{base} · {h} ч {m} мин',
   'order.deadlineDone': 'Готово',
   'chat.me': 'Я',
-  'chat.msg1.order': 'Футболка · 7 · красная XL · 1 шт.',
-  'brak.noteDefault': 'Печать сместилась влево на 12 мм. Нужно проверить метку центровки.',
   'jersey.aria': 'макет футболки {name}',
   'jersey.view': 'ВИД',
   'logo.subtitle': 'швейный цех',
   'common.search': 'Поиск...',
   'modal.close': 'Закрыть',
   'modal.closeWindow': 'Закрыть окно',
+
+  // ---------- новое (API) ----------
+  'chat.operator': 'Оператор',
+  'chat.empty': 'Сообщений пока нет. Напишите оператору первое сообщение.',
+  'chat.loadError': 'Не удалось загрузить сообщения.',
+  'chat.sendError': 'Не удалось отправить сообщение.',
+  'chat.search': 'Поиск собеседника',
+  'chat.newChat': 'Новый диалог',
+  'chat.pickContact': 'Выберите собеседника',
+  'chat.noContacts': 'Никого не найдено',
+  'chat.pick': 'Выберите диалог',
+  'chat.pickHint': 'Выберите диалог слева или начните новый.',
+  'chat.noThreads': 'Диалогов нет',
+  'chat.noPreview': 'Нет сообщений',
+  'chat.you': 'Вы: ',
+  'chat.back': 'Назад к диалогам',
+  'chat.order': 'Заказ',
+  'chat.role.OPERATOR': 'Оператор',
+  'chat.role.SUPERADMIN': 'Суперадмин',
+  'chat.role.TAILOR': 'Швейный цех',
+  'chat.role.USER': 'Клиент',
+  'brak.reason.other': 'Другое',
+  'brak.qty': 'Количество брака',
+  'brak.qtyInvalid': 'Количество должно быть целым числом от 1 до 1000.',
+  'brak.history': 'Отправленные отчёты',
+  'brak.status.open': 'ОТКРЫТ',
+  'brak.status.resolved': 'РЕШЁН',
+  'order.spec.design': 'ДИЗАЙН',
+  'order.spec.customDesign': 'Индивидуальный (студия)',
+  'order.spec.designColor': 'ЦВЕТ',
+  'order.spec.gradient': 'Градиент',
+  'order.spec.font': 'ШРИФТ',
+  'order.spec.patch': 'ПАТЧ',
+  'order.spec.package': 'ПАКЕТ',
+  'order.spec.none': 'Нет',
+  'order.spec.club': 'КЛУБ',
+  'order.spec.kit': 'КОМПЛЕКТ',
+  'profile.addressLabel': 'Адрес',
+  'profile.capacityLabel': 'Дневная мощность',
+  'profile.capacityUnit': '{n} шт./день',
+  'profile.loadError': 'Не удалось загрузить профиль.',
+  'profile.saveError': 'Не удалось сохранить профиль.',
+  'profile.employees': 'СОТРУДНИКИ',
+  'profile.employeeAdd': 'Добавить сотрудника',
+  'profile.employeesEmpty': 'Сотрудников пока нет.',
+  'profile.employeesError': 'Не удалось выполнить действие с сотрудниками.',
+  'profile.employeeSaved': 'Сотрудник сохранён!',
+  'profile.employeeDeleted': 'Сотрудник удалён!',
+  'profile.employeeDelete': 'Удалить сотрудника',
+  'profile.employeeDeleteConfirm': 'Удалить сотрудника {name}?',
+  'emp.addTitle': 'Добавить сотрудника',
+  'emp.editTitle': 'Редактировать сотрудника',
+  'emp.saving': 'Сохранение...',
+  'emp.saveError': 'Не удалось сохранить сотрудника.',
 };
 
 const DICTS = { uz, ru };
 
-// t('ws.footer', { total: 5 }) — {total} o'rniga qiymat qo'yiladi
+const UZ_CYRILLIC_DIGRAPHS = {
+  "o'": 'ў',
+  "g'": 'ғ',
+  sh: 'ш',
+  ch: 'ч',
+  ng: 'нг',
+  yo: 'ё',
+  yu: 'ю',
+  ya: 'я',
+  ye: 'е',
+};
+
+const UZ_CYRILLIC_LETTERS = {
+  a: 'а', b: 'б', d: 'д', e: 'е', f: 'ф', g: 'г', h: 'ҳ', i: 'и',
+  j: 'ж', k: 'к', l: 'л', m: 'м', n: 'н', o: 'о', p: 'п', q: 'қ',
+  r: 'р', s: 'с', t: 'т', u: 'у', v: 'в', x: 'х', y: 'й', z: 'з',
+  "'": 'ъ', '’': 'ъ', '‘': 'ъ', 'ʻ': 'ъ',
+};
+
+const UZ_CYRILLIC_ACRONYMS = new Set(['API', 'GET', 'PUT', 'SUPERADMIN', 'TAILOR', 'PNG', 'JPG', 'WEBP', 'PDF', 'QC', 'S', 'M', 'L', 'XL', 'XXL']);
+
+function transliterateUzbek(text) {
+  return text.replace(/\{[^}]+\}|\/[A-Za-z0-9._~!$&'()*+,;=:@%/?#-]+|[A-Za-zʻʼ’‘']+|[0-9_-]+/g, (part) => {
+    if (
+      part.startsWith('{')
+      || part.startsWith('/')
+      || UZ_CYRILLIC_ACRONYMS.has(part)
+      || (/^[0-9_-]+$/.test(part))
+    ) return part;
+
+    const source = part.toLowerCase().replace(/[’‘ʻʼ]/g, "'");
+    let result = '';
+    for (let index = 0; index < source.length;) {
+      const pair = source.slice(index, index + 2);
+      if (UZ_CYRILLIC_DIGRAPHS[pair]) {
+        result += UZ_CYRILLIC_DIGRAPHS[pair];
+        index += 2;
+      } else if (index === 0 && source[index] === 'e') {
+        result += 'э';
+        index += 1;
+      } else {
+        result += UZ_CYRILLIC_LETTERS[source[index]] ?? source[index];
+        index += 1;
+      }
+    }
+
+    if (part === part.toUpperCase()) return result.toUpperCase();
+    return /^[A-Z]/.test(part) ? result[0].toUpperCase() + result.slice(1) : result;
+  });
+}
+
 export const translate = (lang, key, vars) => {
-  const text = DICTS[lang]?.[key] ?? uz[key] ?? key;
+  const baseText = DICTS[lang]?.[key] ?? uz[key] ?? key;
+  const text = lang === 'uz-Cyrl' ? transliterateUzbek(baseText) : baseText;
   return vars ? text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m)) : text;
 };
 
@@ -854,8 +924,6 @@ export function useT() {
   return t;
 }
 
-// ---------- mock ma'lumotlarni joriy tilga o'girish ----------
-
 /** 'Futbolka · 7 · qizil XL · 1 dona' */
 export const orderSummary = (t, order) =>
   t('order.summary', {
@@ -866,12 +934,14 @@ export const orderSummary = (t, order) =>
     qty: t('unit.donaCount', { n: order.qty }),
   });
 
-/** 'Bugun, 14:30' */
-export const orderTime = (t, order) =>
-  t('time.withClock', { when: t('time.today'), time: order.timeOnly });
+export const orderTime = (t, order) => {
+  if (order.timeOnly) return t('time.withClock', { when: t('time.today'), time: order.timeOnly });
+  const date = order.deliveryTime ?? order.createdAt;
+  return date ? new Date(date).toLocaleDateString(t.locale, { timeZone: 'UTC' }) : t('api.empty');
+};
 
-/** 'Bugun, 14:30 · 2 soat 18 daqiqa' yoki 'Bugun, 16:45 · Tayyor bo'ldi' */
 export const orderDeadline = (t, order) => {
+  if (!order.deadline) return order.deliveryTime ?? t('api.empty');
   const base = t('time.withClock', { when: t('time.today'), time: order.deadline.time });
   return order.deadline.done
     ? `${base} · ${t('order.deadlineDone')}`

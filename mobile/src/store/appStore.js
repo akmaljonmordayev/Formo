@@ -2,39 +2,16 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { getItem, setItem } from '../utils/storage';
 
 const LANGUAGE_KEY = 'formo_language';
-const CART_KEY = 'formo_cart';
-const FAVORITES_KEY = 'formo_favorites';
 
-async function readJson(key, fallback) {
-  const raw = await getItem(key);
-  if (!raw) return fallback;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return fallback;
-  }
-}
-
+// Savat va sevimlilar endi serverda (/api/cart, /api/catalog/favorites) —
+// bu yerda faqat qurilmaga xos holat qoladi.
 export function useAppStore() {
   // ─── Language (persisted) ────────────────────────────────────────────────────
   const [language, setLanguageState] = useState('uz');
 
-  // ─── Cart ────────────────────────────────────────────────────────────────────
-  const [cart, setCart] = useState([]);
-
-  // ─── Favorites ───────────────────────────────────────────────────────────────
-  const [favorites, setFavorites] = useState([]);
-
-  // Hydrate persisted state on mount
   useEffect(() => {
     getItem(LANGUAGE_KEY).then((saved) => {
       if (saved) setLanguageState(saved);
-    });
-    readJson(CART_KEY, []).then((saved) => {
-      if (Array.isArray(saved) && saved.length > 0) setCart(saved);
-    });
-    readJson(FAVORITES_KEY, []).then((saved) => {
-      if (Array.isArray(saved) && saved.length > 0) setFavorites(saved);
     });
   }, []);
 
@@ -43,6 +20,7 @@ export function useAppStore() {
     setItem(LANGUAGE_KEY, code);
   }, []);
 
+<<<<<<< HEAD
   const updateCart = useCallback((updater) => {
     setCart((current) => {
       const next = updater(current);
@@ -104,4 +82,7 @@ export function useAppStore() {
       toggleFavorite,
     ],
   );
+=======
+  return useMemo(() => ({ language, setLanguage }), [language, setLanguage]);
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
 }

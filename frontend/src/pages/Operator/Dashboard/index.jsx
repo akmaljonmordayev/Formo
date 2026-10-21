@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ArrowRight, Factory, Phone, ShoppingBag } from 'lucide-react';
+import { ordersApi } from '../../../features/platform/platformApi';
 import { useAuth } from '../../../hooks/useAuth';
 import { prettyPhone, workshopsApi } from '../../../features/accounts/accountsApi';
 import { useT } from '../i18n';
@@ -11,6 +12,8 @@ function greeting(t) {
   if (h < 18) return t('dash.day');
   return t('dash.evening');
 }
+
+const PRODUCTION = ['ACCEPTED', 'PRINTING', 'QUALITY_CHECK', 'READY'];
 
 function useClock() {
   const [now, setNow] = useState(() => new Date());
@@ -27,6 +30,7 @@ export default function OperatorDashboard() {
   const now = useClock();
   const [stats, setStats] = useState(null);
   const [recent, setRecent] = useState(null);
+  const [orderStats, setOrderStats] = useState(null);
   const [error, setError] = useState('');
 
   useEffect(() => {
@@ -52,8 +56,30 @@ export default function OperatorDashboard() {
     };
   }, []);
 
+  useEffect(() => {
+    let cancelled = false;
+    ordersApi
+      .list({ page: 1, limit: 1 })
+      .then((res) => {
+        if (cancelled) return;
+        const by = res.byStatus ?? {};
+        setOrderStats({
+          total: res.total ?? 0,
+          production: PRODUCTION.reduce((n, k) => n + (by[k] ?? 0), 0),
+          delivered: by.DELIVERED ?? 0,
+          cancelled: by.CANCELLED ?? 0,
+          revenue: res.paymentTotals?.PAID ?? 0,
+        });
+      })
+      .catch((err) => !cancelled && setError(err.message));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
   const firstName = user?.fullName?.split(' ')[0] ?? '';
   const kpi = (value) => (stats ? value : <span className="op-sk" style={{ width: 56, height: 40 }} />);
+  const orderKpi = (v) => (orderStats ? v : <span className="op-sk" style={{ width: 40, height: 16 }} />);
   const date = (iso) => new Date(iso).toLocaleDateString(t.locale, { day: '2-digit', month: '2-digit' });
   const share = stats && stats.total > 0 ? Math.round((stats.active / stats.total) * 100) : null;
 
@@ -188,9 +214,35 @@ export default function OperatorDashboard() {
         </section>
 
         <section className="op-cd op-pd op-lav" aria-labelledby="dash-orders">
-          <span className="op-eyebrow">{t('dash.notConnected')}</span>
           <h2 id="dash-orders">{t('menu.orders')}</h2>
           <p>{t('dash.ordersHint')}</p>
+          <div className="op-legend">
+            <div>
+              <i />
+              <span>{t('dash.ordersTotal')}</span>
+              <b>{orderKpi(orderStats?.total)}</b>
+            </div>
+            <div>
+              <i />
+              <span>{t('dash.inProduction')}</span>
+              <b>{orderKpi(orderStats?.production)}</b>
+            </div>
+            <div>
+              <i className="is-ok" />
+              <span>{t('dash.delivered')}</span>
+              <b>{orderKpi(orderStats?.delivered)}</b>
+            </div>
+            <div>
+              <i className="is-off" />
+              <span>{t('dash.cancelled')}</span>
+              <b>{orderKpi(orderStats?.cancelled)}</b>
+            </div>
+            <div>
+              <i />
+              <span>{t('dash.revenue')}</span>
+              <b>{orderStats ? `${Number(orderStats.revenue).toLocaleString(t.locale)} ${t('pay.currency')}` : orderKpi()}</b>
+            </div>
+          </div>
           <div className="op-row is-w">
             <Link to="/operator/orders" className="op-b is-sm">
               {t('dash.open')} <ArrowRight size={13} aria-hidden="true" />

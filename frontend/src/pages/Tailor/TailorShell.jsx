@@ -5,32 +5,14 @@ import { useAuth } from '../../hooks/useAuth';
 import Sidebar from './Sidebar';
 import { LANGS, translate } from './i18n';
 import { TailorContext, loadPrefs, storePrefs } from './prefs';
-import { queueOrders as initialOrders } from './mockData';
 import { cx } from './utils';
-import { listTailorOrders, TAILOR_NEXT_STATUS, updateTailorOrderStatus } from './tailorApi';
-
-const ORDERS_KEY = 'formo_tailor_demo_orders';
-
-function loadDemoOrders() {
-  try {
-    const saved = JSON.parse(localStorage.getItem(ORDERS_KEY) || 'null');
-    if (!Array.isArray(saved)) return initialOrders;
-    return initialOrders.map((order) => {
-      const previous = saved.find((item) => item.id === order.id);
-      return previous && ['qabul', 'bosildi', 'tayyor'].includes(previous.status)
-        ? {
-            ...order,
-            status: previous.status,
-            stage: Number.isInteger(previous.stage) && previous.stage >= 0 && previous.stage <= 3
-              ? previous.stage
-              : order.stage,
-          }
-        : order;
-    });
-  } catch {
-    return initialOrders;
-  }
-}
+import {
+  acceptTailorOrder,
+  listTailorOrders,
+  rejectTailorOrder,
+  TAILOR_NEXT_STATUS,
+  updateTailorOrderStatus,
+} from './tailorApi';
 
 const OUTER_CHROME_CSS = `
   body.tailor-shell .layout__sidebar,
@@ -43,13 +25,13 @@ const OUTER_CHROME_CSS = `
 export default function TailorShell({ title, subtitle, children }) {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [prefs, setPrefs] = useState(() => loadPrefs());
-  const [orders, setOrdersState] = useState(loadDemoOrders);
+  const [prefs, setPrefs] = useState(() => loadPrefs(user?.id));
+  const [orders, setOrdersState] = useState([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [prefsError, setPrefsError] = useState('');
-  const [orderSource, setOrderSource] = useState('demo');
   const [ordersLoading, setOrdersLoading] = useState(true);
+  const [ordersError, setOrdersError] = useState('');
   const [orderActionLoading, setOrderActionLoading] = useState(false);
   const [noteReadIds, setNoteReadIds] = useState(() => {
     try {
@@ -62,58 +44,60 @@ export default function TailorShell({ title, subtitle, children }) {
   const notesRef = useRef(null);
 
   const t = useCallback((key, vars) => translate(prefs.lang, key, vars), [prefs.lang]);
-  const savePrefs = (next) => {
-    storePrefs(next);
+  const savePrefs = useCallback((next) => {
+    storePrefs(next, user?.id);
     setPrefs(next);
-  };
-  const setOrders = useCallback((update) => {
-    setOrdersState((current) => {
-      const next = typeof update === 'function' ? update(current) : update;
-      try {
-        localStorage.setItem(ORDERS_KEY, JSON.stringify(next.map(({ id, status, stage }) => ({ id, status, stage }))));
-      } catch {
-        setPrefsError(translate(prefs.lang, 'profile.persistError'));
-      }
-      return next;
-    });
-  }, [prefs.lang]);
+    setPrefsError('');
+    return next;
+  }, [user?.id]);
+  useEffect(() => {
+    setPrefs(loadPrefs(user?.id));
+    setPrefsError('');
+  }, [user?.id]);
 
   const reloadOrders = useCallback(async () => {
     setOrdersLoading(true);
+    setOrdersError('');
     try {
-      const freshOrders = await listTailorOrders(user?.id);
-      setOrders(freshOrders);
-      setOrderSource('api');
-    } catch {
-      setOrderSource('demo');
+      const freshOrders = await listTailorOrders();
+      setOrdersState(freshOrders);
+    } catch (requestError) {
+      setOrdersError(requestError.message);
     } finally {
       setOrdersLoading(false);
     }
-  }, [setOrders, user?.id]);
+  }, []);
 
   const processOrder = useCallback(async (order) => {
     if (!order.apiBacked || !order.apiId || !order.apiStatus) {
-      setOrders((current) => current.map((item) => {
-        if (item.id !== order.id) return item;
-        const nextStatus = item.status === 'qabul' ? 'bosildi' : 'tayyor';
-        return { ...item, status: nextStatus, stage: nextStatus === 'tayyor' ? 3 : 2 };
-      }));
       return;
     }
 
+    const isNew = order.apiStatus === 'SENT_TO_WORKSHOP';
     const nextStatus = TAILOR_NEXT_STATUS[order.apiStatus];
-    if (!nextStatus) return;
+    if (!isNew && !nextStatus) return;
     setOrderActionLoading(true);
     try {
-      await updateTailorOrderStatus(order.apiId, nextStatus);
+      if (isNew) await acceptTailorOrder(order.apiId);
+      else await updateTailorOrderStatus(order.apiId, nextStatus);
       await reloadOrders();
     } finally {
       setOrderActionLoading(false);
     }
-  }, [reloadOrders, setOrders]);
-  const setLang = (lang) => {
+  }, [reloadOrders]);
+
+  const rejectOrder = useCallback(async (order, reason) => {
+    setOrderActionLoading(true);
     try {
-      savePrefs({ ...prefs, lang });
+      await rejectTailorOrder(order.apiId, reason);
+      await reloadOrders();
+    } finally {
+      setOrderActionLoading(false);
+    }
+  }, [reloadOrders]);
+  const setLang = async (lang) => {
+    try {
+      await savePrefs({ ...prefs, lang });
       setPrefsError('');
     } catch {
       setPrefsError(translate(lang, 'profile.persistError'));
@@ -125,31 +109,63 @@ export default function TailorShell({ title, subtitle, children }) {
       prefs,
       savePrefs,
       orders,
-      setOrders,
-      orderSource,
       ordersLoading,
+      ordersError,
       orderActionLoading,
       reloadOrders,
       processOrder,
+      rejectOrder,
     }),
-    [prefs, orders, setOrders, orderSource, ordersLoading, orderActionLoading, reloadOrders, processOrder]
+    [prefs, savePrefs, orders, ordersLoading, ordersError, orderActionLoading, reloadOrders, processOrder, rejectOrder]
   );
 
-  const notes = useMemo(
-    () => orders.map((order) => ({
-      id: `${order.id}:${order.status}`,
-      title: t('note.orderStatus.title'),
-      text: t('note.orderStatus.text', {
-        code: order.id,
-        status: t(`status.${order.status}`),
-      }),
-      to: '/tailor',
-    })),
-    [orders, t]
-  );
+  const notes = useMemo(() => {
+    const items = [];
+    if (prefs.notifications.newOrders) {
+      orders.filter((order) => order.status === 'yangi').forEach((order) => {
+        items.push({
+          id: `new-order:${order.id}`,
+          title: t('note.newOrder.title'),
+          text: t('note.orderStatus.text', {
+            code: order.id,
+            status: t(`status.${order.status}`),
+          }),
+          to: '/tailor',
+        });
+      });
+    }
+    if (prefs.notifications.deadline) {
+      orders.filter((order) => order.deadline && order.deliveryTime && order.status !== 'tayyor')
+        .forEach((order) => {
+          items.push({
+            id: `deadline:${order.id}:${order.deliveryTime}`,
+            title: t('note.deadline.title'),
+            text: t('note.deadline.text', {
+              code: order.id,
+              date: order.deliveryTime,
+              slot: order.deadline.time,
+            }),
+            to: '/tailor',
+          });
+        });
+    }
+    if (prefs.notifications.summary && orders.length > 0) {
+      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(new Date());
+      items.push({
+        id: `summary:${today}`,
+        title: t('note.summary.title'),
+        text: t('note.summary.text', {
+          count: orders.length,
+          accepted: orders.filter((order) => order.status === 'qabul').length,
+          ready: orders.filter((order) => order.status === 'tayyor').length,
+        }),
+        to: '/tailor',
+      });
+    }
+    return items;
+  }, [orders, prefs.notifications, t]);
 
   const unreadCount = notes.filter((n) => !noteReadIds.includes(n.id)).length;
-  const newOrderCount = orders.filter((order) => order.status === 'qabul').length;
   useEffect(() => {
     document.body.classList.add('tailor-shell');
     return () => document.body.classList.remove('tailor-shell');
@@ -223,7 +239,7 @@ export default function TailorShell({ title, subtitle, children }) {
                           : 'text-slate-400 hover:text-white'
                       )}
                     >
-                      {l.value}
+                      {l.shortLabel}
                     </button>
                   ))}
                 </div>
@@ -237,9 +253,9 @@ export default function TailorShell({ title, subtitle, children }) {
                     className="relative rounded-xl border border-white/10 bg-[#121829] p-2 text-slate-300 transition hover:bg-white/10"
                   >
                     <Bell className="h-4 w-4" />
-                    {newOrderCount > 0 && (
+                    {unreadCount > 0 && (
                       <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-rose-500 px-1 text-[9px] font-black text-white ring-2 ring-[#0b0f19]">
-                        {newOrderCount}
+                        {unreadCount}
                       </span>
                     )}
                   </button>

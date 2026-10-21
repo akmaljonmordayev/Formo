@@ -4,7 +4,10 @@ import { PrismaService } from '../prisma/prisma.service';
 import { visibleClub } from './catalog.service';
 import { DeliveryService } from './delivery.service';
 import { AddCartItemDto, MAX_ITEM_QTY, UpdateCartItemDto } from './dto/cart.dto';
-import { promoError, summarize, unitPrice } from './pricing';
+import { RulesService } from './rules.service';
+import { ALL_SIZES, promoError, summarize, unitPrice } from './pricing';
+import { CUSTOM_TITLE, Design, designSummary, StudioPrices, studioPrice } from './studio';
+import { StudioService } from './studio.service';
 
 export const MAX_CART_LINES = 20;
 
@@ -41,6 +44,7 @@ interface Config {
 /** Savat qatori hozir ham sotib olinadimi (forma o'chirilmagan, o'lcham tugamagan) */
 export function lineProblem(line: CartLine): string | null {
   const { kit } = line;
+  if (!kit) return ALL_SIZES.includes(line.shirtSize) ? null : `Futbolka ${line.shirtSize} o'lchami tugagan`;
   if (!kit.isActive || !kit.club.isActive || kit.club.category?.isActive === false) return 'Forma sotuvda emas';
   if (!kit.sizes.includes(line.shirtSize)) return `Futbolka ${line.shirtSize} o'lchami tugagan`;
   if (line.withShorts && (!line.shortsSize || !kit.sizes.includes(line.shortsSize))) {
@@ -49,18 +53,21 @@ export function lineProblem(line: CartLine): string | null {
   return null;
 }
 
-export function toCartItem(line: CartLine) {
+export function toCartItem(line: CartLine, studioPrices: StudioPrices) {
   const { kit } = line;
-  const price = unitPrice(kit, line);
+  const design = (line.design as unknown as Design | null) ?? null;
+  const price = kit ? unitPrice(kit, line) : studioPrice(design as Design, studioPrices);
   const problem = lineProblem(line);
   const print = [line.printName, line.printNumber].filter(Boolean).join(' · ');
   const sizes = line.withShorts ? `${line.shirtSize} / ${line.shortsSize}` : line.shirtSize;
   return {
     id: line.id,
-    kitId: kit.id,
-    club: { id: kit.club.id, name: kit.club.name, code: kit.club.code, markColor: kit.club.markColor },
-    kit: { label: kit.label, bgColor: kit.bgColor, textColor: kit.textColor },
-    title: `${kit.club.name} · ${kit.label} formasi`,
+    kitId: kit?.id ?? null,
+    club: kit ? { id: kit.club.id, name: kit.club.name, code: kit.club.code, markColor: kit.club.markColor } : null,
+    kit: kit ? { label: kit.label, bgColor: kit.bgColor, textColor: kit.textColor } : null,
+    design,
+    designSummary: design ? designSummary(design) : null,
+    title: kit ? `${kit.club.name} · ${kit.label} formasi` : `${CUSTOM_TITLE} futbolka`,
     subtitle: [print, sizes].filter(Boolean).join(' · '),
     printName: line.printName,
     printNumber: line.printNumber,
@@ -81,6 +88,8 @@ export class CartService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly delivery: DeliveryService,
+    private readonly rules: RulesService,
+    private readonly studio: StudioService,
   ) {}
 
   lines(userId: number, db: Db = this.prisma) {
@@ -96,7 +105,8 @@ export class CartService {
   }
 
   async view(userId: number, promocode?: string) {
-    const items = (await this.lines(userId)).map(toCartItem);
+    const [lines, studioPrices] = await Promise.all([this.lines(userId), this.studio.prices()]);
+    const items = lines.map((l) => toCartItem(l, studioPrices));
     const subtotal = items.filter((i) => i.available).reduce((s, i) => s + i.totalPrice, 0);
     const promo = promocode ? await this.resolvePromo(promocode, subtotal) : null;
     const summary = summarize(subtotal, await this.delivery.fee(), promo);
@@ -127,28 +137,42 @@ export class CartService {
   }
 
   async add(userId: number, dto: AddCartItemDto) {
-    const kit = await this.assertKit(dto.kitId);
-    const config = this.normalize(kit.sizes, {
+    // Ikki xil mahsulot: klub formasi (kitId) yoki dizayn studiyasidagi maxsus futbolka (design)
+    const custom = dto.design !== undefined;
+    if (custom === (dto.kitId != null)) {
+      throw new BadRequestException('Klub formasi (kitId) yoki maxsus dizayn (design) dan faqat bittasini yuboring');
+    }
+    const kit = custom ? null : await this.assertKit(dto.kitId as number);
+    const design = custom ? ((await this.studio.validate(dto.design)) as unknown as Prisma.InputJsonObject) : null;
+
+    const config = this.normalize(kit ? kit.sizes : [...ALL_SIZES], {
       printName: dto.printName ?? null,
       printNumber: dto.printNumber ?? null,
       numberOnShorts: dto.numberOnShorts ?? false,
-      withShorts: dto.withShorts ?? true,
+      withShorts: custom ? false : (dto.withShorts ?? true),
       shirtSize: dto.shirtSize,
       shortsSize: dto.shortsSize ?? null,
     });
     const quantity = dto.quantity ?? 1;
+    await this.rules.assertAccepting();
+    await this.rules.assertLine({ ...config, quantity });
 
-    // Aynan shu sozlamadagi forma savatda bo'lsa — yangi qator emas, soni oshiriladi
-    const same = await this.prisma.cartItem.findFirst({ where: { userId, kitId: kit.id, ...config } });
+    // Aynan shu sozlamadagi mahsulot savatda bo'lsa — yangi qator emas, soni oshiriladi
+    const same = await this.prisma.cartItem.findFirst({
+      where: { userId, kitId: kit?.id ?? null, ...config, design: design ? { equals: design } : { equals: Prisma.DbNull } },
+    });
     if (same) {
       await this.prisma.cartItem.update({
         where: { id: same.id },
-        data: { quantity: Math.min(same.quantity + quantity, MAX_ITEM_QTY) },
+        data: { quantity: Math.min(same.quantity + quantity, MAX_ITEM_QTY, (await this.rules.rules()).maxQtyPerItem) },
       });
     } else {
       const count = await this.prisma.cartItem.count({ where: { userId } });
       if (count >= MAX_CART_LINES) throw new BadRequestException(`Savatda ${MAX_CART_LINES} tadan ortiq mahsulot bo'lmaydi`);
-      await this.prisma.cartItem.create({ data: { userId, kitId: kit.id, ...config, quantity } });
+      await this.rules.assertLineCount(count);
+      await this.prisma.cartItem.create({
+        data: { userId, kitId: kit?.id ?? null, ...config, quantity, ...(design && { design }) },
+      });
     }
     return this.view(userId);
   }
@@ -157,15 +181,16 @@ export class CartService {
     const line = await this.prisma.cartItem.findFirst({ where: { id, userId }, include: { kit: true } });
     if (!line) throw new NotFoundException('Savatda bunday mahsulot yo‘q');
 
-    const config = this.normalize(line.kit.sizes, {
+    const config = this.normalize(line.kit ? line.kit.sizes : [...ALL_SIZES], {
       printName: dto.printName !== undefined ? dto.printName : line.printName,
       printNumber: dto.printNumber !== undefined ? dto.printNumber : line.printNumber,
       numberOnShorts: dto.numberOnShorts ?? line.numberOnShorts,
-      withShorts: dto.withShorts ?? line.withShorts,
+      withShorts: line.kit ? (dto.withShorts ?? line.withShorts) : false,
       shirtSize: dto.shirtSize ?? line.shirtSize,
       // Shortik qayta qo'shilsa va o'lchami berilmasa — futbolka o'lchami olinadi
       shortsSize: dto.shortsSize ?? line.shortsSize,
     });
+    await this.rules.assertLine({ ...config, quantity: dto.quantity });
     await this.prisma.cartItem.update({
       where: { id },
       data: { ...config, ...(dto.quantity !== undefined && { quantity: dto.quantity }) },

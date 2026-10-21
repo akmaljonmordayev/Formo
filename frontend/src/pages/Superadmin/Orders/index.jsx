@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
-import { ordersApi, ORDER_STATUS, paymentLabel, formatDateTime, money } from '../../../features/platform/platformApi';
+import { ordersApi, ORDER_STATUS, paymentLabel, formatDateTime } from '../../../features/platform/platformApi';
 import { prettyPhone, workshopsApi } from '../../../features/accounts/accountsApi';
 import { useDebounced } from '../../../hooks/useDebounced';
 import { downloadCsv } from '../../../utils/csvExport';
 import Modal from '../../../components/ui/Modal';
+import { useLang, useMoney } from '../i18n';
+import { loadAdminPrefs } from '../prefs';
 
-const LIMIT = 20;
 const TABS = [
   { label: 'Barchasi', status: undefined },
   { label: "To'lov kutilmoqda", status: 'PENDING_PAYMENT' },
@@ -17,6 +18,9 @@ const TABS = [
 ];
 
 export default function SuperadminOrders() {
+  const money = useMoney();
+  const { t } = useLang();
+  const [LIMIT] = useState(() => loadAdminPrefs().ordersPageSize || 20);
   const [tab, setTab] = useState(TABS[0]);
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -41,7 +45,7 @@ export default function SuperadminOrders() {
     return () => {
       active = false;
     };
-  }, [debouncedSearch, tab, page, reload]);
+  }, [debouncedSearch, tab, page, reload, LIMIT]);
 
   const pages = Math.max(1, Math.ceil(data.total / LIMIT));
 
@@ -49,15 +53,15 @@ export default function SuperadminOrders() {
     downloadCsv(
       `buyurtmalar-${new Date().toISOString().slice(0, 10)}.csv`,
       [
-        ['Raqam', (o) => o.code],
-        ['Mijoz', (o) => o.customerName],
-        ['Telefon', (o) => prettyPhone(o.customerPhone)],
-        ['Summa', (o) => o.totalSum],
-        ["To'lov", (o) => paymentLabel(o.paymentMethod, o.paymentStatus)],
-        ['Status', (o) => ORDER_STATUS[o.status]?.label ?? o.status],
-        ['Sex', (o) => o.workshop?.workshopName || o.workshop?.fullName || ''],
-        ['Kanal', (o) => (o.channel === 'APP' ? 'app' : 'web')],
-        ['Sana', (o) => formatDateTime(o.createdAt)],
+        [t("Raqam"), (o) => o.code],
+        [t("Mijoz"), (o) => o.customerName],
+        [t("Telefon"), (o) => prettyPhone(o.customerPhone)],
+        [t("Summa"), (o) => o.totalSum],
+        [t("To'lov"), (o) => paymentLabel(o.paymentMethod, o.paymentStatus)],
+        [t("Status"), (o) => t(ORDER_STATUS[o.status]?.label ?? o.status)],
+        [t("Sex"), (o) => o.workshop?.workshopName || o.workshop?.fullName || ''],
+        [t("Kanal"), (o) => (o.channel === 'APP' ? 'app' : 'web')],
+        [t("Sana"), (o) => formatDateTime(o.createdAt)],
       ],
       data.items,
     );
@@ -73,20 +77,20 @@ export default function SuperadminOrders() {
     <>
       <div className="sa-head">
         <div>
-          <h1>Buyurtmalar</h1>
-          <p>Barcha buyurtmalar. Qatorni bosib tafsilot va amallarni oching.</p>
+          <h1>{t("Buyurtmalar")}</h1>
+          <p>{t("Barcha buyurtmalar. Qatorni bosib tafsilot va amallarni oching.")}</p>
         </div>
       </div>
 
       <div className="sa-tabs">
-        {TABS.map((t) => (
+        {TABS.map((tb) => (
           <button
-            key={t.label}
+            key={tb.label}
             type="button"
-            className={`sa-tab${tab.label === t.label ? ' is-active' : ''}`}
-            onClick={() => setTab(t)}
+            className={`sa-tab${tab.label === tb.label ? ' is-active' : ''}`}
+            onClick={() => setTab(tb)}
           >
-            {t.label} · {countFor(t.status)}
+            {t(tb.label)} · {countFor(tb.status)}
           </button>
         ))}
       </div>
@@ -95,7 +99,7 @@ export default function SuperadminOrders() {
         <input
           className="sa-input"
           style={{ flex: 1, minWidth: 220 }}
-          placeholder="Raqam, telefon yoki ism"
+          placeholder={t("Raqam, telefon yoki ism")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
@@ -108,27 +112,27 @@ export default function SuperadminOrders() {
         <table className="sa-table">
           <thead>
             <tr>
-              <th>Raqam</th>
-              <th>Mijoz</th>
-              <th>Summa</th>
-              <th>To'lov</th>
-              <th>Status</th>
-              <th>Sex</th>
-              <th>Kanal</th>
-              <th>Sana</th>
+              <th>{t("Raqam")}</th>
+              <th>{t("Mijoz")}</th>
+              <th>{t("Summa")}</th>
+              <th>{t("To'lov")}</th>
+              <th>{t("Status")}</th>
+              <th>{t("Sex")}</th>
+              <th>{t("Kanal")}</th>
+              <th>{t("Sana")}</th>
             </tr>
           </thead>
           <tbody>
             {loading && !data.items.length ? (
               <tr>
                 <td colSpan={8} className="sa-table__sub" style={{ textAlign: 'center', padding: 20 }}>
-                  Yuklanmoqda...
+                  {t("Yuklanmoqda...")}
                 </td>
               </tr>
             ) : !data.items.length ? (
               <tr>
                 <td colSpan={8} className="sa-table__sub" style={{ textAlign: 'center', padding: 20 }}>
-                  Buyurtma topilmadi
+                  {t("Buyurtma topilmadi")}
                 </td>
               </tr>
             ) : (
@@ -143,9 +147,9 @@ export default function SuperadminOrders() {
                     </td>
                     <td>{money(o.totalSum)}</td>
                     <td>{paymentLabel(o.paymentMethod, o.paymentStatus)}</td>
-                    <td><span className={`sa-badge sa-badge--${st.color}`}>{st.label}</span></td>
+                    <td><span className={`sa-badge sa-badge--${st.color}`}>{t(st.label)}</span></td>
                     <td>{o.workshop?.workshopName || o.workshop?.fullName || '—'}</td>
-                    <td>{o.channel === 'APP' ? 'app' : 'web'}</td>
+                    <td>{o.channel === 'APP' ? t('ilova') : 'web'}</td>
                     <td>{formatDateTime(o.createdAt)}</td>
                   </tr>
                 );
@@ -157,7 +161,7 @@ export default function SuperadminOrders() {
 
       {pages > 1 && (
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
-          <span className="sa-table__sub" style={{ marginTop: 0 }}>Jami: {data.total}</span>
+          <span className="sa-table__sub" style={{ marginTop: 0 }}>{t('Jami')}: {data.total}</span>
           <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
             <button type="button" className="sa-btn sa-btn--ghost" disabled={page <= 1} onClick={() => setPage(page - 1)}>←</button>
             <span className="sa-table__sub" style={{ marginTop: 0 }}>{page} / {pages}</span>
@@ -181,6 +185,8 @@ export default function SuperadminOrders() {
 }
 
 function OrderModal({ order, onClose, onSaved }) {
+  const money = useMoney();
+  const { t, locale } = useLang();
   const [status, setStatus] = useState(order.status);
   const [workshopId, setWorkshopId] = useState(order.workshop?.id ? String(order.workshop.id) : '');
   const [workshops, setWorkshops] = useState([]);
@@ -212,17 +218,17 @@ function OrderModal({ order, onClose, onSaved }) {
   };
 
   const rows = [
-    ['Mijoz', `${order.customerName} · ${prettyPhone(order.customerPhone)}`],
-    ["To'lov", `${paymentLabel(order.paymentMethod, order.paymentStatus)} · ${money(order.totalSum)}`],
-    order.discountSum > 0 && ['Chegirma', money(order.discountSum)],
-    order.deliveryAddress && ['Manzil', order.deliveryAddress],
-    order.deliveryDate && ['Yetkazish', `${new Date(order.deliveryDate).toLocaleDateString('uz-UZ')} ${order.deliverySlot ?? ''}`],
-    order.comment && ['Izoh', order.comment],
-    ['Sana', formatDateTime(order.createdAt)],
+    [t("Mijoz"), `${order.customerName} · ${prettyPhone(order.customerPhone)}`],
+    [t("To'lov"), `${paymentLabel(order.paymentMethod, order.paymentStatus)} · ${money(order.totalSum)}`],
+    order.discountSum > 0 && [t("Chegirma"), money(order.discountSum)],
+    order.deliveryAddress && [t("Manzil"), order.deliveryAddress],
+    order.deliveryDate && [t("Yetkazish"), `${new Date(order.deliveryDate).toLocaleDateString(locale)} ${order.deliverySlot ?? ''}`],
+    order.comment && [t("Izoh"), order.comment],
+    [t("Sana"), formatDateTime(order.createdAt)],
   ].filter(Boolean);
 
   return (
-    <Modal title={`Buyurtma ${order.code}`} onClose={onClose}>
+    <Modal title={t('Buyurtma {code}', { code: order.code })} onClose={onClose}>
       <form onSubmit={submit}>
         {error && <div className="form-error">{error}</div>}
 
@@ -237,36 +243,58 @@ function OrderModal({ order, onClose, onSaved }) {
 
         {order.items?.length > 0 && (
           <>
-            <div style={{ margin: '0 0 8px', fontWeight: 600, fontSize: 13.5 }}>Mahsulotlar</div>
+            <div style={{ margin: '0 0 8px', fontWeight: 600, fontSize: 13.5 }}>{t("Mahsulotlar")}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
-              {order.items.map((it) => (
-                <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13 }}>
-                  <span>
-                    {it.clubName} · {it.kitLabel} · {it.shirtSize}
-                    {it.withShorts && it.shortsSize ? ` / ${it.shortsSize}` : ''}
-                    {(it.printName || it.printNumber) && ` · ${[it.printName, it.printNumber].filter(Boolean).join(' ')}`}
-                    {' '}× {it.quantity}
-                  </span>
-                  <b>{money(it.totalPrice)}</b>
-                </div>
-              ))}
+              {order.items.map((it) => {
+                const custom = it.kitId == null || it.design;
+                const d = it.design;
+                return (
+                  <div key={it.id} style={{ fontSize: 13 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                      <span>
+                        <b>{custom ? t('Maxsus dizayn') : it.clubName}</b>
+                        {!custom && it.kitLabel ? ` · ${it.kitLabel}` : ''} · {it.shirtSize}
+                        {it.withShorts && it.shortsSize ? ` / ${it.shortsSize}` : ''}
+                        {(it.printName || it.printNumber) && ` · ${[it.printName, it.printNumber].filter(Boolean).join(' ')}`}
+                        {' '}× {it.quantity}
+                      </span>
+                      <b>{money(it.totalPrice)}</b>
+                    </div>
+                    {custom && d && (
+                      <div className="sa-table__sub" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginTop: 2 }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          {t('Rang')}:
+                          {d.color?.hex && (
+                            <span style={{ width: 14, height: 14, borderRadius: 4, background: d.color.hex, border: '1px solid var(--sa-line)' }} />
+                          )}
+                          {d.color?.hex || d.color?.id || '—'}
+                          {d.color?.type === 'gradient' ? ` (${t('gradient')})` : ''}
+                        </span>
+                        {d.font && <span>{t('Shrift')}: {d.font}</span>}
+                        <span>{t('Patch')}: {d.patch ? (typeof d.patch === 'string' ? d.patch : JSON.stringify(d.patch)) : t("yo'q")}</span>
+                        {d.package && <span>{t('Paket')}: {typeof d.package === 'string' ? d.package : JSON.stringify(d.package)}</span>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </>
         )}
 
         <div className="form-grid">
           <label className="field">
-            <span>Holat</span>
+            <span>{t("Holat")}</span>
             <select value={status} onChange={(e) => setStatus(e.target.value)}>
               {Object.entries(ORDER_STATUS).map(([value, s]) => (
-                <option key={value} value={value}>{s.label}</option>
+                <option key={value} value={value}>{t(s.label)}</option>
               ))}
             </select>
           </label>
           <label className="field">
-            <span>Tikuv sexi</span>
+            <span>{t("Tikuv sexi")}</span>
             <select value={workshopId} onChange={(e) => setWorkshopId(e.target.value)}>
-              {!order.workshop && <option value="">— Biriktirilmagan —</option>}
+              {!order.workshop && <option value="">{t("— Biriktirilmagan —")}</option>}
               {order.workshop && !workshops.some((w) => w.id === order.workshop.id) && (
                 <option value={order.workshop.id}>{order.workshop.workshopName || order.workshop.fullName}</option>
               )}
@@ -279,10 +307,10 @@ function OrderModal({ order, onClose, onSaved }) {
 
         <div className="modal__foot" style={{ padding: '14px 0 0' }}>
           <button type="button" className="btn btn--ghost" onClick={onClose}>
-            Yopish
+            {t("Yopish")}
           </button>
           <button type="submit" className="btn btn--accent" disabled={saving || !changed}>
-            {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+            {saving ? t("Saqlanmoqda...") : t("Saqlash")}
           </button>
         </div>
       </form>

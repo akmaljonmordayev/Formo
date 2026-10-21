@@ -37,6 +37,8 @@ model User {
   workshopName  String?
   address       String?
   dailyCapacity Int? // tikuv sexi uchun kunlik bosma sig'imi (dona) — "Sexdagi yuk" foizi shundan hisoblanadi
+  shiftStart    String? // "09:00" — tikuv sexi ish smenasi
+  shiftEnd      String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -48,6 +50,13 @@ model User {
 
   ordersAsCustomer Order[] @relation("OrderCustomer")
   ordersAsWorkshop Order[] @relation("OrderWorkshop")
+
+  // Tikuv sexi: operator bilan yozishmalar, nuqson hisobotlari, xodimlar
+  convsAsA      Conversation[] @relation("ConvA")
+  convsAsB      Conversation[] @relation("ConvB")
+  chatSent      Message[]      @relation("MessageSender")
+  defectReports DefectReport[]
+  employees     Employee[]
 
   @@index([role])
 }
@@ -102,19 +111,19 @@ enum Continent {
 }
 
 model Club {
-  id         Int       @id @default(autoincrement())
+  id         Int        @id @default(autoincrement())
   name       String
   league     String // kategoriya nomi (eski panel shu maydon bilan ishlaydi)
   categoryId Int?
-  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  category   Category?  @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   season     String
   code       String // nishon ustidagi qisqa harf, masalan "RM"
   markColor  String // nishon foni, hex
   type       ClubType   @default(CLUB)
   continent  Continent? // type=NATIONAL bo'lsa majburiy (DTO darajasida tekshiriladi)
-  isActive   Boolean   @default(true)
-  createdAt  DateTime  @default(now())
-  updatedAt  DateTime  @updatedAt
+  isActive   Boolean    @default(true)
+  createdAt  DateTime   @default(now())
+  updatedAt  DateTime   @updatedAt
 
   kits      Kit[]
   orders    Order[]
@@ -168,8 +177,8 @@ model CartItem {
   id             Int      @id @default(autoincrement())
   userId         Int
   user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kitId          Int
-  kit            Kit      @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  kitId          Int? // null — dizayn studiyasidagi maxsus futbolka (`design` to'ldirilgan)
+  kit            Kit?     @relation(fields: [kitId], references: [id], onDelete: Cascade)
   printName      String?
   printNumber    String?
   numberOnShorts Boolean  @default(false)
@@ -177,6 +186,7 @@ model CartItem {
   shirtSize      String
   shortsSize     String?
   quantity       Int      @default(1)
+  design         Json? // dizayn studiyasi tanlovlari (rang, shrift, patch, paket)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
@@ -278,8 +288,10 @@ model Order {
   paymentExpiresAt DateTime? // Click/Payme: to'lov kutiladigan muddat (30 daqiqa)
   paidAt           DateTime?
 
-  items      OrderItem[]
-  statusLogs OrderStatusLog[]
+  items         OrderItem[]
+  conversations Conversation[]
+  statusLogs    OrderStatusLog[]
+  defects       DefectReport[]
 
   channel       OrderChannel  @default(APP)
   paymentMethod PaymentMethod
@@ -317,6 +329,7 @@ model OrderItem {
   quantity       Int
   unitPrice      Int
   totalPrice     Int
+  design         Json?
 
   @@index([orderId])
 }
@@ -434,6 +447,90 @@ model Campaign {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+// ---------------------------------------------------------------------------
+// Operator ↔ tikuv sexi yozishmasi: har sex uchun bitta suhbat (operator yagona)
+// ---------------------------------------------------------------------------
+
+// Ikki foydalanuvchi o'rtasidagi suhbat (userAId < userBId). orderId bo'lsa — buyurtmaga bog'langan suhbat.
+// Takrorlanmaslik uchun partial unique indekslar migratsiyada (orderId NULL bo'lgan va bo'lmagan holatlar uchun).
+model Conversation {
+  id            Int       @id @default(autoincrement())
+  userAId       Int
+  userA         User      @relation("ConvA", fields: [userAId], references: [id], onDelete: Cascade)
+  userBId       Int
+  userB         User      @relation("ConvB", fields: [userBId], references: [id], onDelete: Cascade)
+  orderId       Int?
+  order         Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+  messages      Message[]
+
+  @@index([userAId, lastMessageAt])
+  @@index([userBId, lastMessageAt])
+  @@index([orderId])
+}
+
+model Message {
+  id             Int          @id @default(autoincrement())
+  conversationId Int
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       Int?
+  sender         User?        @relation("MessageSender", fields: [senderId], references: [id], onDelete: SetNull)
+  text           String
+  readAt         DateTime? // qarama-qarshi tomon o'qigan vaqt
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, id])
+}
+
+// ---------------------------------------------------------------------------
+// Tikuv sexi: nuqson (brak) hisobotlari va xodimlar
+// ---------------------------------------------------------------------------
+
+enum DefectReason {
+  PRINT_SHIFT
+  FABRIC
+  WRONG_SIZE
+  OTHER
+}
+
+enum DefectStatus {
+  OPEN
+  RESOLVED
+}
+
+model DefectReport {
+  id           Int          @id @default(autoincrement())
+  orderId      Int
+  order        Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  workshopId   Int
+  workshop     User         @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  reason       DefectReason
+  qty          Int          @default(1)
+  note         String?
+  status       DefectStatus @default(OPEN)
+  resolvedNote String?
+  resolvedAt   DateTime?
+  createdAt    DateTime     @default(now())
+
+  @@index([workshopId])
+  @@index([status, createdAt])
+  @@index([orderId])
+}
+
+model Employee {
+  id         Int      @id @default(autoincrement())
+  workshopId Int
+  workshop   User     @relation(fields: [workshopId], references: [id], onDelete: Cascade)
+  fullName   String
+  role       String
+  phone      String?
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  @@index([workshopId])
 }
 
 // ---------------------------------------------------------------------------

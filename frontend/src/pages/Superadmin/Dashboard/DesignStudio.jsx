@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react'
+import { pricingApi, settingsApi } from '../../../features/platform/platformApi'
+import { DEFAULT_ORDER_RULES, PRICE_KEYS, SETTING_KEYS, priceOf } from '../adminApi'
+import { useT } from '../i18n'
 
 const JERSEY_CLIP =
   'polygon(22% 0,38% 0,42% 5%,58% 5%,62% 0,78% 0,100% 16%,90% 32%,80% 26%,80% 100%,20% 100%,20% 26%,10% 32%,0 16%)'
 
-const PRICE = { shirt: 99000, print: 30000, design: 30000, patch: 10000, gift: 15000 }
+// Narxlar API'dan (GET /admin/pricing) olinadi; jadvalda kalit bo'lmasa shu qiymatlar ishlatiladi
+const DEFAULT_PRICE = { shirt: 99000, print: 30000, base: 0, design: 30000, patch: 10000, gift: 15000 }
 
 const SOLID_COLORS = [
   { id: 'oq', label: 'Oq', hex: '#F3F5F9' },
@@ -33,11 +37,6 @@ const FONTS = [
   { id: 'oddiy', label: 'Oddiy', desc: 'Yumaloq, sodda', fontFamily: "'Onest', sans-serif" },
 ]
 
-const TEXT_RULES = [
-  { label: 'Ism', value: '12 belgigacha, lotin' },
-  { label: 'Raqam', value: '0 dan 99 gacha' },
-  { label: "Taqiqlangan so'zlar", value: '10 ta' },
-]
 
 const PATCHES = [
   { id: 'kapitan', label: 'Kapitan', sym: 'C', desc: "yengga, «C» belgisi" },
@@ -46,8 +45,8 @@ const PATCHES = [
 ]
 
 const PACKAGES = [
-  { id: 'oddiy-paket', label: 'Oddiy paket', desc: 'Polietilen, Formo logotipi bilan', price: 'Bepul' },
-  { id: 'sovga-qutisi', label: "Sovg'a qutisi", desc: 'Karton quti, lenta, tabriknoma', price: '+' + PRICE.gift.toLocaleString('ru-RU').replace(/,/g, ' ') },
+  { id: 'oddiy-paket', label: 'Oddiy paket', desc: 'Polietilen, Formo logotipi bilan' },
+  { id: 'sovga-qutisi', label: "Sovg'a qutisi", desc: 'Karton quti, lenta, tabriknoma', priceKey: 'gift' },
 ]
 
 const LOGO_SPECS = [
@@ -87,6 +86,11 @@ function Toggle({ checked, onChange }) {
 }
 
 function DesignStudio() {
+  const t = useT()
+  const [PRICE, setPRICE] = useState(DEFAULT_PRICE)
+  const [rules, setRules] = useState(DEFAULT_ORDER_RULES)
+  const [bannedCount, setBannedCount] = useState(0)
+  const [saveError, setSaveError] = useState('')
   const [view, setView] = useState('orqa')
   const [activeStep, setActiveStep] = useState(1)
   const [colorSelection, setColorSelection] = useState({ type: 'solid', id: 'lojuvard' })
@@ -121,7 +125,41 @@ function DesignStudio() {
 
   const [savedAt, setSavedAt] = useState(null)
 
+  // Narxlar, buyurtma qoidalari va saqlangan studiya sozlamasi — API'dan
   useEffect(() => {
+    let active = true
+    pricingApi
+      .list()
+      .then((items) => {
+        if (!active) return
+        setPRICE({
+          shirt: priceOf(items, PRICE_KEYS.shirt, DEFAULT_PRICE.shirt),
+          print: priceOf(items, PRICE_KEYS.print, DEFAULT_PRICE.print),
+          base: priceOf(items, PRICE_KEYS.studio, 0),
+          design: priceOf(items, PRICE_KEYS.studioGradient, DEFAULT_PRICE.design),
+          patch: priceOf(items, PRICE_KEYS.studioPatch, DEFAULT_PRICE.patch),
+          gift: priceOf(items, PRICE_KEYS.studioGift, DEFAULT_PRICE.gift),
+        })
+      })
+      .catch(() => {})
+    settingsApi
+      .all()
+      .then((all) => {
+        if (!active) return
+        setRules({ ...DEFAULT_ORDER_RULES, ...(all?.[SETTING_KEYS.orderRules] ?? {}) })
+        const words = all?.[SETTING_KEYS.bannedWords]
+        setBannedCount(Array.isArray(words) ? words.length : 0)
+        if (all?.[SETTING_KEYS.studio]) applyConfig(all[SETTING_KEYS.studio])
+        else applyLocal()
+      })
+      .catch(() => active && applyLocal())
+    return () => {
+      active = false
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
+
+  function applyLocal() {
     let raw
     try {
       raw = localStorage.getItem('formo-design-studio-config')
@@ -130,7 +168,15 @@ function DesignStudio() {
     }
     if (!raw) return
     try {
-      const cfg = JSON.parse(raw)
+      applyConfig(JSON.parse(raw))
+    } catch {
+      /* ignore corrupt saved config */
+    }
+  }
+
+  function applyConfig(cfg) {
+    if (!cfg || typeof cfg !== 'object') return
+    {
       if (cfg.colorSelection) setColorSelection(cfg.colorSelection)
       if (cfg.customColorValue) setCustomColorValue(cfg.customColorValue)
       if (cfg.name) setName(cfg.name)
@@ -144,12 +190,10 @@ function DesignStudio() {
       if (cfg.patchToggles) setPatchToggles(cfg.patchToggles)
       if (cfg.packageToggles) setPackageToggles(cfg.packageToggles)
       if (cfg.logoToggles) setLogoToggles(cfg.logoToggles)
-    } catch {
-      /* ignore corrupt saved config */
     }
-  }, [])
+  }
 
-  function handleSave() {
+  async function handleSave() {
     const config = {
       colorSelection,
       customColorValue,
@@ -170,7 +214,13 @@ function DesignStudio() {
     } catch {
       /* storage unavailable */
     }
-    setSavedAt(Date.now())
+    setSaveError('')
+    try {
+      await settingsApi.update(SETTING_KEYS.studio, config)
+      setSavedAt(Date.now())
+    } catch (e) {
+      setSaveError(e.message)
+    }
   }
 
   useEffect(() => {
@@ -183,7 +233,15 @@ function DesignStudio() {
   const activePatch = PATCHES.find((p) => p.id === selectedPatch)
 
   const totalPrice =
-    PRICE.shirt + PRICE.print + (colorSelection.type === 'solid' ? 0 : PRICE.design) + (activePatch ? PRICE.patch : 0)
+    (PRICE.base || PRICE.shirt + PRICE.print) +
+    (colorSelection.type === 'solid' ? 0 : PRICE.design) +
+    (activePatch ? PRICE.patch : 0)
+
+  const TEXT_RULES = [
+    { label: t('Ism'), value: t('{n} belgigacha, lotin', { n: rules.printNameMaxLength }) },
+    { label: t('Raqam'), value: t('{min} dan {max} gacha', { min: rules.printNumberMin, max: rules.printNumberMax }) },
+    { label: t("Taqiqlangan so'zlar"), value: t('{n} ta', { n: bannedCount }) },
+  ]
 
   const colorActiveCount =
     Object.values(solidToggles).filter(Boolean).length +
@@ -201,10 +259,10 @@ function DesignStudio() {
   const logoActiveCount = Object.values(logoToggles).filter(Boolean).length
 
   const steps = [
-    { id: 1, title: 'Rang', subtitle: `${colorActiveCount} / ${colorTotalCount} faol` },
-    { id: 2, title: 'Yozuv', subtitle: `${fontActiveCount} / ${fontTotalCount} shrift` },
-    { id: 3, title: 'Yamoq va qadoq', subtitle: `${extraActiveCount} / ${extraTotalCount} faol` },
-    { id: 4, title: 'Logo', subtitle: logoActiveCount > 0 ? 'yoqilgan' : "o'chirilgan" },
+    { id: 1, title: t("Rang"), subtitle: t('{a} / {b} faol', { a: colorActiveCount, b: colorTotalCount }) },
+    { id: 2, title: 'Yozuv', subtitle: t('{a} / {b} shrift', { a: fontActiveCount, b: fontTotalCount }) },
+    { id: 3, title: 'Yamoq va qadoq', subtitle: t('{a} / {b} faol', { a: extraActiveCount, b: extraTotalCount }) },
+    { id: 4, title: t("Logo"), subtitle: logoActiveCount > 0 ? t('yoqilgan') : t("o'chirilgan") },
   ]
 
   let jerseyBg
@@ -218,7 +276,7 @@ function DesignStudio() {
     jerseyBg = `linear-gradient(160deg, ${g.from}, ${g.to})`
     jerseyInk = inkFor(g.from)
     colorLabel = g.label
-    typeLabel = 'Gradient'
+    typeLabel = t("Gradient")
     colorIsOff = !gradientToggles[colorSelection.id]
   } else if (colorSelection.type === 'custom') {
     jerseyBg = customColorValue
@@ -231,7 +289,7 @@ function DesignStudio() {
     jerseyBg = c.hex
     jerseyInk = inkFor(c.hex)
     colorLabel = c.label
-    typeLabel = 'Bir rang'
+    typeLabel = t("Bir rang")
     colorIsOff = !solidToggles[colorSelection.id]
   }
 
@@ -701,13 +759,13 @@ function DesignStudio() {
       <div className="ds-page-head">
         <div>
           <div className="ds-breadcrumb">
-            <span>Katalog</span>
+            <span>{t("Katalog")}</span>
             <span className="sep">/</span>
-            <span className="current">Dizayn studiyasi</span>
+            <span className="current">{t("Dizayn studiyasi")}</span>
           </div>
-          <h1 className="ds-page-title">Dizayn studiyasi</h1>
+          <h1 className="ds-page-title">{t("Dizayn studiyasi")}</h1>
           <p className="ds-page-sub">
-            Mijoz ilovadagi «Dizayn studiyasi»da ko'radigan tanlovlar. O'chirilgani ilovada ko'rinmaydi.
+            {t("Mijoz ilovadagi «Dizayn studiyasi»da ko'radigan tanlovlar. O'chirilgani ilovada ko'rinmaydi.")}
           </p>
         </div>
       </div>
@@ -716,19 +774,19 @@ function DesignStudio() {
         {/* ---------- Sidebar ---------- */}
         <aside className="ds-sidebar">
           <div className="ds-sidebar-head">
-            <span className="ds-sidebar-title">Mijoz ko'radigan forma</span>
+            <span className="ds-sidebar-title">{t("Mijoz ko'radigan forma")}</span>
             <div className="ds-segment">
               <button
                 className={view === 'orqa' ? 'is-active' : ''}
                 onClick={() => setView('orqa')}
               >
-                Orqa
+                {t("Orqa")}
               </button>
               <button
                 className={view === 'old' ? 'is-active' : ''}
                 onClick={() => setView('old')}
               >
-                Old
+                {t("Old")}
               </button>
             </div>
           </div>
@@ -758,16 +816,18 @@ function DesignStudio() {
                 </>
               )}
             </div>
-            {previewIsOff && <span className="ds-off-badge">Ilovada o'chirilgan</span>}
+            {previewIsOff && <span className="ds-off-badge">{t("Ilovada o'chirilgan")}</span>}
           </div>
 
           <div className="ds-fields">
             <input
               className="ds-field"
               value={name}
-              onChange={(e) => setName(e.target.value.replace(/[^A-Za-z -]/g, '').toUpperCase().slice(0, 12))}
+              onChange={(e) =>
+                setName(e.target.value.replace(/[^A-Za-z -]/g, '').toUpperCase().slice(0, rules.printNameMaxLength || 12))
+              }
               placeholder="Ism"
-              maxLength={12}
+              maxLength={rules.printNameMaxLength || 12}
             />
             <input
               className="ds-field ds-field-number"
@@ -779,31 +839,34 @@ function DesignStudio() {
 
           <div className="ds-info">
             <div className="ds-info-row">
-              <span>Rang</span>
-              <span>{colorLabel}</span>
+              <span>{t("Rang")}</span>
+              <span>{t(colorLabel)}</span>
             </div>
             <div className="ds-info-row">
-              <span>Shrift</span>
-              <span>{activeFont.label}</span>
+              <span>{t("Shrift")}</span>
+              <span>{t(activeFont.label)}</span>
             </div>
             <div className="ds-info-row">
-              <span>Yamoq</span>
-              <span>{patchLabel}</span>
+              <span>{t("Yamoq")}</span>
+              <span>{t(patchLabel)}</span>
             </div>
             <div className="ds-info-row">
-              <span>Turi</span>
-              <span>{typeLabel}</span>
+              <span>{t("Turi")}</span>
+              <span>{t(typeLabel)}</span>
             </div>
           </div>
 
           <div className="ds-price-row">
-            <span className="ds-price-label">Shu forma narxi</span>
-            <span className="ds-price-value">{formatPrice(totalPrice)} so'm</span>
+            <span className="ds-price-label">{t("Shu forma narxi")}</span>
+            <span className="ds-price-value">{formatPrice(totalPrice)} {t("so'm")}</span>
           </div>
 
           <button type="button" className="ds-save-btn" onClick={handleSave}>
-            {savedAt ? 'Saqlandi ✓' : 'Saqlash'}
+            {savedAt ? t('Saqlandi ✓') : t('Saqlash')}
           </button>
+          {saveError && (
+            <div style={{ marginTop: 8, fontSize: 12, color: '#E5596B' }}>{saveError}</div>
+          )}
         </aside>
 
         {/* ---------- Main content ---------- */}
@@ -817,7 +880,7 @@ function DesignStudio() {
               >
                 <span className="ds-step-num">{s.id}</span>
                 <span className="ds-step-text">
-                  <strong>{s.title}</strong>
+                  <strong>{t(s.title)}</strong>
                   <small>{s.subtitle}</small>
                 </span>
               </button>
@@ -828,9 +891,9 @@ function DesignStudio() {
             <>
               <section className="ds-section">
                 <div className="ds-section-head">
-                  <span className="ds-section-title">Bir rang</span>
+                  <span className="ds-section-title">{t("Bir rang")}</span>
                   <span className="ds-section-sub">
-                    Rangni bosing — chapda ko'rinadi. O'ngdagi tugma ilovada ko'rsatish yoki yashirish.
+                    {t("Rangni bosing — chapda ko'rinadi. O'ngdagi tugma ilovada ko'rsatish yoki yashirish.")}
                   </span>
                 </div>
                 <div className="ds-grid-solid">
@@ -844,7 +907,7 @@ function DesignStudio() {
                     >
                       <div className="ds-swatch-box" style={{ background: c.hex }} />
                       <div className="ds-swatch-footer">
-                        <span className="ds-swatch-label">{c.label}</span>
+                        <span className="ds-swatch-label">{t(c.label)}</span>
                         <Toggle
                           checked={solidToggles[c.id]}
                           onChange={(e) => {
@@ -860,8 +923,8 @@ function DesignStudio() {
 
               <section className="ds-section">
                 <div className="ds-section-head">
-                  <span className="ds-section-title">Gradient</span>
-                  <span className="ds-section-sub">Ikki rangli o'tish. Bosma doim oq yoki to'q rangda.</span>
+                  <span className="ds-section-title">{t("Gradient")}</span>
+                  <span className="ds-section-sub">{t("Ikki rangli o'tish. Bosma doim oq yoki to'q rangda.")}</span>
                 </div>
                 <div className="ds-grid-gradient">
                   {GRADIENTS.map((g) => (
@@ -877,7 +940,7 @@ function DesignStudio() {
                         style={{ background: `linear-gradient(135deg, ${g.from}, ${g.to})` }}
                       />
                       <div className="ds-swatch-footer">
-                        <span className="ds-swatch-label">{g.label}</span>
+                        <span className="ds-swatch-label">{t(g.label)}</span>
                         <Toggle
                           checked={gradientToggles[g.id]}
                           onChange={(e) => {
@@ -909,7 +972,7 @@ function DesignStudio() {
                   />
                 </label>
                 <div className="ds-paint-text">
-                  <strong>O'z rangingiz (paint)</strong>
+                  <strong>{t("O'z rangingiz (paint)")}</strong>
                   <div>
                     Mijoz istalgan rangni yasaydi. Kvadratni bosib sinab ko'ring: <code>{customColorValue.toUpperCase()}</code>.
                     Zaxirada «Boshqalar» qatoridan olinadi.
@@ -930,8 +993,8 @@ function DesignStudio() {
             <>
               <section className="ds-section">
                 <div className="ds-section-head">
-                  <span className="ds-section-title">Orqa yozuv shrifti</span>
-                  <span className="ds-section-sub">Ism va raqam uchun. Bosing — chapdagi formada ko'rinadi.</span>
+                  <span className="ds-section-title">{t("Orqa yozuv shrifti")}</span>
+                  <span className="ds-section-sub">{t("Ism va raqam uchun. Bosing — chapdagi formada ko'rinadi.")}</span>
                 </div>
                 <div className="ds-grid-font">
                   {FONTS.map((f) => (
@@ -948,8 +1011,8 @@ function DesignStudio() {
                       </div>
                       <div className="ds-font-footer">
                         <div className="ds-font-footer-text">
-                          <strong>{f.label}</strong>
-                          <div>{f.desc}</div>
+                          <strong>{t(f.label)}</strong>
+                          <div>{t(f.desc)}</div>
                         </div>
                         <Toggle
                           checked={fontToggles[f.id]}
@@ -966,9 +1029,9 @@ function DesignStudio() {
 
               <section className="ds-section">
                 <div className="ds-section-head">
-                  <span className="ds-section-title">Yozuv qoidalari</span>
+                  <span className="ds-section-title">{t("Yozuv qoidalari")}</span>
                   <span className="ds-section-sub">
-                    Server tomonda tekshiriladi. O'zgartirish: Sozlamalar › Buyurtma qoidalari
+                    {t("Server tomonda tekshiriladi. O'zgartirish: Sozlamalar › Buyurtma qoidalari")}
                   </span>
                 </div>
                 <div className="ds-grid-3">
@@ -987,8 +1050,8 @@ function DesignStudio() {
             <>
               <section className="ds-section">
                 <div className="ds-section-head">
-                  <span className="ds-section-title">Yamoqlar</span>
-                  <span className="ds-section-sub">Yengga tikiladi. Bosing — formaning old tomonida ko'rinadi.</span>
+                  <span className="ds-section-title">{t("Yamoqlar")}</span>
+                  <span className="ds-section-sub">{t("Yengga tikiladi. Bosing — formaning old tomonida ko'rinadi.")}</span>
                 </div>
                 <div className="ds-grid-patch">
                   {PATCHES.map((p) => (
@@ -1001,8 +1064,8 @@ function DesignStudio() {
                     >
                       <span className="ds-patch-circle">{p.sym}</span>
                       <div className="ds-patch-text">
-                        <strong>{p.label}</strong>
-                        <span className="desc">{p.desc}</span>
+                        <strong>{t(p.label)}</strong>
+                        <span className="desc">{t(p.desc)}</span>
                         <span className="price">+{formatPrice(PRICE.patch)}</span>
                       </div>
                       <Toggle
@@ -1019,8 +1082,8 @@ function DesignStudio() {
 
               <section className="ds-section">
                 <div className="ds-section-head">
-                  <span className="ds-section-title">Qadoq</span>
-                  <span className="ds-section-sub">Mijoz rasmiylashtirishda tanlaydi.</span>
+                  <span className="ds-section-title">{t("Qadoq")}</span>
+                  <span className="ds-section-sub">{t("Mijoz rasmiylashtirishda tanlaydi.")}</span>
                 </div>
                 {PACKAGES.map((pkg) => (
                   <div
@@ -1028,10 +1091,10 @@ function DesignStudio() {
                     className={`ds-list-row${packageToggles[pkg.id] ? '' : ' is-disabled'}`}
                   >
                     <div className="ds-list-row-text">
-                      <strong>{pkg.label}</strong>
-                      <div>{pkg.desc}</div>
+                      <strong>{t(pkg.label)}</strong>
+                      <div>{t(pkg.desc)}</div>
                     </div>
-                    <span className="ds-list-price">{pkg.price}</span>
+                    <span className="ds-list-price">{pkg.priceKey ? '+' + formatPrice(PRICE[pkg.priceKey]) : t('Bepul')}</span>
                     <Toggle
                       checked={packageToggles[pkg.id]}
                       onChange={() =>
@@ -1047,29 +1110,29 @@ function DesignStudio() {
           {activeStep === 4 && (
             <section className="ds-section">
               <div className="ds-section-head">
-                <span className="ds-section-title">Logo</span>
+                <span className="ds-section-title">{t("Logo")}</span>
                 <span className="ds-section-sub">
-                  Mijoz o'z logosini ko'krakka qo'yadi. Old tomonda belgilangan joy.
+                  {t("Mijoz o'z logosini ko'krakka qo'yadi. Old tomonda belgilangan joy.")}
                 </span>
               </div>
               <div className="ds-grid-3">
                 {LOGO_SPECS.map((s) => (
                   <div key={s.label} className="ds-spec-card">
-                    <span className="ds-spec-label">{s.label}</span>
-                    <span className="ds-spec-value">{s.value}</span>
+                    <span className="ds-spec-label">{t(s.label)}</span>
+                    <span className="ds-spec-value">{t(s.value)}</span>
                   </div>
                 ))}
               </div>
-              {LOGO_TOGGLES.map((t) => (
-                <div key={t.id} className="ds-list-row">
+              {LOGO_TOGGLES.map((lt) => (
+                <div key={lt.id} className="ds-list-row">
                   <div className="ds-list-row-text">
-                    <strong>{t.label}</strong>
-                    <div>{t.desc}</div>
+                    <strong>{t(lt.label)}</strong>
+                    <div>{t(lt.desc)}</div>
                   </div>
                   <Toggle
-                    checked={logoToggles[t.id]}
+                    checked={logoToggles[lt.id]}
                     onChange={() =>
-                      setLogoToggles((prev) => ({ ...prev, [t.id]: !prev[t.id] }))
+                      setLogoToggles((prev) => ({ ...prev, [lt.id]: !prev[lt.id] }))
                     }
                   />
                 </div>

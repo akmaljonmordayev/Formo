@@ -1,17 +1,72 @@
+import { useEffect, useMemo, useState } from 'react';
 import { Layers, Package, Timer } from 'lucide-react';
 import { Badge, Card, StatCard } from './ui';
 import { useT } from './i18n';
-import { STATUS_VARIANTS, batches } from './mockData';
+import { STATUS_VARIANTS } from './tailorConstants';
 import { cx } from './utils';
+import { getTailorProduction } from './tailorApi';
 
 export default function Partiyalar() {
   const t = useT();
+  const [production, setProduction] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    getTailorProduction()
+      .then((data) => {
+        if (!cancelled) {
+          setProduction(data);
+          setError('');
+        }
+      })
+      .catch((requestError) => {
+        if (!cancelled) setError(requestError.message);
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const batches = useMemo(() => Object.entries(production?.columns ?? {}).flatMap(([apiStatus, orders]) => {
+    const status = {
+      ACCEPTED: 'qabul',
+      PRINTING: 'bosildi',
+      QUALITY_CHECK: 'bosildi',
+      READY: 'tayyor',
+    }[apiStatus];
+    return (Array.isArray(orders) ? orders : []).map((order) => {
+      const qty = order.items?.reduce((sum, item) => sum + item.quantity, 0) ?? order.quantity ?? 0;
+      const progress = { ACCEPTED: 25, PRINTING: 50, QUALITY_CHECK: 75, READY: 100 }[apiStatus] ?? 0;
+      return {
+        id: order.code,
+        model: order.items?.map((item) => item.clubName || item.kitLabel).filter(Boolean).join(', ')
+          || order.club?.name
+          || '—',
+        qty,
+        done: Math.round((qty * progress) / 100),
+        progress,
+        status,
+        deadline: order.deliveryDate
+          ? new Date(order.deliveryDate).toLocaleDateString(t.locale, { timeZone: 'UTC' })
+          : '—',
+      };
+    });
+  }), [production, t.locale]);
+
   const active = batches.filter((b) => b.status === 'bosildi').length;
   const ready = batches.filter((b) => b.status === 'tayyor').length;
   const totalQty = batches.reduce((sum, b) => sum + b.qty, 0);
 
   return (
     <div className="space-y-4">
+      {loading && <div role="status" className="text-xs text-slate-400">{t('api.loading')}</div>}
+      {error && <div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{error}</div>}
+
       <div className="grid gap-4 sm:grid-cols-3">
         <StatCard
           label={t('bat.total')}
@@ -46,7 +101,7 @@ export default function Partiyalar() {
             </thead>
             <tbody>
               {batches.map((batch) => {
-                const percent = Math.min(100, Math.round((batch.done / batch.qty) * 100));
+                const percent = batch.progress;
                 return (
                   <tr
                     key={batch.id}
@@ -54,12 +109,7 @@ export default function Partiyalar() {
                   >
                     <td className="px-5 py-4 font-mono font-semibold text-teal-400">{batch.id}</td>
                     <td className="px-5 py-4 font-medium text-white">{batch.model}</td>
-                    <td className="px-5 py-4 text-slate-300">
-                      {t('bat.qtyUnit', { n: batch.qty })}
-                      <span className="ml-1 text-xs text-slate-600">
-                        {t('bat.doneShort', { n: batch.done })}
-                      </span>
-                    </td>
+                    <td className="px-5 py-4 text-slate-300">{t('bat.qtyUnit', { n: batch.qty })}</td>
                     <td className="w-[220px] px-5 py-4">
                       <div className="flex items-center gap-3">
                         <div className="h-2 flex-1 overflow-hidden rounded-full bg-white/10">
@@ -87,6 +137,11 @@ export default function Partiyalar() {
                   </tr>
                 );
               })}
+              {!loading && !error && batches.length === 0 && (
+                <tr>
+                  <td colSpan={6} className="px-5 py-8 text-center text-xs text-slate-500">{t('api.empty')}</td>
+                </tr>
+              )}
             </tbody>
           </table>
         </div>

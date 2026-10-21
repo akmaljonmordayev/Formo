@@ -1,21 +1,34 @@
-import { useRef } from 'react';
+import { useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shirt, Clock, FileText, Image as ImageIcon, Play, CheckCircle, AlertTriangle } from 'lucide-react';
+import { Shirt, Clock, FileText, Image as ImageIcon, Play, CheckCircle, AlertTriangle, Truck, XCircle } from 'lucide-react';
 import { Card, JerseyPreview } from './ui';
 import WorkflowTracker from './WorkflowTracker';
 import { useT, orderDeadline } from './i18n';
 import { cx } from './utils';
 
 const BADGE_STYLES = {
+  yangi: 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40',
   qabul: 'bg-emerald-500/20 text-emerald-400 ring-1 ring-emerald-500/40',
   bosildi: 'bg-blue-500/20 text-blue-400 ring-1 ring-blue-500/40',
   tayyor: 'bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/40',
 };
 
-export default function OrderDetail({ order, onStartPress, onToast }) {
+export default function OrderDetail({ order, onStartPress, onReject, actionLoading = false, onToast }) {
   const navigate = useNavigate();
   const t = useT();
   const detailRef = useRef(null);
+  const [rejecting, setRejecting] = useState(false);
+  const [reason, setReason] = useState('');
+
+  const submitReject = async () => {
+    const text = reason.trim();
+    if (!text || !onReject) return;
+    const ok = await onReject(order, text);
+    if (ok) {
+      setRejecting(false);
+      setReason('');
+    }
+  };
 
   if (!order) {
     return (
@@ -27,21 +40,35 @@ export default function OrderDetail({ order, onStartPress, onToast }) {
 
   const badgeStyle = BADGE_STYLES[order.status] ?? BADGE_STYLES.qabul;
 
+  const design = order.design;
+  const colorOf = (c) => {
+    if (!c) return null;
+    if (c.type === 'custom') return { text: c.hex, swatch: c.hex };
+    if (c.type === 'gradient') return { text: `${t('order.spec.gradient')} ${c.id ?? ''}`.trim() };
+    return { text: c.id ?? c.hex ?? '', swatch: c.hex };
+  };
+  const designColor = colorOf(design?.color);
   const specs = [
-    { label: t('order.spec.name'), value: order.customer },
+    { label: t('order.spec.name'), value: order.apiPrintName || order.customer },
     { label: t('order.spec.number'), value: order.number, isHighlight: true },
     { label: t('order.spec.size'), value: order.size },
-    { label: t('order.spec.model'), value: order.model },
-    { label: t('order.spec.jerseyColor'), value: `${order.jerseyColorName} ${order.jerseyColor}` },
-    { label: t('order.spec.fabric'), value: order.fabric },
-    { label: t('order.spec.composition'), value: order.composition },
     { label: t('order.spec.qty'), value: t('order.qtyUnit', { n: order.qty }) },
-    { label: t('order.spec.printColor'), value: order.printColor },
-    { label: t('order.spec.location'), value: order.location },
-  ];
+    ...(design
+      ? [
+          { label: t('order.spec.design'), value: t('order.spec.customDesign') },
+          { label: t('order.spec.designColor'), value: designColor?.text, swatch: designColor?.swatch },
+          { label: t('order.spec.font'), value: design.font },
+          { label: t('order.spec.patch'), value: design.patch || t('order.spec.none') },
+          { label: t('order.spec.package'), value: design.package },
+        ]
+      : [
+          { label: t('order.spec.club'), value: order.clubName },
+          { label: t('order.spec.kit'), value: order.kitLabel },
+        ]),
+  ].filter((item) => item.value !== undefined && item.value !== null && item.value !== '');
 
   const workflowLabel =
-    order.status === 'qabul'
+    order.status === 'yangi' || order.status === 'qabul'
       ? t('order.wfReady')
       : order.status === 'bosildi'
         ? t('order.wfPrinting')
@@ -136,7 +163,7 @@ export default function OrderDetail({ order, onStartPress, onToast }) {
       <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
         {/* Left: Jersey Visual Preview */}
         <JerseyPreview
-          color={order.jerseyColor}
+          color={design?.color?.hex || order.jerseyColor}
           number={order.number}
           name={order.customer}
           colorKey={order.colorKey}
@@ -155,6 +182,13 @@ export default function OrderDetail({ order, onStartPress, onToast }) {
                   item.isHighlight ? 'text-cyan-400 text-lg' : 'text-white'
                 )}
               >
+                {item.swatch && (
+                  <span
+                    className="mr-1.5 inline-block h-3 w-3 rounded-full align-middle ring-1 ring-white/30"
+                    style={{ backgroundColor: item.swatch }}
+                    aria-hidden="true"
+                  />
+                )}
                 {item.value}
               </span>
             </div>
@@ -217,35 +251,92 @@ export default function OrderDetail({ order, onStartPress, onToast }) {
           </button>
         </div>
 
-        <button
-          type="button"
-          onClick={() => onStartPress(order.id)}
-          className={cx(
-            'flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-extrabold text-slate-950 shadow-glow transition active:scale-95',
-            order.status === 'bosildi'
-              ? 'bg-amber-400 hover:bg-amber-300'
-              : order.status === 'tayyor'
-                ? 'bg-emerald-400 hover:bg-emerald-300 text-slate-950'
-                : 'bg-teal-400 hover:bg-teal-300'
-          )}
-        >
-          {order.status === 'qabul' ? (
-            <>
-              <Play className="h-4 w-4 fill-current" />
-              <span>{t('order.startPrint')}</span>
-            </>
-          ) : order.status === 'bosildi' ? (
-            <>
-              <CheckCircle className="h-4 w-4" />
-              <span>{t('order.markReady')}</span>
-            </>
-          ) : (
-            <>
-              <CheckCircle className="h-4 w-4" />
-              <span>{t('order.completed')}</span>
-            </>
-          )}
-        </button>
+        {order.status === 'yangi' ? (
+          <div className="flex flex-col items-end gap-2">
+            {rejecting && (
+              <div className="flex w-full min-w-[260px] flex-col gap-2">
+                <textarea
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  maxLength={500}
+                  rows={2}
+                  placeholder={t('order.rejectReason')}
+                  aria-label={t('order.rejectReason')}
+                  className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs text-white placeholder:text-slate-500"
+                />
+                <div className="flex justify-end gap-2">
+                  <button
+                    type="button"
+                    onClick={() => { setRejecting(false); setReason(''); }}
+                    className="rounded-xl border border-white/10 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-white/10"
+                  >
+                    {t('order.cancel')}
+                  </button>
+                  <button
+                    type="button"
+                    disabled={actionLoading || !reason.trim()}
+                    onClick={submitReject}
+                    className="rounded-xl bg-rose-500 px-4 py-2 text-xs font-extrabold text-white hover:bg-rose-400 disabled:opacity-50"
+                  >
+                    {t('order.rejectConfirm')}
+                  </button>
+                </div>
+              </div>
+            )}
+            {!rejecting && (
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setRejecting(true)}
+                  className="flex items-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-5 py-3 text-sm font-bold text-rose-300 transition hover:bg-rose-500/20"
+                >
+                  <XCircle className="h-4 w-4" />
+                  <span>{t('order.reject')}</span>
+                </button>
+                <button
+                  type="button"
+                  disabled={actionLoading}
+                  onClick={() => onStartPress(order)}
+                  className="flex items-center gap-2 rounded-xl bg-teal-400 px-6 py-3 text-sm font-extrabold text-slate-950 shadow-glow transition hover:bg-teal-300 active:scale-95 disabled:opacity-60"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  <span>{t('order.accept')}</span>
+                </button>
+              </div>
+            )}
+          </div>
+        ) : (
+          <button
+            type="button"
+            disabled={actionLoading}
+            onClick={() => onStartPress(order)}
+            className={cx(
+              'flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-extrabold text-slate-950 shadow-glow transition active:scale-95 disabled:opacity-60',
+              order.status === 'bosildi'
+                ? 'bg-amber-400 hover:bg-amber-300'
+                : order.status === 'tayyor'
+                  ? 'bg-emerald-400 hover:bg-emerald-300 text-slate-950'
+                  : 'bg-teal-400 hover:bg-teal-300'
+            )}
+          >
+            {order.status === 'qabul' ? (
+              <>
+                <Play className="h-4 w-4 fill-current" />
+                <span>{t('order.startPrint')}</span>
+              </>
+            ) : order.status === 'bosildi' ? (
+              <>
+                <CheckCircle className="h-4 w-4" />
+                <span>{t('order.markReady')}</span>
+              </>
+            ) : (
+              <>
+                <Truck className="h-4 w-4" />
+                <span>{t('order.handToCourier')}</span>
+              </>
+            )}
+          </button>
+        )}
       </div>
     </Card>
     </div>

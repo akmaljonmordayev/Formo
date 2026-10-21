@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+<<<<<<< HEAD
 import {
   Pressable,
   RefreshControl,
@@ -53,6 +54,31 @@ export default function OrdersScreen({
   const completedOrders = mappedOrders.filter((o) => o.status === 'DELIVERED' || o.status === 'CANCELLED');
 
   const displayedOrders = tab === 'active' ? activeOrders : completedOrders;
+=======
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { colors, radii, spacing } from '../constants/theme';
+import useOrders, { isFinal, progressOf, statusText } from '../features/orders';
+import { Card, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
+import ErrorView from '../components/ui/ErrorView';
+import { JerseyPreview } from '../components/ui/JerseyPreview';
+import { designText, itemPreview } from '../features/studio';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { errorText } from '../utils/errors';
+import { formatDate } from '../utils/formatters';
+
+// Buyurtmalarim: GET /api/orders — 20 s da va pastga tortilganda yangilanadi,
+// shuning uchun operator/sex o'zgartirgan holat shu yerda ko'rinadi.
+export default function OrdersScreen({ t, onOrder }) {
+  const [tab, setTab] = useState('active');
+  const { orders, isLoading, error, refetch } = useOrders();
+
+  const activeLabel = t('tabActive');
+  const doneLabel = t('tabDone');
+  const filtered = orders.filter((order) => (tab === 'active' ? !isFinal(order) : isFinal(order)));
+
+  // Kuzatish kartasi — eng oxirgi yakunlanmagan buyurtma
+  const activeOrder = orders.find((order) => !isFinal(order)) || null;
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
@@ -93,14 +119,22 @@ export default function OrdersScreen({
         showsVerticalScrollIndicator={false}
         refreshControl={
           <RefreshControl
-            refreshing={isLoading}
+            refreshing={isLoading && orders.length > 0}
             onRefresh={refetch}
             tintColor={colors.accent}
             colors={[colors.accent]}
           />
         }
       >
+<<<<<<< HEAD
         {isLoading && mappedOrders.length === 0 ? (
+=======
+        <Header title={t('myOrders')} />
+
+        {error && orders.length === 0 ? (
+          <ErrorView message={errorText(error, t)} onRetry={refetch} retryLabel={t('retry')} />
+        ) : isLoading && orders.length === 0 ? (
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
           <LoadingSpinner />
         ) : error && mappedOrders.length === 0 ? (
           <View style={styles.emptyWrap}>
@@ -121,6 +155,7 @@ export default function OrdersScreen({
             </Text>
           </View>
         ) : (
+<<<<<<< HEAD
           displayedOrders.map((ord, idx) => {
             const isCompleted = ord.status === 'DELIVERED';
             const orderId = ord.code || ord.orderNumber || ord.id || `FRM-000${idx + 10}`;
@@ -133,6 +168,37 @@ export default function OrdersScreen({
                 : ord.status === 'SHIPPED'
                 ? 'Yetkazilmoqda'
                 : 'Bosilmoqda');
+=======
+          <>
+            <Pressable onPress={() => activeOrder && onOrder(activeOrder.id)}>
+              <Card style={styles.tracker}>
+                {activeOrder ? (
+                  <>
+                    <View style={styles.row}>
+                      <Text style={styles.overline}>{t('activeOrder')}</Text>
+                      <Text style={styles.id}>{activeOrder.code}</Text>
+                    </View>
+                    <Text style={styles.trackerTitle}>{statusText(t, activeOrder.status, activeOrder.statusLabel)}</Text>
+                    <Text style={styles.trackerSub}>
+                      {activeOrder.delivery.date
+                        ? `${activeOrder.delivery.date.split('-').reverse().join('.')} · ${activeOrder.delivery.slot}`
+                        : '—'}
+                    </Text>
+                    <View style={styles.progress}>
+                      <View style={[styles.done, { width: `${Math.round(progressOf(activeOrder) * 100)}%` }]} />
+                    </View>
+                    <View style={styles.labels}>
+                      <Text style={styles.labelText}>{t('trackDesign')}</Text>
+                      <Text style={styles.labelText}>{t('trackProduction')}</Text>
+                      <Text style={styles.labelText}>{t('trackDelivery')}</Text>
+                    </View>
+                  </>
+                ) : (
+                  <Text style={styles.noOrdersText}>{t('noOrders')}</Text>
+                )}
+              </Card>
+            </Pressable>
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
 
             return (
               <Pressable
@@ -147,6 +213,7 @@ export default function OrdersScreen({
                     <Text style={styles.orderDate}>{ord.date || ord.createdAt || 'Bugun'}</Text>
                   </View>
 
+<<<<<<< HEAD
                   <View
                     style={[
                       styles.statusPill,
@@ -209,6 +276,52 @@ export default function OrdersScreen({
               </Pressable>
             );
           })
+=======
+            <View style={styles.list}>
+              {filtered.map((order) => {
+                const delivered = order.status === 'DELIVERED';
+                const stopped = ['CANCELLED', 'RETURNED'].includes(order.status);
+                const first = order.items[0] || {};
+                const more = order.items.length > 1 ? ` +${order.items.length - 1}` : '';
+                return (
+                  <Pressable key={order.id} onPress={() => onOrder(order.id)}>
+                    <Card style={styles.order}>
+                      <View style={styles.orderTop}>
+                        <Text style={styles.id}>{order.code}</Text>
+                        <View style={[styles.pill, delivered && styles.pillGreen, stopped && styles.pillRed]}>
+                          <Text style={[styles.pillText, delivered && styles.pillTextGreen, stopped && styles.pillTextRed]}>
+                            {statusText(t, order.status, order.statusLabel)}
+                          </Text>
+                        </View>
+                      </View>
+                      <View style={styles.orderBody}>
+                        <View style={styles.thumb}>
+                          <JerseyPreview product={itemPreview(first)} number={first.printNumber || ''} tiny />
+                        </View>
+                        <View style={styles.orderCopy}>
+                          <Text style={styles.product} numberOfLines={1}>
+                            {first.design
+                              ? `${t('customDesign')} · ${designText(t, first.design)}`
+                              : `${first.clubName} · ${first.kitLabel}`}
+                            {more}
+                          </Text>
+                          <Text style={styles.meta}>{order.itemsCount} {t('pcs')} · {formatDate(order.createdAt)}</Text>
+                        </View>
+                        <Text style={styles.total}>{formatMoney(order.summary.total)}</Text>
+                      </View>
+                      {!stopped ? (
+                        <View style={styles.bar}>
+                          <View style={[styles.barDone, { width: `${Math.round(progressOf(order) * 100)}%` }]} />
+                        </View>
+                      ) : null}
+                    </Card>
+                  </Pressable>
+                );
+              })}
+              {filtered.length === 0 ? <Text style={styles.empty}>{t('noOrders')}</Text> : null}
+            </View>
+          </>
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
         )}
       </ScrollView>
     </SafeAreaView>
@@ -216,6 +329,7 @@ export default function OrdersScreen({
 }
 
 const styles = StyleSheet.create({
+<<<<<<< HEAD
   safe: {
     flex: 1,
     backgroundColor: '#050818',
@@ -232,6 +346,26 @@ const styles = StyleSheet.create({
     height: 40,
     borderRadius: radii.md,
     backgroundColor: '#0E1A3F',
+=======
+  content: { paddingTop: 16, paddingHorizontal: spacing.xl, paddingBottom: 110 },
+  tracker: { backgroundColor: '#141A40', marginBottom: spacing.lg },
+  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  overline: { color: colors.teal, fontSize: 10, fontWeight: '900', letterSpacing: 1 },
+  id: { color: colors.text, fontSize: 12, fontWeight: '800' },
+  trackerTitle: { color: colors.text, fontSize: 18, fontWeight: '800', marginTop: spacing.md },
+  trackerSub: { color: colors.muted, fontSize: 12, marginTop: 5 },
+  progress: { height: 5, borderRadius: 3, backgroundColor: '#242B58', marginTop: spacing.lg, overflow: 'hidden' },
+  done: { height: 5, backgroundColor: colors.accent },
+  labels: { flexDirection: 'row', justifyContent: 'space-between', marginTop: spacing.sm },
+  labelText: { color: colors.muted, fontSize: 10 },
+  noOrdersText: { color: colors.muted, fontSize: 13, textAlign: 'center', paddingVertical: spacing.md },
+  tabs: { alignSelf: 'stretch', marginBottom: spacing.lg },
+  list: { gap: spacing.md },
+  order: { gap: spacing.md },
+  orderTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  pill: {
+    backgroundColor: 'rgba(245, 165, 94, 0.12)',
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
     borderWidth: 1,
     borderColor: 'rgba(243, 245, 249, 0.12)',
     alignItems: 'center',
@@ -311,6 +445,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 3,
   },
+<<<<<<< HEAD
   statusPillGreen: {
     backgroundColor: 'rgba(25, 167, 161, 0.14)',
     borderColor: 'rgba(25, 167, 161, 0.35)',
@@ -338,6 +473,17 @@ const styles = StyleSheet.create({
   itemThumb: {
     width: 54,
     height: 54,
+=======
+  pillGreen: { backgroundColor: 'rgba(63, 217, 183, 0.1)', borderColor: 'rgba(63, 217, 183, 0.35)' },
+  pillRed: { backgroundColor: 'rgba(232, 84, 63, 0.1)', borderColor: 'rgba(232, 84, 63, 0.35)' },
+  pillText: { color: colors.accent, fontSize: 10, fontWeight: '800' },
+  pillTextRed: { color: '#E8543F' },
+  pillTextGreen: { color: colors.teal },
+  orderBody: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  thumb: {
+    width: 52,
+    height: 60,
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
     borderRadius: radii.md,
     backgroundColor: '#121A42',
     alignItems: 'center',

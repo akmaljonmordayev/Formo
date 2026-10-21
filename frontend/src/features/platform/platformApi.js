@@ -40,6 +40,7 @@ export const categoriesApi = {
 
 export const ordersApi = {
   list: (params) => api(`/admin/orders${qs(params)}`),
+  assign: (id, body) => api(`/admin/orders/${id}/assign`, { method: 'POST', body }),
   updateStatus: (id, body) => api(`/admin/orders/${id}/status`, { method: 'PATCH', body }),
 };
 
@@ -72,6 +73,15 @@ export const auditLogApi = {
 export const settingsApi = {
   all: () => api('/admin/settings'),
   update: (key, value) => api(`/admin/settings/${key}`, { method: 'PUT', body: { value } }),
+  // Telegram bildirishnomalari: { telegramConfigured } va sinov xabari { sent, reason? }
+  notificationsStatus: () => api('/admin/settings/notifications/status'),
+  notificationsTest: () => api('/admin/settings/notifications/test', { method: 'POST' }),
+};
+
+// Sexlar topgan nuqsonlar (brak)
+export const defectsApi = {
+  list: (params) => api(`/admin/defects${qs(params)}`), // { items, total, page, limit, openCount }
+  resolve: (id, note) => api(`/admin/defects/${id}/resolve`, { method: 'PATCH', body: { note } }),
 };
 
 export const diagnosticsApi = {

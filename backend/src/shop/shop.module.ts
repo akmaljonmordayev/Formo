@@ -8,17 +8,23 @@ import { CartService } from './cart.service';
 import { CatalogController } from './catalog.controller';
 import { CatalogService } from './catalog.service';
 import { DeliveryService } from './delivery.service';
+import { AppConfigController } from './app-config.controller';
+import { NotificationsController } from './notifications.controller';
+import { StudioService } from './studio.service';
+import { RulesService } from './rules.service';
 import { ShopOrdersController } from './orders.controller';
 import { ShopOrdersService } from './orders.service';
 
 /** Mobil ilova: katalog → savat → rasmiylashtirish → to'lov → buyurtmalar */
 @Module({
-  controllers: [CatalogController, CartController, AddressesController, ShopOrdersController],
+  controllers: [CatalogController, CartController, AddressesController, ShopOrdersController, AppConfigController, NotificationsController],
   providers: [
     CatalogService,
     CartService,
     AddressesService,
     DeliveryService,
+    RulesService,
+    StudioService,
     ShopOrdersService,
     AuditService,
     OrderHistoryService,

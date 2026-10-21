@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import { CleanText, NoHtml } from '../../common/utils/no-html';
 import { ALL_SIZES } from '../pricing';
 
@@ -52,11 +52,21 @@ export class CartItemOptionsDto {
 }
 
 export class AddCartItemDto extends CartItemOptionsDto {
-  @ApiProperty({ example: 1, description: 'Forma (kit) id' })
+  @ApiPropertyOptional({ example: 1, description: 'Klub formasi (kit) id. `design` bilan birga yuborilmaydi' })
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  kitId: number;
+  kitId?: number;
+
+  @ApiPropertyOptional({
+    description:
+      "Dizayn studiyasidagi maxsus futbolka (kitId o'rniga): `{ color: { type: 'solid'|'gradient'|'custom', id?, hex? }, font?, patch?, package? }`. " +
+      "Variantlar va narxlar `GET /app/config` → `studio`.",
+  })
+  @IsOptional()
+  @IsObject()
+  design?: Record<string, unknown>;
 
   @ApiProperty({ example: 'L', enum: ALL_SIZES, description: "Futbolka o'lchami" })
   @upper()

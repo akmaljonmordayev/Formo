@@ -1,13 +1,15 @@
 import { useCallback, useEffect, useState } from 'react';
-import { ConfirmModal } from '../../../components/ui/Modal';
+import { ConfirmModal } from '../ui';
 import { formatDate, prettyPhone, usersApi } from '../../../features/accounts/accountsApi';
 import { useDebounced } from '../../../hooks/useDebounced';
+import { useT } from '../i18n';
 
 const LIMIT = 15;
 const GENDER = { MALE: 'Erkak', FEMALE: 'Ayol' };
 
 // Mobil ilova foydalanuvchilari: o'zlari ro'yxatdan o'tadi, superadmin ko'radi/bloklaydi/o'chiradi
 export default function SuperadminUsers() {
+  const t = useT();
   const [data, setData] = useState({ items: [], total: 0 });
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -64,23 +66,23 @@ export default function SuperadminUsers() {
     <>
       <div className="page-head">
         <div>
-          <h2>Foydalanuvchilar</h2>
-          <p>Mobil ilova orqali ro‘yxatdan o‘tganlar</p>
+          <h2>{t("Foydalanuvchilar")}</h2>
+          <p>{t("Mobil ilova orqali ro‘yxatdan o‘tganlar")}</p>
         </div>
       </div>
 
       <div className="toolbar">
         <input
           type="search"
-          placeholder="Ism yoki telefon bo'yicha qidirish"
+          placeholder={t("Ism yoki telefon bo'yicha qidirish")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           maxLength={100}
         />
-        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Holat">
-          <option value="">Barchasi</option>
-          <option value="true">Faol</option>
-          <option value="false">Bloklangan</option>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label={t("Holat")}>
+          <option value="">{t("Barchasi")}</option>
+          <option value="true">{t("Faol")}</option>
+          <option value="false">{t("Bloklangan")}</option>
         </select>
       </div>
 
@@ -90,11 +92,11 @@ export default function SuperadminUsers() {
         <table className="table">
           <thead>
             <tr>
-              <th>Foydalanuvchi</th>
-              <th>Telefon</th>
-              <th>Profil</th>
-              <th>Holat</th>
-              <th>Ro‘yxatdan o‘tgan</th>
+              <th>{t("Foydalanuvchi")}</th>
+              <th>{t("Telefon")}</th>
+              <th>{t("Profil")}</th>
+              <th>{t("Holat")}</th>
+              <th>{t("Ro‘yxatdan o‘tgan")}</th>
               <th />
             </tr>
           </thead>
@@ -102,13 +104,13 @@ export default function SuperadminUsers() {
             {loading && !data.items.length ? (
               <tr>
                 <td colSpan={6} className="table__empty">
-                  Yuklanmoqda...
+                  {t("Yuklanmoqda...")}
                 </td>
               </tr>
             ) : !data.items.length ? (
               <tr>
                 <td colSpan={6} className="table__empty">
-                  Foydalanuvchilar topilmadi
+                  {t("Foydalanuvchilar topilmadi")}
                 </td>
               </tr>
             ) : (
@@ -119,23 +121,23 @@ export default function SuperadminUsers() {
                   </td>
                   <td className="mono">{prettyPhone(u.phone)}</td>
                   <td className="muted">
-                    {[GENDER[u.gender], u.age && `${u.age} yosh`, u.height && `${u.height} sm`, u.weight && `${u.weight} kg`]
+                    {[GENDER[u.gender] && t(GENDER[u.gender]), u.age && t('{n} yosh', { n: u.age }), u.height && `${u.height} sm`, u.weight && `${u.weight} kg`]
                       .filter(Boolean)
                       .join(' · ') || '—'}
                   </td>
                   <td>
                     <span className={`badge ${u.isActive ? 'badge--on' : 'badge--off'}`}>
-                      {u.isActive ? 'Faol' : 'Bloklangan'}
+                      {u.isActive ? t('Faol') : t('Bloklangan')}
                     </span>
                   </td>
                   <td className="mono">{formatDate(u.createdAt)}</td>
                   <td>
                     <div className="table__actions">
                       <button type="button" className="btn btn--ghost btn--sm" onClick={() => toggle(u)}>
-                        {u.isActive ? 'Bloklash' : 'Faollashtirish'}
+                        {u.isActive ? t('Bloklash') : t('Faollashtirish')}
                       </button>
                       <button type="button" className="btn btn--danger btn--sm" onClick={() => setDeleting(u)}>
-                        O‘chirish
+                        {t("O‘chirish")}
                       </button>
                     </div>
                   </td>
@@ -147,7 +149,7 @@ export default function SuperadminUsers() {
       </div>
 
       <div className="pager">
-        <span>Jami: {data.total}</span>
+        <span>{t('Jami')}: {data.total}</span>
         <div>
           <button type="button" className="btn btn--ghost btn--sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
             ←
@@ -168,8 +170,8 @@ export default function SuperadminUsers() {
 
       {deleting && (
         <ConfirmModal
-          title="Foydalanuvchini o‘chirish"
-          text={`${deleting.fullName} (${prettyPhone(deleting.phone)}) butunlay o‘chiriladi.`}
+          title={t("Foydalanuvchini o‘chirish")}
+          text={t("{name} ({phone}) butunlay o'chiriladi.", { name: deleting.fullName, phone: prettyPhone(deleting.phone) })}
           busy={busy}
           onConfirm={remove}
           onClose={() => setDeleting(null)}

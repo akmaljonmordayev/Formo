@@ -14,7 +14,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { toPublicUser } from '../common/utils/user.mapper';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
+import { RegisterDto, UpdateProfileDto } from './dto/register.dto';
 
 export const BCRYPT_ROUNDS = 10;
 // Foydalanuvchi topilmaganda ham bcrypt ishlashi uchun (timing orqali raqam borligini bilib bo'lmasin)
@@ -115,6 +115,11 @@ export class AuthService {
   async me(userId: number) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new NotFoundException('Foydalanuvchi topilmadi');
+    return toPublicUser(user);
+  }
+
+  async updateProfile(userId: number, dto: UpdateProfileDto) {
+    const user = await this.prisma.user.update({ where: { id: userId }, data: dto });
     return toPublicUser(user);
   }
 

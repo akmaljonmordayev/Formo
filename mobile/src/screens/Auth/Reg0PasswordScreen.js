@@ -88,6 +88,7 @@ export default function Reg0PasswordScreen({ onNext, onBack, initial = {} }) {
 
           {/* Card */}
           <View style={styles.card}>
+<<<<<<< HEAD
             <View style={styles.heroRow}>
               <View style={styles.heroBubble}>
                 <MaterialCommunityIcons name="lock-plus-outline" size={22} color={colors.accent} />
@@ -101,6 +102,10 @@ export default function Reg0PasswordScreen({ onNext, onBack, initial = {} }) {
             {/* Parol */}
             <Text style={styles.label}>Parol</Text>
             {/* `collapsable={false}`: see PhoneScreen — the focus style adds
+=======
+            <Text style={styles.label}>Password</Text>
+            {/* `collapsable={false}`: `fieldFocused` adds
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
                 shadowColor/elevation, and the trait flip would drop native focus. */}
             <View
               collapsable={false}

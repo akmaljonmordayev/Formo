@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React, { useEffect, useState } from 'react';
 import {
   ActivityIndicator,
@@ -29,6 +30,24 @@ export default function HomeScreen({
   // Load active order and popular clubs from API
   useEffect(() => {
     let cancelled = false;
+=======
+import React from 'react';
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
+import { colors, radii, spacing } from '../constants/theme';
+import { Button, Header, Screen, SectionTitle } from '../components/ui/Common';
+import CartButton from '../components/ui/CartButton';
+import { JerseyPreview } from '../components/ui/JerseyPreview';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { statusText, useActiveOrder } from '../features/orders';
+import { usePopularClubs } from '../features/products';
+
+export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotifications, rules, auth, cartCount = 0, onCart }) {
+  // GET /api/orders/active — oxirgi yakunlanmagan buyurtma (20 s da yangilanadi)
+  const { order, isLoading: orderLoading } = useActiveOrder();
+  // GET /api/catalog/clubs/popular
+  const { clubs, isLoading: clubsLoading, error: clubsError } = usePopularClubs(8);
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
 
     async function fetchData() {
       setLoading(true);
@@ -48,6 +67,7 @@ export default function HomeScreen({
       }
     }
 
+<<<<<<< HEAD
     fetchData();
     return () => {
       cancelled = true;
@@ -63,6 +83,21 @@ export default function HomeScreen({
         {/* Header */}
         <View style={styles.topHeader}>
           <View style={styles.userInfo}>
+=======
+  const heroClub = clubs[0] || null;
+
+  return (
+    <Screen>
+      <Header
+        overline={t('goodDay')}
+        title={name}
+        right={
+          <View style={styles.headerRight}>
+            <Pressable onPress={onNotifications} style={styles.bell} hitSlop={6} accessibilityLabel={t('notifications')}>
+              <MaterialCommunityIcons name="bell-outline" size={20} color={colors.text} />
+            </Pressable>
+            <CartButton count={cartCount} onPress={onCart} t={t} />
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
             <View style={styles.avatar}>
               <Text style={styles.avatarText}>{initial}</Text>
             </View>
@@ -72,10 +107,68 @@ export default function HomeScreen({
             </View>
           </View>
 
+<<<<<<< HEAD
           <Pressable onPress={() => onNavigate('profile')} style={styles.iconBtn}>
             <MaterialCommunityIcons name="bell-outline" size={22} color="#F3F5F9" />
           </Pressable>
         </View>
+=======
+      {rules && !rules.acceptOrders ? (
+        <View style={styles.paused}>
+          <Text style={styles.pausedText}>{rules.pausedMessage || t('ordersPaused')}</Text>
+        </View>
+      ) : null}
+
+      <View style={styles.hero}>
+        <View style={styles.heroCopy}>
+          <Text style={styles.heroTitle}>{t('heroTitle')}</Text>
+          <Text style={styles.heroText}>{t('heroSub')}</Text>
+          <Button small onPress={() => onNavigate('studio')} style={styles.heroButton}>{t('startShort')}</Button>
+        </View>
+        <View style={styles.heroJersey}>
+          {heroClub ? <JerseyPreview product={heroClub} number="10" /> : null}
+        </View>
+      </View>
+
+      <Pressable style={styles.track} onPress={() => (order ? onOrder(order.id) : onNavigate('orders'))}>
+        <View style={styles.trackCopy}>
+          {orderLoading ? (
+            <LoadingSpinner size="small" />
+          ) : order ? (
+            <>
+              <Text style={styles.trackId}>{order.code}</Text>
+              <Text style={styles.trackStatus}>{statusText(t, order.status, order.statusLabel)}</Text>
+            </>
+          ) : (
+            <Text style={styles.trackStatus}>{t('noOrders')}</Text>
+          )}
+        </View>
+        <Text style={styles.trackAction}>{t('track')}</Text>
+      </Pressable>
+
+      <Pressable style={styles.kitCard} onPress={() => onNavigate('catalog')}>
+        <Text style={styles.kitTitle}>{t('clubKitTitle')}</Text>
+        <Text style={styles.kitSub}>{t('clubKitSub')}</Text>
+      </Pressable>
+
+      <SectionTitle title={t('popular')} action={t('all')} onAction={() => onNavigate('catalog')} />
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.clubRow}
+      >
+        {clubsLoading && clubs.length === 0 ? <LoadingSpinner size="small" /> : null}
+        {clubs.map((club) => (
+          <Pressable key={club.id} style={styles.clubTile} onPress={() => onClub(club)}>
+            <View style={[styles.crest, { backgroundColor: club.color, borderColor: club.accent }]}>
+              <Text style={[styles.crestCode, { color: club.accent }]}>{club.code}</Text>
+            </View>
+            <Text style={styles.clubName} numberOfLines={1}>{club.name}</Text>
+          </Pressable>
+        ))}
+      </ScrollView>
+      {clubsError ? <Text style={styles.clubsError}>{t('loadError')}</Text> : null}
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
 
         {/* Active Order Banner (if any) */}
         {Boolean(activeOrder) && (
@@ -239,6 +332,7 @@ export default function HomeScreen({
 }
 
 const styles = StyleSheet.create({
+<<<<<<< HEAD
   safe: {
     flex: 1,
     backgroundColor: '#050818',
@@ -259,6 +353,28 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 12,
   },
+=======
+  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  bell: {
+    width: 40,
+    height: 40,
+    borderRadius: radii.md,
+    backgroundColor: '#141A3E',
+    borderWidth: 1,
+    borderColor: '#232A57',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  paused: {
+    backgroundColor: 'rgba(232, 84, 63, 0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(232, 84, 63, 0.35)',
+    borderRadius: radii.md,
+    padding: spacing.md,
+    marginBottom: 14,
+  },
+  pausedText: { color: '#F2A49A', fontSize: 12, lineHeight: 18 },
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
   avatar: {
     width: 44,
     height: 44,
@@ -294,6 +410,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+<<<<<<< HEAD
   activeOrderCard: {
     backgroundColor: '#0E1A3F',
     borderRadius: radii.xl,
@@ -358,6 +475,18 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   trackLinkText: {
+=======
+  crestCode: { fontSize: 14, fontWeight: '900' },
+  clubName: { color: '#B9C0E0', fontSize: 10, marginTop: 6, textAlign: 'center', width: 74 },
+  clubsError: { color: colors.muted, fontSize: 11, marginTop: spacing.xs },
+  stepsBlock: { marginTop: spacing.xl },
+  step: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 7 },
+  stepNum: {
+    width: 26,
+    height: 26,
+    borderRadius: 8,
+    backgroundColor: '#171E4B',
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
     color: colors.accent,
     fontSize: 13,
     fontWeight: '700',

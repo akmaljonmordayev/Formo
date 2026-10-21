@@ -12,6 +12,7 @@ function toAuthError(err, fallbackKey) {
   return { key: fallbackKey, message: err?.message || null };
 }
 
+<<<<<<< HEAD
 // The backend exposes NO OTP / SMS endpoints. Phone verification is therefore
 // a development-only, fully local step: the app accepts a fixed demo code and
 // never calls the network or claims that a real SMS was delivered.
@@ -19,13 +20,17 @@ const DEV_OTP_CODE = '123456';
 
 const PROFILE_KEYS = ['gender', 'age', 'height', 'weight', 'address'];
 const overlayStorageKey = (id) => `formo_profile_overlay_${id}`;
+=======
+/** PATCH /auth/me qabul qiladigan maydonlar (fullName/address yuborilmaydi — server 400 qaytaradi) */
+const PROFILE_KEYS = ['gender', 'age', 'height', 'weight'];
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
 
-function applyOverlay(base, overlay) {
-  if (!base || !overlay) return base;
-  const merged = { ...base };
+function pickProfileFields(fields) {
+  const body = {};
   PROFILE_KEYS.forEach((key) => {
-    if (merged[key] == null && overlay[key] != null) merged[key] = overlay[key];
+    if (fields?.[key] !== undefined) body[key] = fields[key];
   });
+<<<<<<< HEAD
   return merged;
 }
 
@@ -55,6 +60,9 @@ async function mergeWithOverlay(me) {
   if (!me) return null;
   const overlay = await readOverlay(me.id);
   return applyOverlay(me, overlay);
+=======
+  return body;
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
 }
 
 export default function useAuth() {
@@ -88,9 +96,14 @@ export default function useAuth() {
         }
 
         const me = await api.auth.me();
+<<<<<<< HEAD
         if (!cancelled && me) {
           const merged = await mergeWithOverlay(me);
           setUser(merged);
+=======
+        if (!cancelled) {
+          setUser(me);
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
           setIsAuthenticated(true);
         } else if (!cancelled) {
           setUser(null);
@@ -120,8 +133,12 @@ export default function useAuth() {
     setError(null);
     try {
       const me = await api.auth.login(phone, password);
+<<<<<<< HEAD
       const merged = await mergeWithOverlay(me);
       setUser(merged);
+=======
+      setUser(me);
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
       setIsAuthenticated(true);
       return { success: true, user: merged };
     } catch (err) {
@@ -141,8 +158,12 @@ export default function useAuth() {
     setError(null);
     try {
       const me = await api.auth.register(payload);
+<<<<<<< HEAD
       const merged = await mergeWithOverlay(me);
       setUser(merged);
+=======
+      setUser(me);
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
       setIsAuthenticated(true);
       return { success: true, user: merged };
     } catch (err) {
@@ -173,6 +194,7 @@ export default function useAuth() {
 
   // Refresh user
   const refreshUser = useCallback(async () => {
+<<<<<<< HEAD
     try {
       const me = await api.auth.me();
       const merged = await mergeWithOverlay(me);
@@ -208,6 +230,20 @@ export default function useAuth() {
     },
     [user]
   );
+=======
+    const me = await api.auth.me();
+    setUser(me);
+    return me;
+  }, []);
+
+  // ─── Update profile measurements (PATCH /auth/me — server is the source of truth) ─
+  /** Xatoni (ApiError) chaqiruvchiga uzatadi — ekran o'zi ko'rsatadi */
+  const updateUser = useCallback(async (fields) => {
+    const updated = await api.auth.updateMe(pickProfileFields(fields));
+    setUser(updated);
+    return updated;
+  }, []);
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
 
   // ── Phone verification (development-only, no network) ──────────────────────
   // The backend has no OTP route, so we must not call one. These helpers gate

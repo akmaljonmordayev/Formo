@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { inventoryApi } from '../../../features/platform/platformApi';
+import { useT } from '../i18n';
 
 const KID_SIZES = ['2-3', '4-5', '6-7', '8-9', '10-11', '12-13'];
 const ADULT_SIZES = ['S', 'M', 'L', 'XL', 'XXL', '3XL'];
@@ -8,6 +9,7 @@ const SIZES = [...KID_SIZES, ...ADULT_SIZES];
 const cellKey = (color, size) => `${color}::${size}`;
 
 export default function SuperadminInventory() {
+  const t = useT();
   const [tab, setTab] = useState('TSHIRT');
   const [colors, setColors] = useState([]);
   const [qtyMap, setQtyMap] = useState({});
@@ -87,28 +89,28 @@ export default function SuperadminInventory() {
     <>
       <div className="sa-head">
         <div>
-          <h1>Zaxira</h1>
-          <p>Rang va o'lcham bo'yicha bo'sh futbolkalar. 0 bo'lsa, bu variant mijozga ko'rinmaydi.</p>
+          <h1>{t("Zaxira")}</h1>
+          <p>{t("Rang va o'lcham bo'yicha bo'sh futbolkalar. 0 bo'lsa, bu variant mijozga ko'rinmaydi.")}</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {saved && <span className="sa-table__sub" style={{ color: 'var(--sa-teal)' }}>Saqlandi ✓</span>}
+          {saved && <span className="sa-table__sub" style={{ color: 'var(--sa-teal)' }}>{t("Saqlandi ✓")}</span>}
           <button type="button" className="sa-btn" onClick={save} disabled={saving}>
-            {saving ? 'Saqlanmoqda...' : 'Qoldiqni saqlash'}
+            {saving ? t("Saqlanmoqda...") : t("Qoldiqni saqlash")}
           </button>
         </div>
       </div>
 
       <div className="sa-tabs" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <div style={{ display: 'flex', gap: 8 }}>
-          {[{ key: 'TSHIRT', label: 'Futbolka' }, { key: 'SHORTS', label: 'Shortik' }].map((t) => (
-            <button key={t.key} type="button" className={`sa-tab${tab === t.key ? ' is-active' : ''}`} onClick={() => setTab(t.key)}>
-              {t.label}
+          {[{ key: 'TSHIRT', label: 'Futbolka' }, { key: 'SHORTS', label: 'Shortik' }].map((pt) => (
+            <button key={pt.key} type="button" className={`sa-tab${tab === pt.key ? ' is-active' : ''}`} onClick={() => setTab(pt.key)}>
+              {t(pt.label)}
             </button>
           ))}
         </div>
         <span className="sa-table__sub" style={{ marginTop: 0, display: 'flex', gap: 14 }}>
-          <span><span style={{ color: 'var(--sa-accent)' }}>●</span> kam qoldi (5 dan kam)</span>
-          <span><span style={{ color: 'var(--sa-red)' }}>●</span> tugagan — mijozga ko'rinmaydi</span>
+          <span><span style={{ color: 'var(--sa-accent)' }}>●</span> {t('kam qoldi (5 dan kam)')}</span>
+          <span><span style={{ color: 'var(--sa-red)' }}>●</span> {t("tugagan — mijozga ko'rinmaydi")}</span>
         </span>
       </div>
 
@@ -118,23 +120,23 @@ export default function SuperadminInventory() {
         <input
           className="sa-input"
           style={{ maxWidth: 200 }}
-          placeholder="Yangi rang nomi"
+          placeholder={t("Yangi rang nomi")}
           value={newColor}
           onChange={(e) => setNewColor(e.target.value)}
           onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addColor())}
           maxLength={30}
         />
         <button type="button" className="sa-btn sa-btn--ghost" onClick={addColor} disabled={!newColor.trim()}>
-          + Rang qo'shish
+          {t("+ Rang qo'shish")}
         </button>
       </div>
 
       {loading ? (
-        <div className="sa-table__sub" style={{ padding: 20 }}>Yuklanmoqda...</div>
+        <div className="sa-table__sub" style={{ padding: 20 }}>{t("Yuklanmoqda...")}</div>
       ) : colors.length === 0 ? (
         <div className="sa-panel">
           <div className="sa-table__sub">
-            Hali bu mahsulot turi uchun zaxira kiritilmagan. Yuqoridan rang qo'shib, qoldiqlarni kiriting.
+            {t("Hali bu mahsulot turi uchun zaxira kiritilmagan. Yuqoridan rang qo'shib, qoldiqlarni kiriting.")}
           </div>
         </div>
       ) : (
@@ -142,11 +144,11 @@ export default function SuperadminInventory() {
           <table className="sa-table">
             <thead>
               <tr>
-                <th>Rang</th>
+                <th>{t("Rang")}</th>
                 {SIZES.map((s) => (
                   <th key={s} style={{ textAlign: 'center' }}>{s}</th>
                 ))}
-                <th style={{ textAlign: 'right' }}>Jami</th>
+                <th style={{ textAlign: 'right' }}>{t("Jami")}</th>
               </tr>
             </thead>
             <tbody>

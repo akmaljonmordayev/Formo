@@ -3,18 +3,20 @@ import OrderDetail from './OrderDetail';
 import QueueList from './QueueList';
 import { useT } from './i18n';
 import { useTailor } from './prefs';
-import { queueOrders as initialOrders } from './mockData';
 
 export default function Navbat() {
   const t = useT();
   const {
-    orders = initialOrders,
+    orders = [],
+    ordersError = '',
+    ordersLoading = false,
     orderActionLoading = false,
     processOrder,
+    rejectOrder,
   } = useTailor() ?? {};
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState('barchasi');
-  const [selectedId, setSelectedId] = useState(initialOrders[0].id);
+  const [selectedId, setSelectedId] = useState(null);
   const [mobileView, setMobileView] = useState('detail');
   const [toastMessage, setToastMessage] = useState('');
   const [toastError, setToastError] = useState(false);
@@ -29,20 +31,29 @@ export default function Navbat() {
     if (!processOrder) return;
     try {
       await processOrder(order);
-      const nextStatus = order.apiStatus === 'QUALITY_CHECK'
-        ? 'tayyor'
-        : order.status === 'qabul'
-          ? 'bosildi'
-          : 'tayyor';
+      const nextStatus = { yangi: 'qabul', qabul: 'bosildi', bosildi: 'tayyor', tayyor: 'yetkazishda' }[order.status];
       showToast(t('navbat.statusToast', { id: order.id, status: t(`status.${nextStatus}`) }));
-    } catch {
-      // The shell displays the API error; do not show a success toast.
+    } catch (requestError) {
+      showToast(requestError.message, true);
+    }
+  };
+
+  const handleReject = async (order, reason) => {
+    if (!rejectOrder) return;
+    try {
+      await rejectOrder(order, reason);
+      showToast(t('navbat.rejectToast', { id: order.id }));
+      return true;
+    } catch (requestError) {
+      showToast(requestError.message, true);
+      return false;
     }
   };
 
   const counts = useMemo(
     () => ({
       barchasi: orders.length,
+      yangi: orders.filter((o) => o.status === 'yangi').length,
       qabul: orders.filter((o) => o.status === 'qabul').length,
       bosildi: orders.filter((o) => o.status === 'bosildi').length,
       tayyor: orders.filter((o) => o.status === 'tayyor').length,
@@ -79,6 +90,12 @@ export default function Navbat() {
           <span>{toastMessage}</span>
         </div>
       )}
+      {ordersError && (
+        <div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">
+          {ordersError}
+        </div>
+      )}
+      {ordersLoading && <div role="status" className="text-xs text-slate-400">{t('api.loading')}</div>}
 
       {/* Mobile view toggle */}
       <div className="flex gap-2 xl:hidden">
@@ -111,6 +128,7 @@ export default function Navbat() {
           className={`${mobileView === 'list' ? 'block' : 'hidden'} xl:block`}
           orders={filtered}
           counts={counts}
+          loading={ordersLoading}
           activeTab={tab}
           onTabChange={setTab}
           query={query}
@@ -122,6 +140,7 @@ export default function Navbat() {
           <OrderDetail
             order={selected}
             onStartPress={handleStartPress}
+            onReject={handleReject}
             actionLoading={orderActionLoading}
             onToast={showToast}
           />

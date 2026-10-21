@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 import React, { useState } from 'react';
 import {
   Pressable,
@@ -12,6 +13,14 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { ConfirmModal, LanguageModal } from '../components/ui/Modals';
 import { useToast } from '../components/ui/Toast';
 import { colors, radii } from '../constants/theme';
+=======
+import React, { useEffect, useState } from 'react';
+import { Linking, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { colors, radii, spacing } from '../constants/theme';
+import { languageOptions } from '../i18n';
+import { Button, Header, Overline, Screen } from '../components/ui/Common';
+import { getItem, setItem } from '../utils/storage';
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
 
 export default function SettingsScreen({
   store,
@@ -28,8 +37,14 @@ export default function SettingsScreen({
   const [langModalVisible, setLangModalVisible] = useState(false);
   const [deleteModalVisible, setDeleteModalVisible] = useState(false);
 
+<<<<<<< HEAD
   const currentLang = store?.language || 'uz';
   const langLabel = currentLang === 'ru' ? 'Русский' : currentLang === 'en' ? 'English' : 'O‘zbekcha';
+=======
+export default function SettingsScreen({ language, setLanguage, t, onBack, auth, general, onNotifications }) {
+  const [notif, setNotif] = useState(DEFAULT_NOTIF);
+  const [loaded, setLoaded] = useState(false);
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
 
   const handleDeleteAccount = () => {
     setDeleteModalVisible(false);
@@ -88,7 +103,46 @@ export default function SettingsScreen({
             />
           </View>
 
+<<<<<<< HEAD
           <View style={styles.divider} />
+=======
+      <Pressable style={[styles.option, styles.sectionGap]} onPress={onNotifications}>
+        <Text style={styles.optionTitle}>{t('notifications')}</Text>
+        <Text style={styles.optionSub}>{t('notificationsSub')}</Text>
+      </Pressable>
+
+      {/* Aloqa — GET /api/app/config -> general (Superadmin "Umumiy" sozlamasi) */}
+      {general && (general.supportPhone || general.supportTelegram || general.supportEmail) ? (
+        <>
+          <Overline style={styles.sectionGap}>{t('support')}</Overline>
+          <View style={styles.notifCard}>
+            {[
+              ['phone', general.supportPhone, `tel:${String(general.supportPhone).replace(/[^\d+]/g, '')}`],
+              ['Telegram', general.supportTelegram, `https://t.me/${String(general.supportTelegram).replace(/^@/, '')}`],
+              ['Email', general.supportEmail, `mailto:${general.supportEmail}`],
+            ]
+              .filter(([, value]) => value)
+              .map(([label, value, url]) => (
+                <Pressable key={label} style={[styles.notifRow, styles.notifRowBorder]} onPress={() => Linking.openURL(url).catch(() => {})}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.notifTitle}>{label === 'phone' ? t('phone') : label}</Text>
+                    <Text style={styles.notifSub}>{value}</Text>
+                  </View>
+                </Pressable>
+              ))}
+            <View style={styles.notifRow}>
+              <Text style={styles.notifSub}>
+                {t('workHours')}: {general.workHoursFrom}–{general.workHoursTo}
+              </Text>
+            </View>
+          </View>
+        </>
+      ) : null}
+
+      <Button variant="secondary" style={styles.logoutButton} onPress={() => auth?.logout?.()}>
+        {t('logout')}
+      </Button>
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
 
           <View style={styles.switchRow}>
             <View style={styles.rowLeft}>
