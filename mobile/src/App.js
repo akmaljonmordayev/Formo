@@ -1,6 +1,7 @@
 import React from 'react';
 import { StatusBar } from 'expo-status-bar';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { ToastProvider } from './components/ui/Toast';
 import useAuth from './features/auth';
 import { useTranslation } from './i18n';
 import AppNavigator from './navigation/AppNavigator';
@@ -13,8 +14,10 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="light" />
-      <AppNavigator store={store} t={t} auth={auth} />
+      <ToastProvider>
+        <StatusBar style="light" />
+        <AppNavigator store={store} t={t} auth={auth} />
+      </ToastProvider>
     </SafeAreaProvider>
   );
 }

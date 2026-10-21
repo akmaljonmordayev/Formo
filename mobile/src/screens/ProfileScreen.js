@@ -1,33 +1,49 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
-  KeyboardAvoidingView,
-  Modal,
-  Platform,
+  Linking,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native';
+<<<<<<< HEAD
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { ConfirmModal } from '../components/ui/Modals';
+import { useToast } from '../components/ui/Toast';
+import { colors, radii } from '../constants/theme';
+=======
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
 import { Button, Card, Header, Screen, Segment } from '../components/ui/Common';
 import { useAddresses } from '../features/checkout';
 import { errorText } from '../utils/errors';
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
 import { formatUzPhone } from '../utils/phone';
 
-/** dd.mm.yyyy without relying on full ICU date formatting. */
-function formatDate(value) {
-  if (!value) return '—';
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '—';
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  return `${day}.${month}.${date.getFullYear()}`;
-}
+export default function ProfileScreen({
+  auth,
+  t,
+  onNavigate,
+  onEditProfile,
+  onAddresses,
+  onSettings,
+  onOrders,
+  onHelp,
+}) {
+  const toast = useToast();
+  const [showLogoutModal, setShowLogoutModal] = useState(false);
 
+<<<<<<< HEAD
+  // Refresh user data from server when profile screen opens
+  useEffect(() => {
+    if (auth?.isAuthenticated && auth?.refreshUser) {
+      auth.refreshUser().catch(() => null);
+    }
+  }, [auth?.isAuthenticated]);
+=======
 /**
  * ProfileScreen — real data from GET /auth/me only; no mock fallback.
  * "Personal data" opens a modal that saves via auth.updateUser (PATCH /auth/me:
@@ -39,68 +55,57 @@ export default function ProfileScreen({ t, onSettings, onOrders, onChats, chatUn
   const [logoutRequested, setLogoutRequested] = useState(false);
   const [addressesOpen, setAddressesOpen] = useState(false);
   const { addresses, isLoading: addressesLoading, error: addressesError, refetch: refetchAddresses } = useAddresses();
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
 
   const user = auth?.user || {};
-  const name = user.fullName || '—';
-  const phone = user.phone ? formatUzPhone(user.phone) : '—';
+  const name = user.fullName || 'Mehmon Foydalanuvchi';
+  const phone = user.phone ? formatUzPhone(user.phone) : '+998 90 000-00-00';
   const avatarInitial = (user.fullName || 'F')[0].toUpperCase();
 
-  const stats = useMemo(
-    () => [
-      { icon: 'calendar-outline', value: user.age != null ? String(user.age) : '—', label: t('age') },
-      { icon: 'ruler-height', value: user.height != null ? String(user.height) : '—', label: `${t('height')}, sm` },
-      { icon: 'scale-bathroom', value: user.weight != null ? String(user.weight) : '—', label: `${t('weight')}, kg` },
-    ],
-    [user.age, user.height, user.weight, t],
-  );
+  const handleShareApp = () => {
+    toast.show('Ulashish havolasi nusxalandi: https://formo.uz', 'success');
+  };
 
-  const requestLogout = () => {
-    if (logoutRequested) {
-      setLogoutRequested(false);
-      auth?.logout?.();
-      return;
-    }
-    setLogoutRequested(true);
-    Alert.alert(t('logout'), t('logoutConfirm'), [
-      { text: t('back'), onPress: () => setLogoutRequested(false), style: 'cancel' },
-      { text: t('logout'), style: 'destructive', onPress: () => { setLogoutRequested(false); auth?.logout?.(); } },
-    ]);
+  const handleConfirmLogout = () => {
+    setShowLogoutModal(false);
+    auth?.logout?.();
+    toast.show('Tizimdan chiqildi', 'info');
   };
 
   return (
-    <Screen>
-      <Header
-        title={t('myProfile')}
-        right={
-          <Pressable onPress={onSettings} style={styles.headerButton} hitSlop={8}>
-            <MaterialCommunityIcons name="cog-outline" size={20} color={colors.text} />
-          </Pressable>
-        }
-      />
-
-      <Card style={styles.profile}>
-        <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{avatarInitial}</Text>
-        </View>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{name}</Text>
-          <Text style={styles.phone}>{phone}</Text>
-          <Text style={styles.memberSince}>
-            {t('memberSince')}: {formatDate(user.createdAt)}
-          </Text>
-        </View>
-      </Card>
-
-      <View style={styles.stats}>
-        {stats.map((stat) => (
-          <View key={stat.label} style={styles.stat}>
-            <MaterialCommunityIcons name={stat.icon} size={16} color={colors.accent} />
-            <Text style={styles.statValue}>{stat.value}</Text>
-            <Text style={styles.statLabel}>{stat.label}</Text>
-          </View>
-        ))}
+    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
+      <View style={styles.topBar}>
+        <Text style={styles.topTitle}>Profil</Text>
+        <Pressable onPress={onSettings} hitSlop={10} style={styles.iconBtn}>
+          <MaterialCommunityIcons name="cog-outline" size={22} color="#F3F5F9" />
+        </Pressable>
       </View>
 
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        {/* User Card */}
+        <View style={styles.userCard}>
+          <View style={styles.avatar}>
+            <Text style={styles.avatarText}>{avatarInitial}</Text>
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.userName}>{name}</Text>
+            <Text style={styles.userPhone}>{phone}</Text>
+            <Text style={styles.memberBadge}>Formo Club a‘zosi</Text>
+          </View>
+          <Pressable onPress={onEditProfile} hitSlop={8} style={styles.editBtn}>
+            <MaterialCommunityIcons name="pencil-outline" size={18} color={colors.accent} />
+          </Pressable>
+        </View>
+
+<<<<<<< HEAD
+        {/* Stats Chips */}
+        <View style={styles.statsRow}>
+          <View style={styles.statChip}>
+            <MaterialCommunityIcons name="gender-male-female" size={18} color={colors.teal} />
+            <Text style={styles.statVal}>{user.gender === 'FEMALE' ? 'Ayol' : 'Erkak'}</Text>
+            <Text style={styles.statLabel}>Jinsi</Text>
+          </View>
+=======
       <View style={styles.group}>
         <Row
           icon="account-details-outline"
@@ -147,32 +152,127 @@ export default function ProfileScreen({ t, onSettings, onOrders, onChats, chatUn
         ) : null}
         <Row icon="cog-outline" title={t('settings')} sub={t('languageSub')} onPress={onSettings} last />
       </View>
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
 
-      <Button variant="secondary" style={styles.logout} onPress={requestLogout}>
-        {t('logout')}
-      </Button>
+          <View style={styles.statChip}>
+            <MaterialCommunityIcons name="calendar-clock" size={18} color={colors.accent} />
+            <Text style={styles.statVal}>{user.age ? `${user.age}` : '—'}</Text>
+            <Text style={styles.statLabel}>Yoshi</Text>
+          </View>
 
-      <EditProfileModal
-        visible={editVisible}
-        t={t}
-        user={user}
-        onClose={() => setEditVisible(false)}
-        auth={auth}
+          <View style={styles.statChip}>
+            <MaterialCommunityIcons name="human-male" size={18} color={colors.teal} />
+            <Text style={styles.statVal}>{user.height ? `${user.height} sm` : '—'}</Text>
+            <Text style={styles.statLabel}>Bo‘yi</Text>
+          </View>
+
+          <View style={styles.statChip}>
+            <MaterialCommunityIcons name="weight-kilogram" size={18} color={colors.accent} />
+            <Text style={styles.statVal}>{user.weight ? `${user.weight} kg` : '—'}</Text>
+            <Text style={styles.statLabel}>Vazni</Text>
+          </View>
+        </View>
+
+        {/* Menu Section 1 */}
+        <View style={styles.menuGroup}>
+          <MenuItem
+            icon="account-edit-outline"
+            iconColor={colors.accent}
+            title="Mening ma‘lumotlarim"
+            sub="Ism, yosh, bo‘y va vazn ko‘rsatkichlari"
+            onPress={onEditProfile}
+          />
+          <MenuItem
+            icon="map-marker-radius-outline"
+            iconColor={colors.teal}
+            title="Saqlangan manzillar"
+            sub="Yetkazib berish manzillari"
+            onPress={onAddresses}
+          />
+          <MenuItem
+            icon="clipboard-list-outline"
+            iconColor={colors.accent}
+            title="Mening buyurtmalarim"
+            sub="Barcha buyurtmalar va kuzatuv"
+            onPress={onOrders}
+            last
+          />
+        </View>
+
+        {/* Menu Section 2 */}
+        <View style={styles.menuGroup}>
+          <MenuItem
+            icon="cog-outline"
+            iconColor="#8D95BD"
+            title="Sozlamalar"
+            sub="Bildirishnomalar va til"
+            onPress={onSettings}
+          />
+          <MenuItem
+            icon="help-circle-outline"
+            iconColor={colors.teal}
+            title="Yordam va FAQ"
+            sub="Ko‘p beriladigan savollar va qo‘llab-quvvatlash"
+            onPress={onHelp}
+          />
+          <MenuItem
+            icon="share-variant-outline"
+            iconColor={colors.accent}
+            title="Ilovani ulashish"
+            sub="Do‘stlarga tavsiya qilish"
+            onPress={handleShareApp}
+            last
+          />
+        </View>
+
+        {/* Logout Button */}
+        <Pressable onPress={() => setShowLogoutModal(true)} style={styles.logoutBtn}>
+          <MaterialCommunityIcons name="logout" size={20} color="#E8543F" />
+          <Text style={styles.logoutBtnText}>Tizimdan chiqish</Text>
+        </Pressable>
+
+        <Text style={styles.versionText}>Formo Mobile v1.0.0 (Expo 57)</Text>
+      </ScrollView>
+
+      {/* Logout confirm modal */}
+      <ConfirmModal
+        visible={showLogoutModal}
+        title="Tizimdan chiqish"
+        message="Haqiqatan ham o‘z hisobingizdan chiqmoqchimisiz?"
+        confirmText="Chiqish"
+        confirmColor="#E8543F"
+        onConfirm={handleConfirmLogout}
+        onCancel={() => setShowLogoutModal(false)}
       />
-    </Screen>
+    </SafeAreaView>
   );
 }
 
+<<<<<<< HEAD
+function MenuItem({ icon, iconColor, title, sub, onPress, last }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={[styles.menuItem, last && { borderBottomWidth: 0 }]}
+    >
+      <View style={[styles.menuIconCircle, { backgroundColor: 'rgba(243, 245, 249, 0.05)' }]}>
+        <MaterialCommunityIcons name={icon} size={22} color={iconColor} />
+=======
 function Row({ icon, title, sub, onPress, last, expanded, badge = 0 }) {
   const content = (
     <View style={[styles.row, last && styles.rowLast]}>
       <View style={styles.rowIcon}>
         <MaterialCommunityIcons name={icon} size={18} color={colors.accent} />
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
       </View>
       <View style={{ flex: 1 }}>
-        <Text style={styles.rowTitle}>{title}</Text>
-        {sub ? <Text style={styles.rowSub}>{sub}</Text> : null}
+        <Text style={styles.menuTitle}>{title}</Text>
+        {Boolean(sub) && <Text style={styles.menuSub}>{sub}</Text>}
       </View>
+<<<<<<< HEAD
+      <MaterialCommunityIcons name="chevron-right" size={22} color="#6F77A0" />
+    </Pressable>
+=======
       {badge > 0 ? (
         <View style={styles.rowBadge}>
           <Text style={styles.rowBadgeText}>{badge > 99 ? '99+' : badge}</Text>
@@ -309,85 +409,150 @@ function ModalInput({ label, value, onChangeText, placeholder }) {
         selectionColor={colors.accent}
       />
     </View>
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
   );
 }
 
 const styles = StyleSheet.create({
-  headerButton: {
+  safe: {
+    flex: 1,
+    backgroundColor: '#050818',
+  },
+  topBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  topTitle: {
+    fontSize: 22,
+    fontWeight: '900',
+    color: '#F3F5F9',
+  },
+  iconBtn: {
     width: 40,
     height: 40,
     borderRadius: radii.md,
-    backgroundColor: '#141A3E',
+    backgroundColor: '#0E1A3F',
     borderWidth: 1,
-    borderColor: '#232A57',
+    borderColor: 'rgba(243, 245, 249, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
   },
-  profile: {
+  scroll: {
+    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 110,
+  },
+  userCard: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
-    marginBottom: spacing.md,
-    backgroundColor: 'transparent',
-    borderColor: 'transparent',
-    padding: 0,
+    backgroundColor: '#0E1A3F',
+    borderRadius: radii.xl,
+    padding: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(243, 245, 249, 0.12)',
+    marginBottom: 16,
+    gap: 14,
   },
   avatar: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: '#151B42',
-    borderWidth: 1.5,
+    width: 58,
+    height: 58,
+    borderRadius: 29,
+    backgroundColor: 'rgba(242, 163, 58, 0.15)',
+    borderWidth: 2,
     borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: colors.accent, fontWeight: '900', fontSize: 22 },
-  name: { color: colors.text, fontSize: 16, fontWeight: '800' },
-  phone: { color: colors.muted, fontSize: 12, marginTop: 4 },
-  memberSince: { color: '#59618D', fontSize: 10, marginTop: 3 },
-  stats: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
-  stat: {
-    flex: 1,
-    backgroundColor: colors.surface,
-    borderRadius: radii.md,
+  avatarText: {
+    color: colors.accent,
+    fontSize: 24,
+    fontWeight: '900',
+  },
+  userName: {
+    fontSize: 17,
+    fontWeight: '800',
+    color: '#F3F5F9',
+  },
+  userPhone: {
+    fontSize: 12,
+    color: '#8D95BD',
+    marginTop: 3,
+  },
+  memberBadge: {
+    fontSize: 10,
+    fontWeight: '800',
+    color: colors.teal,
+    marginTop: 4,
+    textTransform: 'uppercase',
+  },
+  editBtn: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#121A42',
+    alignItems: 'center',
+    justifyContent: 'center',
     borderWidth: 1,
-    borderColor: '#1B2150',
+    borderColor: 'rgba(242, 163, 58, 0.3)',
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 8,
+    marginBottom: 20,
+  },
+  statChip: {
+    flex: 1,
+    backgroundColor: '#0E1A3F',
+    borderRadius: radii.md,
     paddingVertical: 10,
     paddingHorizontal: 6,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: 'rgba(243, 245, 249, 0.08)',
     gap: 2,
   },
-  statValue: { color: colors.text, fontSize: 15, fontWeight: '900' },
-  statLabel: { color: colors.muted, fontSize: 9, textAlign: 'center' },
-  group: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: '#1B2150',
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-    overflow: 'hidden',
+  statVal: {
+    fontSize: 13,
+    fontWeight: '800',
+    color: '#F3F5F9',
+    marginTop: 2,
   },
-  row: {
+  statLabel: {
+    fontSize: 10,
+    color: '#8D95BD',
+  },
+  menuGroup: {
+    backgroundColor: '#0E1A3F',
+    borderRadius: radii.xl,
+    paddingHorizontal: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(243, 245, 249, 0.12)',
+    marginBottom: 16,
+  },
+  menuItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
     paddingVertical: 14,
     borderBottomWidth: 1,
-    borderBottomColor: '#171C3F',
+    borderBottomColor: 'rgba(243, 245, 249, 0.08)',
+    gap: 12,
   },
-  rowLast: { borderBottomWidth: 0 },
-  rowIcon: {
-    width: 34,
-    height: 34,
-    borderRadius: 9,
-    backgroundColor: '#171E4B',
-    borderWidth: 1,
-    borderColor: '#232A57',
+  menuIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
+<<<<<<< HEAD
+  menuTitle: {
+    fontSize: 14,
+    fontWeight: '700',
+    color: '#F3F5F9',
+=======
   rowBadge: {
     minWidth: 20,
     height: 20,
@@ -413,46 +578,35 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(4, 6, 20, 0.72)',
     justifyContent: 'center',
     paddingHorizontal: 24,
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
   },
-  modalCard: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.xl,
-    borderWidth: 1,
-    borderColor: '#242B58',
-    padding: spacing.xl,
-    maxHeight: '86%',
+  menuSub: {
+    fontSize: 11,
+    color: '#8D95BD',
+    marginTop: 2,
   },
-  modalHeader: {
+  logoutBtn: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: spacing.lg,
-  },
-  modalTitle: { color: colors.text, fontSize: 18, fontWeight: '800' },
-  modalLabel: {
-    color: colors.muted,
-    fontSize: 11,
-    fontWeight: '700',
-    textTransform: 'uppercase',
-    letterSpacing: 0.6,
-    marginBottom: 6,
-    marginTop: spacing.md,
-  },
-  modalSegment: { alignSelf: 'stretch' },
-  modalMetrics: { flexDirection: 'row', gap: spacing.sm },
-  modalMetric: { flex: 1 },
-  modalInput: {
-    backgroundColor: '#0E1330',
-    borderWidth: 1.5,
-    borderColor: '#232A57',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: 'rgba(232, 84, 63, 0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(232, 84, 63, 0.35)',
     borderRadius: radii.md,
-    paddingVertical: 12,
-    paddingHorizontal: spacing.md,
-    color: colors.text,
-    fontSize: 14,
-    fontWeight: '600',
+    paddingVertical: 14,
+    marginTop: 4,
+    marginBottom: 16,
   },
-  modalError: { color: '#E8543F', fontSize: 12, marginTop: spacing.md },
-  modalSaved: { color: colors.teal, fontSize: 12, marginTop: spacing.md, fontWeight: '700' },
-  modalSave: { marginTop: spacing.lg },
+  logoutBtnText: {
+    fontSize: 14,
+    fontWeight: '800',
+    color: '#E8543F',
+  },
+  versionText: {
+    textAlign: 'center',
+    fontSize: 11,
+    color: '#6F77A0',
+    marginBottom: 16,
+  },
 });

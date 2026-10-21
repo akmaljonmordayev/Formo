@@ -51,6 +51,15 @@ export default function useCart(enabled) {
     }
   }, [accept]);
 
+<<<<<<< HEAD
+      // Throws on error — intentionally not caught here
+      const createdOrder = await api.orders.checkout(payload);
+      clearCart();
+      return createdOrder;
+    },
+    [cart, total, clearCart],
+  );
+=======
   useEffect(() => {
     if (enabled) {
       refresh();
@@ -61,6 +70,7 @@ export default function useCart(enabled) {
       setPromoError(null);
     }
   }, [enabled, refresh]);
+>>>>>>> fb102bed4b36fd02c0a0e3b3ae938f93892f7dd5
 
   // O'zgartiruvchi amallar xatoni chaqiruvchiga uzatadi (ekran o'zi ko'rsatadi)
   const addItem = useCallback(async (item) => accept(await api.cart.add(item)), [accept]);
