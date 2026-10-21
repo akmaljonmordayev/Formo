@@ -4,6 +4,7 @@ import { APP_GUARD } from '@nestjs/core';
 import { ThrottlerGuard, ThrottlerModule } from '@nestjs/throttler';
 import { AdminModule } from './admin/admin.module';
 import { AuthModule } from './auth/auth.module';
+import { ChatModule } from './chat/chat.module';
 import { validateEnv } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
@@ -21,6 +22,7 @@ import { ShopModule } from './shop/shop.module';
     NotifyModule,
     AuthModule,
     AdminModule,
+    ChatModule,
     ShopModule,
     HealthModule,
   ],

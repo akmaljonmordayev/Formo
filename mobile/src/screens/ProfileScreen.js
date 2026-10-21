@@ -34,7 +34,7 @@ function formatDate(value) {
  * gender/age/height/weight). Profilda manzil maydoni yo'q — "Manzillarim"
  * rasmiylashtirishda saqlangan manzillarni ko'rsatadi (GET /addresses).
  */
-export default function ProfileScreen({ t, onSettings, onOrders, auth }) {
+export default function ProfileScreen({ t, onSettings, onOrders, onChats, chatUnread = 0, auth }) {
   const [editVisible, setEditVisible] = useState(false);
   const [logoutRequested, setLogoutRequested] = useState(false);
   const [addressesOpen, setAddressesOpen] = useState(false);
@@ -142,6 +142,9 @@ export default function ProfileScreen({ t, onSettings, onOrders, auth }) {
           </View>
         ) : null}
         <Row icon="clipboard-list-outline" title={t('myOrders')} onPress={onOrders} />
+        {onChats ? (
+          <Row icon="message-text-outline" title={t('chats')} sub={t('chatsSub')} badge={chatUnread} onPress={onChats} />
+        ) : null}
         <Row icon="cog-outline" title={t('settings')} sub={t('languageSub')} onPress={onSettings} last />
       </View>
 
@@ -160,7 +163,7 @@ export default function ProfileScreen({ t, onSettings, onOrders, auth }) {
   );
 }
 
-function Row({ icon, title, sub, onPress, last, expanded }) {
+function Row({ icon, title, sub, onPress, last, expanded, badge = 0 }) {
   const content = (
     <View style={[styles.row, last && styles.rowLast]}>
       <View style={styles.rowIcon}>
@@ -170,6 +173,11 @@ function Row({ icon, title, sub, onPress, last, expanded }) {
         <Text style={styles.rowTitle}>{title}</Text>
         {sub ? <Text style={styles.rowSub}>{sub}</Text> : null}
       </View>
+      {badge > 0 ? (
+        <View style={styles.rowBadge}>
+          <Text style={styles.rowBadgeText}>{badge > 99 ? '99+' : badge}</Text>
+        </View>
+      ) : null}
       <MaterialCommunityIcons
         name={expanded === undefined ? 'chevron-right' : expanded ? 'chevron-up' : 'chevron-down'}
         size={20}
@@ -380,6 +388,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  rowBadge: {
+    minWidth: 20,
+    height: 20,
+    paddingHorizontal: 6,
+    marginRight: 6,
+    borderRadius: radii.round,
+    backgroundColor: colors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  rowBadgeText: { color: colors.background, fontSize: 11, fontWeight: '800' },
   rowTitle: { color: colors.text, fontSize: 13, fontWeight: '700' },
   rowSub: { color: colors.muted, fontSize: 11, marginTop: 3 },
   logout: { marginTop: spacing.sm },

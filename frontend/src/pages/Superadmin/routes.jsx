@@ -5,6 +5,7 @@ import {
   History,
   LayoutDashboard,
   Layers,
+  MessagesSquare,
   Megaphone,
   Package,
   Palette,
@@ -26,6 +27,7 @@ import Orders from './Orders';
 import DesignStudio from './Dashboard/DesignStudio';
 import Production from './Production';
 import Defects from './Defects';
+import Messages from './Messages';
 import Clubs from './Clubs';
 import Categories from './Categories';
 import Inventory from './Inventory';
@@ -57,6 +59,7 @@ export const superadminRoutes = [
   { path: 'orders', element: <Orders /> },
   { path: 'production', element: <Production /> },
   { path: 'defects', element: <Defects /> },
+  { path: 'messages', element: <Messages /> },
   { path: 'clubs', element: <Clubs /> },
   { path: 'categories', element: <Categories /> },
   { path: 'design-studio', element: <DesignStudio /> },
@@ -93,6 +96,7 @@ export const superadminMenu = [
   { to: `${BASE}/factories`, label: 'Sexlar', icon: Factory, group: 'Operatsiya' },
   { to: `${BASE}/finance`, label: 'Moliya', icon: Wallet, group: 'Operatsiya' },
   { to: `${BASE}/reports`, label: 'Hisobotlar', icon: BarChart3, group: 'Operatsiya' },
+  { to: `${BASE}/messages`, label: 'Xabarlar', icon: MessagesSquare, group: 'Operatsiya' },
 
   { to: `${BASE}/operator`, label: 'Foydalanuvchilar va rollar', icon: ShieldCheck, group: 'Tizim' },
   { to: `${BASE}/settings`, label: 'Sozlamalar', icon: Settings, group: 'Tizim' },

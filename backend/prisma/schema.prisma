@@ -52,8 +52,9 @@ model User {
   ordersAsWorkshop Order[] @relation("OrderWorkshop")
 
   // Tikuv sexi: operator bilan yozishmalar, nuqson hisobotlari, xodimlar
-  chatThread    ChatMessage[]  @relation("ChatWorkshop")
-  chatSent      ChatMessage[]  @relation("ChatSender")
+  convsAsA      Conversation[] @relation("ConvA")
+  convsAsB      Conversation[] @relation("ConvB")
+  chatSent      Message[]      @relation("MessageSender")
   defectReports DefectReport[]
   employees     Employee[]
 
@@ -287,9 +288,10 @@ model Order {
   paymentExpiresAt DateTime? // Click/Payme: to'lov kutiladigan muddat (30 daqiqa)
   paidAt           DateTime?
 
-  items      OrderItem[]
-  statusLogs OrderStatusLog[]
-  defects    DefectReport[]
+  items         OrderItem[]
+  conversations Conversation[]
+  statusLogs    OrderStatusLog[]
+  defects       DefectReport[]
 
   channel       OrderChannel  @default(APP)
   paymentMethod PaymentMethod
@@ -451,18 +453,36 @@ model Campaign {
 // Operator ↔ tikuv sexi yozishmasi: har sex uchun bitta suhbat (operator yagona)
 // ---------------------------------------------------------------------------
 
-model ChatMessage {
-  id           Int       @id @default(autoincrement())
-  workshopId   Int
-  workshop     User      @relation("ChatWorkshop", fields: [workshopId], references: [id], onDelete: Cascade)
-  senderId     Int?
-  sender       User?     @relation("ChatSender", fields: [senderId], references: [id], onDelete: SetNull)
-  fromWorkshop Boolean
-  text         String
-  readAt       DateTime? // qarama-qarshi tomon o'qigan vaqt
-  createdAt    DateTime  @default(now())
+// Ikki foydalanuvchi o'rtasidagi suhbat (userAId < userBId). orderId bo'lsa — buyurtmaga bog'langan suhbat.
+// Takrorlanmaslik uchun partial unique indekslar migratsiyada (orderId NULL bo'lgan va bo'lmagan holatlar uchun).
+model Conversation {
+  id            Int       @id @default(autoincrement())
+  userAId       Int
+  userA         User      @relation("ConvA", fields: [userAId], references: [id], onDelete: Cascade)
+  userBId       Int
+  userB         User      @relation("ConvB", fields: [userBId], references: [id], onDelete: Cascade)
+  orderId       Int?
+  order         Order?    @relation(fields: [orderId], references: [id], onDelete: SetNull)
+  lastMessageAt DateTime?
+  createdAt     DateTime  @default(now())
+  messages      Message[]
 
-  @@index([workshopId, id])
+  @@index([userAId, lastMessageAt])
+  @@index([userBId, lastMessageAt])
+  @@index([orderId])
+}
+
+model Message {
+  id             Int          @id @default(autoincrement())
+  conversationId Int
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  senderId       Int?
+  sender         User?        @relation("MessageSender", fields: [senderId], references: [id], onDelete: SetNull)
+  text           String
+  readAt         DateTime? // qarama-qarshi tomon o'qigan vaqt
+  createdAt      DateTime     @default(now())
+
+  @@index([conversationId, id])
 }
 
 // ---------------------------------------------------------------------------
