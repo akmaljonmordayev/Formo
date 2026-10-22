@@ -6,7 +6,11 @@ import { Button, Card, Header, Overline, Screen, formatMoney } from '../componen
 import ErrorView from '../components/ui/ErrorView';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { placeOrder, useAddresses, useDeliverySlots } from '../features/checkout';
-import { PAYMENT_METHODS, paymentText } from '../features/orders';
+import {
+  PAYMENT_METHODS,
+  UNAVAILABLE_PAYMENT_METHODS,
+  paymentText,
+} from '../features/orders';
 import { ApiError } from '../services/api';
 import { errorText } from '../utils/errors';
 
@@ -243,6 +247,14 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced }) {
             onPress={() => setPaymentMethod(method)}
           />
         ))}
+        {UNAVAILABLE_PAYMENT_METHODS.map((method) => (
+          <Option
+            key={method}
+            disabled
+            title={paymentText(t, method)}
+            sub={t('payUnavailableSub')}
+          />
+        ))}
       </View>
 
       <TextInput
@@ -273,16 +285,22 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced }) {
   );
 }
 
-function Option({ selected, title, sub, onPress }) {
+function Option({ selected, title, sub, onPress, disabled = false }) {
   return (
-    <Pressable onPress={onPress} style={[styles.option, selected && styles.optionActive]}>
+    <Pressable
+      onPress={disabled ? undefined : onPress}
+      disabled={disabled}
+      accessibilityRole="radio"
+      accessibilityState={{ selected: !!selected, disabled }}
+      style={[styles.option, selected && styles.optionActive, disabled && styles.optionDisabled]}
+    >
       <MaterialCommunityIcons
         name={selected ? 'radiobox-marked' : 'radiobox-blank'}
         size={20}
         color={selected ? colors.accent : colors.muted}
       />
       <View style={{ flex: 1 }}>
-        <Text style={styles.optionTitle}>{title}</Text>
+        <Text style={[styles.optionTitle, disabled && styles.optionTitleDisabled]}>{title}</Text>
         {sub ? <Text style={styles.optionSub} numberOfLines={2}>{sub}</Text> : null}
       </View>
     </Pressable>
@@ -323,7 +341,9 @@ const styles = StyleSheet.create({
     padding: spacing.md,
   },
   optionActive: { borderColor: colors.accent, backgroundColor: '#0E1330' },
+  optionDisabled: { opacity: 0.5 },
   optionTitle: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  optionTitleDisabled: { color: colors.muted },
   optionSub: { color: colors.muted, fontSize: 11, marginTop: 3 },
   form: { gap: spacing.sm, marginTop: spacing.md },
   input: {

@@ -7,13 +7,13 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { errorText as apiErrorText } from '../../utils/errors';
+import useCompactLayout from '../../utils/useCompactLayout';
 import LanguageSwitch from './LanguageSwitch';
 
 /**
@@ -53,8 +53,7 @@ function parseBoundedInt(raw, min, max) {
 }
 
 export default function CompleteProfileScreen({ auth, t, language, onLanguage, onSkip }) {
-  const { height } = useWindowDimensions();
-  const compact = height < 760;
+  const compact = useCompactLayout();
   const insets = useSafeAreaInsets();
 
   const [gender, setGender] = useState(auth.user?.gender || null);

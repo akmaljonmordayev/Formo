@@ -140,9 +140,8 @@ const describe = (el) => {
     if (typeof props.placeholder === 'string' && props.placeholder) {
       bits.push(`ph="${props.placeholder}"`);
     }
-    if (typeof props.value === 'string' && props.value) {
-      bits.push(`val="${props.value.slice(0, 10)}"`);
-    }
+    // Never log `value`: it can contain a phone number, OTP or other personal
+    // data. Input identity is already covered by #tag/native tag.
     if (props.secureTextEntry) bits.push('secure');
     if (props.multiline) bits.push('multiline');
   } catch {

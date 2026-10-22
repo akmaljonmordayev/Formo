@@ -41,20 +41,36 @@ export function normalizePhone(raw) {
 
 // ─── Core request helper ─────────────────────────────────────────────────────
 
+// Tarmoq osilib qolsa ekran abadiy kutmasin. Abort → TypeError, shuning uchun
+// mavjud `networkError` xatosiga aylanadi (secrets/URL log qilinmaydi).
+const REQUEST_TIMEOUT_MS = 15000;
+
 async function rawRequest(path, { method = 'GET', body, auth = true } = {}) {
   const token = await storage.getToken();
+  const controller = typeof AbortController === 'undefined' ? null : new AbortController();
+  const timer = controller ? setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS) : null;
 
-  const response = await fetch(`${BASE_URL}${path}`, {
-    method,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(auth && token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    body: body ? JSON.stringify(body) : undefined,
-  });
+  try {
+    const response = await fetch(`${BASE_URL}${path}`, {
+      method,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(auth && token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      ...(controller ? { signal: controller.signal } : {}),
+    });
 
-  const data = await response.json().catch(() => null);
-  return { response, data };
+    const data = await response.json().catch(() => null);
+    return { response, data };
+  } catch (err) {
+    if (err?.name === 'AbortError') {
+      throw new TypeError('Request timed out');
+    }
+    throw err;
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
 }
 
 const errorMessage = (data, fallback) => {
