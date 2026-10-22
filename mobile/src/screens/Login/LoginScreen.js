@@ -22,6 +22,12 @@ import LanguageSwitch from './LanguageSwitch';
  * (frontend/src/pages/Login). Dark scene + SVG kit that flips on password
  * focus + a white "hang-tag" form card.
  *
+ * 2026 refresh: two-tone wordmark, tricolor brand ribbon, giant translucent
+ * "FORMO" ghost backdrop, orange focus ring on inputs, "FORMO · 2026" stamp
+ * on the tag and an orange CTA. Focus-fix contract unchanged: no style that
+ * feeds ViewShadowNode's FormsStackingContext (transform/shadow/elevation)
+ * ever toggles on an ancestor of the TextInputs; borderColor only.
+ *
  * Props:
  *   auth       — useAuth() object { login, isSubmitting, error }
  *   t          — translation function
@@ -55,6 +61,7 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
   const [digits, setDigits] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [phoneFocused, setPhoneFocused] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
   const [validationError, setValidationError] = useState(null);
   const [kitIndex, setKitIndex] = useState(0);
@@ -117,17 +124,30 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
   return (
     <View style={styles.root}>
       <LinearGradient colors={[palette.ink, palette.navy]} style={StyleSheet.absoluteFill} />
+      {/* Gigant "FORMO" arxa tempi — brend jarlik sifatida butun ekran orqasida */}
+      <Text style={styles.ghost} pointerEvents="none" numberOfLines={1}>
+        FORMO
+      </Text>
       <View style={[styles.glow, { backgroundColor: kit.to, top: -90, left: -70 }]} />
       <View style={[styles.glow, { backgroundColor: palette.orange, bottom: -80, right: -70, opacity: 0.1 }]} />
 
       <View style={[styles.topBar, { paddingTop: insets.top + (compact ? 12 : 20) }]}>
         <View style={styles.brand}>
-          <Text style={styles.logo}>FORMO</Text>
+          <Text style={styles.logo}>
+            FORM<Text style={styles.logoAccent}>O</Text>
+          </Text>
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{t('loginBrandBadge')}</Text>
           </View>
         </View>
         <LanguageSwitch language={language} onChange={onLanguage} />
+      </View>
+
+      {/* Tryolor brend lenta: logo ostida uch chiziqli "jarlik" */}
+      <View style={styles.ribbon}>
+        <View style={[styles.ribbonBar, { backgroundColor: palette.orange }]} />
+        <View style={[styles.ribbonBar, { backgroundColor: palette.teal }]} />
+        <View style={[styles.ribbonBar, { backgroundColor: 'rgba(243,245,249,0.35)' }]} />
       </View>
 
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
@@ -184,9 +204,13 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
             <View style={[styles.tag, compact && styles.tagCompact]}>
               <View style={styles.tagHole} />
               <View style={styles.tagInner} pointerEvents="none" />
+              {/* Yaqindan ko'rinadigan yangilanish belgisi — brend nishoni */}
+              <View style={styles.stamp} pointerEvents="none">
+                <Text style={styles.stampText}>FORMO · 2026</Text>
+              </View>
 
               <View style={styles.tagMeta}>
-                <Text style={styles.tagMetaText}>FORMO · PANEL</Text>
+                <Text style={styles.tagMetaText}>FORMO · SPORTSWEAR</Text>
                 <Text style={styles.tagMetaText}>№ 0001</Text>
               </View>
 
@@ -198,7 +222,13 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
               <Text style={styles.tagSubtitle}>{t('loginSubtitle')}</Text>
 
               <Text style={styles.fieldLabel}>{t('phone')}</Text>
-              <View style={[styles.inputRow, phoneComplete && styles.inputRowComplete]}>
+              <View
+                style={[
+                  styles.inputRow,
+                  phoneFocused && styles.inputRowFocused,
+                  phoneComplete && styles.inputRowComplete,
+                ]}
+              >
                 <Text style={styles.prefix}>+998</Text>
                 <TextInput
                   value={formatPhone(digits)}
@@ -208,6 +238,8 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
                   keyboardType="phone-pad"
                   selectionColor={palette.orange}
                   style={styles.input}
+                  onFocus={() => setPhoneFocused(true)}
+                  onBlur={() => setPhoneFocused(false)}
                 />
                 {phoneComplete && (
                   <View style={styles.check}>
@@ -217,7 +249,7 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
               </View>
 
               <Text style={styles.fieldLabel}>{t('password')}</Text>
-              <View style={styles.inputRow}>
+              <View style={[styles.inputRow, passwordFocused && styles.inputRowFocused]}>
                 <TextInput
                   value={password}
                   onChangeText={(v) => {
@@ -248,7 +280,7 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
               >
                 <Text style={styles.submitText}>{auth.isSubmitting ? t('loggingIn') : t('loginButton')}</Text>
                 <View style={styles.arrow}>
-                  <MaterialCommunityIcons name="arrow-right" size={20} color={palette.navy} />
+                  <MaterialCommunityIcons name="arrow-right" size={20} color={palette.paper} />
                 </View>
               </Pressable>
 
@@ -293,6 +325,7 @@ const styles = StyleSheet.create({
 
   brand: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 4 },
   logo: { color: palette.paper, fontSize: 22, fontWeight: '800', letterSpacing: 1 },
+  logoAccent: { color: palette.orange },
   badge: {
     borderWidth: 1,
     borderStyle: 'dashed',
@@ -302,6 +335,20 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
   },
   badgeText: { color: palette.muted, fontSize: 11, fontWeight: '600', letterSpacing: 1.5, textTransform: 'uppercase' },
+  ribbon: { flexDirection: 'row', gap: 5, paddingLeft: 24, marginTop: 8 },
+  ribbonBar: { width: 38, height: 3, borderRadius: 2 },
+
+  ghost: {
+    position: 'absolute',
+    bottom: -26,
+    left: 0,
+    right: 0,
+    textAlign: 'center',
+    fontSize: 148,
+    fontWeight: '900',
+    letterSpacing: -6,
+    color: 'rgba(243,245,249,0.05)',
+  },
 
   jerseyWrap: { alignItems: 'center', marginTop: 14, marginBottom: 8 },
   jerseyWrapCompact: { marginTop: 6, marginBottom: 4 },
@@ -379,6 +426,20 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(14,26,63,0.22)',
     borderRadius: 18,
   },
+  stamp: {
+    position: 'absolute',
+    top: 22,
+    right: 18,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(242,163,58,0.85)',
+    borderRadius: 999,
+    backgroundColor: 'rgba(242,163,58,0.14)',
+    transform: [{ rotate: '-7deg' }],
+  },
+  stampText: { color: palette.orange, fontSize: 10, fontWeight: '900', letterSpacing: 1.4 },
   tagMeta: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -413,6 +474,9 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   inputRowComplete: { borderColor: palette.teal },
+  // Faqat borderColor o'zgaradi — transform/shadow/elevation qolaversa fokus
+  // o'zini o'zida saqlab qoladi (ViewShadowNode remount muammosi)
+  inputRowFocused: { borderColor: palette.orange },
   prefix: {
     color: 'rgba(14,26,63,0.55)',
     fontWeight: '700',
@@ -441,17 +505,17 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     height: 56,
     borderRadius: 16,
-    backgroundColor: palette.navy,
+    backgroundColor: palette.orange,
     paddingLeft: 22,
     paddingRight: 10,
   },
   submitDisabled: { backgroundColor: '#8B93B3' },
-  submitText: { color: palette.paper, fontSize: 15, fontWeight: '700', letterSpacing: 0.5 },
+  submitText: { color: palette.ink, fontSize: 15, fontWeight: '800', letterSpacing: 0.5 },
   arrow: {
     width: 38,
     height: 38,
     borderRadius: 12,
-    backgroundColor: palette.orange,
+    backgroundColor: palette.navy,
     alignItems: 'center',
     justifyContent: 'center',
   },

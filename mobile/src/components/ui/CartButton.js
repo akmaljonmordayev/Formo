@@ -3,7 +3,6 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors } from '../../constants/theme';
 
-// Savatga tez kirish tugmasi (headerlarda) — soni badge bilan ko'rsatiladi.
 export default function CartButton({ count = 0, onPress, t }) {
   return (
     <Pressable
@@ -11,12 +10,12 @@ export default function CartButton({ count = 0, onPress, t }) {
       accessibilityRole="button"
       accessibilityLabel={t ? t('cart') : 'Cart'}
       hitSlop={6}
-      style={styles.btn}
+      style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
     >
-      <MaterialCommunityIcons name="cart-outline" size={22} color={colors.accent} />
+      <MaterialCommunityIcons name="cart-outline" size={21} color={colors.accent} />
       {count > 0 ? (
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>{count}</Text>
+          <Text style={styles.badgeText}>{count > 99 ? '99+' : count}</Text>
         </View>
       ) : null}
     </Pressable>
@@ -25,26 +24,37 @@ export default function CartButton({ count = 0, onPress, t }) {
 
 const styles = StyleSheet.create({
   btn: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#151B42',
+    width: 42,
+    height: 42,
+    borderRadius: 14,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1E2452',
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
+    position: 'relative',
   },
   badge: {
     position: 'absolute',
-    top: -3,
-    right: -3,
-    minWidth: 18,
-    height: 18,
-    borderRadius: 9,
+    top: -4,
+    right: -4,
+    minWidth: 19,
+    height: 19,
+    borderRadius: 10,
     paddingHorizontal: 4,
     backgroundColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.background,
   },
-  badgeText: { color: colors.black, fontSize: 10, fontWeight: '900' },
+  badgeText: {
+    color: colors.primaryDark,
+    fontSize: 10,
+    fontWeight: '900',
+  },
+  pressed: {
+    opacity: 0.8,
+    transform: [{ scale: 0.95 }],
+  },
 });

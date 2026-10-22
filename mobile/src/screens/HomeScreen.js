@@ -1,212 +1,624 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
-import { Button, Header, Screen, SectionTitle } from '../components/ui/Common';
+import { Badge, Button, Card, EmptyState, Header, Screen, SectionTitle } from '../components/ui/Common';
 import CartButton from '../components/ui/CartButton';
 import { JerseyPreview } from '../components/ui/JerseyPreview';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { ProductCard } from '../components/ui/ProductCard';
 import { statusText, useActiveOrder } from '../features/orders';
-import { usePopularClubs } from '../features/products';
+import { useCategories, usePopularClubs, usePopularProducts } from '../features/products';
 
-export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotifications, rules, auth, cartCount = 0, onCart }) {
-  // GET /api/orders/active — oxirgi yakunlanmagan buyurtma (20 s da yangilanadi)
+export default function HomeScreen({
+  t,
+  onNavigate,
+  onClub,
+  onOrder,
+  onNotifications,
+  rules,
+  auth,
+  cartCount = 0,
+  onCart,
+}) {
+  // GET /api/orders/active — latest active order if any
   const { order, isLoading: orderLoading } = useActiveOrder();
   // GET /api/catalog/clubs/popular
   const { clubs, isLoading: clubsLoading, error: clubsError } = usePopularClubs(8);
+  // GET /api/catalog/categories
+  const { categories } = useCategories();
+  // Popular products (home kit of popular clubs)
+  const { products, isLoading: productsLoading } = usePopularProducts(4);
 
-  // Greeting uses the authenticated user's real name
   const name = auth?.user?.fullName || t('hello');
   const avatarInitial = (auth?.user?.fullName || 'F')[0].toUpperCase();
 
-  const heroClub = clubs[0] || null;
+  const heroClub = clubs[0] || {
+    name: 'Formo Pro',
+    color: '#0D2164',
+    accent: '#F2A33A',
+    gradient: ['#0A1A4E', '#1D3B8B'],
+  };
 
   return (
     <Screen>
+      {/* Top Header */}
       <Header
         overline={t('goodDay')}
         title={name}
         right={
           <View style={styles.headerRight}>
-            <Pressable onPress={onNotifications} style={styles.bell} hitSlop={6} accessibilityLabel={t('notifications')}>
+            <Pressable
+              onPress={onNotifications}
+              style={styles.iconCircle}
+              hitSlop={6}
+              accessibilityLabel={t('notifications')}
+            >
               <MaterialCommunityIcons name="bell-outline" size={20} color={colors.text} />
             </Pressable>
             <CartButton count={cartCount} onPress={onCart} t={t} />
-            <View style={styles.avatar}>
+            <Pressable
+              onPress={() => onNavigate('profile')}
+              style={styles.avatar}
+              accessibilityLabel={t('profile')}
+            >
               <Text style={styles.avatarText}>{avatarInitial}</Text>
-            </View>
+            </Pressable>
           </View>
         }
       />
 
+      {/* Orders Paused Banner (if backend rules have paused orders) */}
       {rules && !rules.acceptOrders ? (
-        <View style={styles.paused}>
+        <View style={styles.pausedBanner}>
+          <MaterialCommunityIcons name="alert-circle-outline" size={20} color={colors.danger} />
           <Text style={styles.pausedText}>{rules.pausedMessage || t('ordersPaused')}</Text>
         </View>
       ) : null}
 
-      <View style={styles.hero}>
+      {/* Hero Campaign Banner — Premium Sportswear Vibe */}
+      <View style={styles.heroCard}>
+        <View style={styles.heroGlow} />
         <View style={styles.heroCopy}>
+          <Badge label="2026 COLLECTION" variant="orange" style={styles.heroBadge} />
           <Text style={styles.heroTitle}>{t('heroTitle')}</Text>
-          <Text style={styles.heroText}>{t('heroSub')}</Text>
-          <Button small onPress={() => onNavigate('studio')} style={styles.heroButton}>{t('startShort')}</Button>
+          <Text style={styles.heroSub}>{t('heroSub')}</Text>
+          <View style={styles.heroButtons}>
+            <Button
+              small
+              variant="primary"
+              onPress={() => onNavigate('studio')}
+              style={styles.heroPrimaryBtn}
+            >
+              {t('startShort')}
+            </Button>
+            <Button
+              small
+              variant="secondary"
+              onPress={() => onNavigate('catalog')}
+              style={styles.heroSecondaryBtn}
+            >
+              {t('catalog')}
+            </Button>
+          </View>
         </View>
-        <View style={styles.heroJersey}>
-          {heroClub ? <JerseyPreview product={heroClub} number="10" /> : null}
+        <View style={styles.heroJerseyWrap}>
+          <JerseyPreview product={heroClub} number="10" large side="front" />
         </View>
       </View>
 
-      <Pressable style={styles.track} onPress={() => (order ? onOrder(order.id) : onNavigate('orders'))}>
-        <View style={styles.trackCopy}>
-          {orderLoading ? (
-            <LoadingSpinner size="small" />
-          ) : order ? (
-            <>
-              <Text style={styles.trackId}>{order.code}</Text>
-              <Text style={styles.trackStatus}>{statusText(t, order.status, order.statusLabel)}</Text>
-            </>
-          ) : (
-            <Text style={styles.trackStatus}>{t('noOrders')}</Text>
-          )}
-        </View>
-        <Text style={styles.trackAction}>{t('track')}</Text>
-      </Pressable>
-
-      <Pressable style={styles.kitCard} onPress={() => onNavigate('catalog')}>
-        <Text style={styles.kitTitle}>{t('clubKitTitle')}</Text>
-        <Text style={styles.kitSub}>{t('clubKitSub')}</Text>
-      </Pressable>
-
-      <SectionTitle title={t('popular')} action={t('all')} onAction={() => onNavigate('catalog')} />
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.clubRow}
-      >
-        {clubsLoading && clubs.length === 0 ? <LoadingSpinner size="small" /> : null}
-        {clubs.map((club) => (
-          <Pressable key={club.id} style={styles.clubTile} onPress={() => onClub(club)}>
-            <View style={[styles.crest, { backgroundColor: club.color, borderColor: club.accent }]}>
-              <Text style={[styles.crestCode, { color: club.accent }]}>{club.code}</Text>
-            </View>
-            <Text style={styles.clubName} numberOfLines={1}>{club.name}</Text>
-          </Pressable>
-        ))}
-      </ScrollView>
-      {clubsError ? <Text style={styles.clubsError}>{t('loadError')}</Text> : null}
-
-      <View style={styles.stepsBlock}>
-        <SectionTitle title={t('howItWorks')} />
-        {[t('step1'), t('step2')].map((step, index) => (
-          <View key={step} style={styles.step}>
-            <Text style={styles.stepNum}>{index + 1}</Text>
-            <Text style={styles.stepText}>{step}</Text>
+      {/* Active Order Tracker Card (when customer has an active in-flight order) */}
+      {order ? (
+        <Pressable
+          style={styles.trackerCard}
+          onPress={() => onOrder(order.id)}
+          accessibilityRole="button"
+        >
+          <View style={styles.trackerIconBox}>
+            <MaterialCommunityIcons name="truck-fast-outline" size={24} color={colors.accent} />
           </View>
-        ))}
+          <View style={styles.trackerInfo}>
+            <View style={styles.trackerRow}>
+              <Text style={styles.trackerOverline}>{t('activeOrder')}</Text>
+              <Text style={styles.trackerId}>{order.code}</Text>
+            </View>
+            <Text style={styles.trackerStatus}>
+              {statusText(t, order.status, order.statusLabel)}
+            </Text>
+          </View>
+          <View style={styles.trackerAction}>
+            <Text style={styles.trackerActionText}>{t('track')}</Text>
+            <MaterialCommunityIcons name="chevron-right" size={18} color={colors.accent} />
+          </View>
+        </Pressable>
+      ) : null}
+
+      {/* Quick Sportswear Categories Row */}
+      <View style={styles.categoryRow}>
+        <Pressable
+          style={[styles.categoryTile, styles.categoryTileActive]}
+          onPress={() => onNavigate('studio')}
+        >
+          <MaterialCommunityIcons name="pencil-ruler" size={20} color={colors.accent} />
+          <Text style={styles.categoryTileTitle}>{t('customDesign')}</Text>
+          <Text style={styles.categoryTileSub}>Studio</Text>
+        </Pressable>
+
+        <Pressable
+          style={styles.categoryTile}
+          onPress={() => onNavigate('catalog')}
+        >
+          <MaterialCommunityIcons name="shield-star-outline" size={20} color={colors.tealLight} />
+          <Text style={styles.categoryTileTitle}>{t('clubKitTitle')}</Text>
+          <Text style={styles.categoryTileSub}>{t('allClubs')}</Text>
+        </Pressable>
+      </View>
+
+      {/* Popular Clubs Section */}
+      <SectionTitle
+        title={t('popular')}
+        eyebrow="CLUBS & TEAMS"
+        action={t('all')}
+        onAction={() => onNavigate('catalog')}
+      />
+
+      {clubsLoading && clubs.length === 0 ? (
+        <View style={styles.loadingRow}>
+          <LoadingSpinner size="small" />
+        </View>
+      ) : clubs.length > 0 ? (
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.clubsScroll}
+        >
+          {clubs.map((club) => (
+            <Pressable
+              key={club.id}
+              style={styles.clubTile}
+              onPress={() => onClub(club)}
+              accessibilityRole="button"
+            >
+              <View
+                style={[
+                  styles.crest,
+                  {
+                    backgroundColor: club.color || colors.surfaceRaised,
+                    borderColor: club.accent || colors.accent,
+                  },
+                ]}
+              >
+                <Text style={[styles.crestCode, { color: club.accent || colors.white }]}>
+                  {club.code || club.name?.slice(0, 3).toUpperCase()}
+                </Text>
+              </View>
+              <Text style={styles.clubName} numberOfLines={1}>
+                {club.name}
+              </Text>
+              <Text style={styles.clubLeague} numberOfLines={1}>
+                {club.league || `${club.forms || 1} ${t('kitsWord')}`}
+              </Text>
+            </Pressable>
+          ))}
+        </ScrollView>
+      ) : (
+        <EmptyState
+          icon="shield-outline"
+          title={t('noPopularClubs')}
+          description={t('catalogEmpty')}
+          actionLabel={t('goStudio')}
+          onAction={() => onNavigate('studio')}
+        />
+      )}
+
+      {/* Featured Kits / Popular Models Section */}
+      <SectionTitle
+        title={t('popularModels')}
+        eyebrow="FEATURED KITS"
+        action={t('all')}
+        onAction={() => onNavigate('catalog')}
+      />
+
+      {productsLoading && products.length === 0 ? (
+        <View style={styles.loadingRow}>
+          <LoadingSpinner size="small" />
+        </View>
+      ) : products.length > 0 ? (
+        <View style={styles.productsGrid}>
+          {products.map((item) => (
+            <ProductCard
+              key={item.kitId}
+              product={item}
+              onPress={() => onClub({ id: item.clubId, name: item.clubName }, item.kitId)}
+            />
+          ))}
+        </View>
+      ) : (
+        <Card style={styles.studioBannerCard}>
+          <View style={styles.studioBannerCopy}>
+            <Badge label="FORMO STUDIO" variant="teal" />
+            <Text style={styles.studioBannerTitle}>{t('designStudio')}</Text>
+            <Text style={styles.studioBannerSub}>{t('description')}</Text>
+            <Button
+              small
+              variant="primary"
+              onPress={() => onNavigate('studio')}
+              style={styles.studioBannerBtn}
+            >
+              {t('startShort')}
+            </Button>
+          </View>
+          <View style={styles.studioBannerJersey}>
+            <JerseyPreview
+              product={{ color: '#09153D', accent: '#F2A33A', gradient: ['#080C24', '#152B75'] }}
+              number="7"
+              side="back"
+              name="FORMO"
+            />
+          </View>
+        </Card>
+      )}
+
+      {/* How it Works / Athletic Quality Value Props */}
+      <View style={styles.valuePropsCard}>
+        <SectionTitle title={t('howItWorks')} eyebrow="PRO QUALITY" />
+        <View style={styles.stepRow}>
+          <View style={styles.stepBadge}>
+            <Text style={styles.stepNumber}>1</Text>
+          </View>
+          <View style={styles.stepInfo}>
+            <Text style={styles.stepHeading}>{t('step1')}</Text>
+            <Text style={styles.stepSub}>100% yuqori sifatli sport poliesteri</Text>
+          </View>
+        </View>
+        <View style={styles.stepDivider} />
+        <View style={styles.stepRow}>
+          <View style={styles.stepBadge}>
+            <Text style={styles.stepNumber}>2</Text>
+          </View>
+          <View style={styles.stepInfo}>
+            <Text style={styles.stepHeading}>{t('step2')}</Text>
+            <Text style={styles.stepSub}>Individual raqam va ism tushirilgan holda</Text>
+          </View>
+        </View>
       </View>
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  headerRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  bell: {
-    width: 40,
-    height: 40,
+  headerRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  iconCircle: {
+    width: 42,
+    height: 42,
     borderRadius: radii.md,
-    backgroundColor: '#141A3E',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#232A57',
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  paused: {
-    backgroundColor: 'rgba(232, 84, 63, 0.1)',
-    borderWidth: 1,
-    borderColor: 'rgba(232, 84, 63, 0.35)',
-    borderRadius: radii.md,
-    padding: spacing.md,
-    marginBottom: 14,
-  },
-  pausedText: { color: '#F2A49A', fontSize: 12, lineHeight: 18 },
   avatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
-    backgroundColor: '#151B42',
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    backgroundColor: colors.surfaceRaised,
     borderWidth: 1.5,
     borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarText: { color: colors.accent, fontWeight: '900', fontSize: 15 },
-  hero: {
-    backgroundColor: '#141A40',
+  avatarText: {
+    color: colors.accent,
+    fontWeight: '900',
+    fontSize: 16,
+  },
+  pausedBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(232, 84, 63, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(232, 84, 63, 0.4)',
+    borderRadius: radii.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    gap: 10,
+  },
+  pausedText: {
+    flex: 1,
+    color: '#F5A398',
+    fontSize: 12,
+    lineHeight: 18,
+    fontWeight: '600',
+  },
+  heroCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.xl,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    padding: spacing.xl,
+    marginBottom: spacing.lg,
+    overflow: 'hidden',
+    position: 'relative',
+    minHeight: 195,
+    justifyContent: 'center',
+  },
+  heroGlow: {
+    position: 'absolute',
+    top: -40,
+    right: -40,
+    width: 180,
+    height: 180,
+    borderRadius: 90,
+    backgroundColor: 'rgba(242, 163, 58, 0.15)',
+  },
+  heroCopy: {
+    width: '60%',
+    zIndex: 2,
+  },
+  heroBadge: {
+    marginBottom: 8,
+  },
+  heroTitle: {
+    color: colors.text,
+    fontSize: 21,
+    lineHeight: 26,
+    fontWeight: '900',
+    letterSpacing: -0.5,
+  },
+  heroSub: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 6,
+    marginBottom: 14,
+  },
+  heroButtons: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  heroPrimaryBtn: {
+    paddingHorizontal: 16,
+  },
+  heroSecondaryBtn: {
+    paddingHorizontal: 14,
+  },
+  heroJerseyWrap: {
+    position: 'absolute',
+    right: -10,
+    bottom: -15,
+    transform: [{ rotate: '8deg' }],
+    zIndex: 1,
+  },
+  trackerCard: {
+    backgroundColor: colors.surfaceRaised,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: '#1E2452',
-    padding: spacing.lg,
-    marginBottom: 14,
-    overflow: 'hidden',
-    minHeight: 156,
+    borderColor: colors.accent,
+    padding: spacing.md,
+    marginBottom: spacing.lg,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: colors.accent,
+    shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.2,
+    shadowRadius: 6,
+    elevation: 3,
   },
-  heroCopy: { width: 190 },
-  heroTitle: { color: colors.text, fontSize: 19, lineHeight: 24, fontWeight: '800' },
-  heroText: { color: '#9AA2C6', fontSize: 11, lineHeight: 16, marginTop: spacing.sm },
-  heroButton: { alignSelf: 'flex-start', marginTop: spacing.md },
-  heroJersey: { position: 'absolute', right: -6, bottom: 6, transform: [{ rotate: '6deg' }] },
-  track: {
+  trackerIconBox: {
+    width: 44,
+    height: 44,
+    borderRadius: 12,
+    backgroundColor: 'rgba(242, 163, 58, 0.15)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginRight: 12,
+  },
+  trackerInfo: {
+    flex: 1,
+  },
+  trackerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  trackerOverline: {
+    color: colors.accent,
+    fontSize: 10,
+    fontWeight: '900',
+    letterSpacing: 0.8,
+  },
+  trackerId: {
+    color: colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700',
+  },
+  trackerStatus: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 2,
+  },
+  trackerAction: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingLeft: 8,
+  },
+  trackerActionText: {
+    color: colors.accent,
+    fontSize: 12,
+    fontWeight: '800',
+    marginRight: 2,
+  },
+  categoryRow: {
+    flexDirection: 'row',
+    gap: 12,
+    marginBottom: spacing.lg,
+  },
+  categoryTile: {
+    flex: 1,
+    backgroundColor: colors.surface,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+    alignItems: 'flex-start',
+  },
+  categoryTileActive: {
+    backgroundColor: colors.surfaceRaised,
+    borderColor: 'rgba(242, 163, 58, 0.4)',
+  },
+  categoryTileTitle: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+    marginTop: 8,
+  },
+  categoryTileSub: {
+    color: colors.muted,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  clubsScroll: {
+    paddingRight: spacing.sm,
+    paddingBottom: spacing.sm,
+    gap: 12,
+  },
+  clubTile: {
+    width: 82,
+    alignItems: 'center',
+  },
+  crest: {
+    width: 58,
+    height: 68,
+    borderRadius: 12,
+    borderBottomLeftRadius: 26,
+    borderBottomRightRadius: 26,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 5,
+    elevation: 4,
+  },
+  crestCode: {
+    fontSize: 15,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+  },
+  clubName: {
+    color: colors.text,
+    fontSize: 11,
+    fontWeight: '800',
+    marginTop: 8,
+    textAlign: 'center',
+    width: 82,
+  },
+  clubLeague: {
+    color: colors.muted,
+    fontSize: 10,
+    marginTop: 2,
+    textAlign: 'center',
+  },
+  productsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'space-between',
+    marginTop: spacing.xs,
+  },
+  studioBannerCard: {
+    backgroundColor: colors.surfaceRaised,
+    padding: spacing.lg,
+    position: 'relative',
+    overflow: 'hidden',
+    minHeight: 160,
+    justifyContent: 'center',
+    marginBottom: spacing.md,
+  },
+  studioBannerCopy: {
+    width: '62%',
+    zIndex: 2,
+  },
+  studioBannerTitle: {
+    color: colors.text,
+    fontSize: 18,
+    fontWeight: '900',
+    marginTop: 8,
+  },
+  studioBannerSub: {
+    color: colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 17,
+    marginTop: 4,
+    marginBottom: 12,
+  },
+  studioBannerBtn: {
+    alignSelf: 'flex-start',
+  },
+  studioBannerJersey: {
+    position: 'absolute',
+    right: 5,
+    bottom: -15,
+    transform: [{ rotate: '-6deg' }],
+    zIndex: 1,
+  },
+  valuePropsCard: {
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: '#1B2150',
+    borderColor: colors.border,
     padding: spacing.lg,
-    marginBottom: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-  },
-  trackCopy: { flex: 1 },
-  trackId: { color: colors.text, fontSize: 13, fontWeight: '800' },
-  trackStatus: { color: colors.muted, fontSize: 11, marginTop: 4 },
-  trackAction: { color: colors.accent, fontSize: 12, fontWeight: '800' },
-  kitCard: {
-    backgroundColor: '#141A40',
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: '#1E2452',
-    padding: spacing.lg,
+    marginTop: spacing.md,
     marginBottom: spacing.xl,
   },
-  kitTitle: { color: colors.text, fontSize: 16, fontWeight: '800' },
-  kitSub: { color: colors.muted, fontSize: 11, marginTop: 4 },
-  clubRow: { gap: 14, paddingRight: spacing.sm, paddingBottom: spacing.xs },
-  clubTile: { width: 74, alignItems: 'center' },
-  crest: {
-    width: 52,
-    height: 62,
-    borderRadius: 10,
-    borderBottomLeftRadius: 24,
-    borderBottomRightRadius: 24,
+  stepRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 8,
+  },
+  stepBadge: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(242, 163, 58, 0.16)',
     alignItems: 'center',
     justifyContent: 'center',
-    borderWidth: 1.5,
+    marginRight: 14,
+    borderWidth: 1,
+    borderColor: colors.accent,
   },
-  crestCode: { fontSize: 14, fontWeight: '900' },
-  clubName: { color: '#B9C0E0', fontSize: 10, marginTop: 6, textAlign: 'center', width: 74 },
-  clubsError: { color: colors.muted, fontSize: 11, marginTop: spacing.xs },
-  stepsBlock: { marginTop: spacing.xl },
-  step: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 7 },
-  stepNum: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
-    backgroundColor: '#171E4B',
+  stepNumber: {
     color: colors.accent,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '900',
-    textAlign: 'center',
-    lineHeight: 26,
-    overflow: 'hidden',
   },
-  stepText: { flex: 1, color: '#D5DAF2', fontSize: 13 },
+  stepInfo: {
+    flex: 1,
+  },
+  stepHeading: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  stepSub: {
+    color: colors.muted,
+    fontSize: 11,
+    marginTop: 2,
+  },
+  stepDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 4,
+  },
+  loadingRow: {
+    paddingVertical: 24,
+    alignItems: 'center',
+  },
 });

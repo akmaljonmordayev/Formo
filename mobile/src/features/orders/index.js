@@ -11,7 +11,19 @@ export const isFinal = (order) => FINAL_STATUSES.includes(order?.status);
 // Backend `PaymentMethod` enum: CLICK | PAYME | CASH (prisma/schema.prisma).
 // Uzum backendda mavjud emas — ilovada ko'rsatiladi, lekin tanlanmaydi.
 export const PAYMENT_METHODS = ['CASH', 'CLICK', 'PAYME'];
+export const ONLINE_PAYMENT_METHODS = ['CLICK', 'PAYME'];
 export const UNAVAILABLE_PAYMENT_METHODS = ['UZUM'];
+
+/**
+ * Haqiqiy Click/Payme integratsiyasi hali yo'q: backend faqat
+ * `PENDING_PAYMENT` buyurtma yaratadi va u 30 daqiqadan keyin to'lovsiz
+ * avtomatik bekor qilinadi. Production bundleida (`__DEV__ === false`) bu
+ * usullar tanlanmaydi. Dev'da demo oqim saqlanadi — u ham backendning
+ * `payment.demo` bayrog'i bilan cheklangan.
+ */
+export function onlinePaymentsEnabled() {
+  return typeof __DEV__ !== 'undefined' && __DEV__ === true;
+}
 
 /**
  * Holat nomi joriy tilda. Backend `statusLabel` faqat o'zbekcha — tarjima

@@ -2,14 +2,13 @@ import React, { useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
-import { Button, Card, Header, Screen, formatMoney } from '../components/ui/Common';
+import { Badge, Button, Card, EmptyState, Header, Screen, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
 import { JerseyPreview } from '../components/ui/JerseyPreview';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { designText, itemPreview } from '../features/studio';
 import { errorText } from '../utils/errors';
 
-// Server savati (/api/cart): yakunlar serverdan, promokod — POST /api/cart/promocode.
 export default function CartScreen({ t, cart, rules, onBack, onCheckout }) {
   const [promo, setPromo] = useState(cart.promocode || '');
   const [promoNote, setPromoNote] = useState(null);
@@ -21,7 +20,6 @@ export default function CartScreen({ t, cart, rules, onBack, onCheckout }) {
   const paused = !rules.acceptOrders;
   const belowMin = rules.minOrderSum > 0 && summary.subtotal < rules.minOrderSum;
   const blocked = items.some((item) => !item.available) || paused || belowMin;
-  // Savat o'zgarib promokod yaroqsiz bo'lib qolsa — sababini ko'rsatamiz
   const promoProblem = cart.promoError ? errorText(cart.promoError, t) : null;
 
   const run = async (key, action) => {
@@ -69,112 +67,215 @@ export default function CartScreen({ t, cart, rules, onBack, onCheckout }) {
 
   return (
     <Screen>
-      <Header title={t('cart')} onBack={onBack} right={<Text style={styles.count}>{count} {t('pcs')}</Text>} />
+      <Header
+        title={t('cart')}
+        onBack={onBack}
+        right={
+          count > 0 ? (
+            <Badge label={`${count} ${t('pcs')}`} variant="orange" />
+          ) : null
+        }
+      />
+
       {cart.error && items.length === 0 ? (
         <ErrorView message={errorText(cart.error, t)} onRetry={cart.refresh} retryLabel={t('retry')} />
       ) : items.length === 0 ? (
-        <Card style={styles.empty}>
-          <MaterialCommunityIcons name="cart-outline" size={42} color={colors.accent} />
-          <Text style={styles.emptyTitle}>{t('emptyCart')}</Text>
-          <Text style={styles.emptyText}>{t('emptyCartSub')}</Text>
-          <Button onPress={onBack} style={styles.emptyButton}>{t('goStudio')}</Button>
-        </Card>
+        <EmptyState
+          icon="cart-outline"
+          title={t('emptyCart')}
+          description={t('emptyCartSub')}
+          actionLabel={t('goStudio')}
+          onAction={onBack}
+        />
       ) : (
         <>
-          <View style={styles.list}>
-            {items.map((item) => (
-              <View key={item.id} style={[styles.item, !item.available && styles.itemOff]}>
-                <View style={styles.thumb}>
-                  <JerseyPreview product={itemPreview(item)} number={item.printNumber || ''} tiny />
-                </View>
-                <View style={styles.itemCopy}>
-                  {/* Maxsus dizayn qatorida klub/forma yo'q (kitId, club, kit — null) */}
-                  <Text style={styles.name} numberOfLines={1}>{item.design ? t('customJersey') : item.title}</Text>
-                  {item.design ? <Text style={styles.sub} numberOfLines={1}>{designText(t, item.design)}</Text> : null}
-                  {item.subtitle ? <Text style={styles.sub} numberOfLines={1}>{item.subtitle}</Text> : null}
-                  {item.problem ? <Text style={styles.problem}>{item.problem}</Text> : null}
-                  <View style={styles.qtyRow}>
-                    <Pressable
-                      style={styles.qtyButton}
-                      hitSlop={6}
-                      disabled={busy != null || item.quantity <= 1}
-                      onPress={() => run(item.id, () => cart.updateItem(item.id, { quantity: item.quantity - 1 }))}
-                    >
-                      <MaterialCommunityIcons name="minus" size={14} color={colors.text} />
-                    </Pressable>
-                    <Text style={styles.qty}>{item.quantity}</Text>
-                    <Pressable
-                      style={styles.qtyButton}
-                      hitSlop={6}
-                      disabled={busy != null || item.quantity >= maxQty}
-                      onPress={() => run(item.id, () => cart.updateItem(item.id, { quantity: item.quantity + 1 }))}
-                    >
-                      <MaterialCommunityIcons name="plus" size={14} color={colors.text} />
-                    </Pressable>
-                    <Text style={styles.price}>{formatMoney(item.totalPrice)}</Text>
-                  </View>
-                </View>
-                <Pressable
-                  onPress={() => run(item.id, () => cart.removeItem(item.id))}
-                  disabled={busy != null}
-                  style={styles.remove}
-                  hitSlop={6}
-                >
-                  <MaterialCommunityIcons name="close" size={18} color={colors.muted} />
-                </Pressable>
-              </View>
-            ))}
-          </View>
-
-          <View style={styles.promo}>
-            <TextInput
-              value={promo}
-              onChangeText={setPromo}
-              placeholder="FORMO10"
-              placeholderTextColor="#6E77A3"
-              autoCapitalize="characters"
-              editable={!cart.promocode}
-              style={styles.promoInput}
-            />
-            {cart.promocode ? (
-              <Pressable onPress={removePromo} hitSlop={14} disabled={busy != null}>
-                <Text style={styles.promoApply}>{t('promoRemove')}</Text>
-              </Pressable>
-            ) : (
-              <Pressable onPress={applyPromo} hitSlop={14} disabled={busy != null}>
-                <Text style={styles.promoApply}>{busy === 'promo' ? '…' : t('promoApply')}</Text>
-              </Pressable>
-            )}
-          </View>
-
-          {promoNote || promoProblem ? (
-            <Text style={[styles.promoNote, (promoProblem || !promoNote?.ok) && styles.errorText]}>
-              {promoProblem || promoNote.text}
-            </Text>
+          {/* Order Paused / Below Minimum Notice */}
+          {paused ? (
+            <View style={styles.alertBox}>
+              <MaterialCommunityIcons name="alert-circle-outline" size={20} color={colors.danger} />
+              <Text style={styles.alertText}>{rules.pausedMessage || t('ordersPaused')}</Text>
+            </View>
+          ) : belowMin ? (
+            <View style={styles.alertBox}>
+              <MaterialCommunityIcons name="information-outline" size={20} color={colors.warning} />
+              <Text style={styles.alertText}>
+                {t('minOrder')}: {formatMoney(rules.minOrderSum)}
+              </Text>
+            </View>
           ) : null}
 
-          <Card style={styles.summary}>
-            <Row label={t('products')} value={formatMoney(summary.subtotal)} />
-            {summary.discount > 0 ? <Row label={t('discount')} value={`−${formatMoney(summary.discount)}`} /> : null}
-            <Row label={t('delivery')} value={summary.delivery > 0 ? formatMoney(summary.delivery) : t('free')} />
-            <View style={styles.divider} />
-            <Row label={t('total')} value={formatMoney(summary.total)} strong />
-            {rules.minOrderSum > 0 ? (
-              <Text style={styles.minNote}>{t('minOrder')}: {formatMoney(rules.minOrderSum)}</Text>
+          {/* Cart Items List */}
+          <View style={styles.itemsList}>
+            {items.map((item) => {
+              const preview = itemPreview(item);
+              return (
+                <View
+                  key={item.id}
+                  style={[styles.itemCard, !item.available && styles.itemUnavailable]}
+                >
+                  <View style={styles.itemThumb}>
+                    <JerseyPreview
+                      product={preview}
+                      number={item.printNumber || '10'}
+                      tiny
+                    />
+                  </View>
+
+                  <View style={styles.itemInfo}>
+                    <Text style={styles.itemName} numberOfLines={1}>
+                      {item.design ? t('customJersey') : item.title}
+                    </Text>
+
+                    {item.design ? (
+                      <Text style={styles.itemSub} numberOfLines={1}>
+                        {designText(t, item.design)}
+                      </Text>
+                    ) : null}
+
+                    {item.subtitle ? (
+                      <Text style={styles.itemSub} numberOfLines={1}>
+                        {item.subtitle}
+                      </Text>
+                    ) : null}
+
+                    {item.problem ? (
+                      <Text style={styles.problemText}>{item.problem}</Text>
+                    ) : null}
+
+                    <View style={styles.qtyRow}>
+                      <View style={styles.stepper}>
+                        <Pressable
+                          style={[styles.stepperBtn, item.quantity <= 1 && styles.stepperBtnDisabled]}
+                          hitSlop={6}
+                          disabled={busy != null || item.quantity <= 1}
+                          onPress={() =>
+                            run(item.id, () =>
+                              cart.updateItem(item.id, { quantity: item.quantity - 1 }),
+                            )
+                          }
+                        >
+                          <MaterialCommunityIcons name="minus" size={16} color={colors.text} />
+                        </Pressable>
+                        <Text style={styles.qtyNumber}>{item.quantity}</Text>
+                        <Pressable
+                          style={[styles.stepperBtn, item.quantity >= maxQty && styles.stepperBtnDisabled]}
+                          hitSlop={6}
+                          disabled={busy != null || item.quantity >= maxQty}
+                          onPress={() =>
+                            run(item.id, () =>
+                              cart.updateItem(item.id, { quantity: item.quantity + 1 }),
+                            )
+                          }
+                        >
+                          <MaterialCommunityIcons name="plus" size={16} color={colors.text} />
+                        </Pressable>
+                      </View>
+
+                      <Text style={styles.itemPrice}>{formatMoney(item.totalPrice)}</Text>
+                    </View>
+                  </View>
+
+                  <Pressable
+                    onPress={() => run(item.id, () => cart.removeItem(item.id))}
+                    disabled={busy != null}
+                    style={styles.deleteBtn}
+                    hitSlop={8}
+                    accessibilityLabel="Delete item"
+                  >
+                    <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.muted} />
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
+
+          {/* Promocode Input Card */}
+          <View style={styles.promoContainer}>
+            <View style={styles.promoInputRow}>
+              <MaterialCommunityIcons name="ticket-percent-outline" size={20} color={colors.muted} />
+              <TextInput
+                value={promo}
+                onChangeText={setPromo}
+                placeholder="PROMO KOD (masalan: FORMO10)"
+                placeholderTextColor={colors.dim}
+                autoCapitalize="characters"
+                editable={!cart.promocode}
+                style={styles.promoInput}
+              />
+              {cart.promocode ? (
+                <Pressable onPress={removePromo} hitSlop={10} disabled={busy != null}>
+                  <Text style={styles.promoRemoveText}>{t('promoRemove')}</Text>
+                </Pressable>
+              ) : (
+                <Pressable onPress={applyPromo} hitSlop={10} disabled={busy != null}>
+                  <Text style={styles.promoApplyText}>
+                    {busy === 'promo' ? '…' : t('promoApply')}
+                  </Text>
+                </Pressable>
+              )}
+            </View>
+
+            {promoNote || promoProblem ? (
+              <Text
+                style={[
+                  styles.promoFeedback,
+                  (promoProblem || !promoNote?.ok) && styles.promoFeedbackError,
+                ]}
+              >
+                {promoProblem || promoNote?.text}
+              </Text>
             ) : null}
+          </View>
+
+          {/* Order Financial Summary Card */}
+          <Card style={styles.summaryCard}>
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>{t('products')}</Text>
+              <Text style={styles.summaryValue}>{formatMoney(summary.subtotal)}</Text>
+            </View>
+
+            {summary.discount > 0 ? (
+              <View style={styles.summaryRow}>
+                <Text style={[styles.summaryLabel, styles.discountLabel]}>{t('discount')}</Text>
+                <Text style={[styles.summaryValue, styles.discountValue]}>
+                  −{formatMoney(summary.discount)}
+                </Text>
+              </View>
+            ) : null}
+
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>{t('delivery')}</Text>
+              <Text style={styles.summaryValue}>
+                {summary.delivery > 0 ? formatMoney(summary.delivery) : t('free')}
+              </Text>
+            </View>
+
+            <View style={styles.summaryDivider} />
+
+            <View style={styles.summaryTotalRow}>
+              <Text style={styles.summaryTotalLabel}>{t('total')}</Text>
+              <Text style={styles.summaryTotalValue}>{formatMoney(summary.total)}</Text>
+            </View>
           </Card>
 
-          <Button disabled={blocked || busy != null} onPress={onCheckout}>{t('checkout')}</Button>
-          {paused ? (
-            <Text style={styles.checkoutError}>{rules.pausedMessage || t('ordersPaused')}</Text>
-          ) : belowMin ? (
-            <Text style={styles.checkoutError}>{t('minOrder')}: {formatMoney(rules.minOrderSum)}</Text>
-          ) : blocked ? (
-            <Text style={styles.checkoutError}>{t('cartBlocked')}</Text>
-          ) : null}
-          {actionError ? <Text style={styles.checkoutError}>{actionError}</Text> : null}
+          {/* Main Checkout Button */}
+          <Button
+            size="large"
+            disabled={blocked || busy != null}
+            onPress={onCheckout}
+            icon={<MaterialCommunityIcons name="check-bold" size={18} color={colors.primaryDark} />}
+          >
+            {t('checkout')}
+          </Button>
 
-          <Pressable onPress={() => run('clear', () => cart.clear())} disabled={busy != null} style={styles.clear}>
+          {actionError ? <Text style={styles.actionErrorText}>{actionError}</Text> : null}
+
+          <Pressable
+            onPress={() => run('clear', () => cart.clear())}
+            disabled={busy != null}
+            style={styles.clearBtn}
+            hitSlop={10}
+          >
             <Text style={styles.clearText}>{t('clearCart')}</Text>
           </Pressable>
         </>
@@ -183,93 +284,216 @@ export default function CartScreen({ t, cart, rules, onBack, onCheckout }) {
   );
 }
 
-function Row({ label, value, strong }) {
-  return (
-    <View style={styles.row}>
-      <Text style={[styles.rowLabel, strong && styles.strongLabel]}>{label}</Text>
-      <Text style={[styles.rowValue, strong && styles.strong]}>{value}</Text>
-    </View>
-  );
-}
-
 const styles = StyleSheet.create({
-  count: { color: colors.muted, fontSize: 13, fontWeight: '700' },
-  empty: { alignItems: 'center', marginTop: spacing.xxxl },
-  emptyTitle: { color: colors.text, fontSize: 20, fontWeight: '800', marginTop: spacing.md },
-  emptyText: { color: colors.muted, textAlign: 'center', lineHeight: 20, marginTop: spacing.sm },
-  emptyButton: { marginTop: spacing.xl, alignSelf: 'stretch' },
-  list: { gap: spacing.md, marginBottom: spacing.lg },
-  item: {
+  alertBox: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: spacing.md,
+    backgroundColor: 'rgba(232, 84, 63, 0.12)',
+    borderWidth: 1,
+    borderColor: 'rgba(232, 84, 63, 0.4)',
+    borderRadius: radii.md,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    gap: 10,
+  },
+  alertText: {
+    flex: 1,
+    color: '#F5A398',
+    fontSize: 12,
+    fontWeight: '700',
+    lineHeight: 18,
+  },
+  itemsList: {
+    gap: 12,
+    marginBottom: spacing.lg,
+  },
+  itemCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: colors.surface,
     padding: spacing.md,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: '#1B2150',
+    borderColor: colors.border,
   },
-  thumb: {
-    width: 58,
-    height: 66,
+  itemUnavailable: {
+    borderColor: colors.danger,
+    backgroundColor: 'rgba(232, 84, 63, 0.05)',
+  },
+  itemThumb: {
+    width: 62,
+    height: 72,
     borderRadius: radii.md,
-    backgroundColor: '#0E1330',
+    backgroundColor: colors.surfaceRaised,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-  },
-  itemCopy: { flex: 1 },
-  name: { color: colors.text, fontWeight: '800', fontSize: 13 },
-  sub: { color: colors.muted, fontSize: 11, marginTop: 4 },
-  price: { color: colors.text, fontWeight: '800', fontSize: 13, marginLeft: 'auto' },
-  itemOff: { borderColor: 'rgba(232, 84, 63, 0.45)' },
-  problem: { color: '#E8543F', fontSize: 11, marginTop: 4 },
-  qtyRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginTop: 7 },
-  qtyButton: {
-    width: 26,
-    height: 26,
-    borderRadius: 8,
-    backgroundColor: colors.chip,
     borderWidth: 1,
-    borderColor: '#1D2350',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: colors.border,
   },
-  qty: { color: colors.text, fontSize: 13, fontWeight: '800', minWidth: 16, textAlign: 'center' },
-  errorText: { color: '#E8543F' },
-  minNote: { color: colors.muted, fontSize: 11 },
-  remove: {
-    width: 44,
-    height: 40,
+  itemInfo: {
+    flex: 1,
+    marginLeft: 14,
+  },
+  itemName: {
+    color: colors.text,
+    fontWeight: '800',
+    fontSize: 14,
+  },
+  itemSub: {
+    color: colors.muted,
+    fontSize: 11,
+    marginTop: 3,
+  },
+  problemText: {
+    color: colors.danger,
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  qtyRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 10,
+  },
+  stepper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: colors.surfaceRaised,
     borderRadius: radii.sm,
-    backgroundColor: colors.chip,
     borderWidth: 1,
-    borderColor: '#1D2350',
+    borderColor: colors.border,
+    padding: 2,
+  },
+  stepperBtn: {
+    width: 28,
+    height: 28,
+    borderRadius: radii.xs,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  promo: {
-    height: 48,
+  stepperBtnDisabled: {
+    opacity: 0.35,
+  },
+  qtyNumber: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+    minWidth: 24,
+    textAlign: 'center',
+  },
+  itemPrice: {
+    color: colors.accent,
+    fontWeight: '900',
+    fontSize: 14,
+  },
+  deleteBtn: {
+    padding: 8,
+    marginLeft: 6,
+  },
+  promoContainer: {
+    marginBottom: spacing.lg,
+  },
+  promoInputRow: {
+    height: 50,
     borderRadius: radii.md,
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#242B58',
+    borderColor: colors.border,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: spacing.lg,
-    marginBottom: spacing.sm,
+    paddingHorizontal: 14,
   },
-  promoInput: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '700' },
-  promoApply: { color: colors.accent, fontSize: 12, fontWeight: '800' },
-  promoNote: { color: colors.muted, fontSize: 11, marginBottom: spacing.lg, textAlign: 'center' },
-  summary: { gap: spacing.md, marginBottom: spacing.lg },
-  row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  rowLabel: { color: colors.muted, fontSize: 13 },
-  rowValue: { color: colors.text, fontSize: 13, fontWeight: '700' },
-  strongLabel: { color: colors.text, fontSize: 15, fontWeight: '800' },
-  strong: { color: colors.text, fontSize: 17, fontWeight: '900' },
-  divider: { borderTopWidth: 1, borderTopColor: '#171C3F' },
-  checkoutError: { color: '#E8543F', fontSize: 12, textAlign: 'center', marginTop: spacing.sm },
-  clear: { alignItems: 'center', padding: spacing.lg },
-  clearText: { color: colors.muted, fontSize: 12 },
+  promoInput: {
+    flex: 1,
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+    marginLeft: 10,
+  },
+  promoApplyText: {
+    color: colors.accent,
+    fontSize: 13,
+    fontWeight: '900',
+  },
+  promoRemoveText: {
+    color: colors.danger,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  promoFeedback: {
+    color: colors.tealLight,
+    fontSize: 11,
+    fontWeight: '700',
+    marginTop: 6,
+    paddingHorizontal: 4,
+  },
+  promoFeedbackError: {
+    color: colors.danger,
+  },
+  summaryCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radii.lg,
+    padding: spacing.lg,
+    marginBottom: spacing.lg,
+  },
+  summaryRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 10,
+  },
+  summaryLabel: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  summaryValue: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '700',
+  },
+  discountLabel: {
+    color: colors.tealLight,
+  },
+  discountValue: {
+    color: colors.tealLight,
+  },
+  summaryDivider: {
+    height: 1,
+    backgroundColor: colors.border,
+    marginVertical: 10,
+  },
+  summaryTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  summaryTotalLabel: {
+    color: colors.text,
+    fontSize: 16,
+    fontWeight: '900',
+  },
+  summaryTotalValue: {
+    color: colors.accent,
+    fontSize: 19,
+    fontWeight: '900',
+  },
+  actionErrorText: {
+    color: colors.danger,
+    fontSize: 12,
+    fontWeight: '700',
+    textAlign: 'center',
+    marginTop: 10,
+  },
+  clearBtn: {
+    alignItems: 'center',
+    paddingVertical: spacing.lg,
+  },
+  clearText: {
+    color: colors.muted,
+    fontSize: 12,
+    fontWeight: '700',
+  },
 });

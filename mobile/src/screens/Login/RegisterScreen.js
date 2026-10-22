@@ -131,9 +131,14 @@ export default function RegisterScreen({ auth, t, language, onLanguage, onLogin 
   }
 
   function validateStep1() {
-    if (!fullName.trim()) return t('fullNameRequired');
+    // Backend RegisterDto: fullName 2–100 (trim/CleanText), password 6–64.
+    const name = fullName.trim();
+    if (!name) return t('fullNameRequired');
+    if (name.length < 2) return t('fullNameShort');
+    if (name.length > 100) return t('fullNameTooLong');
     if (!isValidUzPhone(phoneDigits)) return t('phoneInvalid');
     if (password.length < 6) return t('passwordShort');
+    if (password.length > 64) return t('passwordTooLong');
     if (password !== confirmPassword) return t('confirmPassword');
     return null;
   }
@@ -286,6 +291,7 @@ export default function RegisterScreen({ auth, t, language, onLanguage, onLogin 
                       }}
                       placeholder={t('fullNamePlaceholder')}
                       autoComplete="name"
+                      maxLength={100}
                       returnKeyType="next"
                     />
 
@@ -319,6 +325,7 @@ export default function RegisterScreen({ auth, t, language, onLanguage, onLogin 
                       }}
                       placeholder="••••••••"
                       autoComplete="new-password"
+                      maxLength={64}
                       returnKeyType="next"
                     />
 
@@ -333,6 +340,7 @@ export default function RegisterScreen({ auth, t, language, onLanguage, onLogin 
                       }}
                       placeholder="••••••••"
                       autoComplete="new-password"
+                      maxLength={64}
                       returnKeyType="done"
                       onSubmitEditing={handleNext}
                     />
