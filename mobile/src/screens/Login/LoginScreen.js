@@ -8,13 +8,13 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Jersey, { KITS } from '../../components/ui/Jersey';
+import useCompactLayout from '../../utils/useCompactLayout';
 import LanguageSwitch from './LanguageSwitch';
 
 /**
@@ -23,7 +23,7 @@ import LanguageSwitch from './LanguageSwitch';
  * focus + a white "hang-tag" form card.
  *
  * Props:
- *   auth       — useAuth() object { login, isLoading, error }
+ *   auth       — useAuth() object { login, isSubmitting, error }
  *   t          — translation function
  *   language   — current language code (uz/ru/en)
  *   onLanguage — change language
@@ -49,15 +49,13 @@ function formatPhone(digits) {
 }
 
 export default function LoginScreen({ auth, t, language, onLanguage, onLogin, onRegister }) {
-  const { height } = useWindowDimensions();
-  const compact = height < 760;
+  const compact = useCompactLayout();
   const insets = useSafeAreaInsets();
 
   const [digits, setDigits] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [passwordFocused, setPasswordFocused] = useState(false);
-  const [fieldFocused, setFieldFocused] = useState(false);
   const [validationError, setValidationError] = useState(null);
   const [kitIndex, setKitIndex] = useState(0);
   const [autoKit, setAutoKit] = useState(true);
@@ -75,7 +73,7 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
   const number = digits.length >= 2 ? digits.slice(-2) : '10';
 
   const errorText = validationError || (auth.error ? auth.error.message || t(auth.error.key) : null);
-  const canSubmit = phoneComplete && password.length > 0 && !auth.isLoading;
+  const canSubmit = phoneComplete && password.length > 0 && !auth.isSubmitting;
 
   function handleDigitsChange(text) {
     let d = text.replace(/\D/g, '');
@@ -174,7 +172,16 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
 
           <Animated.View style={[styles.tagWrap, compact && styles.tagWrapCompact, shakeStyle]}>
             <View style={styles.string} />
-            <View style={[styles.tag, compact && styles.tagCompact, fieldFocused && styles.tagFlat]}>
+            {/*
+              Fabric/Android: this View is an ancestor of both TextInputs. Every
+              style that feeds `ViewShadowNode`'s FormsStackingContext trait
+              (transform, shadow, elevation) must stay constant — a trait flip
+              makes the differ remove+insert the subtree and the focused native
+              EditText loses focus. The tag is therefore always tilted; the
+              previous `fieldFocused && styles.tagFlat` toggled `transform` on
+              focus and was the remaining source of the jump.
+            */}
+            <View style={[styles.tag, compact && styles.tagCompact]}>
               <View style={styles.tagHole} />
               <View style={styles.tagInner} pointerEvents="none" />
 
@@ -201,8 +208,6 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
                   keyboardType="phone-pad"
                   selectionColor={palette.orange}
                   style={styles.input}
-                  onFocus={() => setFieldFocused(true)}
-                  onBlur={() => setFieldFocused(false)}
                 />
                 {phoneComplete && (
                   <View style={styles.check}>
@@ -224,14 +229,8 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
                   secureTextEntry={!showPassword}
                   selectionColor={palette.orange}
                   style={styles.input}
-                  onFocus={() => {
-                    setPasswordFocused(true);
-                    setFieldFocused(true);
-                  }}
-                  onBlur={() => {
-                    setPasswordFocused(false);
-                    setFieldFocused(false);
-                  }}
+                  onFocus={() => setPasswordFocused(true)}
+                  onBlur={() => setPasswordFocused(false)}
                   onSubmitEditing={handleLogin}
                   returnKeyType="done"
                 />
@@ -247,7 +246,7 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
                 disabled={!canSubmit}
                 style={[styles.submit, !canSubmit && styles.submitDisabled]}
               >
-                <Text style={styles.submitText}>{auth.isLoading ? t('loggingIn') : t('loginButton')}</Text>
+                <Text style={styles.submitText}>{auth.isSubmitting ? t('loggingIn') : t('loginButton')}</Text>
                 <View style={styles.arrow}>
                   <MaterialCommunityIcons name="arrow-right" size={20} color={palette.navy} />
                 </View>
@@ -356,7 +355,6 @@ const styles = StyleSheet.create({
     shadowOffset: { width: 0, height: 24 },
     elevation: 12,
   },
-  tagFlat: { transform: [{ rotate: '0deg' }] },
   tagCompact: { paddingTop: 38, paddingBottom: 18 },
   tagHole: {
     position: 'absolute',

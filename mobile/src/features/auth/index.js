@@ -37,12 +37,19 @@ function pickProfileFields(fields) {
  * `error` shape: { key: string, message: string|null } — screens render
  * `error.message || t(error.key)`.
  *
- * Returns: { user, isLoading, isAuthenticated, error, login, register, logout, refreshUser, updateUser }
+ * Returns: { user, isLoading, isSubmitting, isAuthenticated, error, login, register, logout, refreshUser, updateUser }
+ *   isLoading    — initial session restore only (full-screen loader)
+ *   isSubmitting — login/register request in flight (inline button state)
  */
 export default function useAuth() {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // `isLoading` only covers the initial session restore (AppNavigator shows a
+  // full-screen loader for it). Submits use `isSubmitting` so the login/register
+  // screen is not unmounted mid-request — remounting it dropped focus, closed
+  // the keyboard and wiped the typed credentials on a failed attempt.
   const [isLoading, setIsLoading] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState(null);
 
   // ─── Session expiry: bounce back to the login screen ────────────────────────
@@ -86,7 +93,7 @@ export default function useAuth() {
 
   // ─── Login ───────────────────────────────────────────────────────────────────
   const login = useCallback(async (phone, password) => {
-    setIsLoading(true);
+    setIsSubmitting(true);
     setError(null);
 
     try {
@@ -98,7 +105,7 @@ export default function useAuth() {
       setError(toAuthError(err, 'authError'));
       return false;
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   }, []);
 
@@ -107,7 +114,7 @@ export default function useAuth() {
    * @param {{fullName, phone, password, gender?, age?, height?, weight?}} payload
    */
   const register = useCallback(async (payload) => {
-    setIsLoading(true);
+    setIsSubmitting(true);
     setError(null);
 
     try {
@@ -119,7 +126,7 @@ export default function useAuth() {
       setError(toAuthError(err, 'authError'));
       return false;
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   }, []);
 
@@ -153,6 +160,7 @@ export default function useAuth() {
   return {
     user,
     isLoading,
+    isSubmitting,
     isAuthenticated,
     error,
     login,

@@ -8,13 +8,14 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { isValidUzPhone } from '../../utils/phone';
+import useCompactLayout from '../../utils/useCompactLayout';
+import { demoOtpHintCode, isDemoOtpCode, isDemoOtpEnabled } from '../../features/auth/demoOtp';
 import LanguageSwitch from './LanguageSwitch';
 
 /**
@@ -74,11 +75,15 @@ function FieldInput({ t, secure, ...props }) {
 }
 
 export default function RegisterScreen({ auth, t, language, onLanguage, onLogin }) {
-  const { height: windowHeight } = useWindowDimensions();
-  const compact = windowHeight < 760;
+  const compact = useCompactLayout();
   const insets = useSafeAreaInsets();
+  // Demo OTP faqat __DEV__ da mavjud (backendda SMS endpointi yo'q).
+  const demoOtp = isDemoOtpEnabled();
 
+  // 1 — hisob, 2 — telefon tasdiqlash (faqat dev), 3 — o'lchovlar
   const [step, setStep] = useState(1);
+  const aboutStep = 3;
+  const stepNumbers = demoOtp ? [1, 2, 3] : [1, 3];
   const slide = useRef(new Animated.Value(0)).current;
   const prevStep = useRef(1);
 
@@ -91,6 +96,9 @@ export default function RegisterScreen({ auth, t, language, onLanguage, onLogin 
   const [height, setHeight] = useState('');
   const [weight, setWeight] = useState('');
   const [validationError, setValidationError] = useState(null);
+  const [otpCode, setOtpCode] = useState('');
+  const [otpError, setOtpError] = useState(null);
+  const [phoneVerified, setPhoneVerified] = useState(false);
 
   useEffect(() => {
     if (step === prevStep.current) return;
@@ -100,7 +108,8 @@ export default function RegisterScreen({ auth, t, language, onLanguage, onLogin 
     Animated.timing(slide, { toValue: 0, duration: 220, useNativeDriver: true }).start();
   }, [step, slide]);
 
-  const errorText = validationError || (auth.error ? auth.error.message || t(auth.error.key) : null);
+  const errorText =
+    validationError || otpError || (auth.error ? auth.error.message || t(auth.error.key) : null);
   const phoneComplete = phoneDigits.length === 9;
 
   const parseBoundedInt = (raw, min, max) => {
@@ -115,10 +124,14 @@ export default function RegisterScreen({ auth, t, language, onLanguage, onLogin 
     if (d.length > 9 && d.startsWith('998')) d = d.slice(3);
     setPhoneDigits(d.slice(0, 9));
     setValidationError(null);
+    // Telefon o'zgarsa — oldingi demo tasdiqlash bekor bo'ladi
+    setPhoneVerified(false);
+    setOtpCode('');
+    setOtpError(null);
   }
 
   function validateStep1() {
-    if (!fullName.trim()) return t('fullName') + ': ?';
+    if (!fullName.trim()) return t('fullNameRequired');
     if (!isValidUzPhone(phoneDigits)) return t('phoneInvalid');
     if (password.length < 6) return t('passwordShort');
     if (password !== confirmPassword) return t('confirmPassword');
@@ -127,22 +140,53 @@ export default function RegisterScreen({ auth, t, language, onLanguage, onLogin 
 
   function handleNext() {
     setValidationError(null);
+    setOtpError(null);
     const error = validateStep1();
     if (error) return setValidationError(error);
-    setStep(2);
+    // Demo rejimda telefon tasdiqlash qadami majburiy; productionda yo'q.
+    if (!demoOtp) return setStep(aboutStep);
+    // Telefon allaqachon tasdiqlangan bo'lsa qayta so'ramaymiz.
+    return setStep(phoneVerified ? aboutStep : 2);
+  }
+
+  function handleOtpChange(text) {
+    setOtpCode(text.replace(/\D/g, '').slice(0, 6));
+    setOtpError(null);
+  }
+
+  function handleVerifyOtp() {
+    if (otpCode.length !== 6) {
+      setOtpError(t('otpIncomplete'));
+      return;
+    }
+    if (!isDemoOtpCode(otpCode)) {
+      setOtpError(t('otpWrong'));
+      return;
+    }
+    setPhoneVerified(true);
+    setOtpError(null);
+    setStep(aboutStep);
   }
 
   async function handleRegister(skipMeasurements = false) {
     setValidationError(null);
+
+    // Demo gate: tasdiqlanmagan telefon bilan ro'yxatdan o'tish yo'q
+    if (demoOtp && !phoneVerified) {
+      setStep(2);
+      setOtpError(t('otpRequired'));
+      return;
+    }
 
     let ageValue = null;
     let heightValue = null;
     let weightValue = null;
 
     if (!skipMeasurements) {
-      ageValue = parseBoundedInt(age, 1, 120);
+      // Backend RegisterDto bilan bir xil chegaralar (age 3–100, height 50–250, weight 10–250).
+      ageValue = parseBoundedInt(age, 3, 100);
       heightValue = parseBoundedInt(height, 50, 250);
-      weightValue = parseBoundedInt(weight, 20, 300);
+      weightValue = parseBoundedInt(weight, 10, 250);
       if ([ageValue, heightValue, weightValue].some(Number.isNaN)) {
         return setValidationError(t('invalidValue'));
       }
@@ -160,7 +204,10 @@ export default function RegisterScreen({ auth, t, language, onLanguage, onLogin 
     if (success && onLogin) onLogin();
   }
 
-  const metaRight = step === 1 ? t('regStepAccount') : t('regStepAbout');
+  const stepIndex = stepNumbers.indexOf(step) + 1;
+  const stepName =
+    step === 1 ? t('regStepAccount') : step === 2 ? t('regStepVerify') : t('regStepAbout');
+  const metaRight = `${stepIndex}/${stepNumbers.length} · ${stepName}`;
 
   return (
     <View style={styles.root}>
@@ -203,15 +250,27 @@ export default function RegisterScreen({ auth, t, language, onLanguage, onLogin 
                 }}
               >
                 <Text style={styles.tagTitleLine}>
-                  {step === 1 ? t('register') : t('regAboutTitle')}
+                  {step === 1
+                    ? t('register')
+                    : step === 2
+                      ? t('otpTitle')
+                      : t('regAboutTitle')}
                 </Text>
                 <Text style={styles.tagSubtitle}>
-                  {step === 1 ? t('regSubtitle') : t('regAboutSub')}
+                  {step === 1
+                    ? t('regSubtitle')
+                    : step === 2
+                      ? t('otpSubtitle')
+                      : t('regAboutSub')}
                 </Text>
 
                 <View style={styles.progress}>
-                  <View style={[styles.progressSeg, step === 1 && styles.progressActive]} />
-                  <View style={[styles.progressSeg, step === 2 && styles.progressActive]} />
+                  {stepNumbers.map((number) => (
+                    <View
+                      key={number}
+                      style={[styles.progressSeg, step >= number && styles.progressActive]}
+                    />
+                  ))}
                 </View>
                 <Text style={styles.stepLabel}>{metaRight}</Text>
 
@@ -277,6 +336,37 @@ export default function RegisterScreen({ auth, t, language, onLanguage, onLogin 
                       returnKeyType="done"
                       onSubmitEditing={handleNext}
                     />
+                  </>
+                ) : step === 2 ? (
+                  <>
+                    <Text style={styles.fieldLabel}>{t('otpLabel')}</Text>
+                    <View style={styles.inputRow}>
+                      <TextInput
+                        value={otpCode}
+                        onChangeText={handleOtpChange}
+                        placeholder="000000"
+                        placeholderTextColor="rgba(14,26,63,0.28)"
+                        keyboardType="number-pad"
+                        inputMode="numeric"
+                        maxLength={6}
+                        autoComplete="sms-otp"
+                        textContentType="oneTimeCode"
+                        selectionColor={palette.orange}
+                        style={[styles.input, styles.codeInput]}
+                        returnKeyType="done"
+                        onSubmitEditing={handleVerifyOtp}
+                      />
+                    </View>
+                    {/* Rostini aytamiz: SMS yuborilmagan, bu faqat dev demo qadami. */}
+                    <View style={styles.demoNote}>
+                      <MaterialCommunityIcons name="flask-outline" size={16} color={palette.navy} />
+                      <Text style={styles.demoNoteText}>
+                        {t('otpDemoNote')}{' '}
+                        <Text style={styles.demoCode}>
+                          {t('otpDemoCode')} {demoOtpHintCode}
+                        </Text>
+                      </Text>
+                    </View>
                   </>
                 ) : (
                   <>
@@ -352,6 +442,26 @@ export default function RegisterScreen({ auth, t, language, onLanguage, onLogin 
                       <MaterialCommunityIcons name="arrow-right" size={20} color={palette.navy} />
                     </View>
                   </Pressable>
+                ) : step === 2 ? (
+                  <View style={styles.actions}>
+                    <Pressable onPress={() => setStep(1)} style={styles.secondary}>
+                      <Text style={styles.secondaryText}>{t('back')}</Text>
+                    </Pressable>
+                    <Pressable
+                      onPress={handleVerifyOtp}
+                      disabled={otpCode.length !== 6}
+                      style={[
+                        styles.submit,
+                        styles.submitFlex,
+                        otpCode.length !== 6 && styles.submitDisabled,
+                      ]}
+                    >
+                      <Text style={styles.submitText}>{t('verify')}</Text>
+                      <View style={styles.arrow}>
+                        <MaterialCommunityIcons name="arrow-right" size={20} color={palette.navy} />
+                      </View>
+                    </Pressable>
+                  </View>
                 ) : (
                   <View style={styles.actions}>
                     <Pressable onPress={() => setStep(1)} style={styles.secondary}>
@@ -359,11 +469,11 @@ export default function RegisterScreen({ auth, t, language, onLanguage, onLogin 
                     </Pressable>
                     <Pressable
                       onPress={() => handleRegister(false)}
-                      disabled={auth.isLoading}
-                      style={[styles.submit, styles.submitFlex, auth.isLoading && styles.submitDisabled]}
+                      disabled={auth.isSubmitting}
+                      style={[styles.submit, styles.submitFlex, auth.isSubmitting && styles.submitDisabled]}
                     >
                       <Text style={styles.submitText}>
-                        {auth.isLoading ? t('registering') : t('registerButton')}
+                        {auth.isSubmitting ? t('registering') : t('registerButton')}
                       </Text>
                       <View style={styles.arrow}>
                         <MaterialCommunityIcons name="arrow-right" size={20} color={palette.navy} />
@@ -372,24 +482,26 @@ export default function RegisterScreen({ auth, t, language, onLanguage, onLogin 
                   </View>
                 )}
 
-                <View style={styles.care}>
-                  <View style={styles.careIcons}>
-                    <MaterialCommunityIcons name="tshirt-crew-outline" size={18} color="rgba(14,26,63,0.5)" />
-                    <MaterialCommunityIcons name="triangle-outline" size={18} color="rgba(14,26,63,0.5)" />
-                    <MaterialCommunityIcons name="hanger" size={18} color="rgba(14,26,63,0.5)" />
+                {step === 2 ? null : (
+                  <View style={styles.care}>
+                    <View style={styles.careIcons}>
+                      <MaterialCommunityIcons name="tshirt-crew-outline" size={18} color="rgba(14,26,63,0.5)" />
+                      <MaterialCommunityIcons name="triangle-outline" size={18} color="rgba(14,26,63,0.5)" />
+                      <MaterialCommunityIcons name="hanger" size={18} color="rgba(14,26,63,0.5)" />
+                    </View>
+                    {step === 1 ? (
+                      <Pressable onPress={onLogin} hitSlop={8}>
+                        <Text style={styles.careText}>
+                          {t('haveAccount')} <Text style={styles.careLink}>{t('login')}</Text>
+                        </Text>
+                      </Pressable>
+                    ) : (
+                      <Pressable onPress={() => handleRegister(true)} hitSlop={8}>
+                        <Text style={styles.careLink}>{t('skip')}</Text>
+                      </Pressable>
+                    )}
                   </View>
-                  {step === 1 ? (
-                    <Pressable onPress={onLogin} hitSlop={8}>
-                      <Text style={styles.careText}>
-                        {t('haveAccount')} <Text style={styles.careLink}>{t('login')}</Text>
-                      </Text>
-                    </Pressable>
-                  ) : (
-                    <Pressable onPress={() => handleRegister(true)} hitSlop={8}>
-                      <Text style={styles.careLink}>{t('skip')}</Text>
-                    </Pressable>
-                  )}
-                </View>
+                )}
               </Animated.View>
             </View>
           </View>
@@ -527,6 +639,22 @@ const styles = StyleSheet.create({
     borderRightColor: palette.line,
   },
   input: { flex: 1, height: '100%', color: palette.navy, fontSize: 16, fontWeight: '600' },
+  codeInput: { letterSpacing: 8, fontSize: 20, fontWeight: '700' },
+  demoNote: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    marginBottom: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: 'rgba(14,26,63,0.28)',
+    backgroundColor: 'rgba(242,163,58,0.10)',
+  },
+  demoNoteText: { flex: 1, color: 'rgba(14,26,63,0.7)', fontSize: 12, lineHeight: 17 },
+  demoCode: { color: palette.navy, fontWeight: '800' },
   check: {
     width: 26,
     height: 26,

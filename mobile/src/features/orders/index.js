@@ -8,7 +8,10 @@ export const POLL_MS = 20000;
 export const FINAL_STATUSES = ['DELIVERED', 'CANCELLED', 'RETURNED'];
 export const isFinal = (order) => FINAL_STATUSES.includes(order?.status);
 
+// Backend `PaymentMethod` enum: CLICK | PAYME | CASH (prisma/schema.prisma).
+// Uzum backendda mavjud emas — ilovada ko'rsatiladi, lekin tanlanmaydi.
 export const PAYMENT_METHODS = ['CASH', 'CLICK', 'PAYME'];
+export const UNAVAILABLE_PAYMENT_METHODS = ['UZUM'];
 
 /**
  * Holat nomi joriy tilda. Backend `statusLabel` faqat o'zbekcha — tarjima
