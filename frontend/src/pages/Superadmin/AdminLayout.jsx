@@ -1,22 +1,13 @@
 import { useEffect, useMemo } from 'react';
 import SuperadminLayout from '../../components/layout/SuperadminLayout';
-import { useChatUnread } from '../../features/chat/useChatUnread';
 import { LangProvider, LangSwitch, useLang } from './i18n';
 
 // Umumiy SuperadminLayout'ni o'zgartirmasdan: menyu tarjima qilinadi va til almashtirgich qo'shiladi
 function TranslatedLayout({ menu }) {
   const { t, lang } = useLang();
-  const unreadChat = useChatUnread();
-  // Statik menyuda "Xabarlar" belgisi jonli o'qilmaganlar soniga almashtiriladi
   const translated = useMemo(
-    () =>
-      menu.map((m) => ({
-        ...m,
-        label: t(m.label),
-        group: m.group ? t(m.group) : m.group,
-        ...(m.to.endsWith('/messages') && { badge: unreadChat || undefined }),
-      })),
-    [menu, t, unreadChat],
+    () => menu.map((m) => ({ ...m, label: t(m.label), group: m.group ? t(m.group) : m.group })),
+    [menu, t],
   );
 
   useEffect(() => {

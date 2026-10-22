@@ -1,7 +1,8 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { AccountsService } from './accounts.service';
-import { AdminDefectsController } from './workshop-ops.controller';
+import { AdminChatController, AdminDefectsController } from './workshop-ops.controller';
+import { ChatService } from './chat.service';
 import { DefectsService } from './defects.service';
 import { WorkshopProfileService } from './workshop-profile.service';
 import { AuditController } from './audit.controller';
@@ -44,6 +45,7 @@ import { WorkshopsController } from './workshops.controller';
     OrdersController,
     WorkshopOrdersController,
     WorkshopPanelController,
+    AdminChatController,
     AdminDefectsController,
     InsightsController,
     InventoryController,
@@ -61,6 +63,7 @@ import { WorkshopsController } from './workshops.controller';
     OrdersService,
     OrderHistoryService,
     WorkshopOrdersService,
+    ChatService,
     DefectsService,
     WorkshopProfileService,
     InventoryService,
