@@ -20,10 +20,6 @@ import { RegisterDto, UpdateProfileDto } from './dto/register.dto';
 export const BCRYPT_ROUNDS = 10;
 // Haqiqiy SMS integratsiyasigacha: faqat shu kod to'g'ri deb hisoblanadi.
 const DEMO_OTP_CODE = '12345';
-/** Productionda faqat OTP_LOGIN_DEMO=true bo'lsa yoqiladi (PAYMENT_DEMO bilan bir xil konvensiya). */
-export const otpLoginEnabled = () =>
-  process.env.OTP_LOGIN_DEMO === 'true' ||
-  (process.env.NODE_ENV !== 'production' && process.env.OTP_LOGIN_DEMO !== 'false');
 
 // Foydalanuvchi topilmaganda ham bcrypt ishlashi uchun (timing orqali raqam borligini bilib bo'lmasin)
 const DUMMY_HASH = bcrypt.hashSync('formo-dummy-password', BCRYPT_ROUNDS);
@@ -81,9 +77,6 @@ export class AuthService {
    * ochiladi — mobil ilovada telefon + SMS kod bosqichidan boshqa narsa yo'q.
    */
   async otpLogin(dto: OtpLoginDto, client: ClientInfo) {
-    if (!otpLoginEnabled()) {
-      throw new ForbiddenException('SMS orqali kirish hozircha mavjud emas');
-    }
     if (dto.code !== DEMO_OTP_CODE) {
       throw new UnauthorizedException("Tasdiqlash kodi noto'g'ri");
     }
