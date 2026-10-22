@@ -6,6 +6,25 @@ import { CleanText, NoHtml } from '../../common/utils/no-html';
 
 const HHMM = /^([01]\d|2[0-3]):[0-5]\d$/;
 
+export class SendChatMessageDto {
+  @ApiProperty({ example: 'Bugun 20 ta forma tayyor bo‘ladi', maxLength: 1000 })
+  @CleanText()
+  @NoHtml()
+  @IsString()
+  @IsNotEmpty()
+  @MaxLength(1000)
+  text: string;
+}
+
+export class ChatMessagesQueryDto {
+  @ApiPropertyOptional({ description: 'Shu id dan keyingi xabarlar (polling). Berilmasa — oxirgi 100 ta' })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(0)
+  after?: number;
+}
+
 export class CreateDefectDto {
   @ApiProperty({ description: 'Sexga biriktirilgan buyurtma id' })
   @Type(() => Number)

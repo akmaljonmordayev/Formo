@@ -7,11 +7,14 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { ListInventoryQueryDto, UpsertInventoryDto } from './dto/inventory.dto';
 import { RangeQueryDto } from './dto/insights.dto';
 import { ParseIdPipe } from '../common/pipes/parse-id.pipe';
+import { ChatService } from './chat.service';
 import { DefectsService } from './defects.service';
 import {
+  ChatMessagesQueryDto,
   CreateDefectDto,
   CreateEmployeeDto,
   ListDefectsQueryDto,
+  SendChatMessageDto,
   UpdateEmployeeDto,
   UpdateWorkshopProfileDto,
 } from './dto/workshop-panel.dto';
@@ -29,6 +32,7 @@ export class WorkshopPanelController {
   constructor(
     private readonly orders: WorkshopOrdersService,
     private readonly inventory: InventoryService,
+    private readonly chat: ChatService,
     private readonly defects: DefectsService,
     private readonly profile: WorkshopProfileService,
   ) {}
@@ -56,6 +60,25 @@ export class WorkshopPanelController {
   @ApiOperation({ summary: 'Zaxira qoldiqlarini saqlash (bir nechta yozuv birdan)' })
   saveInventory(@Body() dto: UpsertInventoryDto, @CurrentUser() user: AuthUser, @Req() req: Request) {
     return this.inventory.upsert(dto, user, req.ip);
+  }
+
+  // ── Operator bilan yozishma ────────────────────────────────────────────────
+  @Get('chat/messages')
+  @ApiOperation({ summary: 'Operator bilan yozishma (`?after=id` — faqat yangilari). Operator xabarlari o‘qilgan bo‘ladi' })
+  chatMessages(@CurrentUser() user: AuthUser, @Query() query: ChatMessagesQueryDto) {
+    return this.chat.messages(user.id, 'workshop', query.after);
+  }
+
+  @Post('chat/messages')
+  @ApiOperation({ summary: 'Operatorga xabar yuborish' })
+  sendChat(@CurrentUser() user: AuthUser, @Body() dto: SendChatMessageDto) {
+    return this.chat.send(user.id, user, dto.text);
+  }
+
+  @Get('chat/unread')
+  @ApiOperation({ summary: 'Operatordan kelgan o‘qilmagan xabarlar soni' })
+  async chatUnread(@CurrentUser() user: AuthUser) {
+    return { unread: await this.chat.unreadForWorkshop(user.id) };
   }
 
   // ── Nuqson (brak) ──────────────────────────────────────────────────────────

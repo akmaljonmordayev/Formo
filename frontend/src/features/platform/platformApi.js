@@ -78,6 +78,13 @@ export const settingsApi = {
   notificationsTest: () => api('/admin/settings/notifications/test', { method: 'POST' }),
 };
 
+// Operator/Superadmin ↔ tikuv sexi yozishmasi
+export const chatApi = {
+  threads: () => api('/admin/chat/threads'), // [{ workshopId, name, unread, lastMessage }]
+  messages: (workshopId, after) => api(`/admin/chat/${workshopId}/messages${qs({ after })}`), // { items }
+  send: (workshopId, text) => api(`/admin/chat/${workshopId}/messages`, { method: 'POST', body: { text } }),
+};
+
 // Sexlar topgan nuqsonlar (brak)
 export const defectsApi = {
   list: (params) => api(`/admin/defects${qs(params)}`), // { items, total, page, limit, openCount }

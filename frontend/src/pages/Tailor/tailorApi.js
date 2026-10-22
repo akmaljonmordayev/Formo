@@ -105,6 +105,13 @@ export const getTailorProduction = () => api('/workshop/production');
 export const getTailorDashboard = (days) =>
   api(`/workshop/stats?days=${encodeURIComponent(days)}`);
 
+// ---------- chat ----------
+export const listChatMessages = (after) =>
+  api(after ? `/workshop/chat/messages?after=${encodeURIComponent(after)}` : '/workshop/chat/messages');
+export const sendChatMessage = (text) =>
+  api('/workshop/chat/messages', { method: 'POST', body: { text } });
+export const getChatUnread = () => api('/workshop/chat/unread');
+
 // ---------- defects ----------
 export const createDefect = (body) => api('/workshop/defects', { method: 'POST', body });
 export const listDefects = (limit = 10) => api(`/workshop/defects?page=1&limit=${limit}`);
