@@ -7,8 +7,10 @@ import ErrorView from '../components/ui/ErrorView';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { placeOrder, useAddresses, useDeliverySlots } from '../features/checkout';
 import {
+  ONLINE_PAYMENT_METHODS,
   PAYMENT_METHODS,
   UNAVAILABLE_PAYMENT_METHODS,
+  onlinePaymentsEnabled,
   paymentText,
 } from '../features/orders';
 import { ApiError } from '../services/api';
@@ -46,8 +48,15 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced }) {
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
 
-  // Naqd to'lov Superadmin sozlamasida o'chirilishi mumkin
-  const methods = rules.allowCash ? PAYMENT_METHODS : PAYMENT_METHODS.filter((m) => m !== 'CASH');
+  // Naqd to'lov Superadmin sozlamasida o'chirilishi mumkin. Click/Payme esa
+  // faqat dev'da tanlanadi — productionda real provayder integratsiyasi yo'q.
+  const onlineEnabled = onlinePaymentsEnabled();
+  const methods = PAYMENT_METHODS.filter((method) =>
+    method === 'CASH' ? rules.allowCash : onlineEnabled,
+  );
+  const disabledMethods = onlineEnabled
+    ? UNAVAILABLE_PAYMENT_METHODS
+    : [...ONLINE_PAYMENT_METHODS, ...UNAVAILABLE_PAYMENT_METHODS];
   useEffect(() => {
     if (!methods.includes(paymentMethod)) setPaymentMethod(methods[0]);
   }, [methods, paymentMethod]);
@@ -100,6 +109,13 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced }) {
   };
 
   const submit = async () => {
+    // Himoya: tanlangan usul hozir mavjud bo'lmasa (masalan, productionda
+    // Click/Payme) — to'lovsiz `PENDING_PAYMENT` buyurtma yaratilmaydi.
+    if (!methods.includes(paymentMethod)) {
+      setSubmitError(t(onlineEnabled ? 'paymentUnavailable' : 'payOnlineUnavailable'));
+      return;
+    }
+
     setSubmitting(true);
     setSubmitError(null);
     try {
@@ -247,7 +263,7 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced }) {
             onPress={() => setPaymentMethod(method)}
           />
         ))}
-        {UNAVAILABLE_PAYMENT_METHODS.map((method) => (
+        {disabledMethods.map((method) => (
           <Option
             key={method}
             disabled
@@ -256,6 +272,11 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced }) {
           />
         ))}
       </View>
+      {!onlineEnabled ? (
+        <Text style={styles.note}>
+          {methods.length ? t('payOnlineUnavailable') : t('payNoMethods')}
+        </Text>
+      ) : null}
 
       <TextInput
         value={comment}
@@ -337,55 +358,56 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radii.md,
     borderWidth: 1.5,
-    borderColor: '#1B2150',
+    borderColor: colors.border,
     padding: spacing.md,
   },
-  optionActive: { borderColor: colors.accent, backgroundColor: '#0E1330' },
-  optionDisabled: { opacity: 0.5 },
-  optionTitle: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  optionActive: { borderColor: colors.accent, backgroundColor: colors.surfaceRaised },
+  optionDisabled: { opacity: 0.45 },
+  optionTitle: { color: colors.text, fontSize: 14, fontWeight: '800' },
   optionTitleDisabled: { color: colors.muted },
-  optionSub: { color: colors.muted, fontSize: 11, marginTop: 3 },
-  form: { gap: spacing.sm, marginTop: spacing.md },
+  optionSub: { color: colors.textSecondary, fontSize: 12, marginTop: 3 },
+  form: { gap: spacing.sm, marginTop: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   input: {
-    minHeight: 46,
+    minHeight: 50,
     borderRadius: radii.md,
-    backgroundColor: '#0E1330',
+    backgroundColor: colors.surfaceRaised,
     borderWidth: 1,
-    borderColor: '#232A57',
+    borderColor: colors.border,
     color: colors.text,
     paddingHorizontal: spacing.md,
     fontSize: 14,
+    fontWeight: '600',
   },
   formActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.sm, marginTop: spacing.xs },
-  addLink: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingVertical: spacing.md },
-  addLinkText: { color: colors.accent, fontSize: 12, fontWeight: '800' },
+  addLink: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: spacing.md },
+  addLinkText: { color: colors.accent, fontSize: 13, fontWeight: '800' },
   sectionGap: { marginTop: spacing.xl },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   slotChips: { marginTop: spacing.md },
   chip: {
-    paddingHorizontal: spacing.md,
-    paddingVertical: 9,
+    paddingHorizontal: 16,
+    paddingVertical: 10,
     borderRadius: radii.round,
-    backgroundColor: colors.chip,
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1D2350',
+    borderColor: colors.border,
   },
-  chipActive: { backgroundColor: '#0E1330', borderColor: colors.accent },
+  chipActive: { backgroundColor: colors.surfaceRaised, borderColor: colors.accent },
   chipOff: { opacity: 0.35 },
   chipText: { color: colors.muted, fontSize: 12, fontWeight: '700' },
-  chipTextActive: { color: colors.accent },
-  note: { color: colors.muted, fontSize: 11, marginTop: spacing.sm },
-  comment: { marginTop: spacing.xl, paddingTop: 12, minHeight: 70, textAlignVertical: 'top' },
-  summary: { gap: spacing.md, marginTop: spacing.lg },
+  chipTextActive: { color: colors.accent, fontWeight: '900' },
+  note: { color: colors.muted, fontSize: 12, lineHeight: 17, marginTop: spacing.sm },
+  comment: { marginTop: spacing.xl, paddingTop: 14, minHeight: 80, textAlignVertical: 'top' },
+  summary: { gap: spacing.md, marginTop: spacing.lg, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   row: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  rowLabel: { color: colors.muted, fontSize: 13 },
+  rowLabel: { color: colors.muted, fontSize: 13, fontWeight: '600' },
   rowValue: { color: colors.text, fontSize: 13, fontWeight: '700' },
   strongLabel: { color: colors.text, fontSize: 15, fontWeight: '800' },
-  strong: { color: colors.text, fontSize: 17, fontWeight: '900' },
-  divider: { borderTopWidth: 1, borderTopColor: '#171C3F' },
-  error: { color: '#E8543F', fontSize: 12 },
+  strong: { color: colors.accent, fontSize: 18, fontWeight: '900' },
+  divider: { borderTopWidth: 1, borderTopColor: colors.border },
+  error: { color: colors.danger, fontSize: 12, fontWeight: '700' },
   submitError: { textAlign: 'center', marginTop: spacing.md },
   footer: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  footerLabel: { color: colors.muted, fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
-  footerPrice: { color: colors.text, fontSize: 17, fontWeight: '900', marginTop: 3 },
+  footerLabel: { color: colors.muted, fontSize: 11, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase' },
+  footerPrice: { color: colors.accent, fontSize: 18, fontWeight: '900', marginTop: 2 },
 });
