@@ -17,6 +17,7 @@ import { AuthService, ClientInfo } from './auth.service';
 import { AuthResponseDto, MessageResponseDto, UserResponseDto } from './dto/auth-response.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
+import { OtpLoginDto } from './dto/otp-login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto, UpdateProfileDto } from './dto/register.dto';
 
@@ -59,6 +60,24 @@ export class AuthController {
   @ApiTooManyRequestsResponse({ description: "Juda ko'p urinish" })
   login(@Body() dto: LoginDto, @Req() req: Request) {
     return this.auth.login(dto, clientInfo(req));
+  }
+
+  @Public()
+  @Throttle(AUTH_LIMIT)
+  @Post('otp-login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Dev-only: telefon + SMS kod bilan parolsiz kirish',
+    description:
+      'Haqiqiy SMS integratsiyasigacha faqat demo kod (12345) qabul qilinadi. ' +
+      "Hisob topilmasa avtomatik ochiladi (role = USER). Productionda OTP_LOGIN_DEMO=true bilan yoqiladi.",
+  })
+  @ApiOkResponse({ type: AuthResponseDto })
+  @ApiUnauthorizedResponse({ description: "Tasdiqlash kodi noto'g'ri" })
+  @ApiForbiddenResponse({ description: 'Mavjud emas / akkaunt bloklangan / xodim hisobi' })
+  @ApiTooManyRequestsResponse({ description: "Juda ko'p urinish" })
+  otpLogin(@Body() dto: OtpLoginDto, @Req() req: Request) {
+    return this.auth.otpLogin(dto, clientInfo(req));
   }
 
   @Public()

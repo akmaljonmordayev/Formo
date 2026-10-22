@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
-  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -14,29 +13,33 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useToast } from '../../components/ui/Toast';
 import { colors } from '../../constants/theme';
-import { formatPhone } from '../../services/api';
+import { OTP_LENGTH, demoOtpHintText } from '../../features/auth/demoOtp';
+
+// "90 123 45 67" ko'rinishida formatlash (faqat 9 ta raqam)
+function formatPhone(digits) {
+  const d = String(digits || '').slice(0, 9);
+  return [d.slice(0, 2), d.slice(2, 5), d.slice(5, 7), d.slice(7, 9)].filter(Boolean).join(' ');
+}
+
+function formatCountdown(totalSeconds) {
+  const m = Math.floor(totalSeconds / 60);
+  const s = totalSeconds % 60;
+  return `${m}:${String(s).padStart(2, '0')}`;
+}
 
 // Barqaror, unikal kalitlar — OTP katakchalari hech qachon qayta
 // o'rnatilmaydi (remount) va fokus yo'qolmaydi. `key={index}` o'rniga shu.
-const OTP_LENGTH = 6;
 const OTP_CELL_KEYS = Array.from({ length: OTP_LENGTH }, (_, i) => `otp-cell-${i}`);
 
 /**
  * OTP kirish ekrani.
  *
  * FOCUS MUAMMOLARI VA YECHIMLAR:
- * - Bitta TextInput ishlatamiz (yashirin), 6 ta ko'rinadigan "cell" ko'rsatamiz.
+ * - Bitta TextInput ishlatamiz (yashirin), ko'rinadigan "cell"lar ko'rsatamiz.
  * - Bu Android/iOS focus bug'larini to'liq bartaraf etadi.
  * - Foydalanuvchi istalgan cellga bosganida yashirin input focus oladi.
  */
-export default function OtpScreen({
-  phone,
-  auth,
-  t,
-  onBack,
-  onVerified,
-  isDemo = true,
-}) {
+export default function OtpScreen({ phone, auth, onBack, onVerified }) {
   const toast = useToast();
   const [code, setCode] = useState('');
   const [loading, setLoading] = useState(false);
@@ -51,8 +54,7 @@ export default function OtpScreen({
   // inputga eski matnni qayta yuborsa (RN controlled-input re-commit), shu
   // sabab bilan aynan shu kodni yana-qayta tekshirib, FOCUS↔BLUR tsiklini
   // yaratmaslik uchun — har bir unikal kod faqat bir marta avtomatik
-  // tekshiriladi. Foydalanuvchi "Tasdiqlash" tugmasi bilan qayta urinish qila
-  // oladi (o'zgartirilmagan UX).
+  // tekshiriladi.
   const lastAutoVerifyRef = useRef(null);
 
   // Countdown timer
@@ -74,7 +76,7 @@ export default function OtpScreen({
   const verifyCode = useCallback(async (codeToVerify) => {
     const finalCode = codeToVerify || code;
     if (finalCode.length !== OTP_LENGTH) {
-      setErrorText("6 xonali tasdiqlash kodini to'liq kiriting");
+      setErrorText(`${OTP_LENGTH} xonali tasdiqlash kodini to'liq kiriting`);
       return;
     }
 
@@ -114,12 +116,10 @@ export default function OtpScreen({
 
   const handleResend = async () => {
     if (secondsLeft > 0) return;
-    setLoading(true);
     setErrorText(null);
     setCode('');
     try {
       const res = await auth.requestOtp(phone);
-      setLoading(false);
       setSecondsLeft(60);
       if (res.isDemo) {
         toast.show(res.message, 'demo', 4000);
@@ -130,7 +130,6 @@ export default function OtpScreen({
         if (!inputRef.current?.isFocused?.()) inputRef.current?.focus();
       }, 200);
     } catch (err) {
-      setLoading(false);
       toast.show(err.message || 'Kodni yuborishda xatolik', 'error');
     }
   };
@@ -154,119 +153,89 @@ export default function OtpScreen({
         >
           {/* Back */}
           <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}>
-            <MaterialCommunityIcons name="arrow-left" size={24} color="#F3F5F9" />
+            <MaterialCommunityIcons name="arrow-left" size={22} color="#F3F5F9" />
           </Pressable>
 
           {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.iconCircle}>
-              <MaterialCommunityIcons name="shield-key-outline" size={32} color={colors.accent} />
-            </View>
-            <Text style={styles.eyebrow}>FORMO · TASDIQLASH</Text>
-            <Text style={styles.title}>Kodni kiriting</Text>
-            <Text style={styles.subtitle}>
-              +998 {formatPhone(phone)} raqamiga 6 xonali kod yuborildi
-            </Text>
+          <Text style={styles.title}>Kodni kiriting</Text>
+          <Text style={styles.subtitle}>
+            +998 {formatPhone(phone)} raqamiga {OTP_LENGTH} xonali kod yuborildi
+          </Text>
+          <Pressable onPress={onBack} hitSlop={6}>
+            <Text style={styles.changeNumberLink}>Raqamni o'zgartirish</Text>
+          </Pressable>
 
-            {/* Demo badge */}
-            <Pressable onPress={focusInput} style={styles.demoBadge}>
-              <MaterialCommunityIcons name="information-outline" size={14} color={colors.accent} />
-              <Text style={styles.demoBadgeText}>
-                Demo rejim — kod:{' '}
-                <Text style={styles.demoCode}>123456</Text>
+          {/* OTP katakchalari (bosilganda yashirin inputga focus) */}
+          <Pressable onPress={focusInput} style={styles.cellsRow}>
+            {OTP_CELL_KEYS.map((cellKey, i) => {
+              const char = code[i] || '';
+              const isActive = isFocused && i === Math.min(code.length, OTP_LENGTH - 1);
+              const isFilled = Boolean(char);
+              const hasError = Boolean(errorText);
+
+              return (
+                <View
+                  key={cellKey}
+                  style={[
+                    styles.cell,
+                    isFilled && styles.cellFilled,
+                    isActive && styles.cellFocused,
+                    hasError && styles.cellError,
+                  ]}
+                >
+                  {char ? (
+                    <Text style={styles.cellText}>{char}</Text>
+                  ) : (
+                    isActive && <View style={styles.cursor} />
+                  )}
+                </View>
+              );
+            })}
+          </Pressable>
+
+          {/* Yashirin haqiqiy TextInput */}
+          <TextInput
+            ref={inputRef}
+            value={code}
+            onChangeText={handleCodeChange}
+            keyboardType="number-pad"
+            maxLength={OTP_LENGTH}
+            caretHidden
+            autoCorrect={false}
+            autoComplete="one-time-code"
+            textContentType="oneTimeCode"
+            onFocus={() => setIsFocused(true)}
+            onBlur={() => setIsFocused(false)}
+            style={styles.hiddenInput}
+          />
+
+          {/* Xato */}
+          {Boolean(errorText) && (
+            <View style={styles.errorBox}>
+              <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#E8543F" />
+              <Text style={styles.errorText}>{errorText}</Text>
+            </View>
+          )}
+
+          {loading && <Text style={styles.verifyingText}>Tekshirilmoqda…</Text>}
+
+          {/* Qayta yuborish */}
+          <View style={styles.resendRow}>
+            {secondsLeft > 0 ? (
+              <Text style={styles.timerText}>
+                Qayta yuborish{'  '}
+                <Text style={styles.timerHighlight}>{formatCountdown(secondsLeft)}</Text>
               </Text>
-            </Pressable>
+            ) : (
+              <Pressable onPress={handleResend} hitSlop={10}>
+                <Text style={styles.resendBtnText}>Yangi kod yuborish →</Text>
+              </Pressable>
+            )}
           </View>
 
-          {/* OTP Card */}
-          <View style={styles.card}>
-            {/* 6 ta ko'rinadigan cell (bosilganda yashirin inputga focus) */}
-            <Pressable onPress={focusInput} style={styles.cellsRow}>
-              {OTP_CELL_KEYS.map((cellKey, i) => {
-                const char = code[i] || '';
-                const isActive = isFocused && i === Math.min(code.length, OTP_LENGTH - 1);
-                const isFilled = Boolean(char);
-                const hasError = Boolean(errorText);
-
-                return (
-                  <View
-                    key={cellKey}
-                    style={[
-                      styles.cell,
-                      isFilled && styles.cellFilled,
-                      isActive && styles.cellFocused,
-                      hasError && styles.cellError,
-                    ]}
-                  >
-                    {char ? (
-                      <Text style={styles.cellText}>{char}</Text>
-                    ) : (
-                      isActive && <View style={styles.cursor} />
-                    )}
-                  </View>
-                );
-              })}
-            </Pressable>
-
-            {/* Yashirin haqiqiy TextInput */}
-            <TextInput
-              ref={inputRef}
-              value={code}
-              onChangeText={handleCodeChange}
-              keyboardType="number-pad"
-              maxLength={6}
-              caretHidden
-              autoCorrect={false}
-              autoComplete="one-time-code"
-              textContentType="oneTimeCode"
-              onFocus={() => setIsFocused(true)}
-              onBlur={() => setIsFocused(false)}
-              style={styles.hiddenInput}
-            />
-
-            {/* Xato */}
-            {Boolean(errorText) && (
-              <View style={styles.errorBox}>
-                <MaterialCommunityIcons name="alert-circle-outline" size={16} color="#E8543F" />
-                <Text style={styles.errorText}>{errorText}</Text>
-              </View>
-            )}
-
-            {/* Qayta yuborish */}
-            <View style={styles.resendRow}>
-              {secondsLeft > 0 ? (
-                <Text style={styles.timerText}>
-                  Qayta yuborish:{' '}
-                  <Text style={styles.timerHighlight}>{secondsLeft} soniya</Text>
-                </Text>
-              ) : (
-                <Pressable onPress={handleResend} hitSlop={10}>
-                  <Text style={styles.resendBtnText}>Yangi kod yuborish →</Text>
-                </Pressable>
-              )}
-            </View>
-
-            {/* Tasdiqlash tugmasi */}
-            <Pressable
-              disabled={code.length !== OTP_LENGTH || loading}
-              onPress={() => verifyCode()}
-              style={[styles.submitBtn, (code.length !== OTP_LENGTH || loading) && styles.submitBtnDisabled]}
-            >
-              {loading ? (
-                <ActivityIndicator color="#080C24" />
-              ) : (
-                <>
-                  <Text style={styles.submitBtnText}>Tasdiqlash</Text>
-                  <View style={styles.submitIcon}>
-                    <MaterialCommunityIcons name="check" size={18} color="#080C24" />
-                  </View>
-                </>
-              )}
-            </Pressable>
-
-            <Text style={styles.helpText}>
-              Ekranga bosing — klaviatura ochiladi
-            </Text>
+          {/* Demo badge */}
+          <View style={styles.demoBadge}>
+            <Text style={styles.demoBadgeText}>{demoOtpHintText}</Text>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -294,82 +263,26 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(243, 245, 249, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  iconCircle: {
-    width: 74,
-    height: 74,
-    borderRadius: 22,
-    backgroundColor: 'rgba(242, 163, 58, 0.12)',
-    borderWidth: 1.5,
-    borderColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 16,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.3,
-    shadowRadius: 18,
-    elevation: 8,
-  },
-  eyebrow: {
-    color: colors.accent,
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    marginBottom: 8,
-    textAlign: 'center',
+    marginBottom: 20,
   },
   title: {
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: '900',
     color: '#F3F5F9',
-    textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
     color: '#A9B0D0',
-    textAlign: 'center',
     lineHeight: 20,
-    marginTop: 8,
-    paddingHorizontal: 20,
+    marginTop: 6,
   },
-  demoBadge: {
-    marginTop: 14,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(242, 163, 58, 0.1)',
-    borderRadius: 999,
-    borderWidth: 1,
-    borderColor: 'rgba(242, 163, 58, 0.3)',
-    paddingHorizontal: 16,
-    paddingVertical: 9,
-  },
-  demoBadgeText: {
-    color: '#A9B0D0',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  demoCode: {
+  changeNumberLink: {
     color: colors.accent,
-    fontWeight: '900',
-    fontSize: 14,
-    letterSpacing: 1,
+    fontSize: 13,
+    fontWeight: '700',
+    marginTop: 10,
+    marginBottom: 24,
   },
-  card: {
-    backgroundColor: '#0E1A3F',
-    borderRadius: 28,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(243, 245, 249, 0.12)',
-    elevation: 4,
-  },
-  // 6 ta cell ko'rinishi
   cellsRow: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -433,7 +346,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(232, 84, 63, 0.4)',
     marginTop: 14,
-    marginBottom: 4,
   },
   errorText: {
     color: '#FFC5C0',
@@ -441,17 +353,20 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     flex: 1,
   },
+  verifyingText: {
+    color: '#A9B0D0',
+    fontSize: 13,
+    marginTop: 14,
+  },
   resendRow: {
-    alignItems: 'center',
-    marginTop: 16,
-    marginBottom: 18,
+    marginTop: 20,
   },
   timerText: {
     color: '#A9B0D0',
     fontSize: 13,
   },
   timerHighlight: {
-    color: colors.accent,
+    color: '#F3F5F9',
     fontWeight: '800',
   },
   resendBtnText: {
@@ -459,40 +374,18 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '700',
   },
-  submitBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: 18,
-    height: 54,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
+  demoBadge: {
+    marginTop: 18,
+    backgroundColor: 'rgba(25, 167, 161, 0.14)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(25, 167, 161, 0.32)',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
   },
-  submitBtnDisabled: {
-    opacity: 0.45,
-  },
-  submitBtnText: {
-    color: '#080C24',
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  submitIcon: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    backgroundColor: 'rgba(8, 12, 36, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  helpText: {
-    textAlign: 'center',
-    fontSize: 12,
-    color: '#6F77A0',
-    marginTop: 14,
-    lineHeight: 18,
+  demoBadgeText: {
+    color: colors.tealLight ?? colors.teal,
+    fontSize: 13,
+    fontWeight: '700',
   },
 });

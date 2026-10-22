@@ -13,30 +13,26 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useToast } from '../../components/ui/Toast';
 import { colors } from '../../constants/theme';
-import { formatPhone } from '../../services/api';
 
-export default function PhoneScreen({
-  auth,
-  t,
-  onBack,
-  onRequestOtp,
-  onPasswordLogin,
-  onRegister,
-}) {
+// "90 123 45 67" ko'rinishida formatlash (faqat 9 ta raqam)
+function formatPhone(digits) {
+  const d = digits.slice(0, 9);
+  return [d.slice(0, 2), d.slice(2, 5), d.slice(5, 7), d.slice(7, 9)].filter(Boolean).join(' ');
+}
+
+/**
+ * Telefon raqam bosqichi — faqat SMS/OTP orqali kirish (parol yo'q).
+ * Mavjud hisob bo'lsa `auth.verifyOtp` kiradi, bo'lmasa avtomatik ro'yxatdan
+ * o'tkazadi — shuning uchun bu yerda "kirish/ro'yxatdan o'tish" farqi yo'q.
+ */
+export default function PhoneScreen({ auth, t, onBack, onRequestOtp }) {
   const toast = useToast();
   const [rawDigits, setRawDigits] = useState('');
   const [agree, setAgree] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [usePassword, setUsePassword] = useState(false);
-  const [password, setPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-
-  // Focus state — faqat style uchun, focus management uchun emas
   const [phoneFocused, setPhoneFocused] = useState(false);
-  const [passwordFocused, setPasswordFocused] = useState(false);
 
   const phoneRef = useRef(null);
-  const passwordRef = useRef(null);
 
   // 9 ta raqam (998 prefikssiz)
   const cleanDigits = rawDigits.replace(/\D/g, '').slice(0, 9);
@@ -50,22 +46,6 @@ export default function PhoneScreen({
     setRawDigits(d.slice(0, 9));
   }, []);
 
-  // SMS/OTP yuborish — parol rejimidan qat'i nazar bir xil yo'l.
-  const sendOtp = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await auth.requestOtp(cleanDigits);
-      if (res?.isDemo) {
-        toast.show(res.message || "Demo rejim: kod 123456", 'demo', 4000);
-      }
-      onRequestOtp?.({ phone: cleanDigits, isDemo: Boolean(res?.isDemo) });
-    } catch (err) {
-      toast.show(err.message || 'SMS yuborishda xatolik', 'error');
-    } finally {
-      setLoading(false);
-    }
-  }, [auth, cleanDigits, onRequestOtp, toast]);
-
   const handleProceed = useCallback(async () => {
     if (loading) return;
 
@@ -74,56 +54,23 @@ export default function PhoneScreen({
       return;
     }
     if (!agree) {
-      toast.show('Foydalanish shartlariga rozilik bildiring', 'error');
+      toast.show('Ommaviy oferta va maxfiylik siyosatiga rozilik bildiring', 'error');
       return;
     }
 
-    if (usePassword) {
-      if (!password.trim()) {
-        toast.show('Parolingizni kiriting', 'error');
-        return;
+    setLoading(true);
+    try {
+      const res = await auth.requestOtp(cleanDigits);
+      if (res?.isDemo) {
+        toast.show(res.message || 'Demo rejim', 'demo', 4000);
       }
-      setLoading(true);
-      try {
-        const res = await auth.login(cleanDigits, password);
-        if (!res?.success) {
-          toast.show(res?.error?.message || "Telefon raqam yoki parol noto'g'ri", 'error');
-        } else {
-          onPasswordLogin?.({ phone: `+998${cleanDigits}`, password });
-        }
-      } catch (err) {
-        toast.show(err.message || 'Kirishda xatolik', 'error');
-      } finally {
-        setLoading(false);
-      }
-      return;
+      onRequestOtp?.({ phone: cleanDigits, isDemo: Boolean(res?.isDemo) });
+    } catch (err) {
+      toast.show(err.message || 'SMS yuborishda xatolik', 'error');
+    } finally {
+      setLoading(false);
     }
-
-    // SMS OTP yo'li
-    await sendOtp();
-  }, [loading, isComplete, agree, usePassword, password, cleanDigits, auth, onPasswordLogin, sendOtp, toast]);
-
-  const handleRegisterPress = useCallback(() => {
-    if (!isComplete) {
-      toast.show('Avval telefon raqamingizni kiriting', 'error');
-      return;
-    }
-    // Ro'yxatdan o'tish har doim SMS/OTP yo'lidan boradi — joriy rejimga
-    // qarab emas (aks holda parol rejimida noto'g'ri tarmoqqa tushib qolardi).
-    setUsePassword(false);
-    setPassword('');
-    sendOtp();
-  }, [isComplete, sendOtp, toast]);
-
-  const togglePasswordMode = useCallback(() => {
-    // Rejim almashganda fokus KO'CHIRILMAYDI. Fokus faqat foydalanuvchi
-    // input'ni o'zi bosganda yoki aniq "keyingi/tasdiqlash" bosqichida
-    // o'zgaradi. Aks holda rejim almashtirishda berilgan `focus()` chaqiruvi
-    // Android'ning o'z fokus boshqaruvi (input mount/unmount bo'lganda)
-    // bilan "poyga"ga tushib, fokus kutilmaganda boshqa maydonga sakraydi.
-    setUsePassword((v) => !v);
-    setPassword('');
-  }, []);
+  }, [loading, isComplete, agree, auth, cleanDigits, onRequestOtp, toast]);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -140,185 +87,92 @@ export default function PhoneScreen({
           {/* Back tugmasi */}
           {Boolean(onBack) && (
             <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}>
-              <MaterialCommunityIcons name="arrow-left" size={24} color="#F3F5F9" />
+              <MaterialCommunityIcons name="arrow-left" size={22} color="#F3F5F9" />
             </Pressable>
           )}
 
           {/* Header */}
-          <View style={styles.header}>
-            <View style={styles.iconCircle}>
-              <MaterialCommunityIcons name="cellphone-check" size={32} color={colors.accent} />
+          <Text style={styles.title}>Telefon raqamingiz</Text>
+          <Text style={styles.subtitle}>Kirish uchun SMS kod yuboramiz</Text>
+
+          {/* --- Telefon raqam --- */}
+          <Pressable
+            // Fabric: `fieldFocused` adds shadowColor/elevation, which flips the
+            // FormsStackingContext trait on focus and makes the differ emit
+            // remove+insert for this subtree — the TextInput inside would lose
+            // native focus right after gaining it. Pinning the trait prevents it.
+            collapsable={false}
+            onPress={() => phoneRef.current?.focus()}
+            style={[styles.phoneRow, phoneFocused && styles.fieldFocused]}
+          >
+            <View style={styles.flagBox}>
+              <Text style={styles.codeText}>+998</Text>
             </View>
-            <Text style={styles.eyebrow}>FORMO · KIRISH</Text>
-            <Text style={styles.title}>Xush kelibsiz</Text>
-            <Text style={styles.subtitle}>
-              Telefon raqamingizni kiriting — kirish yoki ro'yxatdan o'tish
-            </Text>
-          </View>
-
-          {/* Form Card */}
-          <View style={styles.card}>
-            {/* --- Telefon raqam --- */}
-            <Text style={styles.inputLabel}>Telefon raqam</Text>
-            <Pressable
-              // Fabric: `fieldFocused` adds shadowColor/elevation, which flips the
-              // FormsStackingContext trait on focus and makes the differ emit
-              // remove+insert for this subtree — the TextInput inside would lose
-              // native focus right after gaining it. Pinning the trait prevents it.
-              collapsable={false}
-              onPress={() => phoneRef.current?.focus()}
-              style={[styles.phoneRow, phoneFocused && styles.fieldFocused]}
-            >
-              <View style={styles.flagBox}>
-                <Text style={styles.flagEmoji}>🇺🇿</Text>
-                <Text style={styles.codeText}>+998</Text>
-              </View>
-              <TextInput
-                ref={phoneRef}
-                value={formatPhone(cleanDigits)}
-                onChangeText={handleDigitsChange}
-                placeholder="90 123 45 67"
-                placeholderTextColor={colors.caption}
-                keyboardType="phone-pad"
-                maxLength={12}
-                autoCapitalize="none"
-                autoCorrect={false}
-                importantForAutofill="no"
-                onFocus={() => setPhoneFocused(true)}
-                onBlur={() => setPhoneFocused(false)}
-                returnKeyType={usePassword ? 'next' : 'done'}
-                onSubmitEditing={() => {
-                  if (usePassword && isComplete) {
-                    passwordRef.current?.focus();
-                  } else {
-                    handleProceed();
-                  }
-                }}
-                blurOnSubmit={false}
-                style={styles.phoneInput}
-              />
-              {isComplete && (
-                <View style={styles.checkDot}>
-                  <MaterialCommunityIcons name="check" size={13} color="#080C24" />
-                </View>
-              )}
-            </Pressable>
-
-            {/* --- Parol (faqat parol rejimida) --- */}
-            {usePassword && (
-              <View style={{ marginTop: 16 }}>
-                <Text style={styles.inputLabel}>Parol</Text>
-                <View
-                  collapsable={false}
-                  style={[styles.passwordRow, passwordFocused && styles.fieldFocused]}
-                >
-                  <TextInput
-                    ref={passwordRef}
-                    value={password}
-                    onChangeText={setPassword}
-                    placeholder="Parolingizni kiriting"
-                    placeholderTextColor={colors.caption}
-                    secureTextEntry={!showPassword}
-                    autoCapitalize="none"
-                    autoCorrect={false}
-                    importantForAutofill="no"
-                    onFocus={() => setPasswordFocused(true)}
-                    onBlur={() => setPasswordFocused(false)}
-                    onSubmitEditing={handleProceed}
-                    returnKeyType="done"
-                    blurOnSubmit
-                    style={styles.passwordInput}
-                  />
-                  <Pressable
-                    onPress={() => setShowPassword((v) => !v)}
-                    hitSlop={12}
-                    style={styles.eyeBtn}
-                  >
-                    <MaterialCommunityIcons
-                      name={showPassword ? 'eye-off-outline' : 'eye-outline'}
-                      size={20}
-                      color={colors.muted}
-                    />
-                  </Pressable>
-                </View>
+            <TextInput
+              ref={phoneRef}
+              value={formatPhone(cleanDigits)}
+              onChangeText={handleDigitsChange}
+              placeholder="90 123 45 67"
+              placeholderTextColor={colors.caption}
+              keyboardType="phone-pad"
+              maxLength={12}
+              autoCapitalize="none"
+              autoCorrect={false}
+              importantForAutofill="no"
+              onFocus={() => setPhoneFocused(true)}
+              onBlur={() => setPhoneFocused(false)}
+              returnKeyType="done"
+              onSubmitEditing={handleProceed}
+              blurOnSubmit={false}
+              style={styles.phoneInput}
+            />
+            {isComplete && (
+              <View style={styles.checkDot}>
+                <MaterialCommunityIcons name="check" size={13} color="#080C24" />
               </View>
             )}
+          </Pressable>
 
-            {/* --- Rozilik --- */}
-            <Pressable
-              onPress={() => setAgree((v) => !v)}
-              style={styles.agreeRow}
-              hitSlop={6}
-            >
-              <View style={[styles.checkbox, agree && styles.checkboxChecked]}>
-                {agree && (
-                  <MaterialCommunityIcons name="check" size={13} color="#080C24" />
-                )}
-              </View>
-              <Text style={styles.agreeText}>
-                Foydalanish shartlari va maxfiylik siyosatiga roziman
-              </Text>
-            </Pressable>
-
-            {/* --- Asosiy tugma --- */}
-            <Pressable
-              onPress={handleProceed}
-              disabled={!isComplete || loading}
-              style={[
-                styles.submitBtn,
-                (!isComplete || loading) && styles.submitBtnDisabled,
-              ]}
-            >
-              {loading ? (
-                <Text style={styles.submitBtnText}>Iltimos kuting…</Text>
-              ) : (
-                <>
-                  <Text style={styles.submitBtnText}>
-                    {usePassword ? 'Kirish' : 'SMS kod yuborish'}
-                  </Text>
-                  <View style={styles.submitArrow}>
-                    <MaterialCommunityIcons name="arrow-right" size={18} color="#080C24" />
-                  </View>
-                </>
+          {/* --- Rozilik --- */}
+          <Pressable
+            onPress={() => setAgree((v) => !v)}
+            style={styles.agreeRow}
+            hitSlop={6}
+          >
+            <View style={[styles.checkbox, agree && styles.checkboxChecked]}>
+              {agree && (
+                <MaterialCommunityIcons name="check" size={13} color="#080C24" />
               )}
-            </Pressable>
-
-            {/* --- Rejim almashtirish --- */}
-            <Pressable
-              onPress={togglePasswordMode}
-              style={styles.toggleRow}
-              hitSlop={8}
-            >
-              <MaterialCommunityIcons
-                name={usePassword ? 'message-text-outline' : 'lock-outline'}
-                size={15}
-                color={colors.teal}
-              />
-              <Text style={styles.toggleText}>
-                {usePassword ? 'SMS tasdiqlash orqali kirish' : 'Parol orqali kirish'}
-              </Text>
-            </Pressable>
-
-            {/* --- Separator --- */}
-            <View style={styles.divider} />
-
-            {/* --- Ro'yxatdan o'tish havolasi --- */}
-            <Pressable onPress={handleRegisterPress} hitSlop={6} style={styles.registerRow}>
-              <Text style={styles.registerText}>
-                Akkauntingiz yo'qmi?{'  '}
-                <Text style={styles.registerLink}>SMS orqali ro'yxatdan o'ting →</Text>
-              </Text>
-            </Pressable>
-          </View>
-
-          {/* Demo info */}
-          <View style={styles.demoCard}>
-            <MaterialCommunityIcons name="information-outline" size={15} color={colors.accent} />
-            <Text style={styles.demoText}>
-              Demo rejim: SMS kodi{' '}
-              <Text style={styles.demoCode}>123456</Text>
+            </View>
+            <Text style={styles.agreeText}>
+              <Text style={styles.agreeLink}>Ommaviy oferta</Text>
+              {' '}va maxfiylik siyosati shartlariga roziman
             </Text>
-          </View>
+          </Pressable>
+
+          <View style={styles.spacer} />
+
+          {/* --- Asosiy tugma --- */}
+          <Pressable
+            onPress={handleProceed}
+            disabled={!isComplete || loading}
+            style={[
+              styles.submitBtn,
+              (!isComplete || loading) && styles.submitBtnDisabled,
+            ]}
+          >
+            <Text style={styles.submitBtnText}>
+              {loading ? 'Iltimos kuting…' : 'Kodni olish'}
+            </Text>
+          </Pressable>
+
+          {/* --- Telegram orqali kirish (hozircha mavjud emas) --- */}
+          <Pressable
+            onPress={() => toast.show('Tez orada qo‘shiladi', 'info')}
+            style={styles.telegramBtn}
+          >
+            <Text style={styles.telegramBtnText}>Telegram orqali kirish</Text>
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -345,63 +199,18 @@ const styles = StyleSheet.create({
     borderColor: 'rgba(243, 245, 249, 0.1)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 16,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 28,
-  },
-  iconCircle: {
-    width: 72,
-    height: 72,
-    borderRadius: 22,
-    backgroundColor: 'rgba(242, 163, 58, 0.12)',
-    borderWidth: 1.5,
-    borderColor: colors.accent,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 14,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.28,
-    shadowRadius: 18,
-    elevation: 8,
-  },
-  eyebrow: {
-    color: colors.accent,
-    fontSize: 10,
-    fontWeight: '800',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    marginBottom: 8,
+    marginBottom: 20,
   },
   title: {
-    fontSize: 30,
+    fontSize: 28,
     fontWeight: '900',
     color: '#F3F5F9',
-    textAlign: 'center',
   },
   subtitle: {
     fontSize: 14,
     color: '#A9B0D0',
-    textAlign: 'center',
-    lineHeight: 20,
-    marginTop: 8,
-    paddingHorizontal: 24,
-  },
-  card: {
-    backgroundColor: '#0E1A3F',
-    borderRadius: 28,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: 'rgba(243, 245, 249, 0.12)',
-    elevation: 4,
-  },
-  inputLabel: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: '#A9B0D0',
-    marginBottom: 8,
-    letterSpacing: 0.4,
+    marginTop: 6,
+    marginBottom: 22,
   },
   phoneRow: {
     flexDirection: 'row',
@@ -409,30 +218,25 @@ const styles = StyleSheet.create({
     backgroundColor: '#121A42',
     borderRadius: 16,
     borderWidth: 1.5,
-    borderColor: 'rgba(243, 245, 249, 0.12)',
+    borderColor: colors.accent,
     overflow: 'hidden',
   },
   fieldFocused: {
-    borderColor: 'rgba(242, 163, 58, 0.75)',
+    borderColor: colors.accent,
     shadowColor: colors.accent,
     shadowOpacity: 0.18,
     shadowRadius: 8,
     elevation: 3,
   },
   flagBox: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 12,
+    paddingHorizontal: 14,
     paddingVertical: 14,
-    backgroundColor: '#1B2560',
     borderRightWidth: 1,
     borderRightColor: 'rgba(243, 245, 249, 0.12)',
-    gap: 5,
   },
-  flagEmoji: { fontSize: 16 },
   codeText: {
     color: '#F3F5F9',
-    fontSize: 14,
+    fontSize: 16,
     fontWeight: '800',
   },
   phoneInput: {
@@ -453,43 +257,23 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 12,
   },
-  passwordRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#121A42',
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: 'rgba(243, 245, 249, 0.12)',
-    paddingRight: 4,
-  },
-  passwordInput: {
-    flex: 1,
-    color: '#F3F5F9',
-    fontSize: 16,
-    fontWeight: '600',
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-  },
-  eyeBtn: {
-    padding: 10,
-  },
   agreeRow: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginTop: 16,
-    marginBottom: 18,
     gap: 10,
   },
   checkbox: {
     width: 20,
     height: 20,
-    borderRadius: 6,
+    borderRadius: 5,
     backgroundColor: '#121A42',
     borderWidth: 1.5,
     borderColor: 'rgba(243, 245, 249, 0.2)',
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
+    marginTop: 1,
   },
   checkboxChecked: {
     backgroundColor: colors.accent,
@@ -497,94 +281,48 @@ const styles = StyleSheet.create({
   },
   agreeText: {
     color: '#A9B0D0',
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 13,
+    lineHeight: 19,
     flex: 1,
   },
+  agreeLink: {
+    color: colors.accent,
+    fontWeight: '700',
+    textDecorationLine: 'underline',
+  },
+  spacer: {
+    flex: 1,
+    minHeight: 40,
+  },
   submitBtn: {
-    backgroundColor: colors.accent,
-    borderRadius: 18,
+    borderRadius: 16,
     height: 54,
-    flexDirection: 'row',
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+    backgroundColor: 'transparent',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 10,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.28,
-    shadowRadius: 12,
-    elevation: 8,
   },
   submitBtnDisabled: {
     opacity: 0.45,
   },
   submitBtnText: {
-    color: '#080C24',
+    color: colors.accent,
     fontSize: 15,
     fontWeight: '800',
   },
-  submitArrow: {
-    width: 30,
-    height: 30,
-    borderRadius: 10,
-    backgroundColor: 'rgba(8,12,36,0.18)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  toggleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 16,
-    paddingVertical: 4,
-  },
-  toggleText: {
-    color: colors.teal,
-    fontSize: 13,
-    fontWeight: '700',
-  },
-  divider: {
-    height: 1,
-    backgroundColor: 'rgba(243, 245, 249, 0.07)',
-    marginTop: 18,
-    marginBottom: 4,
-  },
-  registerRow: {
-    marginTop: 14,
-    alignItems: 'center',
-    paddingBottom: 2,
-  },
-  registerText: {
-    color: '#A9B0D0',
-    fontSize: 13,
-    textAlign: 'center',
-    lineHeight: 20,
-  },
-  registerLink: {
-    color: colors.teal,
-    fontWeight: '800',
-  },
-  demoCard: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    marginTop: 14,
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    backgroundColor: 'rgba(242, 163, 58, 0.07)',
-    borderRadius: 14,
+  telegramBtn: {
+    marginTop: 12,
+    borderRadius: 16,
+    height: 54,
     borderWidth: 1,
-    borderColor: 'rgba(242, 163, 58, 0.18)',
+    borderColor: 'rgba(243, 245, 249, 0.14)',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  demoText: {
-    color: '#A9B0D0',
-    fontSize: 12,
-    fontWeight: '600',
-  },
-  demoCode: {
-    color: colors.accent,
-    fontWeight: '900',
-    letterSpacing: 0.5,
+  telegramBtnText: {
+    color: '#F3F5F9',
+    fontSize: 15,
+    fontWeight: '700',
   },
 });

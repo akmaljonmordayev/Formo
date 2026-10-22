@@ -163,6 +163,20 @@ export const auth = {
     return storeSession(data);
   },
 
+  /**
+   * Dev-only: SMS/OTP orqali parolsiz kirish (kod to'g'ri bo'lsa hisob
+   * topilmasa avtomatik ochiladi). Phone: "+998XXXXXXXXX".
+   * @returns {Promise<object>} user object
+   */
+  async otpLogin(phone, code) {
+    const data = await request('/auth/otp-login', {
+      method: 'POST',
+      auth: false,
+      body: { phone: normalizePhone(phone), code },
+    });
+    return storeSession(data);
+  },
+
   /** Fetch the currently authenticated user's profile. */
   me: () => request('/auth/me'),
 

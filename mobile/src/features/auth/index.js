@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api, ApiError } from '../../services/api';
 import * as storage from '../../utils/storage';
+import { demoOtpHintText, isDemoOtpEnabled } from './demoOtp';
 
 /**
  * Maps an API error to a display-ready error object.
@@ -130,6 +131,36 @@ export default function useAuth() {
     }
   }, []);
 
+  // ─── SMS/OTP orqali kirish (dev-only demo) ──────────────────────────────────
+  /** Backendda SMS yo'q — faqat kod 123456 ekanini tekshiradi, SMS yubormaydi. */
+  const requestOtp = useCallback(async () => {
+    if (!isDemoOtpEnabled()) {
+      throw new Error('SMS orqali kirish hozircha mavjud emas');
+    }
+    return { isDemo: true, message: demoOtpHintText };
+  }, []);
+
+  /** Kod to'g'ri bo'lsa backend shu telefon uchun hisobni topadi yoki ochadi — parol yo'q. */
+  const verifyOtp = useCallback(async (phone, code) => {
+    if (!isDemoOtpEnabled()) {
+      throw new Error('SMS orqali kirish hozircha mavjud emas');
+    }
+
+    setIsSubmitting(true);
+    setError(null);
+    try {
+      const me = await api.auth.otpLogin(phone, code);
+      setUser(me);
+      setIsAuthenticated(true);
+      return true;
+    } catch (err) {
+      setError(toAuthError(err, 'authError'));
+      throw err;
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, []);
+
   // ─── Logout ──────────────────────────────────────────────────────────────────
   const logout = useCallback(async () => {
     try {
@@ -165,6 +196,8 @@ export default function useAuth() {
     error,
     login,
     register,
+    requestOtp,
+    verifyOtp,
     logout,
     refreshUser,
     updateUser,

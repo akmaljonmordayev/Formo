@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
 import { BottomTabs } from '../components/ui/BottomTabs';
 import { colors } from '../constants/theme';
-import LoginScreen from '../screens/Login/LoginScreen';
-import RegisterScreen from '../screens/Login/RegisterScreen';
+import OtpLoginScreen from '../screens/Auth/OtpLoginScreen';
 import CompleteProfileScreen from '../screens/Login/CompleteProfileScreen';
 import CartScreen from '../screens/CartScreen';
 import CatalogScreen from '../screens/CatalogScreen';
@@ -39,9 +38,6 @@ export default function AppNavigator({ store, t, auth }) {
   const [orderId, setOrderId] = useState(null);
   const [orderFrom, setOrderFrom] = useState('orders');
   const [notifFrom, setNotifFrom] = useState('home');
-
-  // ─── Auth sub-routes (login | register) ──────────────────────────────────────
-  const [authRoute, setAuthRoute] = useState('login');
 
   // ─── Cart origin (to return where the user came from) ────────────────────────
   const [cartFrom, setCartFrom] = useState('home');
@@ -108,32 +104,10 @@ export default function AppNavigator({ store, t, auth }) {
     );
   }
 
-  // ─── 2. Auth wall ─────────────────────────────────────────────────────────────
+  // ─── 2. Auth wall — faqat telefon + SMS kod (parol yo'q) ──────────────────────
   if (!auth.isAuthenticated) {
-    if (authRoute === 'register') {
-      return (
-        <RegisterScreen
-          auth={auth}
-          t={t}
-          language={store.language}
-          onLanguage={store.setLanguage}
-          // Successful register: auth.isAuthenticated will flip → navigator re-renders
-          onLogin={() => setAuthRoute('login')}
-        />
-      );
-    }
-
-    return (
-      <LoginScreen
-        auth={auth}
-        t={t}
-        language={store.language}
-        onLanguage={store.setLanguage}
-        // Successful login: auth.isAuthenticated will flip → navigator re-renders
-        onLogin={() => {}}
-        onRegister={() => setAuthRoute('register')}
-      />
-    );
+    // Successful login/register: auth.isAuthenticated flips → navigator re-renders
+    return <OtpLoginScreen auth={auth} t={t} />;
   }
 
   // ─── 2b. One-time "about you" survey for users with missing measurements ─────

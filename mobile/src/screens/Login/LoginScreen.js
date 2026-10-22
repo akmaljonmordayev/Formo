@@ -15,6 +15,7 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Jersey, { KITS } from '../../components/ui/Jersey';
 import useCompactLayout from '../../utils/useCompactLayout';
+import { isDemoOtpEnabled } from '../../features/auth/demoOtp';
 import LanguageSwitch from './LanguageSwitch';
 
 /**
@@ -54,9 +55,10 @@ function formatPhone(digits) {
   return [d.slice(0, 2), d.slice(2, 5), d.slice(5, 7), d.slice(7, 9)].filter(Boolean).join(' ');
 }
 
-export default function LoginScreen({ auth, t, language, onLanguage, onLogin, onRegister }) {
+export default function LoginScreen({ auth, t, language, onLanguage, onLogin, onRegister, onOtpLogin }) {
   const compact = useCompactLayout();
   const insets = useSafeAreaInsets();
+  const demoOtp = isDemoOtpEnabled();
 
   const [digits, setDigits] = useState('');
   const [password, setPassword] = useState('');
@@ -296,6 +298,13 @@ export default function LoginScreen({ auth, t, language, onLanguage, onLogin, on
                   </Text>
                 </Pressable>
               </View>
+
+              {demoOtp && (
+                <Pressable onPress={onOtpLogin} hitSlop={8} style={styles.otpLoginRow}>
+                  <MaterialCommunityIcons name="message-text-outline" size={14} color={palette.teal} />
+                  <Text style={styles.otpLoginText}>SMS kod orqali kirish</Text>
+                </Pressable>
+              )}
             </View>
           </Animated.View>
         </ScrollView>
@@ -533,4 +542,13 @@ const styles = StyleSheet.create({
   careIcons: { flexDirection: 'row', gap: 6 },
   careText: { color: 'rgba(14,26,63,0.55)', fontSize: 12 },
   careLink: { color: palette.navy, fontWeight: '700' },
+
+  otpLoginRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginTop: 14,
+  },
+  otpLoginText: { color: palette.teal, fontSize: 13, fontWeight: '700' },
 });
