@@ -69,10 +69,340 @@
   }
 }
 
+/* Page and content entrance */
+.tailor-app main > * {
+  animation: tailor-fade-up 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.tailor-app main > *:nth-child(2) { animation-delay: 70ms; }
+.tailor-app main > *:nth-child(3) { animation-delay: 140ms; }
+.tailor-app main > *:nth-child(4) { animation-delay: 210ms; }
+
+.tailor-app main .grid > *,
+.tailor-app main tbody > tr,
+.tailor-app main .space-y-2 > *,
+.tailor-app main .space-y-3 > * {
+  animation: tailor-fade-up 380ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.tailor-app main .grid > *:nth-child(2),
+.tailor-app main .space-y-2 > *:nth-child(2),
+.tailor-app main .space-y-3 > *:nth-child(2),
+.tailor-app main tbody > tr:nth-child(2) { animation-delay: 60ms; }
+.tailor-app main .grid > *:nth-child(3),
+.tailor-app main .space-y-2 > *:nth-child(3),
+.tailor-app main .space-y-3 > *:nth-child(3),
+.tailor-app main tbody > tr:nth-child(3) { animation-delay: 120ms; }
+.tailor-app main .grid > *:nth-child(4),
+.tailor-app main .space-y-2 > *:nth-child(4),
+.tailor-app main .space-y-3 > *:nth-child(4),
+.tailor-app main tbody > tr:nth-child(4) { animation-delay: 180ms; }
+.tailor-app main .grid > *:nth-child(n+5),
+.tailor-app main .space-y-2 > *:nth-child(n+5),
+.tailor-app main .space-y-3 > *:nth-child(n+5),
+.tailor-app main tbody > tr:nth-child(n+5) { animation-delay: 240ms; }
+
+/* Interactions */
+.tailor-app button,
+.tailor-app a {
+  transition-property: color, background-color, border-color, box-shadow, transform, opacity;
+  transition-duration: 180ms;
+  transition-timing-function: ease;
+}
+
+.tailor-app button:not(:disabled):active {
+  transform: scale(0.96);
+}
+
+.tailor-app main .rounded-2xl.border:hover {
+  transform: translateY(-2px);
+}
+
+.tailor-app aside a:hover {
+  transform: translateX(3px);
+}
+
+.tailor-app header button:hover {
+  transform: translateY(-1px);
+}
+
+.tailor-app input:focus,
+.tailor-app textarea:focus {
+  box-shadow: 0 0 0 3px rgba(45, 212, 191, 0.14);
+}
+
+.tailor-app [class*="shadow-glow"] {
+  animation: tailor-glow 2.8s ease-in-out infinite;
+}
+
+.tailor-app .absolute.right-0.top-12 {
+  transform-origin: top right;
+  animation: tailor-pop 180ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+/* Profile */
+.tailor-modal-pop {
+  animation: tailor-pop 240ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.tailor-avatar {
+  animation: tailor-avatar-ring 2.6s ease-in-out infinite, tailor-pop 500ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+.tailor-toast {
+  animation: tailor-toast-enter 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
+}
+
+@keyframes tailor-avatar-ring {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(45, 212, 191, 0.35); }
+  50% { box-shadow: 0 0 0 8px rgba(45, 212, 191, 0); }
+}
+
+@keyframes tailor-toast-enter {
+  from {
+    opacity: 0;
+    transform: translateX(32px) scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0) scale(1);
+  }
+}
+
+/* Larger text */
+.tailor-app .text-\[9px\] { font-size: 0.625rem; line-height: 0.875rem; }
+.tailor-app .text-\[10px\] { font-size: 0.6875rem; line-height: 1rem; }
+.tailor-app .text-\[11px\] { font-size: 0.75rem; line-height: 1rem; }
+.tailor-app .text-xs { font-size: 0.8125rem; line-height: 1.15rem; }
+.tailor-app .text-sm { font-size: 0.9375rem; line-height: 1.35rem; }
+.tailor-app .text-base { font-size: 1.0625rem; line-height: 1.5rem; }
+.tailor-app .text-lg { font-size: 1.1875rem; line-height: 1.6rem; }
+.tailor-app .text-xl { font-size: 1.3125rem; line-height: 1.75rem; }
+.tailor-app .text-2xl { font-size: 1.5625rem; line-height: 2rem; }
+.tailor-app input,
+.tailor-app textarea,
+.tailor-app select { font-size: 0.875rem; }
+
+@keyframes tailor-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes tailor-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.95) translateY(-6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+@keyframes tailor-glow {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(1.12); }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tailor-app [role="listbox"],
   .tailor-profile-overlay,
-  .tailor-profile-drawer {
-    animation: none;
+  .tailor-profile-drawer,
+  .tailor-app main *,
+  .tailor-app header *,
+  .tailor-app [class*="shadow-glow"] {
+    animation: none !important;
+    transition: none !important;
   }
+}
+
+/* ==========================================================
+   Modern layer: same navy + teal palette, refined surfaces
+   ========================================================== */
+.tailor-app {
+  --t-accent: #2dd4bf;
+  --t-accent-2: #38bdf8;
+  --t-line: rgba(148, 163, 184, 0.14);
+  background-image:
+    radial-gradient(900px 480px at 85% -10%, rgba(45, 212, 191, 0.10), transparent 60%),
+    radial-gradient(700px 420px at -5% 15%, rgba(56, 189, 248, 0.08), transparent 60%),
+    radial-gradient(800px 500px at 50% 120%, rgba(99, 102, 241, 0.07), transparent 60%);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+  font-feature-settings: 'cv11', 'ss01';
+  letter-spacing: -0.005em;
+}
+
+.tailor-app ::selection {
+  background: rgba(45, 212, 191, 0.3);
+  color: #fff;
+}
+
+/* Scrollbars */
+.tailor-app * {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(148, 163, 184, 0.25) transparent;
+}
+.tailor-app *::-webkit-scrollbar { width: 8px; height: 8px; }
+.tailor-app *::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 999px;
+}
+.tailor-app *::-webkit-scrollbar-thumb:hover { background: rgba(45, 212, 191, 0.5); }
+
+/* Header */
+.tailor-app header.sticky {
+  background-color: rgba(11, 15, 25, 0.72);
+  backdrop-filter: blur(18px) saturate(160%);
+  border-bottom-color: var(--t-line);
+  box-shadow: 0 1px 0 rgba(45, 212, 191, 0.06), 0 12px 32px -24px rgba(0, 0, 0, 0.8);
+}
+.tailor-app header h1 {
+  background: linear-gradient(90deg, #fff 30%, #99f6e4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  letter-spacing: -0.02em;
+}
+
+/* Sidebar */
+.tailor-app aside > div,
+.tailor-app aside .h-full {
+  background-image:
+    radial-gradient(260px 200px at 0% 0%, rgba(45, 212, 191, 0.10), transparent 70%),
+    linear-gradient(180deg, rgba(18, 24, 41, 0.6), rgba(11, 15, 25, 0));
+  border-right-color: var(--t-line);
+}
+.tailor-app aside nav a {
+  position: relative;
+  border: 1px solid transparent;
+}
+.tailor-app aside nav a svg {
+  transition: transform 200ms ease;
+}
+.tailor-app aside nav a:hover svg { transform: scale(1.12); }
+.tailor-app aside nav a.active {
+  background-image: linear-gradient(90deg, rgba(45, 212, 191, 0.16), rgba(56, 189, 248, 0.05));
+  border-color: rgba(45, 212, 191, 0.22);
+  box-shadow: 0 8px 24px -14px rgba(45, 212, 191, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+}
+.tailor-app aside nav a.active::before {
+  content: '';
+  position: absolute;
+  left: -1px;
+  top: 22%;
+  bottom: 22%;
+  width: 3px;
+  border-radius: 0 4px 4px 0;
+  background: linear-gradient(180deg, var(--t-accent), var(--t-accent-2));
+  box-shadow: 0 0 12px rgba(45, 212, 191, 0.8);
+}
+
+/* Cards / surfaces */
+.tailor-app main .rounded-2xl.border,
+.tailor-app main .rounded-xl.border {
+  border-color: var(--t-line);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.05),
+    0 18px 40px -26px rgba(0, 0, 0, 0.85);
+  transition: transform 220ms ease, border-color 220ms ease, box-shadow 220ms ease, background-color 220ms ease;
+}
+.tailor-app main .rounded-2xl.border:hover {
+  border-color: rgba(45, 212, 191, 0.32);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.07),
+    0 22px 48px -24px rgba(45, 212, 191, 0.28);
+}
+.tailor-app main .bg-white\/\[0\.04\] {
+  background-image: linear-gradient(160deg, rgba(255, 255, 255, 0.055), rgba(255, 255, 255, 0.015));
+}
+
+/* Popovers, drawers, modals */
+.tailor-app .bg-\[\#121829\] {
+  background-image: linear-gradient(180deg, rgba(255, 255, 255, 0.03), transparent);
+}
+.tailor-app .shadow-2xl {
+  box-shadow: 0 30px 80px -20px rgba(0, 0, 0, 0.85), 0 0 0 1px rgba(45, 212, 191, 0.08);
+}
+.tailor-profile-overlay { backdrop-filter: blur(6px); }
+
+/* Primary buttons */
+.tailor-app button[class*="bg-teal-400"]:not([role="switch"]),
+.tailor-app button[class*="bg-teal-500"]:not([role="switch"]),
+.tailor-app a[class*="bg-teal-400"] {
+  background-image: linear-gradient(135deg, #5eead4, #2dd4bf 55%, #22b8cf);
+  box-shadow: 0 10px 24px -10px rgba(45, 212, 191, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.35);
+}
+.tailor-app button[class*="bg-teal-400"]:not([role="switch"]):hover:not(:disabled),
+.tailor-app button[class*="bg-teal-500"]:not([role="switch"]):hover:not(:disabled) {
+  filter: brightness(1.07);
+  box-shadow: 0 14px 30px -10px rgba(45, 212, 191, 0.85), inset 0 1px 0 rgba(255, 255, 255, 0.4);
+}
+.tailor-app button[role="switch"][aria-checked="true"] {
+  box-shadow: 0 0 14px rgba(45, 212, 191, 0.5);
+}
+
+/* Secondary (ghost) buttons */
+.tailor-app button[class*="border-white/10"]:hover:not(:disabled) {
+  border-color: rgba(45, 212, 191, 0.35);
+}
+
+/* Inputs */
+.tailor-app input:not([type="checkbox"]):not([type="radio"]),
+.tailor-app textarea,
+.tailor-app select {
+  background-color: rgba(10, 15, 28, 0.6);
+  border-color: var(--t-line);
+  border-radius: 0.85rem;
+  transition: border-color 160ms ease, box-shadow 160ms ease, background-color 160ms ease;
+}
+.tailor-app input:hover,
+.tailor-app textarea:hover { border-color: rgba(45, 212, 191, 0.3); }
+.tailor-app input:focus,
+.tailor-app textarea:focus {
+  border-color: var(--t-accent);
+  background-color: rgba(10, 15, 28, 0.85);
+  outline: none;
+}
+.tailor-app input::placeholder,
+.tailor-app textarea::placeholder { color: rgba(148, 163, 184, 0.55); }
+
+/* Tables */
+.tailor-app table { border-collapse: separate; border-spacing: 0; }
+.tailor-app thead th {
+  font-size: 0.6875rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: rgb(100, 116, 139);
+  background: rgba(255, 255, 255, 0.02);
+}
+.tailor-app tbody tr { transition: background-color 160ms ease; }
+.tailor-app tbody tr:hover { background: rgba(45, 212, 191, 0.05); }
+
+/* Badges */
+.tailor-app span.ring-1.ring-inset {
+  backdrop-filter: blur(6px);
+  box-shadow: 0 0 14px -6px currentColor;
+}
+
+/* Progress bars: glow */
+.tailor-app [class*="bg-gradient-to"],
+.tailor-app .h-1\.5.rounded-full > div,
+.tailor-app .h-2.rounded-full > div {
+  box-shadow: 0 0 12px rgba(45, 212, 191, 0.35);
+}
+
+/* Focus visibility for keyboard users */
+.tailor-app :focus-visible {
+  outline: 2px solid var(--t-accent);
+  outline-offset: 2px;
 }

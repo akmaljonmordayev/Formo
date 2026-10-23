@@ -8,7 +8,9 @@ import { LANGS, translate } from './i18n';
 import { TailorContext, loadPrefs, storePrefs } from './prefs';
 import { cx } from './utils';
 import {
+  acceptTailorOrder,
   listTailorOrders,
+  rejectTailorOrder,
   TAILOR_NEXT_STATUS,
   updateTailorOrderStatus,
 } from './tailorApi';
@@ -58,25 +60,37 @@ export default function TailorShell({ title, subtitle, children }) {
     setOrdersLoading(true);
     setOrdersError('');
     try {
-      const freshOrders = await listTailorOrders(user?.id);
+      const freshOrders = await listTailorOrders();
       setOrdersState(freshOrders);
     } catch (requestError) {
       setOrdersError(requestError.message);
     } finally {
       setOrdersLoading(false);
     }
-  }, [user?.id]);
+  }, []);
 
   const processOrder = useCallback(async (order) => {
     if (!order.apiBacked || !order.apiId || !order.apiStatus) {
       return;
     }
 
+    const isNew = order.apiStatus === 'SENT_TO_WORKSHOP';
     const nextStatus = TAILOR_NEXT_STATUS[order.apiStatus];
-    if (!nextStatus) return;
+    if (!isNew && !nextStatus) return;
     setOrderActionLoading(true);
     try {
-      await updateTailorOrderStatus(order.apiId, nextStatus);
+      if (isNew) await acceptTailorOrder(order.apiId);
+      else await updateTailorOrderStatus(order.apiId, nextStatus);
+      await reloadOrders();
+    } finally {
+      setOrderActionLoading(false);
+    }
+  }, [reloadOrders]);
+
+  const rejectOrder = useCallback(async (order, reason) => {
+    setOrderActionLoading(true);
+    try {
+      await rejectTailorOrder(order.apiId, reason);
       await reloadOrders();
     } finally {
       setOrderActionLoading(false);
@@ -101,14 +115,15 @@ export default function TailorShell({ title, subtitle, children }) {
       orderActionLoading,
       reloadOrders,
       processOrder,
+      rejectOrder,
     }),
-    [prefs, savePrefs, orders, ordersLoading, ordersError, orderActionLoading, reloadOrders, processOrder]
+    [prefs, savePrefs, orders, ordersLoading, ordersError, orderActionLoading, reloadOrders, processOrder, rejectOrder]
   );
 
   const notes = useMemo(() => {
     const items = [];
     if (prefs.notifications.newOrders) {
-      orders.filter((order) => order.status === 'qabul').forEach((order) => {
+      orders.filter((order) => order.status === 'yangi').forEach((order) => {
         items.push({
           id: `new-order:${order.id}`,
           title: t('note.newOrder.title'),

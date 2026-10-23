@@ -2,7 +2,9 @@ import { api } from '../../services/api';
 
 const PAGE_LIMIT = 100;
 
+// SENT_TO_WORKSHOP — operator yubordi, sex hali qabul qilmagan. DELIVERING sexning ishi tugagan, ro'yxatda yo'q.
 export const TAILOR_ORDER_STATUS = {
+  SENT_TO_WORKSHOP: 'yangi',
   ACCEPTED: 'qabul',
   PRINTING: 'bosildi',
   QUALITY_CHECK: 'bosildi',
@@ -13,6 +15,7 @@ export const TAILOR_NEXT_STATUS = {
   ACCEPTED: 'PRINTING',
   PRINTING: 'QUALITY_CHECK',
   QUALITY_CHECK: 'READY',
+  READY: 'DELIVERING',
 };
 
 const orderToQueueItem = (order) => {
@@ -46,48 +49,77 @@ const orderToQueueItem = (order) => {
     composition: '',
     qty: line?.quantity ?? order.quantity ?? 0,
     printColor: '',
-    jerseyColor: '#172238',
+    jerseyColor: line?.kit?.bgColor || line?.bgColor || '#172238',
     jerseyColorName: '',
     location: '',
     status,
-    stage: status === 'qabul' ? 1 : status === 'tayyor' ? 3 : 2,
+    stage: status === 'yangi' ? 0 : status === 'qabul' ? 1 : status === 'tayyor' ? 3 : 2,
     createdAt: order.createdAt,
     deliveryTime,
     deadline: order.deliverySlot
       ? { time: order.deliverySlot, done: status === 'tayyor' }
       : null,
+    design: line?.design ?? null,
+    clubName: line?.clubName ?? '',
+    kitLabel: line?.kitLabel ?? '',
+    isCustomDesign: Boolean(line && (line.kitId == null || line.design)),
+    apiItems: order.items ?? [],
     apiSummary: details.join(' · '),
     apiPrintName: line?.printName ?? order.printName ?? '',
     apiOrder: order,
   };
 };
 
-export async function listTailorOrders(workshopId) {
+export async function listTailorOrders() {
   const params = new URLSearchParams({ page: '1', limit: String(PAGE_LIMIT) });
-  if (workshopId) params.set('workshopId', String(workshopId));
 
-  const first = await api(`/admin/orders?${params}`);
+  const first = await api(`/workshop/orders?${params}`);
   const records = [...(first.items ?? [])];
   const pageCount = Math.ceil((first.total ?? records.length) / PAGE_LIMIT);
 
   for (let page = 2; page <= pageCount; page += 1) {
     params.set('page', String(page));
-    const next = await api(`/admin/orders?${params}`);
+    const next = await api(`/workshop/orders?${params}`);
     records.push(...(next.items ?? []));
   }
 
   return records.map(orderToQueueItem).filter(Boolean);
 }
 
+export const acceptTailorOrder = (orderId) =>
+  api(`/workshop/orders/${orderId}/accept`, { method: 'POST' });
+
+export const rejectTailorOrder = (orderId, reason) =>
+  api(`/workshop/orders/${orderId}/reject`, { method: 'POST', body: { reason } });
+
 export const updateTailorOrderStatus = (orderId, status) =>
-  api(`/admin/orders/${orderId}/status`, { method: 'PATCH', body: { status } });
+  api(`/workshop/orders/${orderId}/status`, { method: 'PATCH', body: { status } });
 
 export const tailorInventoryApi = {
-  list: () => api('/admin/inventory?productType=TSHIRT'),
-  save: (items) => api('/admin/inventory', { method: 'PUT', body: { items } }),
+  list: () => api('/workshop/inventory?productType=TSHIRT'),
+  save: (items) => api('/workshop/inventory', { method: 'PUT', body: { items } }),
 };
 
-export const getTailorProduction = () => api('/admin/production');
+export const getTailorProduction = () => api('/workshop/production');
 
 export const getTailorDashboard = (days) =>
-  api(`/admin/dashboard?days=${encodeURIComponent(days)}`);
+  api(`/workshop/stats?days=${encodeURIComponent(days)}`);
+
+// ---------- chat ----------
+export const listChatMessages = (after) =>
+  api(after ? `/workshop/chat/messages?after=${encodeURIComponent(after)}` : '/workshop/chat/messages');
+export const sendChatMessage = (text) =>
+  api('/workshop/chat/messages', { method: 'POST', body: { text } });
+export const getChatUnread = () => api('/workshop/chat/unread');
+
+// ---------- defects ----------
+export const createDefect = (body) => api('/workshop/defects', { method: 'POST', body });
+export const listDefects = (limit = 10) => api(`/workshop/defects?page=1&limit=${limit}`);
+
+// ---------- profile / employees ----------
+export const getWorkshopProfile = () => api('/workshop/profile');
+export const updateWorkshopProfile = (body) => api('/workshop/profile', { method: 'PATCH', body });
+export const listEmployees = () => api('/workshop/employees');
+export const createEmployee = (body) => api('/workshop/employees', { method: 'POST', body });
+export const updateEmployee = (id, body) => api(`/workshop/employees/${id}`, { method: 'PATCH', body });
+export const deleteEmployee = (id) => api(`/workshop/employees/${id}`, { method: 'DELETE' });

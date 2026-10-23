@@ -12,6 +12,7 @@ export default function Navbat() {
     ordersLoading = false,
     orderActionLoading = false,
     processOrder,
+    rejectOrder,
   } = useTailor() ?? {};
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState('barchasi');
@@ -30,20 +31,29 @@ export default function Navbat() {
     if (!processOrder) return;
     try {
       await processOrder(order);
-      const nextStatus = order.apiStatus === 'QUALITY_CHECK'
-        ? 'tayyor'
-        : order.status === 'qabul'
-          ? 'bosildi'
-          : 'tayyor';
+      const nextStatus = { yangi: 'qabul', qabul: 'bosildi', bosildi: 'tayyor', tayyor: 'yetkazishda' }[order.status];
       showToast(t('navbat.statusToast', { id: order.id, status: t(`status.${nextStatus}`) }));
     } catch (requestError) {
       showToast(requestError.message, true);
     }
   };
 
+  const handleReject = async (order, reason) => {
+    if (!rejectOrder) return;
+    try {
+      await rejectOrder(order, reason);
+      showToast(t('navbat.rejectToast', { id: order.id }));
+      return true;
+    } catch (requestError) {
+      showToast(requestError.message, true);
+      return false;
+    }
+  };
+
   const counts = useMemo(
     () => ({
       barchasi: orders.length,
+      yangi: orders.filter((o) => o.status === 'yangi').length,
       qabul: orders.filter((o) => o.status === 'qabul').length,
       bosildi: orders.filter((o) => o.status === 'bosildi').length,
       tayyor: orders.filter((o) => o.status === 'tayyor').length,
@@ -130,6 +140,7 @@ export default function Navbat() {
           <OrderDetail
             order={selected}
             onStartPress={handleStartPress}
+            onReject={handleReject}
             actionLoading={orderActionLoading}
             onToast={showToast}
           />
