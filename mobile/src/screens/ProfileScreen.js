@@ -17,6 +17,7 @@ import { Button, Card, Header, Screen, Segment } from '../components/ui/Common';
 import { useAddresses } from '../features/checkout';
 import { errorText } from '../utils/errors';
 import { formatUzPhone } from '../utils/phone';
+import { displayName, isNameUnsupportedError, joinFullName, nameInitial, realFullName, splitFullName, validateName } from '../utils/userName';
 
 /** dd.mm.yyyy without relying on full ICU date formatting. */
 function formatDate(value) {
@@ -34,16 +35,15 @@ function formatDate(value) {
  * gender/age/height/weight). Profilda manzil maydoni yo'q — "Manzillarim"
  * rasmiylashtirishda saqlangan manzillarni ko'rsatadi (GET /addresses).
  */
-export default function ProfileScreen({ t, onSettings, onOrders, auth }) {
+export default function ProfileScreen({ t, onSettings, onOrders, onAddresses, auth }) {
   const [editVisible, setEditVisible] = useState(false);
   const [logoutRequested, setLogoutRequested] = useState(false);
-  const [addressesOpen, setAddressesOpen] = useState(false);
   const { addresses, isLoading: addressesLoading, error: addressesError, refetch: refetchAddresses } = useAddresses();
 
   const user = auth?.user || {};
-  const name = user.fullName || '—';
+  const name = displayName(user, t('nameMissing'));
   const phone = user.phone ? formatUzPhone(user.phone) : '—';
-  const avatarInitial = (user.fullName || 'F')[0].toUpperCase();
+  const avatarInitial = nameInitial(user);
 
   const stats = useMemo(
     () => [
@@ -83,7 +83,7 @@ export default function ProfileScreen({ t, onSettings, onOrders, auth }) {
           <Text style={styles.avatarText}>{avatarInitial}</Text>
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.name}>{name}</Text>
+          <Text style={[styles.name, !realFullName(user) && styles.nameMissing]}>{name}</Text>
           <Text style={styles.phone}>{phone}</Text>
           <Text style={styles.memberSince}>
             {t('memberSince')}: {formatDate(user.createdAt)}
@@ -120,27 +120,11 @@ export default function ProfileScreen({ t, onSettings, onOrders, auth }) {
                   ? `${addresses.length} ${t('addressesSaved')}`
                   : t('addressesEmpty')
           }
-          expanded={addressesOpen}
           onPress={() => {
             if (addressesError) refetchAddresses();
-            setAddressesOpen((open) => !open);
+            onAddresses?.();
           }}
         />
-        {addressesOpen && addresses.length ? (
-          <View style={styles.addressList}>
-            {addresses.map((item) => (
-              <View key={item.id} style={styles.addressItem}>
-                <Text style={styles.addressLabel}>
-                  {item.label || t('address')}
-                  {item.isDefault ? ` · ${t('addressDefault')}` : ''}
-                </Text>
-                <Text style={styles.addressText}>
-                  {[item.address, item.apartment].filter(Boolean).join(', ')}
-                </Text>
-              </View>
-            ))}
-          </View>
-        ) : null}
         <Row icon="clipboard-list-outline" title={t('myOrders')} onPress={onOrders} />
         <Row icon="cog-outline" title={t('settings')} sub={t('languageSub')} onPress={onSettings} last />
       </View>
@@ -180,8 +164,10 @@ function Row({ icon, title, sub, onPress, last, expanded }) {
   return onPress ? <Pressable onPress={onPress}>{content}</Pressable> : content;
 }
 
-/** Modal-style editor for the measurements collected during registration. */
+/** Modal-style editor for the name and measurements collected during registration. */
 function EditProfileModal({ visible, onClose, user, auth, t }) {
+  const [firstName, setFirstName] = useState(() => splitFullName(realFullName(user)).first);
+  const [lastName, setLastName] = useState(() => splitFullName(realFullName(user)).last);
   const [gender, setGender] = useState(user.gender || null);
   const [age, setAge] = useState(user.age != null ? String(user.age) : '');
   const [height, setHeight] = useState(user.height != null ? String(user.height) : '');
@@ -193,6 +179,9 @@ function EditProfileModal({ visible, onClose, user, auth, t }) {
   // Re-hydrate from the latest server user whenever the modal opens
   React.useEffect(() => {
     if (visible) {
+      const parts = splitFullName(realFullName(user));
+      setFirstName(parts.first);
+      setLastName(parts.last);
       setGender(user.gender || null);
       setAge(user.age != null ? String(user.age) : '');
       setHeight(user.height != null ? String(user.height) : '');
@@ -221,14 +210,32 @@ function EditProfileModal({ visible, onClose, user, auth, t }) {
       return;
     }
 
+    // Ism faqat o'zgargan bo'lsa yuboriladi — bo'sh qoldirilsa mavjud ism o'chirilmaydi
+    const fullName = joinFullName(firstName, lastName);
+    const nameChanged = fullName !== (realFullName(user) || '');
+    if (nameChanged && fullName) {
+      const nameError = validateName(firstName, lastName);
+      if (nameError) {
+        setError(t(nameError));
+        return;
+      }
+    }
+
+    const fields = { gender, age: ageValue, height: heightValue, weight: weightValue };
+    if (nameChanged && fullName) fields.fullName = fullName;
+
     setSaving(true);
     try {
-      await auth.updateUser({
-        gender,
-        age: ageValue,
-        height: heightValue,
-        weight: weightValue,
-      });
+      try {
+        await auth.updateUser(fields);
+      } catch (err) {
+        // Server hali `fullName`ni qabul qilmasa: o'lchamlarni saqlaymiz, ism saqlanmaganini aytamiz
+        if (!fields.fullName || !isNameUnsupportedError(err)) throw err;
+        const { fullName: _omit, ...rest } = fields;
+        await auth.updateUser(rest);
+        setError(t('nameNotSupported'));
+        return;
+      }
       setSavedFlash(true);
       setTimeout(() => {
         setSavedFlash(false);
@@ -258,6 +265,23 @@ function EditProfileModal({ visible, onClose, user, auth, t }) {
           </View>
 
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+            <View style={styles.modalMetrics}>
+              <ModalInput
+                label={t('firstName')}
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder={t('firstNamePlaceholder')}
+                text
+              />
+              <ModalInput
+                label={t('lastName')}
+                value={lastName}
+                onChangeText={setLastName}
+                placeholder={t('lastNamePlaceholder')}
+                text
+              />
+            </View>
+
             <Text style={styles.modalLabel}>{t('gender')}</Text>
             <Segment
               wide
@@ -286,7 +310,8 @@ function EditProfileModal({ visible, onClose, user, auth, t }) {
   );
 }
 
-function ModalInput({ label, value, onChangeText, placeholder }) {
+/** `text` — ism maydoni (harflar, 50 belgigacha); aks holda 3 xonali son. */
+function ModalInput({ label, value, onChangeText, placeholder, text }) {
   return (
     <View style={styles.modalMetric}>
       <Text style={styles.modalLabel}>{label}</Text>
@@ -295,8 +320,10 @@ function ModalInput({ label, value, onChangeText, placeholder }) {
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={colors.muted}
-        keyboardType="number-pad"
-        maxLength={3}
+        keyboardType={text ? 'default' : 'number-pad'}
+        autoCapitalize={text ? 'words' : 'none'}
+        autoCorrect={false}
+        maxLength={text ? 50 : 3}
         style={styles.modalInput}
         selectionColor={colors.accent}
       />
@@ -336,6 +363,7 @@ const styles = StyleSheet.create({
   },
   avatarText: { color: colors.accent, fontWeight: '900', fontSize: 22 },
   name: { color: colors.text, fontSize: 16, fontWeight: '800' },
+  nameMissing: { color: colors.muted, fontWeight: '600' },
   phone: { color: colors.muted, fontSize: 12, marginTop: 4 },
   memberSince: { color: '#59618D', fontSize: 10, marginTop: 3 },
   stats: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
@@ -383,10 +411,6 @@ const styles = StyleSheet.create({
   rowTitle: { color: colors.text, fontSize: 13, fontWeight: '700' },
   rowSub: { color: colors.muted, fontSize: 11, marginTop: 3 },
   logout: { marginTop: spacing.sm },
-  addressList: { paddingBottom: spacing.sm, borderBottomWidth: 1, borderBottomColor: colors.border },
-  addressItem: { paddingVertical: 8, paddingLeft: 46 },
-  addressLabel: { color: colors.text, fontSize: 12, fontWeight: '700' },
-  addressText: { color: colors.muted, fontSize: 11, marginTop: 2 },
 
   // Edit modal
   modalBackdrop: {

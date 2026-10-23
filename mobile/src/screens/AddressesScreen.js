@@ -1,352 +1,202 @@
 import React, { useEffect, useState } from 'react';
-import {
-  ActivityIndicator,
-  Pressable,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
+import { ActivityIndicator, BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { AddressModal, ConfirmModal } from '../components/ui/Modals';
+import { BackButton, ErrorNote, OutlineButton, authColors as c } from '../components/ui/AuthUi';
 import { useToast } from '../components/ui/Toast';
-import { colors, radii } from '../constants/theme';
-import { api } from '../services/api';
+import { fonts } from '../constants/theme';
+import { useAddresses } from '../features/checkout';
+import { addressCoords } from '../features/location';
+import { errorText } from '../utils/errors';
 
-const DEFAULT_ADDRESSES = [
-  { id: '1', title: 'Uy', address: 'Toshkent sh., Yunusobod tumani, 4-mavze, 12-uy, 34-xonadon', isDefault: true },
-  { id: '2', title: 'Ishxona', address: 'Toshkent sh., Mirobod tumani, Amir Temur ko‘chasi, 107-bino', isDefault: false },
-];
-
-export default function AddressesScreen({
-  t,
-  onBack,
-}) {
+/**
+ * "Manzillarim" — GET /api/addresses (faqat haqiqiy server ma'lumoti).
+ * Qo'shish/tahrirlash xaritada (LocationPickerScreen), asosiy qilish —
+ * PATCH /addresses/:id { isDefault: true }, o'chirish — DELETE /addresses/:id.
+ * Dizayn: "Manzillarim" ekrani (karta r18, #121A42, tanlangani 1.5px to'q sariq).
+ */
+export default function AddressesScreen({ t, onBack, onEdit, refreshKey }) {
   const toast = useToast();
-  const [addresses, setAddresses] = useState(DEFAULT_ADDRESSES);
-  const [loading, setLoading] = useState(false);
-  const [modalVisible, setModalVisible] = useState(false);
-  const [editingAddress, setEditingAddress] = useState(null);
-  const [deletingId, setDeletingId] = useState(null);
+  const { addresses, isLoading, error, refetch, update, remove } = useAddresses();
+  const [busyId, setBusyId] = useState(null);
+  const [confirmId, setConfirmId] = useState(null);
+  const [actionError, setActionError] = useState(null);
 
-  const mapAddress = (a, index = 0) => ({
-    id: String(a.id ?? index + 1),
-    title: a.label || a.title || (index === 0 ? 'Uy' : 'Ishxona'),
-    address: [a.address, a.apartment].filter(Boolean).join(', ') || 'Toshkent shahri',
-    isDefault: Boolean(a.isDefault),
-  });
-
-  const loadAddresses = async () => {
-    try {
-      setLoading(true);
-      const res = await api.addresses.list().catch(() => null);
-      if (Array.isArray(res) && res.length > 0) {
-        setAddresses(res.map(mapAddress));
-      } else {
-        setAddresses(DEFAULT_ADDRESSES);
-      }
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Xaritadan qaytganda ro'yxatni yangilaymiz
+  useEffect(() => {
+    if (refreshKey) refetch();
+  }, [refreshKey, refetch]);
 
   useEffect(() => {
-    let cancelled = false;
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+      onBack?.();
+      return true;
+    });
+    return () => sub.remove();
+  }, [onBack]);
 
-    async function fetchAddresses() {
-      if (cancelled) return;
-      await loadAddresses();
-    }
-
-    fetchAddresses();
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  const handleSaveAddress = async (data) => {
+  const run = async (id, action, successKey) => {
+    setBusyId(id);
+    setActionError(null);
     try {
-      if (editingAddress) {
-        const updated = await api.addresses.update(Number(editingAddress.id), {
-          label: data.title,
-          address: data.address,
-          isDefault: editingAddress.isDefault,
-        });
-        setAddresses((prev) =>
-          prev.map((a) => (String(a.id) === String(editingAddress.id) ? mapAddress(updated) : a))
-        );
-        toast.show('Manzil yangilandi', 'success');
-      } else {
-        const created = await api.addresses.create({
-          label: data.title,
-          address: data.address,
-          isDefault: addresses.length === 0,
-        });
-        setAddresses((prev) => [...prev, mapAddress(created, prev.length)]);
-        toast.show('Yangi manzil qo‘shildi', 'success');
-      }
-      setModalVisible(false);
-      setEditingAddress(null);
+      await action();
+      if (successKey) toast.show(t(successKey), 'success');
     } catch (err) {
-      toast.show(err?.message || 'Manzilni saqlashda xatolik', 'error');
-    }
-  };
-
-  const handleSetDefault = async (id) => {
-    try {
-      await api.addresses.update(Number(id), { isDefault: true });
-      await loadAddresses();
-      toast.show('Asosiy manzil belgilandi', 'success');
-    } catch (err) {
-      toast.show(err?.message || 'Asosiy manzilni o‘rnatishda xatolik', 'error');
-    }
-  };
-
-  const confirmDelete = async () => {
-    if (!deletingId) return;
-    try {
-      await api.addresses.remove(Number(deletingId));
-      await loadAddresses();
-      setDeletingId(null);
-      toast.show('Manzil o‘chirildi', 'info');
-    } catch (err) {
-      toast.show(err?.message || 'Manzilni o‘chirishda xatolik', 'error');
+      setActionError(errorText(err, t));
+    } finally {
+      setBusyId(null);
+      setConfirmId(null);
     }
   };
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
-      <View style={styles.topBar}>
-        <Pressable onPress={onBack} hitSlop={10} style={styles.iconBtn}>
-          <MaterialCommunityIcons name="arrow-left" size={24} color="#F3F5F9" />
-        </Pressable>
-        <View style={{ flex: 1, alignItems: 'center' }}>
-          <Text style={styles.title}>Saqlangan manzillar</Text>
-          <Text style={styles.sub}>Yetkazib berish nuqtalari</Text>
-        </View>
-        <Pressable
-          onPress={() => {
-            setEditingAddress(null);
-            setModalVisible(true);
-          }}
-          hitSlop={10}
-          style={styles.iconBtn}
-        >
-          <MaterialCommunityIcons name="plus" size={24} color={colors.accent} />
-        </Pressable>
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.header}>
+        <BackButton onPress={onBack} label={t('back')} />
+        <Text style={styles.title}>{t('addresses')}</Text>
       </View>
 
-      {loading ? (
-        <View style={styles.loaderWrap}>
-          <ActivityIndicator size="large" color={colors.accent} />
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          {addresses.map((item) => (
-            <View key={item.id} style={styles.card}>
-              <View style={styles.cardHeader}>
-                <View style={styles.titleRow}>
-                  <MaterialCommunityIcons
-                    name={item.title === 'Uy' ? 'home-outline' : 'briefcase-outline'}
-                    size={20}
-                    color={item.isDefault ? colors.accent : colors.teal}
-                  />
-                  <Text style={styles.cardTitle}>{item.title}</Text>
-                  {item.isDefault && (
-                    <View style={styles.defaultBadge}>
-                      <Text style={styles.defaultBadgeText}>ASOSIY</Text>
+      <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+        {error ? (
+          <View style={styles.state}>
+            <ErrorNote>{errorText(error, t)}</ErrorNote>
+            <OutlineButton label={t('retry')} onPress={refetch} />
+          </View>
+        ) : isLoading && !addresses.length ? (
+          <ActivityIndicator style={styles.loader} color={c.accent} />
+        ) : !addresses.length ? (
+          <View style={styles.empty}>
+            <View style={styles.emptyIcon}>
+              <MaterialCommunityIcons name="map-marker-plus-outline" size={30} color={c.accent} />
+            </View>
+            <Text style={styles.emptyTitle}>{t('addressesNone')}</Text>
+            <Text style={styles.emptySub}>{t('addressesNoneSub')}</Text>
+          </View>
+        ) : (
+          addresses.map((item) => {
+            const busy = busyId === item.id;
+            const asking = confirmId === item.id;
+            return (
+              <View key={item.id} style={[styles.card, item.isDefault && styles.cardDefault]}>
+                <Pressable onPress={() => onEdit?.(item)} style={styles.cardMain} accessibilityRole="button">
+                  <View style={styles.cardIcon}>
+                    <MaterialCommunityIcons
+                      name={addressCoords(item) ? 'map-marker' : 'map-marker-question-outline'}
+                      size={20}
+                      color={item.isDefault ? c.accent : c.muted}
+                    />
+                  </View>
+                  <View style={styles.flex}>
+                    <View style={styles.cardTitleRow}>
+                      <Text style={styles.cardTitle} numberOfLines={1}>{item.label}</Text>
+                      {item.isDefault && <Text style={styles.badge}>{t('addressDefault')}</Text>}
                     </View>
+                    <Text style={styles.cardText}>{[item.address, item.apartment].filter(Boolean).join(', ')}</Text>
+                    {!addressCoords(item) && <Text style={styles.cardHint}>{t('addressNoPin')}</Text>}
+                  </View>
+                  <MaterialCommunityIcons name="pencil-outline" size={18} color={c.muted} />
+                </Pressable>
+
+                <View style={styles.cardActions}>
+                  {busy ? (
+                    <ActivityIndicator size="small" color={c.accent} />
+                  ) : asking ? (
+                    <>
+                      <Text style={styles.confirmText}>{t('addressDeleteConfirm')}</Text>
+                      <Pressable onPress={() => setConfirmId(null)} hitSlop={8}>
+                        <Text style={styles.actionText}>{t('cancel')}</Text>
+                      </Pressable>
+                      <Pressable onPress={() => run(item.id, () => remove(item.id), 'addressDeleted')} hitSlop={8}>
+                        <Text style={[styles.actionText, styles.danger]}>{t('delete')}</Text>
+                      </Pressable>
+                    </>
+                  ) : (
+                    <>
+                      {!item.isDefault && (
+                        <Pressable
+                          onPress={() => run(item.id, () => update(item.id, { isDefault: true }))}
+                          hitSlop={8}
+                        >
+                          <Text style={styles.actionText}>{t('addrMakeDefault')}</Text>
+                        </Pressable>
+                      )}
+                      <Pressable onPress={() => setConfirmId(item.id)} hitSlop={8} style={styles.pushRight}>
+                        <Text style={[styles.actionText, styles.danger]}>{t('delete')}</Text>
+                      </Pressable>
+                    </>
                   )}
                 </View>
-
-                <View style={styles.headerActions}>
-                  <Pressable
-                    onPress={() => {
-                      setEditingAddress(item);
-                      setModalVisible(true);
-                    }}
-                    hitSlop={8}
-                    style={styles.actionBtn}
-                  >
-                    <MaterialCommunityIcons name="pencil-outline" size={18} color="#8D95BD" />
-                  </Pressable>
-                  <Pressable
-                    onPress={() => setDeletingId(item.id)}
-                    hitSlop={8}
-                    style={styles.actionBtn}
-                  >
-                    <MaterialCommunityIcons name="trash-can-outline" size={18} color="#E8543F" />
-                  </Pressable>
-                </View>
               </View>
+            );
+          })
+        )}
+        {Boolean(actionError) && <ErrorNote>{actionError}</ErrorNote>}
+      </ScrollView>
 
-              <Text style={styles.addressText}>{item.address}</Text>
-
-              {!item.isDefault && (
-                <Pressable
-                  onPress={() => handleSetDefault(item.id)}
-                  style={styles.setDefaultBtn}
-                >
-                  <Text style={styles.setDefaultText}>Asosiy manzil qilish</Text>
-                </Pressable>
-              )}
-            </View>
-          ))}
-
-          {/* Add New Button Card */}
-          <Pressable
-            onPress={() => {
-              setEditingAddress(null);
-              setModalVisible(true);
-            }}
-            style={styles.addCard}
-          >
-            <MaterialCommunityIcons name="plus-circle-outline" size={24} color={colors.accent} />
-            <Text style={styles.addCardText}>Yangi manzil qo‘shish</Text>
-          </Pressable>
-        </ScrollView>
-      )}
-
-      {/* Edit/Create Address Modal */}
-      <AddressModal
-        visible={modalVisible}
-        onClose={() => setModalVisible(false)}
-        initial={editingAddress ? { title: editingAddress.title, address: editingAddress.address } : null}
-        onSave={handleSaveAddress}
-      />
-
-      {/* Confirm Delete Modal */}
-      <ConfirmModal
-        visible={Boolean(deletingId)}
-        title="Manzilni o‘chirish"
-        message="Haqiqatan ham bu manzilni ro‘yxatdan o‘chirmoqchimisiz?"
-        confirmText="O‘chirish"
-        confirmColor="#E8543F"
-        onConfirm={confirmDelete}
-        onCancel={() => setDeletingId(null)}
-      />
+      <View style={styles.footer}>
+        <OutlineButton label={t('addAddressOnMap')} onPress={() => onEdit?.(null)} arrow />
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: '#050818',
-  },
-  topBar: {
-    flexDirection: 'row',
+  safe: { flex: 1, backgroundColor: c.bg },
+  flex: { flex: 1 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 14 },
+  title: { flex: 1, color: c.text, fontFamily: fonts.display, fontSize: 17 },
+  list: { paddingHorizontal: 20, gap: 10, paddingBottom: 24 },
+  loader: { marginTop: 40 },
+  state: { gap: 12, marginTop: 12 },
+  empty: { alignItems: 'center', gap: 10, paddingTop: 60, paddingHorizontal: 20 },
+  emptyIcon: {
+    width: 72,
+    height: 72,
+    borderRadius: 24,
+    backgroundColor: c.field,
     alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    justifyContent: 'center',
+    marginBottom: 6,
   },
-  iconBtn: {
+  emptyTitle: { color: c.text, fontFamily: fonts.display, fontSize: 18, textAlign: 'center' },
+  emptySub: { color: c.muted, fontFamily: fonts.body, fontSize: 14, lineHeight: 21, textAlign: 'center' },
+  card: { borderRadius: 18, backgroundColor: c.field, borderWidth: 1.5, borderColor: 'transparent', overflow: 'hidden' },
+  cardDefault: { borderColor: c.accent },
+  cardMain: { flexDirection: 'row', gap: 12, alignItems: 'flex-start', padding: 14 },
+  cardIcon: {
     width: 40,
     height: 40,
-    borderRadius: radii.md,
-    backgroundColor: '#0E1A3F',
-    borderWidth: 1,
-    borderColor: 'rgba(243, 245, 249, 0.12)',
+    borderRadius: 12,
+    backgroundColor: c.track,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  title: {
-    fontSize: 18,
-    fontWeight: '800',
-    color: '#F3F5F9',
-  },
-  sub: {
+  cardTitleRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  cardTitle: { flexShrink: 1, color: c.text, fontFamily: fonts.bodySemi, fontSize: 15 },
+  badge: {
+    color: c.accent,
+    fontFamily: fonts.bodySemi,
     fontSize: 11,
-    color: '#8D95BD',
-    marginTop: 2,
-  },
-  loaderWrap: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  scroll: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 40,
-  },
-  card: {
-    backgroundColor: '#0E1A3F',
-    borderRadius: radii.xl,
-    padding: 16,
-    borderWidth: 1,
-    borderColor: 'rgba(243, 245, 249, 0.12)',
-    marginBottom: 14,
-  },
-  cardHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 10,
-  },
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  cardTitle: {
-    fontSize: 15,
-    fontWeight: '800',
-    color: '#F3F5F9',
-  },
-  defaultBadge: {
-    backgroundColor: 'rgba(242, 163, 58, 0.15)',
-    borderRadius: radii.round,
     paddingHorizontal: 8,
     paddingVertical: 2,
-    borderWidth: 1,
-    borderColor: 'rgba(242, 163, 58, 0.35)',
+    borderRadius: 6,
+    overflow: 'hidden',
+    backgroundColor: 'rgba(242,163,58,0.14)',
   },
-  defaultBadgeText: {
-    fontSize: 9,
-    fontWeight: '900',
-    color: colors.accent,
-  },
-  headerActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  actionBtn: {
-    padding: 4,
-  },
-  addressText: {
-    fontSize: 13,
-    color: '#A9B0D0',
-    lineHeight: 18,
-  },
-  setDefaultBtn: {
-    marginTop: 12,
-    paddingTop: 10,
-    borderTopWidth: 1,
-    borderTopColor: 'rgba(243, 245, 249, 0.08)',
-  },
-  setDefaultText: {
-    fontSize: 12,
-    fontWeight: '700',
-    color: colors.accent,
-  },
-  addCard: {
+  cardText: { color: c.soft, fontFamily: fonts.body, fontSize: 13, lineHeight: 19, marginTop: 4 },
+  cardHint: { color: c.muted, fontFamily: fonts.body, fontSize: 12, marginTop: 4 },
+  cardActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 10,
-    backgroundColor: '#0E1A3F',
-    borderRadius: radii.xl,
-    paddingVertical: 18,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(242, 163, 58, 0.35)',
-    marginTop: 6,
+    gap: 16,
+    minHeight: 44,
+    paddingHorizontal: 14,
+    borderTopWidth: 1,
+    borderTopColor: c.line,
   },
-  addCardText: {
-    fontSize: 14,
-    fontWeight: '800',
-    color: colors.accent,
-  },
+  pushRight: { marginLeft: 'auto' },
+  confirmText: { flex: 1, color: c.soft, fontFamily: fonts.body, fontSize: 13 },
+  actionText: { color: c.accent, fontFamily: fonts.bodySemi, fontSize: 13 },
+  danger: { color: c.danger },
+  footer: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 },
 });

@@ -9,6 +9,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { ProductCard } from '../components/ui/ProductCard';
 import { statusText, useActiveOrder } from '../features/orders';
 import { useCategories, usePopularClubs, usePopularProducts } from '../features/products';
+import { displayName, nameInitial } from '../utils/userName';
 
 export default function HomeScreen({
   t,
@@ -30,8 +31,9 @@ export default function HomeScreen({
   // Popular products (home kit of popular clubs)
   const { products, isLoading: productsLoading } = usePopularProducts(4);
 
-  const name = auth?.user?.fullName || t('hello');
-  const avatarInitial = (auth?.user?.fullName || 'F')[0].toUpperCase();
+  // Server joy egasi ("Yangi mijoz") ism sifatida ko'rsatilmaydi
+  const name = displayName(auth?.user, t('hello'));
+  const avatarInitial = nameInitial(auth?.user);
 
   const heroClub = clubs[0] || {
     name: 'Formo Pro',
@@ -157,7 +159,7 @@ export default function HomeScreen({
       {/* Popular Clubs Section */}
       <SectionTitle
         title={t('popular')}
-        eyebrow="CLUBS & TEAMS"
+        eyebrow={t('eyebrowClubs')}
         action={t('all')}
         onAction={() => onNavigate('catalog')}
       />
@@ -214,7 +216,7 @@ export default function HomeScreen({
       {/* Featured Kits / Popular Models Section */}
       <SectionTitle
         title={t('popularModels')}
-        eyebrow="FEATURED KITS"
+        eyebrow={t('eyebrowModels')}
         action={t('all')}
         onAction={() => onNavigate('catalog')}
       />
@@ -261,7 +263,7 @@ export default function HomeScreen({
 
       {/* How it Works / Athletic Quality Value Props */}
       <View style={styles.valuePropsCard}>
-        <SectionTitle title={t('howItWorks')} eyebrow="PRO QUALITY" />
+        <SectionTitle title={t('howItWorks')} eyebrow={t('eyebrowQuality')} />
         <View style={styles.stepRow}>
           <View style={styles.stepBadge}>
             <Text style={styles.stepNumber}>1</Text>

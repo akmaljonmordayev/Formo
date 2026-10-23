@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useRef } from 'react';
+import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
 import { Animated, StyleSheet, Text, View, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -79,9 +79,11 @@ export function ToastProvider({ children }) {
   };
 
   const currentStyle = getStyle();
+  // Barqaror qiymat: toast ko'rinishi useToast() ishlatgan ekranlarni qayta chizmasin
+  const value = useMemo(() => ({ show, hide }), [show, hide]);
 
   return (
-    <ToastContext.Provider value={{ show, hide }}>
+    <ToastContext.Provider value={value}>
       {children}
       {toast && (
         <Animated.View

@@ -190,6 +190,15 @@ importers:
 
   mobile:
     dependencies:
+      '@expo-google-fonts/onest':
+        specifier: ^0.4.2
+        version: 0.4.2
+      '@expo-google-fonts/saira-extra-condensed':
+        specifier: ^0.4.2
+        version: 0.4.2
+      '@expo-google-fonts/unbounded':
+        specifier: ^0.4.1
+        version: 0.4.1
       '@expo/vector-icons':
         specifier: ^15.0.2
         version: 15.1.1(expo-font@58.0.9)(react-native@0.88.0)(react@19.3.0)
@@ -205,6 +214,9 @@ importers:
       expo-linear-gradient:
         specifier: ~58.0.3
         version: 58.0.3(expo@58.0.17)(react-native@0.88.0)(react@19.3.0)
+      expo-location:
+        specifier: ~58.0.18
+        version: 58.0.18(expo@58.0.17)(react-native@0.88.0)(react@19.3.0)(typescript@6.0.3)
       expo-splash-screen:
         specifier: ~58.0.10
         version: 58.0.11(expo@58.0.17)(typescript@6.0.3)
@@ -217,6 +229,9 @@ importers:
       react-native:
         specifier: 0.88.0
         version: 0.88.0(@babel/core@7.29.7)(@types/react@19.3.0)(react@19.3.0)
+      react-native-maps:
+        specifier: 1.29.11
+        version: 1.29.11(react-native@0.88.0)(react@19.3.0)
       react-native-safe-area-context:
         specifier: ~5.10.1
         version: 5.10.1(react-native@0.88.0)(react@19.3.0)
@@ -1452,6 +1467,18 @@ packages:
     resolution: {integrity: sha512-d9zaMRSTIKDLhctzH12MtXvJKSSUhaHcjV+2Z+GK+EEY7XKpP5yR4x+N3TAcHTcu963nIr+TMcCb4DBCYX1z6Q==}
     engines: {node: ^12.22.0 || ^14.17.0 || >=16.0.0}
     dev: true
+
+  /@expo-google-fonts/onest@0.4.2:
+    resolution: {integrity: sha512-BJELCJFIZWmztzxvvzcQ5H6WXXnsdBgN/jhOQZkG4LQ+tYMqAZ6Z3Z7xe9yzbToe+Ul0RJ+hqPzAjkVJqvWVLg==}
+    dev: false
+
+  /@expo-google-fonts/saira-extra-condensed@0.4.2:
+    resolution: {integrity: sha512-cU4HAktF7U4jrNfsuheFslSpktzUPEtHS+I7Jw7R/hqlzYdpENgYaT4r5cFYyo9fbzh4QTm7Awb9YrEXwNtMgQ==}
+    dev: false
+
+  /@expo-google-fonts/unbounded@0.4.1:
+    resolution: {integrity: sha512-L5wlbPo/TWCmkNwtxeurXxo8D8koCPzajYWIMBqVRmcW1riG48fiK2bOBwopVzL/ifWvuAUXYvcunIMcem/2Dg==}
+    dev: false
 
   /@expo/cli@58.1.14(@expo/dom-webview@58.0.2)(expo-constants@58.0.13)(expo-font@58.0.9)(expo@58.0.17)(react-native@0.88.0)(react@19.3.0)(typescript@6.0.3):
     resolution: {integrity: sha512-Qrpkhb9XrQn+wuxaOVR0hh0dLzeFZjGZHC9Jz86hPsexPzP+/mnMigRoWVaeEP8q7b3Hsr98gozL5d94DzFOBw==}
@@ -3267,6 +3294,10 @@ packages:
       '@types/qs': 6.15.1
       '@types/serve-static': 1.15.10
     dev: true
+
+  /@types/geojson@7946.0.16:
+    resolution: {integrity: sha512-6C8nqWur3j98U6+lXDfTUWIfgvZU+EumvpHKcYjujKH7woYyLj2sUmff0tRhrqM7BohUw7Pz3ZB1jj2gW9Fvmg==}
+    dev: false
 
   /@types/graceful-fs@4.1.9:
     resolution: {integrity: sha512-olP3sd1qOEe5dXTSaFvQG+02VdRXcdytWLAZsAq1PecU8uqQAhkrnbli7DagjtXKW/Bl7YJbUsa8MPcuc8LHEQ==}
@@ -5697,6 +5728,26 @@ packages:
       expo: 58.0.17(@babel/core@7.29.7)(@expo/dom-webview@58.0.2)(react-native@0.88.0)(react@19.3.0)(typescript@6.0.3)
       react: 19.3.0
       react-native: 0.88.0(@babel/core@7.29.7)(@types/react@19.3.0)(react@19.3.0)
+    dev: false
+
+  /expo-location@58.0.18(expo@58.0.17)(react-native@0.88.0)(react@19.3.0)(typescript@6.0.3):
+    resolution: {integrity: sha512-iwCLGVA77g+iNweG5+Ng3LlLWena3DEWT5a/is7pB55TuaOhLY7hJRhas8LmjebELgvlH/C0YIqbETZB/4uW5w==}
+    peerDependencies:
+      expo: '*'
+      expo-task-manager: '*'
+      react: '*'
+      react-native: '*'
+    peerDependenciesMeta:
+      expo-task-manager:
+        optional: true
+    dependencies:
+      '@expo/image-utils': 0.12.5(typescript@6.0.3)
+      expo: 58.0.17(@babel/core@7.29.7)(@expo/dom-webview@58.0.2)(react-native@0.88.0)(react@19.3.0)(typescript@6.0.3)
+      react: 19.3.0
+      react-native: 0.88.0(@babel/core@7.29.7)(@types/react@19.3.0)(react@19.3.0)
+    transitivePeerDependencies:
+      - supports-color
+      - typescript
     dev: false
 
   /expo-modules-autolinking@58.0.14(typescript@6.0.3):
@@ -8938,6 +8989,22 @@ packages:
 
   /react-is@18.3.1:
     resolution: {integrity: sha512-/LLMVyas0ljjAtoYiPqYiL8VWXzUUdThrmU5+n20DZv+a+ClRoevUzw5JxU+Ieh5/c87ytoTBV9G1FiKfNJdmg==}
+
+  /react-native-maps@1.29.11(react-native@0.88.0)(react@19.3.0):
+    resolution: {integrity: sha512-fZNc6AINuPdHS2puudanNPd9ZMPPuerTHfy9HU6LbpOD+kB03SuOZRbOEYIOE2eSuUPYwLHvU8ys1RcSIxLYhA==}
+    engines: {node: '>= 20.19.4'}
+    peerDependencies:
+      react: '>= 18.3.1'
+      react-native: '>= 0.76.0'
+      react-native-web: '>= 0.11'
+    peerDependenciesMeta:
+      react-native-web:
+        optional: true
+    dependencies:
+      '@types/geojson': 7946.0.16
+      react: 19.3.0
+      react-native: 0.88.0(@babel/core@7.29.7)(@types/react@19.3.0)(react@19.3.0)
+    dev: false
 
   /react-native-safe-area-context@5.10.1(react-native@0.88.0)(react@19.3.0):
     resolution: {integrity: sha512-ax0T3cAHQIhuAjDQpJ9C1Le96aRiM9PF+Kmgg7Y8+mD7QJMEIx04cG0eG3EGUTdvymgOkCrkakgZFwuOIuNQGw==}

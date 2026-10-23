@@ -43,7 +43,16 @@ export function useAddresses() {
     [refetch],
   );
 
-  return { addresses, isLoading, error, refetch, create, remove };
+  const update = useCallback(
+    async (id, fields) => {
+      const updated = await api.addresses.update(id, fields);
+      await refetch();
+      return updated;
+    },
+    [refetch],
+  );
+
+  return { addresses, isLoading, error, refetch, create, update, remove };
 }
 
 /** Yetkazish kunlari va slotlari (GET /api/checkout/delivery-slots): { fee, days } */

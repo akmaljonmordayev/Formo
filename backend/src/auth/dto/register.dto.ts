@@ -10,6 +10,7 @@ import {
   MaxLength,
   Min,
   MinLength,
+  ValidateIf,
 } from 'class-validator';
 import { CleanText, NoHtml } from '../../common/utils/no-html';
 import { NormalizePhone, UZ_PHONE_MESSAGE, UZ_PHONE_REGEX } from '../../common/utils/phone';
@@ -61,8 +62,19 @@ export class RegisterDto {
   weight?: number;
 }
 
-/** Mobil profil: faqat o'lchamlar va jins (telefon/parol alohida oqim). `null` — qiymatni tozalaydi */
+/** Mobil profil: ism, o'lchamlar va jins (telefon/parol alohida oqim). `null` — o'lcham qiymatini tozalaydi */
 export class UpdateProfileDto {
+  // OTP orqali ochilgan hisob "Yangi mijoz" nomi bilan yaratiladi — ism shu yerda saqlanadi.
+  // User.fullName majburiy ustun, shuning uchun null qabul qilinmaydi.
+  @ApiPropertyOptional({ example: 'Aziz Rahimov', minLength: 2, maxLength: 100 })
+  @ValidateIf((o) => o.fullName !== undefined)
+  @CleanText()
+  @IsString()
+  @NoHtml()
+  @MinLength(2, { message: 'Ismingizni kiriting' })
+  @MaxLength(100)
+  fullName?: string;
+
   @ApiPropertyOptional({ enum: Gender, nullable: true })
   @IsOptional()
   @IsEnum(Gender)

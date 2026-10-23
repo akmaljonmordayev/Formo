@@ -4,7 +4,7 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
 import { Badge, Button, Card, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
-import { JerseyPreview } from '../components/ui/JerseyPreview';
+import { Shirt, Shorts } from '../components/ui/Shirt';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { visibleSizes } from '../features/config';
 import { useClub } from '../features/products';
@@ -44,14 +44,16 @@ export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCusto
     print: 0,
   };
 
+  // Faqat serverdan kelgan ma'lumot (Kit: colorsLabel, narx tarkibi, o'lchamlar)
   const specs = [
     [t('kitIncludes'), t('kitIncludesValue')],
+    product.colorsLabel ? [t('kitColors'), product.colorsLabel] : null,
     [t('shirtPrice'), formatMoney(breakdown.shirt)],
     [t('shortsPrice'), formatMoney(breakdown.shorts)],
     [t('printPrice'), formatMoney(breakdown.print)],
     [t('sizes'), available.length ? `${available[0]}–${available[available.length - 1]}` : '—'],
-    [t('fabric'), '100% Sport Polyester (Dri-Fit)'],
-  ];
+  ].filter(Boolean);
+  const kitColors = { color: product.color || '#1A3582', ink: product.accent || '#FFFFFF' };
 
   return (
     <Screen
@@ -79,26 +81,33 @@ export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCusto
         onBack={onBack}
       />
 
-      {/* Front / Back Toggle */}
-      <Segment
-        style={styles.segment}
-        options={[t('front'), t('rear')]}
-        value={side === 'front' ? t('front') : t('rear')}
-        onChange={(value) => setSide(value === t('front') ? 'front' : 'back')}
-      />
-
-      {/* Large Showcase Preview */}
+      {/* Mahsulot sahnasi: futbolka + shortik (dizayn: Shirt/Shorts), old/orqa */}
       <View style={styles.previewBox}>
         <View style={styles.glow} />
-        <View style={styles.badgeWrap}>
-          <Badge label={product.badge || 'PRO KIT'} variant="teal" />
-        </View>
-        <JerseyPreview
-          product={product}
-          number="10"
-          large
+        {product.badge ? (
+          <View style={styles.badgeWrap}>
+            <Badge label={product.badge} variant="teal" />
+          </View>
+        ) : null}
+        <View style={styles.shirtLayer}>
+        <Shirt
+          width={196}
+          color={kitColors.color}
+          ink={kitColors.ink}
           side={side}
-          name="FORMO"
+          player={side === 'back' ? 'FORMO' : ''}
+          number="10"
+          crest={club?.code || ''}
+        />
+        </View>
+        <View style={styles.shorts}>
+          <Shorts width={124} color={kitColors.color} trim={kitColors.ink} ink={kitColors.ink} number="10" />
+        </View>
+        <Segment
+          style={styles.segment}
+          options={[t('front'), t('rear')]}
+          value={side === 'front' ? t('front') : t('rear')}
+          onChange={(value) => setSide(value === t('front') ? 'front' : 'back')}
         />
       </View>
 
@@ -114,7 +123,7 @@ export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCusto
               style={[styles.thumb, isSelected && styles.thumbActive]}
             >
               <View style={styles.thumbJersey}>
-                <JerseyPreview product={item} number="10" tiny />
+                <Shirt width={58} color={item.color || '#1A3582'} ink={item.accent || '#FFFFFF'} side="front" crest={club?.code || ''} />
               </View>
               <Text style={[styles.thumbLabel, isSelected && styles.thumbLabelActive]}>
                 {item.label}
@@ -139,12 +148,13 @@ export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCusto
         ))}
       </View>
 
-      {/* Description */}
-      <Text style={styles.sectionHeader}>{t('description')}</Text>
-      <Text style={styles.description}>
-        {product.description ||
-          'Formo rasmiy sport formasi. Namlikni yutuvchi engil va bardoshli matodan tikilgan. Raqam va ismni o‘zingiz xohlagancha moslashtirishingiz mumkin.'}
-      </Text>
+      {/* Tavsif — faqat serverda bo'lsa (Kit.description) */}
+      {product.description ? (
+        <>
+          <Text style={styles.sectionHeader}>{t('aboutKit')}</Text>
+          <Text style={styles.description}>{product.description}</Text>
+        </>
+      ) : null}
 
       {/* Specs / Breakdown Card */}
       <View style={styles.specsCard}>
@@ -165,10 +175,14 @@ export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCusto
 const styles = StyleSheet.create({
   segment: {
     alignSelf: 'center',
-    marginBottom: spacing.md,
+    marginTop: spacing.md,
   },
+  // Dizayn: futbolka shortik ustida (z-index), shortik 12–14px ostiga kiradi
+  shirtLayer: { zIndex: 1 },
+  shorts: { marginTop: -14 },
   previewBox: {
-    height: 310,
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
     borderRadius: radii.xl,
     backgroundColor: colors.surface,
     borderWidth: 1,

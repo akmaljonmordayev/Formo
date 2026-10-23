@@ -6,6 +6,7 @@ import { colors, radii, spacing, TAB_BAR_HEIGHT } from '../constants/theme';
 import { Button, Card, Header, Overline, Screen, Segment, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
 import { JerseyPreview } from '../components/ui/JerseyPreview';
+import { Shirt, Shorts } from '../components/ui/Shirt';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { visibleSizes } from '../features/config';
 import {
@@ -692,9 +693,30 @@ function KitStudio({ t, product, cart, rules, onOpenCart, onBack, onPickKit, mod
       <Header logo onBack={onBack} title={t('designStudio')} right={<SideSwitch t={t} side={side} setSide={setSide} />} />
       {modeSwitch}
 
+      {/* Klub formasi: shortik tanlansa ostida ko'rinadi, "shortikka raqam" darhol aks etadi */}
       <View style={styles.preview}>
         <View style={styles.glow} />
-        <JerseyPreview product={product} number={number || ''} large side={side} name={printName || ' '} />
+        <View style={styles.shirtLayer}>
+          <Shirt
+            width={withShorts ? 170 : 196}
+            color={product.color || '#1A3582'}
+            ink={product.accent || '#FFFFFF'}
+            side={side}
+            player={printName}
+            number={number}
+          />
+        </View>
+        {withShorts ? (
+          <View style={styles.shortsLayer}>
+            <Shorts
+              width={110}
+              color={product.color || '#1A3582'}
+              trim={product.accent || '#FFFFFF'}
+              ink={product.accent || '#FFFFFF'}
+              number={numberOnShorts ? number : ''}
+            />
+          </View>
+        ) : null}
       </View>
 
       <Pressable style={styles.kitRow} onPress={onPickKit}>
@@ -736,6 +758,8 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   glow: { position: 'absolute', width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(242, 163, 58, 0.08)' },
+  shirtLayer: { zIndex: 1 },
+  shortsLayer: { marginTop: -12 },
   tabRow: { gap: spacing.sm, paddingRight: spacing.sm },
   tab: {
     paddingHorizontal: 16,

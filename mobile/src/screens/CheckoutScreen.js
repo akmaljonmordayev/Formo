@@ -31,11 +31,12 @@ const formatAddress = (a) => [a.address, a.apartment].filter(Boolean).join(', ')
  * (GET /api/checkout/delivery-slots) -> to'lov usuli -> POST /api/orders/checkout.
  * Narx serverda qayta hisoblanadi; savatdagi promokod buyurtmaga uzatiladi.
  */
-export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced }) {
+export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPickOnMap, initialAddressId }) {
   const { addresses, isLoading: addrLoading, error: addrError, refetch: refetchAddresses, create } = useAddresses();
   const { days, isLoading: slotsLoading, error: slotsError, refetch: refetchSlots } = useDeliverySlots(3);
 
-  const [addressId, setAddressId] = useState(null);
+  // Xaritadan yangi manzil saqlab qaytilganda — o'sha manzil tanlanadi
+  const [addressId, setAddressId] = useState(initialAddressId ?? null);
   const [formOpen, setFormOpen] = useState(false);
   const [form, setForm] = useState({ label: '', address: '', apartment: '' });
   const [formError, setFormError] = useState(null);
@@ -217,10 +218,18 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced }) {
           </View>
         </Card>
       ) : (
-        <Pressable style={styles.addLink} onPress={() => setFormOpen(true)}>
-          <MaterialCommunityIcons name="plus" size={16} color={colors.accent} />
-          <Text style={styles.addLinkText}>{t('addAddress')}</Text>
-        </Pressable>
+        <View style={styles.addLinks}>
+          <Pressable style={styles.addLink} onPress={() => setFormOpen(true)}>
+            <MaterialCommunityIcons name="plus" size={16} color={colors.accent} />
+            <Text style={styles.addLinkText}>{t('addAddress')}</Text>
+          </Pressable>
+          {onPickOnMap ? (
+            <Pressable style={styles.addLink} onPress={onPickOnMap}>
+              <MaterialCommunityIcons name="map-marker-radius-outline" size={16} color={colors.accent} />
+              <Text style={styles.addLinkText}>{t('pickOnMap')}</Text>
+            </Pressable>
+          ) : null}
+        </View>
       )}
 
       {/* ── Yetkazish vaqti ── */}
@@ -379,6 +388,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
   },
   formActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.sm, marginTop: spacing.xs },
+  addLinks: { flexDirection: 'row', flexWrap: 'wrap', columnGap: spacing.xl },
   addLink: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: spacing.md },
   addLinkText: { color: colors.accent, fontSize: 13, fontWeight: '800' },
   sectionGap: { marginTop: spacing.xl },
