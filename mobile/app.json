@@ -11,6 +11,14 @@
         {
           "backgroundColor": "#070A24"
         }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Formo yetkazish manzilini xaritada aniqlash uchun joylashuvingizdan foydalanadi.",
+          "isAndroidBackgroundLocationEnabled": false,
+          "isIosBackgroundLocationEnabled": false
+        }
       ]
     ],
     "ios": {
