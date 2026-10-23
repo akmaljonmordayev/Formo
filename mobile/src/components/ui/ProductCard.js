@@ -1,7 +1,7 @@
 import React from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, spacing } from '../../constants/theme';
+import { colors, fonts, radii, spacing } from '../../constants/theme';
 import { Badge, formatMoney } from './Common';
 import { JerseyPreview } from './JerseyPreview';
 
@@ -43,8 +43,9 @@ export function ProductCard({ product, onPress, favorite, onFavorite, style }) {
       </View>
 
       <View style={styles.info}>
+        {/* Kategoriya faqat serverda bo'lsa; balandlik saqlanadi — kartalar bir tekis */}
         <Text style={styles.category} numberOfLines={1}>
-          {product.category || 'Formo Sport'}
+          {product.category || ' '}
         </Text>
         <Text style={styles.name} numberOfLines={2}>
           {product.name}
@@ -65,9 +66,10 @@ const styles = StyleSheet.create({
     width: '48%',
     marginBottom: spacing.md,
   },
+  // Barcha kartalarda bir xil nisbat (4:5) — forma markazda, kesilmaydi
   imageBox: {
-    height: 180,
-    borderRadius: radii.md,
+    aspectRatio: 0.8,
+    borderRadius: radii.lg,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
@@ -97,7 +99,7 @@ const styles = StyleSheet.create({
   jerseyCenter: {
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 10,
+    marginTop: 6,
     zIndex: 1,
   },
   shineGlow: {
@@ -122,7 +124,7 @@ const styles = StyleSheet.create({
   },
   name: {
     color: colors.text,
-    fontWeight: '800',
+    fontFamily: fonts.bodySemi,
     fontSize: 13,
     lineHeight: 18,
     marginTop: 3,
@@ -136,8 +138,9 @@ const styles = StyleSheet.create({
   },
   price: {
     color: colors.accent,
-    fontWeight: '900',
-    fontSize: 13,
+    fontFamily: fonts.numeric,
+    fontSize: 17,
+    letterSpacing: 0.3,
   },
   arrowIcon: {
     width: 22,

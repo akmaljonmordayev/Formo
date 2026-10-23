@@ -18,10 +18,10 @@ function toAuthError(err, fallbackKey) {
   return { key: fallbackKey, message: null };
 }
 
-/** PATCH /auth/me qabul qiladigan maydonlar (fullName/address yuborilmaydi — server 400 qaytaradi) */
-const PROFILE_KEYS = ['gender', 'age', 'height', 'weight'];
+/** PATCH /auth/me qabul qiladigan maydonlar (UpdateProfileDto). address yuborilmaydi — server 400 qaytaradi */
+const PROFILE_KEYS = ['fullName', 'gender', 'age', 'height', 'weight'];
 
-function pickProfileFields(fields) {
+export function pickProfileFields(fields) {
   const body = {};
   PROFILE_KEYS.forEach((key) => {
     if (fields?.[key] !== undefined) body[key] = fields[key];

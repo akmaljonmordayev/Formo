@@ -10,9 +10,10 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { MaterialCommunityIcons } from '@expo/vector-icons';
+import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
+import { AuthTitle, BackButton, ErrorNote, OutlineButton, authColors } from '../../components/ui/AuthUi';
 import { useToast } from '../../components/ui/Toast';
-import { colors } from '../../constants/theme';
+import { fonts } from '../../constants/theme';
 
 // "90 123 45 67" ko'rinishida formatlash (faqat 9 ta raqam)
 function formatPhone(digits) {
@@ -20,159 +21,148 @@ function formatPhone(digits) {
   return [d.slice(0, 2), d.slice(2, 5), d.slice(5, 7), d.slice(7, 9)].filter(Boolean).join(' ');
 }
 
+/** "+998 90 123 45 67", "998901234567", "8 90..." paste'larini 9 raqamga keltiradi */
+function toLocalDigits(text) {
+  let d = text.replace(/\D/g, '');
+  if (d.length > 9 && d.startsWith('998')) d = d.slice(3);
+  if (d.length > 9 && d.startsWith('8')) d = d.slice(1);
+  return d.slice(0, 9);
+}
+
 /**
  * Telefon raqam bosqichi — faqat SMS/OTP orqali kirish (parol yo'q).
- * Mavjud hisob bo'lsa `auth.verifyOtp` kiradi, bo'lmasa avtomatik ro'yxatdan
- * o'tkazadi — shuning uchun bu yerda "kirish/ro'yxatdan o'tish" farqi yo'q.
+ * Mavjud hisob bo'lsa `auth.verifyOtp` kiradi, bo'lmasa server avtomatik
+ * ro'yxatdan o'tkazadi — shuning uchun bu yerda "kirish/ro'yxat" farqi yo'q.
+ *
+ * Fokus: maydon uslubi fokusda faqat `borderColor`ni almashtiradi (soya/
+ * elevation yo'q), ota Pressable `collapsable={false}` — Fabric TextInput'ni
+ * qayta yaratmaydi va fokus yo'qolmaydi.
  */
-export default function PhoneScreen({ auth, t, onBack, onRequestOtp }) {
+export default function PhoneScreen({ auth, t, initialPhone = '', onBack, onRequestOtp }) {
   const toast = useToast();
-  const [rawDigits, setRawDigits] = useState('');
+  const [digits, setDigits] = useState(() => toLocalDigits(initialPhone));
   const [agree, setAgree] = useState(true);
   const [loading, setLoading] = useState(false);
-  const [phoneFocused, setPhoneFocused] = useState(false);
+  const [errorText, setErrorText] = useState(null);
 
   const phoneRef = useRef(null);
-
-  // 9 ta raqam (998 prefikssiz)
-  const cleanDigits = rawDigits.replace(/\D/g, '').slice(0, 9);
-  const isComplete = cleanDigits.length === 9;
+  const isComplete = digits.length === 9;
+  const canSubmit = isComplete && agree && !loading;
 
   const handleDigitsChange = useCallback((text) => {
-    // +998... formatidagi paste ni ham qabul qilish
-    let d = text.replace(/\D/g, '');
-    if (d.length > 9 && d.startsWith('998')) d = d.slice(3);
-    if (d.length > 9 && d.startsWith('8')) d = d.slice(1);
-    setRawDigits(d.slice(0, 9));
+    setDigits(toLocalDigits(text));
+    setErrorText(null);
   }, []);
 
   const handleProceed = useCallback(async () => {
     if (loading) return;
-
     if (!isComplete) {
-      toast.show('9 ta raqamli telefon raqamni kiriting', 'error');
+      setErrorText(t('phoneInvalid'));
       return;
     }
     if (!agree) {
-      toast.show('Ommaviy oferta va maxfiylik siyosatiga rozilik bildiring', 'error');
+      setErrorText(t('agreeRequired'));
       return;
     }
 
     setLoading(true);
+    setErrorText(null);
     try {
-      const res = await auth.requestOtp(cleanDigits);
-      if (res?.isDemo) {
-        toast.show(res.message || 'Demo rejim', 'demo', 4000);
-      }
-      onRequestOtp?.({ phone: cleanDigits, isDemo: Boolean(res?.isDemo) });
-    } catch (err) {
-      toast.show(err.message || 'SMS yuborishda xatolik', 'error');
+      const res = await auth.requestOtp(digits);
+      onRequestOtp?.({ phone: digits, isDemo: Boolean(res?.isDemo) });
+    } catch {
+      setErrorText(t('otpUnavailable'));
     } finally {
       setLoading(false);
     }
-  }, [loading, isComplete, agree, auth, cleanDigits, onRequestOtp, toast]);
+  }, [loading, isComplete, agree, auth, digits, onRequestOtp, t]);
 
   return (
     <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-        keyboardVerticalOffset={Platform.OS === 'ios' ? 0 : 20}
-      >
+      {/* Android: app.json softwareKeyboardLayoutMode=resize oynani o'zi kichraytiradi */}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
         <ScrollView
           contentContainerStyle={styles.scroll}
           keyboardShouldPersistTaps="handled"
           showsVerticalScrollIndicator={false}
         >
-          {/* Back tugmasi */}
-          {Boolean(onBack) && (
-            <Pressable onPress={onBack} hitSlop={12} style={styles.backBtn}>
-              <MaterialCommunityIcons name="arrow-left" size={22} color="#F3F5F9" />
+          <View style={styles.topBar}>
+            {Boolean(onBack) && <BackButton onPress={onBack} label={t('back')} />}
+          </View>
+
+          <View style={styles.head}>
+            <AuthTitle title={t('phoneTitle')} subtitle={t('phoneSub')} />
+          </View>
+
+          <View style={styles.form}>
+            <Pressable
+              collapsable={false}
+              onPress={() => phoneRef.current?.focus()}
+              style={styles.phoneRow}
+            >
+              <Text style={styles.code}>+998</Text>
+              <View style={styles.divider} />
+              <TextInput
+                ref={phoneRef}
+                value={formatPhone(digits)}
+                onChangeText={handleDigitsChange}
+                placeholder="90 123 45 67"
+                placeholderTextColor={authColors.placeholder}
+                keyboardType="phone-pad"
+                // Formatlangan 12 belgi + "+998 ..." paste uchun zaxira
+                maxLength={17}
+                autoCorrect={false}
+                autoComplete="tel"
+                textContentType="telephoneNumber"
+                importantForAutofill="yes"
+                selectionColor={authColors.accent}
+                returnKeyType="done"
+                onSubmitEditing={handleProceed}
+                accessibilityLabel={t('phone')}
+                style={styles.phoneInput}
+              />
             </Pressable>
-          )}
 
-          {/* Header */}
-          <Text style={styles.title}>Telefon raqamingiz</Text>
-          <Text style={styles.subtitle}>Kirish uchun SMS kod yuboramiz</Text>
-
-          {/* --- Telefon raqam --- */}
-          <Pressable
-            // Fabric: `fieldFocused` adds shadowColor/elevation, which flips the
-            // FormsStackingContext trait on focus and makes the differ emit
-            // remove+insert for this subtree — the TextInput inside would lose
-            // native focus right after gaining it. Pinning the trait prevents it.
-            collapsable={false}
-            onPress={() => phoneRef.current?.focus()}
-            style={[styles.phoneRow, phoneFocused && styles.fieldFocused]}
-          >
-            <View style={styles.flagBox}>
-              <Text style={styles.codeText}>+998</Text>
-            </View>
-            <TextInput
-              ref={phoneRef}
-              value={formatPhone(cleanDigits)}
-              onChangeText={handleDigitsChange}
-              placeholder="90 123 45 67"
-              placeholderTextColor={colors.caption}
-              keyboardType="phone-pad"
-              maxLength={12}
-              autoCapitalize="none"
-              autoCorrect={false}
-              importantForAutofill="no"
-              onFocus={() => setPhoneFocused(true)}
-              onBlur={() => setPhoneFocused(false)}
-              returnKeyType="done"
-              onSubmitEditing={handleProceed}
-              blurOnSubmit={false}
-              style={styles.phoneInput}
-            />
-            {isComplete && (
-              <View style={styles.checkDot}>
-                <MaterialCommunityIcons name="check" size={13} color="#080C24" />
+            <Pressable
+              onPress={() => {
+                setAgree((v) => !v);
+                setErrorText(null);
+              }}
+              style={styles.agreeRow}
+              hitSlop={6}
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: agree }}
+            >
+              <View style={[styles.checkbox, agree && styles.checkboxOn]}>
+                {agree && <MaterialCommunityIcons name="check-bold" size={14} color={authColors.bg} />}
               </View>
-            )}
-          </Pressable>
+              <Text style={styles.agreeText}>
+                <Text style={styles.agreeLink}>{t('agreeOffer')}</Text>
+                {t('agreeRest')}
+              </Text>
+            </Pressable>
 
-          {/* --- Rozilik --- */}
-          <Pressable
-            onPress={() => setAgree((v) => !v)}
-            style={styles.agreeRow}
-            hitSlop={6}
-          >
-            <View style={[styles.checkbox, agree && styles.checkboxChecked]}>
-              {agree && (
-                <MaterialCommunityIcons name="check" size={13} color="#080C24" />
-              )}
-            </View>
-            <Text style={styles.agreeText}>
-              <Text style={styles.agreeLink}>Ommaviy oferta</Text>
-              {' '}va maxfiylik siyosati shartlariga roziman
-            </Text>
-          </Pressable>
+            {Boolean(errorText) && <ErrorNote>{errorText}</ErrorNote>}
+          </View>
 
           <View style={styles.spacer} />
 
-          {/* --- Asosiy tugma --- */}
-          <Pressable
-            onPress={handleProceed}
-            disabled={!isComplete || loading}
-            style={[
-              styles.submitBtn,
-              (!isComplete || loading) && styles.submitBtnDisabled,
-            ]}
-          >
-            <Text style={styles.submitBtnText}>
-              {loading ? 'Iltimos kuting…' : 'Kodni olish'}
-            </Text>
-          </Pressable>
-
-          {/* --- Telegram orqali kirish (hozircha mavjud emas) --- */}
-          <Pressable
-            onPress={() => toast.show('Tez orada qo‘shiladi', 'info')}
-            style={styles.telegramBtn}
-          >
-            <Text style={styles.telegramBtnText}>Telegram orqali kirish</Text>
-          </Pressable>
+          <View style={styles.actions}>
+            <OutlineButton
+              label={t('getCode')}
+              onPress={handleProceed}
+              loading={loading}
+              style={!canSubmit && !loading && styles.dimmed}
+            />
+            <Pressable
+              onPress={() => toast.show(t('comingSoon'), 'info')}
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.telegram, !canSubmit && styles.dimmed, pressed && styles.pressed]}
+            >
+              <FontAwesome name="telegram" size={22} color={authColors.teal} />
+              <Text style={styles.telegramText}>{t('telegramLogin')}</Text>
+            </Pressable>
+          </View>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -180,149 +170,62 @@ export default function PhoneScreen({ auth, t, onBack, onRequestOtp }) {
 }
 
 const styles = StyleSheet.create({
-  safe: {
-    flex: 1,
-    backgroundColor: '#050818',
-  },
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 12,
-    paddingBottom: 48,
-  },
-  backBtn: {
-    width: 40,
-    height: 40,
-    borderRadius: 14,
-    backgroundColor: '#121A42',
-    borderWidth: 1,
-    borderColor: 'rgba(243, 245, 249, 0.1)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: 20,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#F3F5F9',
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#A9B0D0',
-    marginTop: 6,
-    marginBottom: 22,
-  },
+  safe: { flex: 1, backgroundColor: authColors.bg },
+  flex: { flex: 1 },
+  scroll: { flexGrow: 1, paddingBottom: 16 },
+  topBar: { paddingHorizontal: 20, paddingTop: 8, minHeight: 52 },
+  head: { paddingHorizontal: 24, paddingTop: 20 },
+  form: { paddingHorizontal: 24, paddingTop: 28, gap: 18 },
   phoneRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#121A42',
+    height: 60,
     borderRadius: 16,
+    backgroundColor: authColors.field,
     borderWidth: 1.5,
-    borderColor: colors.accent,
-    overflow: 'hidden',
+    // Dizayn: doimiy 1.5px to'q sariq chegara (fokusga qarab uslub o'zgarmaydi)
+    borderColor: authColors.accent,
+    paddingHorizontal: 18,
+    gap: 14,
   },
-  fieldFocused: {
-    borderColor: colors.accent,
-    shadowColor: colors.accent,
-    shadowOpacity: 0.18,
-    shadowRadius: 8,
-    elevation: 3,
-  },
-  flagBox: {
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    borderRightWidth: 1,
-    borderRightColor: 'rgba(243, 245, 249, 0.12)',
-  },
-  codeText: {
-    color: '#F3F5F9',
-    fontSize: 16,
-    fontWeight: '800',
-  },
+  code: { color: authColors.muted, fontFamily: fonts.bodyMedium, fontSize: 20 },
+  divider: { width: 1, height: 26, backgroundColor: authColors.lineStrong },
   phoneInput: {
     flex: 1,
-    color: '#F3F5F9',
-    fontSize: 17,
-    fontWeight: '700',
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    letterSpacing: 1.2,
+    minWidth: 0,
+    height: '100%',
+    paddingVertical: 0,
+    color: authColors.text,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 20,
+    letterSpacing: 0.8,
   },
-  checkDot: {
+  agreeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
+  checkbox: {
     width: 24,
     height: 24,
-    borderRadius: 12,
-    backgroundColor: colors.teal,
+    borderRadius: 7,
+    borderWidth: 1.5,
+    borderColor: 'rgba(243,245,249,0.3)',
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
   },
-  agreeRow: {
+  checkboxOn: { backgroundColor: authColors.accent, borderColor: authColors.accent },
+  agreeText: { flex: 1, color: authColors.soft, fontFamily: fonts.body, fontSize: 14, lineHeight: 21 },
+  agreeLink: { color: authColors.accent, textDecorationLine: 'underline' },
+  spacer: { flex: 1, minHeight: 32 },
+  actions: { paddingHorizontal: 24, gap: 12 },
+  dimmed: { opacity: 0.45 },
+  pressed: { opacity: 0.7 },
+  telegram: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginTop: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
     gap: 10,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 5,
-    backgroundColor: '#121A42',
-    borderWidth: 1.5,
-    borderColor: 'rgba(243, 245, 249, 0.2)',
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-    marginTop: 1,
-  },
-  checkboxChecked: {
-    backgroundColor: colors.accent,
-    borderColor: colors.accent,
-  },
-  agreeText: {
-    color: '#A9B0D0',
-    fontSize: 13,
-    lineHeight: 19,
-    flex: 1,
-  },
-  agreeLink: {
-    color: colors.accent,
-    fontWeight: '700',
-    textDecorationLine: 'underline',
-  },
-  spacer: {
-    flex: 1,
-    minHeight: 40,
-  },
-  submitBtn: {
+    height: 56,
     borderRadius: 16,
-    height: 54,
-    borderWidth: 1.5,
-    borderColor: colors.accent,
-    backgroundColor: 'transparent',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  submitBtnDisabled: {
-    opacity: 0.45,
-  },
-  submitBtnText: {
-    color: colors.accent,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  telegramBtn: {
-    marginTop: 12,
-    borderRadius: 16,
-    height: 54,
     borderWidth: 1,
-    borderColor: 'rgba(243, 245, 249, 0.14)',
-    alignItems: 'center',
-    justifyContent: 'center',
+    borderColor: authColors.lineStrong,
   },
-  telegramBtnText: {
-    color: '#F3F5F9',
-    fontSize: 15,
-    fontWeight: '700',
-  },
+  telegramText: { color: authColors.text, fontFamily: fonts.bodyMedium, fontSize: 16 },
 });

@@ -1,13 +1,16 @@
 import React, { useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, spacing } from '../constants/theme';
+import { colors, fonts, radii, spacing } from '../constants/theme';
 import { Badge, Button, Card, EmptyState, Header, Screen, SectionTitle } from '../components/ui/Common';
 import CartButton from '../components/ui/CartButton';
 import ErrorView from '../components/ui/ErrorView';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { ProductCard } from '../components/ui/ProductCard';
+import { Shirt } from '../components/ui/Shirt';
 import { useCategories, useClubs, useFavorites, usePopularProducts } from '../features/products';
+
+const CLUB_GAP = 10;
 
 export default function CatalogScreen({ t, onClub, cartCount = 0, onCart }) {
   const [query, setQuery] = useState('');
@@ -26,6 +29,10 @@ export default function CatalogScreen({ t, onClub, cartCount = 0, onCart }) {
   const favoriteClub = favorites[0] || null;
   const chips = [{ id: null, name: t('all') }, ...categories];
   const isFiltering = Boolean(query.trim() || categoryId);
+  // 3 ustunli to'r: karta kengligi o'lchangan to'r kengligidan (gap hisobga olinadi) —
+  // foizli kenglik + gap tor ekranlarda 2+1 bo'lib sinardi
+  const [gridWidth, setGridWidth] = useState(0);
+  const clubCardWidth = gridWidth ? Math.floor((gridWidth - CLUB_GAP * 2) / 3) : undefined;
 
   return (
     <Screen>
@@ -102,7 +109,7 @@ export default function CatalogScreen({ t, onClub, cartCount = 0, onCart }) {
               {favoriteClub.name}
             </Text>
             <Text style={styles.favSub}>
-              {favoriteClub.forms} {t('kitsWord')} · {favoriteClub.season || '2025/2026'}
+              {[`${favoriteClub.forms} ${t('kitsWord')}`, favoriteClub.season].filter(Boolean).join(' · ')}
             </Text>
           </View>
           <MaterialCommunityIcons name="chevron-right" size={22} color={colors.accent} />
@@ -112,7 +119,7 @@ export default function CatalogScreen({ t, onClub, cartCount = 0, onCart }) {
       {/* Clubs Grid Section */}
       <SectionTitle
         title={isFiltering ? `${t('allClubs')} (${clubs.length})` : t('allClubs')}
-        eyebrow="OFFICIAL CLUBS"
+        eyebrow={t('eyebrowClubs')}
       />
 
       {clubsError ? (
@@ -122,13 +129,13 @@ export default function CatalogScreen({ t, onClub, cartCount = 0, onCart }) {
           <LoadingSpinner />
         </View>
       ) : clubs.length > 0 ? (
-        <View style={styles.clubGrid}>
+        <View style={styles.clubGrid} onLayout={(e) => setGridWidth(e.nativeEvent.layout.width)}>
           {clubs.map((club) => {
             const isFav = favoriteIds.includes(club.id);
             return (
               <Pressable
                 key={club.id}
-                style={({ pressed }) => [styles.clubCard, pressed && styles.cardPressed]}
+                style={({ pressed }) => [styles.clubCard, clubCardWidth && { width: clubCardWidth }, pressed && styles.cardPressed]}
                 onPress={() => onClub(club)}
                 accessibilityRole="button"
               >
@@ -144,18 +151,15 @@ export default function CatalogScreen({ t, onClub, cartCount = 0, onCart }) {
                   />
                 </Pressable>
 
-                <View
-                  style={[
-                    styles.clubCrest,
-                    {
-                      backgroundColor: club.color || colors.surfaceRaised,
-                      borderColor: club.accent || colors.accent,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.clubCrestCode, { color: club.accent || colors.white }]}>
-                    {club.code || club.name?.slice(0, 3).toUpperCase()}
-                  </Text>
+                {/* Klub rangidagi (markColor) mini forma va gerb kodi */}
+                <View style={styles.clubShirt}>
+                  <Shirt
+                    width={62}
+                    color={club.color}
+                    ink={club.accent}
+                    side="front"
+                    crest={club.code || club.name?.slice(0, 3) || ''}
+                  />
                 </View>
 
                 <Text style={styles.clubName} numberOfLines={1}>
@@ -174,7 +178,7 @@ export default function CatalogScreen({ t, onClub, cartCount = 0, onCart }) {
           title={isFiltering ? t('noResults') : t('catalogEmpty')}
           description={
             isFiltering
-              ? 'Qidiruv bo‘yicha hech narsa topilmadi. Boshqa nom yoki filtrni sinab ko‘ring.'
+              ? t('noResultsSub')
               : t('catalogEmpty')
           }
           actionLabel={isFiltering ? t('all') : undefined}
@@ -185,7 +189,7 @@ export default function CatalogScreen({ t, onClub, cartCount = 0, onCart }) {
       {/* Popular Models Grid */}
       {products.length > 0 ? (
         <View style={styles.modelsSection}>
-          <SectionTitle title={t('popularModels')} eyebrow="HOT PICKS" />
+          <SectionTitle title={t('popularModels')} eyebrow={t('eyebrowModels')} />
           <View style={styles.modelsGrid}>
             {products.map((item) => (
               <ProductCard
@@ -295,19 +299,23 @@ const styles = StyleSheet.create({
   clubGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: 12,
+    gap: CLUB_GAP,
     marginBottom: spacing.xl,
   },
   clubCard: {
-    width: '31%',
+    width: '30%', // o'lchov kelguncha (birinchi kadr)
+    minHeight: 132,
     backgroundColor: colors.surface,
     borderRadius: radii.md,
     borderWidth: 1,
     borderColor: colors.border,
-    padding: 10,
+    paddingHorizontal: 8,
+    paddingTop: 12,
+    paddingBottom: 10,
     alignItems: 'center',
     position: 'relative',
   },
+  clubShirt: { height: 66, justifyContent: 'center', marginBottom: 8 },
   cardPressed: {
     opacity: 0.85,
     transform: [{ scale: 0.98 }],
@@ -336,8 +344,8 @@ const styles = StyleSheet.create({
   },
   clubName: {
     color: colors.text,
-    fontSize: 11,
-    fontWeight: '800',
+    fontFamily: fonts.bodySemi,
+    fontSize: 12,
     textAlign: 'center',
     width: '100%',
   },

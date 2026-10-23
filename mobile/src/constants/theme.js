@@ -70,6 +70,17 @@ export const typography = {
   caption: 11,
 };
 
+// Dizayn shriftlari (App.js da yuklanadi). Android'da fontWeight bilan
+// birga berilmaydi — har bir vazn alohida oila.
+export const fonts = {
+  display: 'Unbounded_500Medium',
+  body: 'Onest_400Regular',
+  bodyMedium: 'Onest_500Medium',
+  bodySemi: 'Onest_600SemiBold',
+  numeric: 'SairaExtraCondensed_800ExtraBold',
+  numericBold: 'SairaExtraCondensed_700Bold',
+};
+
 // Base tab bar height (safe area insets will be added dynamically)
 export const TAB_BAR_HEIGHT = 72;
 
