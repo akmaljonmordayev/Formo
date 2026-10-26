@@ -1,32 +1,21 @@
 import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { LinearGradient } from 'expo-linear-gradient';
 import { colors, radii, spacing, TAB_BAR_HEIGHT } from '../constants/theme';
 import { Button, Card, Header, Overline, Screen, Segment, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
-import { JerseyPreview } from '../components/ui/JerseyPreview';
-import { Shirt, Shorts } from '../components/ui/Shirt';
+import Jersey3D from '../components/ui/Jersey3D';
+import { patchKind } from '../components/ui/Shirt';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { visibleSizes } from '../features/config';
-import {
-  CUSTOM_COLOR_DEFAULT,
-  CUSTOM_PALETTE,
-  GIFT_PACKAGE,
-  GRADIENTS,
-  HEX,
-  PATCHES,
-  SOLID_COLORS,
-  designPreview,
-  estimatePrice,
-} from '../features/studio';
+import { GIFT_PACKAGE, NEON, PATCHES, SOLID_COLORS, TEXT_COLORS, designPreview, estimatePrice } from '../features/studio';
 import { errorText } from '../utils/errors';
 
 // Studiyaning ikki rejimi:
-//  - "Maxsus dizayn" (pastki tabdan) — POST /cart/items { design }: rang (bir rang,
-//    gradient yoki o'z HEX rangi), shrift, yamoq, qadoq + ism/raqam. Tanlovlar
-//    GET /app/config → `studio`dan; faqat yoqilganlari ko'rsatiladi. Logo yuklash yo'q
-//    (serverda fayl saqlash hali yo'q).
+//  - "Maxsus dizayn" (pastki tabdan) — POST /cart/items { design }: bir rang (gradient va
+//    o'z HEX rangi hozircha o'chirilgan), yozuv rangi, neon effekt, shrift, yamoq, qadoq,
+//    ism/raqam va ixtiyoriy shortik (o'z raqami bilan). Tanlovlar GET /app/config → `studio`dan;
+//    faqat yoqilganlari ko'rsatiladi. Logo yuklash yo'q (serverda fayl saqlash hali yo'q).
 //  - "Klub formasi" (klub sahifasidan) — POST /cart/items { kitId }: o'lcham,
 //    ism/raqam bosmasi, shortik.
 const pickSize = (sizes, preferred) => {
@@ -143,6 +132,78 @@ function PrintInputs({ t, rules, name, setName, number, setNumber, nameStyle }) 
   );
 }
 
+function ShortsPanel({ t, rules, sizes, price, s }) {
+  const numberInvalid = isNumberInvalid(s.shortsNumber, rules);
+  return (
+    <View>
+      <View style={styles.panelRow}>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.rowTitle}>{t('addShorts')}</Text>
+          <Text style={styles.rowSub}>{t('addShortsSub')} · +{formatMoney(price)}</Text>
+        </View>
+        <Switch
+          value={s.withShorts}
+          onValueChange={s.setWithShorts}
+          trackColor={{ false: '#2A3160', true: colors.teal }}
+          thumbColor="#FFFFFF"
+        />
+      </View>
+      {s.withShorts ? (
+        <View>
+          <Overline style={styles.overlineGap}>{t('shortsSize')}</Overline>
+          <SizeRow sizes={sizes} selected={s.shortsSize} onPick={s.setShortsSize} />
+          <View style={[styles.panelRow, styles.overlineGap]}>
+            <Text style={[styles.rowTitle, { flex: 1 }]}>{t('numberOnShorts')}</Text>
+            <Switch
+              value={s.numberOnShorts}
+              onValueChange={s.setNumberOnShorts}
+              trackColor={{ false: '#2A3160', true: colors.teal }}
+              thumbColor="#FFFFFF"
+            />
+          </View>
+          {s.numberOnShorts ? (
+            <View style={[styles.inputs, styles.overlineGap]}>
+              <Text style={[styles.rowSub, { flex: 1, marginTop: 0 }]}>{t('shortsNumber')}</Text>
+              <TextInput
+                value={s.shortsNumber}
+                onChangeText={(value) => s.setShortsNumber(value.replace(/\D/g, ''))}
+                placeholder={s.fallbackNumber || '10'}
+                placeholderTextColor={colors.muted}
+                style={[styles.textInput, styles.number]}
+                keyboardType="number-pad"
+                maxLength={2}
+              />
+            </View>
+          ) : null}
+          {numberInvalid ? (
+            <Text style={[styles.hint, styles.errorFeedback]}>
+              {t('numberRange')}: {rules.printNumberMin}–{rules.printNumberMax}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+/** Shortik tanlovi (ikkala rejimda bir xil): shortik bor/yo'q, o'lcham, raqam va uning qiymati */
+function useShorts(defaultOn) {
+  const [withShorts, setWithShorts] = useState(defaultOn);
+  const [shortsSize, setShortsSize] = useState(null);
+  const [numberOnShorts, setNumberOnShorts] = useState(false);
+  const [shortsNumber, setShortsNumber] = useState('');
+  return { withShorts, setWithShorts, shortsSize, setShortsSize, numberOnShorts, setNumberOnShorts, shortsNumber, setShortsNumber };
+}
+
+/** Savatga yuboriladigan shortik maydonlari; raqam bo'sh bo'lsa server futbolka raqamini oladi */
+const shortsPayload = (s, shirtSize) =>
+  s.withShorts
+    ? { withShorts: true, shortsSize: s.shortsSize || shirtSize, numberOnShorts: s.numberOnShorts, shortsNumber: s.numberOnShorts ? s.shortsNumber || null : null }
+    : { withShorts: false };
+
+/** Preview'dagi shortik raqami */
+const shortsPreview = (s, number) => (s.withShorts ? { number: s.numberOnShorts ? s.shortsNumber || number : '' } : null);
+
 const isNumberInvalid = (number, rules) => {
   if (number === '') return false;
   const value = Number(number);
@@ -184,13 +245,14 @@ function SideSwitch({ t, side, setSide }) {
   );
 }
 
-function CartLink({ t, cart, onOpenCart }) {
-  if (cart.count <= 0) return null;
+function Preview({ t, side, setSide, children }) {
   return (
-    <Pressable onPress={onOpenCart} style={styles.cartLink}>
-      <Text style={styles.cartLinkText}>{t('openCart')} · {cart.count} {t('items')}</Text>
-      <MaterialCommunityIcons name="chevron-right" size={16} color={colors.accent} />
-    </Pressable>
+    <View style={styles.preview}>
+      {children}
+      <View style={styles.previewSide}>
+        <SideSwitch t={t} side={side} setSide={setSide} />
+      </View>
+    </View>
   );
 }
 
@@ -218,13 +280,12 @@ function useAddToCart(t, cart) {
 
 // ─── Maxsus dizayn ───────────────────────────────────────────────────────────
 
-function DesignStudio({ t, cart, rules, studio, studioError, onRetryConfig, onOpenCart, onBack, modeSwitch }) {
+function DesignStudio({ t, cart, rules, studio, studioError, onRetryConfig, onBack, modeSwitch }) {
   const [side, setSide] = useState('back');
   const [tab, setTab] = useState('color');
-  const [colorType, setColorType] = useState('solid');
   const [solidId, setSolidId] = useState(null);
-  const [gradientId, setGradientId] = useState(null);
-  const [customHex, setCustomHex] = useState(CUSTOM_COLOR_DEFAULT);
+  const [textColor, setTextColor] = useState(null);
+  const [neon, setNeon] = useState(false);
   const [font, setFont] = useState(null);
   const [patch, setPatch] = useState(null);
   const [pkg, setPkg] = useState(null);
@@ -232,23 +293,20 @@ function DesignStudio({ t, cart, rules, studio, studioError, onRetryConfig, onOp
   const [number, setNumber] = useState('10');
   const [shirtSize, setShirtSize] = useState('L');
   const [quantity, setQuantity] = useState(1);
+  const shorts = useShorts(false);
   const { adding, feedback, setFeedback, add } = useAddToCart(t, cart);
 
   const sizes = visibleSizes(DESIGN_SIZES, rules);
-  const colorTypes = studio
-    ? [
-        studio.colors.solid.length ? 'solid' : null,
-        studio.colors.gradient.length ? 'gradient' : null,
-        studio.colors.custom ? 'custom' : null,
-      ].filter(Boolean)
-    : [];
+  // Gradient va o'z rangi hozircha o'chirilgan — faqat tayyor ranglar
+  const solidColors = studio ? SOLID_COLORS.filter((c) => studio.colors.solid.includes(c.id)) : [];
+  // Eski backend textColors bermasa — ilovadagi ro'yxat
+  const textColors = studio ? TEXT_COLORS.filter((c) => !studio.textColors || studio.textColors.includes(c.id)) : [];
+  const neonAvailable = !studio?.textEffects || studio.textEffects.includes(NEON);
 
   // Superadmin tanlovni o'chirsa (config yangilanganda) — yoqilganiga o'tamiz
   useEffect(() => {
     if (!studio) return;
     setSolidId((current) => keepEnabled(current, studio.colors.solid));
-    setGradientId((current) => keepEnabled(current, studio.colors.gradient));
-    setColorType((current) => keepEnabled(current, colorTypes));
     setFont((current) => keepEnabled(current, studio.fonts));
     setPatch((current) => (current && studio.patches.includes(current) ? current : null));
     setPkg((current) => keepEnabled(current, studio.packages));
@@ -256,11 +314,10 @@ function DesignStudio({ t, cart, rules, studio, studioError, onRetryConfig, onOp
 
   useEffect(() => {
     setShirtSize((current) => pickSize(sizes, current || 'L'));
+    shorts.setShortsSize((current) => pickSize(sizes, current || 'L'));
   }, [rules.allowKidsSizes]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const header = (
-    <Header logo onBack={onBack} title={t('designStudio')} right={<SideSwitch t={t} side={side} setSide={setSide} />} />
-  );
+  const header = <Header cart onBack={onBack} title={t('designStudio')} />;
 
   if (!studio) {
     return (
@@ -277,7 +334,7 @@ function DesignStudio({ t, cart, rules, studio, studioError, onRetryConfig, onOp
   }
 
   // Rang turi, shrift yoki qadoq umuman yoqilmagan bo'lsa server dizaynni qabul qilmaydi
-  if (!colorTypes.length || !studio.fonts.length || !studio.packages.length) {
+  if (!solidColors.length || !studio.fonts.length || !studio.packages.length) {
     return (
       <Screen>
         {header}
@@ -290,16 +347,16 @@ function DesignStudio({ t, cart, rules, studio, studioError, onRetryConfig, onOp
     );
   }
 
-  const hexValid = HEX.test(customHex);
-  const color =
-    colorType === 'gradient'
-      ? { type: 'gradient', id: gradientId }
-      : colorType === 'custom'
-        ? { type: 'custom', hex: customHex.toUpperCase() }
-        : { type: 'solid', id: solidId };
-  const design = { color, font, patch, package: pkg };
+  const design = {
+    color: { type: 'solid', id: solidId },
+    font,
+    patch,
+    package: pkg,
+    ...(textColor && { textColor }),
+    ...(neon && neonAvailable && { textEffect: NEON }),
+  };
   const preview = designPreview(design);
-  const unit = estimatePrice(design, studio.prices);
+  const unit = estimatePrice(design, studio.prices, shorts.withShorts);
   const maxQty = Math.max(1, Math.min(rules.maxQtyPerItem, 20));
   const printName = name.trim();
   const paused = !rules.acceptOrders;
@@ -308,18 +365,14 @@ function DesignStudio({ t, cart, rules, studio, studioError, onRetryConfig, onOp
   const tabs = [
     ['color', t('tabColor')],
     ['print', t('tabPrint')],
+    ['shorts', t('tabShorts')],
     ...(showExtras ? [['extras', t('tabExtras')]] : []),
     ['size', t('tabSize')],
   ];
-  const typeLabels = { solid: t('oneColor'), gradient: t('gradientMode'), custom: t('customColor') };
 
   const addToCart = () => {
     if (!shirtSize) return;
-    if (colorType === 'custom' && !hexValid) {
-      setFeedback({ ok: false, text: t('invalidHex') });
-      return;
-    }
-    if (isNumberInvalid(number, rules)) {
+    if (isNumberInvalid(number, rules) || (shorts.withShorts && shorts.numberOnShorts && isNumberInvalid(shorts.shortsNumber, rules))) {
       setFeedback({ ok: false, text: `${t('numberRange')}: ${rules.printNumberMin}–${rules.printNumberMax}` });
       return;
     }
@@ -329,81 +382,20 @@ function DesignStudio({ t, cart, rules, studio, studioError, onRetryConfig, onOp
       printName: printName || null,
       printNumber: number || null,
       quantity,
+      ...shortsPayload(shorts, shirtSize),
     });
   };
 
   const renderColor = () => (
     <View>
-      {colorTypes.length > 1 ? (
-        <Segment
-          wide
-          style={styles.typeSwitch}
-          options={colorTypes.map((type) => typeLabels[type])}
-          value={typeLabels[colorType]}
-          onChange={(label) => setColorType(colorTypes.find((type) => typeLabels[type] === label))}
-        />
-      ) : null}
-
-      {colorType === 'solid' ? (
-        <View>
-          <Overline>{t('readyColors')}</Overline>
-          <View style={styles.swatches}>
-            {SOLID_COLORS.filter((c) => studio.colors.solid.includes(c.id)).map((c) => (
-              <Swatch
-                key={c.id}
-                label={t(`color_${c.id}`)}
-                selected={solidId === c.id}
-                onPress={() => setSolidId(c.id)}
-              >
-                <View style={[styles.swatchFill, { backgroundColor: c.hex }]} />
-              </Swatch>
-            ))}
-          </View>
-        </View>
-      ) : colorType === 'gradient' ? (
-        <View>
-          <Overline>{t('gradientColors')} · +{formatMoney(studio.prices.gradient)}</Overline>
-          <View style={styles.swatches}>
-            {GRADIENTS.filter((g) => studio.colors.gradient.includes(g.id)).map((g) => (
-              <Swatch
-                key={g.id}
-                label={t(`grad_${g.id}`)}
-                selected={gradientId === g.id}
-                onPress={() => setGradientId(g.id)}
-              >
-                <LinearGradient colors={[g.from, g.to]} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.swatchFill} />
-              </Swatch>
-            ))}
-          </View>
-        </View>
-      ) : (
-        <View>
-          <Overline>{t('customColor')} · +{formatMoney(studio.prices.gradient)}</Overline>
-          <View style={styles.swatches}>
-            {CUSTOM_PALETTE.map((hex) => (
-              <Swatch key={hex} selected={customHex.toUpperCase() === hex} onPress={() => setCustomHex(hex)}>
-                <View style={[styles.swatchFill, { backgroundColor: hex }]} />
-              </Swatch>
-            ))}
-          </View>
-          <View style={[styles.inputs, styles.overlineGap]}>
-            <View style={[styles.hexDot, { backgroundColor: hexValid ? customHex : 'transparent' }]} />
-            <TextInput
-              value={customHex}
-              onChangeText={(value) => setCustomHex(`#${value.replace(/[^0-9a-fA-F]/g, '').slice(0, 6)}`)}
-              placeholder={CUSTOM_COLOR_DEFAULT}
-              placeholderTextColor={colors.muted}
-              style={[styles.textInput, { flex: 1 }]}
-              autoCapitalize="characters"
-              autoCorrect={false}
-              maxLength={7}
-            />
-          </View>
-          <Text style={[styles.hint, !hexValid && styles.errorFeedback]}>
-            {hexValid ? t('customHexHint') : t('invalidHex')}
-          </Text>
-        </View>
-      )}
+      <Overline>{t('readyColors')}</Overline>
+      <View style={styles.swatches}>
+        {solidColors.map((c) => (
+          <Swatch key={c.id} label={t(`color_${c.id}`)} selected={solidId === c.id} onPress={() => setSolidId(c.id)}>
+            <View style={[styles.swatchFill, { backgroundColor: c.hex }]} />
+          </Swatch>
+        ))}
+      </View>
     </View>
   );
 
@@ -419,7 +411,31 @@ function DesignStudio({ t, cart, rules, studio, studioError, onRetryConfig, onOp
         setNumber={setNumber}
         nameStyle={preview.fontStyle}
       />
-      <Text style={styles.hint}>{t('priceIncludesPrint')}</Text>
+      <Overline style={styles.overlineGap}>{t('textColor')}</Overline>
+      <View style={styles.swatches}>
+        <Swatch label={t('textColorAuto')} selected={!textColor} onPress={() => setTextColor(null)}>
+          <View style={[styles.swatchFill, styles.autoSwatch]}>
+            <View style={[styles.autoHalf, { backgroundColor: preview.color }]} />
+            <Text style={[styles.autoA, { color: designPreview({ ...design, textColor: null }).accent }]}>A</Text>
+          </View>
+        </Swatch>
+        {textColors.map((c) => (
+          <Swatch key={c.id} label={t(`tcolor_${c.id}`)} selected={textColor === c.id} onPress={() => setTextColor(c.id)}>
+            <View style={[styles.swatchFill, { backgroundColor: c.hex }]} />
+          </Swatch>
+        ))}
+      </View>
+
+      {neonAvailable ? (
+        <View style={[styles.panelRow, styles.overlineGap]}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowTitle}>{t('neonEffect')}</Text>
+            <Text style={styles.rowSub}>{t('neonEffectSub')}</Text>
+          </View>
+          <Switch value={neon} onValueChange={setNeon} trackColor={{ false: '#2A3160', true: colors.teal }} thumbColor="#FFFFFF" />
+        </View>
+      ) : null}
+
       {studio.fonts.length > 1 ? (
         <View>
           <Overline style={styles.overlineGap}>{t('fontTitle')}</Overline>
@@ -465,11 +481,6 @@ function DesignStudio({ t, cart, rules, studio, studioError, onRetryConfig, onOp
               onPress={() => setPkg(id)}
               style={[styles.packageRow, pkg === id && styles.packageRowActive]}
             >
-              <MaterialCommunityIcons
-                name={id === GIFT_PACKAGE ? 'gift-outline' : 'package-variant-closed'}
-                size={20}
-                color={pkg === id ? colors.accent : colors.muted}
-              />
               <View style={{ flex: 1 }}>
                 <Text style={styles.rowTitle}>{t(`pkg_${id}`)}</Text>
                 <Text style={styles.rowSub}>{t(`pkgSub_${id}`)}</Text>
@@ -512,7 +523,11 @@ function DesignStudio({ t, cart, rules, studio, studioError, onRetryConfig, onOp
     </View>
   );
 
-  const panels = { color: renderColor, print: renderPrint, extras: renderExtras, size: renderSize };
+  const renderShorts = () => (
+    <ShortsPanel t={t} rules={rules} sizes={sizes} price={studio.prices.shorts ?? 0} s={{ ...shorts, fallbackNumber: number }} />
+  );
+
+  const panels = { color: renderColor, print: renderPrint, shorts: renderShorts, extras: renderExtras, size: renderSize };
 
   return (
     <Screen
@@ -527,7 +542,7 @@ function DesignStudio({ t, cart, rules, studio, studioError, onRetryConfig, onOp
           rules={rules}
           feedback={feedback}
           adding={adding}
-          disabled={!shirtSize || (colorType === 'custom' && !hexValid)}
+          disabled={!shirtSize}
           onAdd={addToCart}
         />
       }
@@ -535,16 +550,26 @@ function DesignStudio({ t, cart, rules, studio, studioError, onRetryConfig, onOp
       {header}
       {modeSwitch}
 
-      <View style={styles.preview}>
-        <View style={styles.glow} />
-        <JerseyPreview product={preview} number={number || ''} large side={side} name={printName || ' '} />
-      </View>
+      <Preview t={t} side={side} setSide={setSide}>
+        <Jersey3D
+          kit={{
+            color: preview.color,
+            ink: preview.accent,
+            textStyle: preview.fontStyle,
+            glow: preview.glow,
+            patches: patchKind(preview.patch) ? [patchKind(preview.patch)] : [],
+          }}
+          name={printName}
+          number={number}
+          shorts={shortsPreview(shorts, number)}
+          side={side}
+          onSideChange={setSide}
+          width={190}
+        />
+      </Preview>
 
       <Tabs tabs={tabs} value={panels[tab] ? tab : 'color'} onChange={setTab} />
       <View style={styles.panel}>{(panels[tab] || renderColor)()}</View>
-      <Text style={[styles.hint, styles.centerHint]}>{t('priceNote')}</Text>
-
-      <CartLink t={t} cart={cart} onOpenCart={onOpenCart} />
     </Screen>
   );
 }
@@ -574,15 +599,14 @@ function OptionChip({ selected, onPress, children }) {
 
 // Backend savat qatori: forma (kitId), futbolka o'lchami, ism/raqam bosmasi,
 // shortik (+ o'lchami, raqami).
-function KitStudio({ t, product, cart, rules, onOpenCart, onBack, onPickKit, modeSwitch }) {
+function KitStudio({ t, product, cart, rules, onBack, onPickKit, modeSwitch }) {
   const [side, setSide] = useState('back');
   const [tab, setTab] = useState('size');
   const [name, setName] = useState('');
   const [number, setNumber] = useState('10');
   const [shirtSize, setShirtSize] = useState(null);
-  const [withShorts, setWithShorts] = useState(true);
-  const [shortsSize, setShortsSize] = useState(null);
-  const [numberOnShorts, setNumberOnShorts] = useState(false);
+  const shorts = useShorts(true);
+  const { withShorts } = shorts;
   const { adding, feedback, setFeedback, add } = useAddToCart(t, cart);
 
   // Forma almashganda mavjud o'lchamni qayta tanlaymiz
@@ -590,7 +614,7 @@ function KitStudio({ t, product, cart, rules, onOpenCart, onBack, onPickKit, mod
   const sizes = visibleSizes(product.sizes, rules);
   useEffect(() => {
     setShirtSize((current) => pickSize(sizes, current || 'L'));
-    setShortsSize((current) => pickSize(sizes, current || 'L'));
+    shorts.setShortsSize((current) => pickSize(sizes, current || 'L'));
   }, [product.kitId, rules.allowKidsSizes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const printName = name.trim();
@@ -607,7 +631,7 @@ function KitStudio({ t, product, cart, rules, onOpenCart, onBack, onPickKit, mod
 
   const addToCart = () => {
     if (!shirtSize) return;
-    if (isNumberInvalid(number, rules)) {
+    if (isNumberInvalid(number, rules) || (withShorts && shorts.numberOnShorts && isNumberInvalid(shorts.shortsNumber, rules))) {
       setFeedback({ ok: false, text: `${t('numberRange')}: ${rules.printNumberMin}–${rules.printNumberMax}` });
       return;
     }
@@ -616,8 +640,7 @@ function KitStudio({ t, product, cart, rules, onOpenCart, onBack, onPickKit, mod
       shirtSize,
       printName: printName || null,
       printNumber: number || null,
-      withShorts,
-      ...(withShorts ? { shortsSize: shortsSize || shirtSize, numberOnShorts } : {}),
+      ...shortsPayload(shorts, shirtSize),
     });
   };
 
@@ -639,37 +662,7 @@ function KitStudio({ t, product, cart, rules, onOpenCart, onBack, onPickKit, mod
         </View>
       );
     }
-    return (
-      <View>
-        <View style={styles.panelRow}>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle}>{t('addShorts')}</Text>
-            <Text style={styles.rowSub}>{t('addShortsSub')} · +{formatMoney(prices.shorts)}</Text>
-          </View>
-          <Switch
-            value={withShorts}
-            onValueChange={setWithShorts}
-            trackColor={{ false: '#2A3160', true: colors.teal }}
-            thumbColor="#FFFFFF"
-          />
-        </View>
-        {withShorts ? (
-          <View>
-            <Overline style={styles.overlineGap}>{t('shortsSize')}</Overline>
-            <SizeRow sizes={sizes} selected={shortsSize} onPick={setShortsSize} />
-            <View style={[styles.panelRow, styles.overlineGap]}>
-              <Text style={[styles.rowTitle, { flex: 1 }]}>{t('numberOnShorts')}</Text>
-              <Switch
-                value={numberOnShorts}
-                onValueChange={setNumberOnShorts}
-                trackColor={{ false: '#2A3160', true: colors.teal }}
-                thumbColor="#FFFFFF"
-              />
-            </View>
-          </View>
-        ) : null}
-      </View>
-    );
+    return <ShortsPanel t={t} rules={rules} sizes={sizes} price={prices.shorts} s={{ ...shorts, fallbackNumber: number }} />;
   };
 
   return (
@@ -690,34 +683,21 @@ function KitStudio({ t, product, cart, rules, onOpenCart, onBack, onPickKit, mod
         />
       }
     >
-      <Header logo onBack={onBack} title={t('designStudio')} right={<SideSwitch t={t} side={side} setSide={setSide} />} />
+      <Header cart onBack={onBack} title={t('designStudio')} />
       {modeSwitch}
 
       {/* Klub formasi: shortik tanlansa ostida ko'rinadi, "shortikka raqam" darhol aks etadi */}
-      <View style={styles.preview}>
-        <View style={styles.glow} />
-        <View style={styles.shirtLayer}>
-          <Shirt
-            width={withShorts ? 170 : 196}
-            color={product.color || '#1A3582'}
-            ink={product.accent || '#FFFFFF'}
-            side={side}
-            player={printName}
-            number={number}
-          />
-        </View>
-        {withShorts ? (
-          <View style={styles.shortsLayer}>
-            <Shorts
-              width={110}
-              color={product.color || '#1A3582'}
-              trim={product.accent || '#FFFFFF'}
-              ink={product.accent || '#FFFFFF'}
-              number={numberOnShorts ? number : ''}
-            />
-          </View>
-        ) : null}
-      </View>
+      <Preview t={t} side={side} setSide={setSide}>
+        <Jersey3D
+          kit={{ color: product.color || '#1A3582', ink: product.accent || '#FFFFFF', crest: product.code }}
+          name={printName}
+          number={number}
+          shorts={shortsPreview(shorts, number)}
+          side={side}
+          onSideChange={setSide}
+          width={190}
+        />
+      </Preview>
 
       <Pressable style={styles.kitRow} onPress={onPickKit}>
         <View style={{ flex: 1 }}>
@@ -729,56 +709,41 @@ function KitStudio({ t, product, cart, rules, onOpenCart, onBack, onPickKit, mod
 
       <Tabs tabs={tabs} value={tab} onChange={setTab} />
       <View style={styles.panel}>{renderPanel()}</View>
-
-      <Card style={styles.ar}>
-        <MaterialCommunityIcons name="cube-scan" size={24} color={colors.teal} />
-        <View style={{ flex: 1 }}>
-          <Text style={styles.arTitle}>{t('arTitle')}</Text>
-          <Text style={styles.arText}>{t('arSub')}</Text>
-        </View>
-      </Card>
-
-      <CartLink t={t} cart={cart} onOpenCart={onOpenCart} />
     </Screen>
   );
 }
 
 const styles = StyleSheet.create({
   modeSwitch: { alignSelf: 'stretch', marginBottom: spacing.md },
+  // Sahna fon rangi = 3D GL fon rangi (colors.surface) — chegarasiz ko'rinadi
   preview: {
-    height: 290,
+    minHeight: 330,
     borderRadius: radii.xl,
     backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
     marginBottom: spacing.lg,
-    position: 'relative',
+    paddingTop: spacing.sm,
+    paddingBottom: 56,
   },
-  glow: { position: 'absolute', width: 220, height: 220, borderRadius: 110, backgroundColor: 'rgba(242, 163, 58, 0.08)' },
-  shirtLayer: { zIndex: 1 },
-  shortsLayer: { marginTop: -12 },
+  previewSide: { position: 'absolute', bottom: 12, alignSelf: 'center' },
+  autoSwatch: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceRaised },
+  autoHalf: { ...StyleSheet.absoluteFillObject, left: '50%' },
+  autoA: { fontSize: 18, fontWeight: '900' },
   tabRow: { gap: spacing.sm, paddingRight: spacing.sm },
   tab: {
     paddingHorizontal: 16,
     paddingVertical: 9,
     borderRadius: radii.round,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
   },
-  tabActive: { backgroundColor: colors.surfaceRaised, borderColor: colors.accent },
-  tabText: { color: colors.muted, fontSize: 12, fontWeight: '700' },
-  tabTextActive: { color: colors.accent, fontWeight: '900' },
+  tabActive: { backgroundColor: colors.accent },
+  tabText: { color: colors.muted, fontSize: 13, fontWeight: '700' },
+  tabTextActive: { color: colors.primaryDark, fontWeight: '900' },
+  // Panel qutisiz — tanlovlar to'g'ridan-to'g'ri sahna ostida
   panel: {
-    backgroundColor: colors.surface,
-    borderRadius: radii.lg,
-    borderWidth: 1,
-    borderColor: colors.border,
-    padding: spacing.lg,
-    marginTop: spacing.md,
+    paddingTop: spacing.lg,
+    paddingHorizontal: 2,
   },
   inputs: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   textInput: {
@@ -797,25 +762,12 @@ const styles = StyleSheet.create({
   rowTitle: { color: colors.text, fontSize: 14, fontWeight: '800' },
   rowSub: { color: colors.muted, fontSize: 11, marginTop: 3 },
   overlineGap: { marginTop: spacing.lg },
-  ar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.md,
-    marginTop: spacing.lg,
-    borderColor: 'rgba(63, 217, 183, 0.35)',
-    backgroundColor: 'rgba(63, 217, 183, 0.06)',
-  },
-  arTitle: { color: colors.text, fontWeight: '800', fontSize: 13 },
-  arText: { color: colors.muted, fontSize: 11, marginTop: 3 },
-  cartLink: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 2, paddingVertical: spacing.lg },
-  cartLinkText: { color: colors.accent, fontSize: 12, fontWeight: '800' },
   footerBar: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   footerLabel: { color: colors.muted, fontSize: 11, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase' },
   footerPrice: { color: colors.accent, fontSize: 18, fontWeight: '900', marginTop: 2 },
   addedFeedback: { color: colors.tealLight, fontSize: 12, fontWeight: '800', textAlign: 'right' },
   errorFeedback: { color: colors.danger },
   hint: { color: colors.muted, fontSize: 11, marginTop: spacing.sm },
-  centerHint: { textAlign: 'center' },
   sizes: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   sizeChip: {
     minWidth: 48,
@@ -842,14 +794,12 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.md,
   },
-  typeSwitch: { alignSelf: 'stretch', marginBottom: spacing.lg },
   swatches: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.md },
   swatch: { width: 56, alignItems: 'center', gap: 4 },
   swatchRing: { width: 46, height: 46, borderRadius: 23, padding: 3, borderWidth: 2, borderColor: 'transparent' },
   swatchRingActive: { borderColor: colors.accent },
   swatchFill: { flex: 1, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.15)', overflow: 'hidden' },
   swatchLabel: { color: colors.muted, fontSize: 10, fontWeight: '700' },
-  hexDot: { width: 34, height: 34, borderRadius: 17, borderWidth: 1, borderColor: colors.border },
   options: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   optionChip: {
     paddingHorizontal: 16,

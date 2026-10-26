@@ -68,3 +68,18 @@ export async function api(path, options = {}) {
   }
   return data;
 }
+
+/** Rasm/fayl (Bearer bilan) — <img> uchun object URL qaytaradi; chaqiruvchi URL.revokeObjectURL qiladi */
+export async function apiBlobUrl(path) {
+  const load = () =>
+    fetch(`${BASE_URL}/api${path}`, {
+      headers: session.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {},
+    });
+  let res = await load();
+  if (res.status === 401 && session.refreshToken && (await refreshTokens())) res = await load();
+  if (!res.ok) {
+    const data = await res.json().catch(() => null);
+    throw new ApiError(errorMessage(data), res.status);
+  }
+  return URL.createObjectURL(await res.blob());
+}

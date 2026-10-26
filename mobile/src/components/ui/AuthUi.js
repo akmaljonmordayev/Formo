@@ -8,8 +8,9 @@ import { fonts } from '../../constants/theme';
  * dizaynidagi o'lchamlar: orqaga 44×44 r14, tugma 56 r16, sarlavha 28/26 Unbounded.
  */
 export const authColors = {
-  bg: '#080C24',
-  field: '#121A42',
+  // Asosiy ilova palitrasi bilan bir xil (constants/theme.js)
+  bg: '#050818',
+  field: '#0E1A3F',
   track: '#1B2560',
   line: 'rgba(243,245,249,0.12)',
   lineStrong: 'rgba(243,245,249,0.16)',

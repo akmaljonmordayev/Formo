@@ -4,6 +4,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditEntry, AuditService } from './audit.service';
 import { AssignWorkshopDto, ListOrdersQueryDto, UpdateOrderStatusDto } from './dto/order.dto';
 import { OrderHistoryService } from './order-history.service';
+import { WalletService } from '../wallet/wallet.service';
 
 const ACTIVE_STATUSES: OrderStatus[] = [
   OrderStatus.SENT_TO_WORKSHOP,
@@ -53,6 +54,7 @@ export class OrdersService {
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
     private readonly history: OrderHistoryService,
+    private readonly wallet: WalletService,
   ) {}
 
   async list(query: ListOrdersQueryDto) {
@@ -152,6 +154,12 @@ export class OrdersService {
       });
       if (current.status !== dto.status) {
         await this.history.record({ orderId: id, from: current.status, to: dto.status, actor, note: dto.note }, tx);
+        // Balansdan to'langan buyurtma bekor qilinsa yoki qaytarilsa — pul mijoz balansiga bir marta qaytadi
+        if (dto.status === OrderStatus.CANCELLED || dto.status === OrderStatus.RETURNED) {
+          if (await this.wallet.refundOrder(tx, id, actor?.id ?? null)) {
+            return tx.order.findUniqueOrThrow({ where: { id }, include });
+          }
+        }
       }
       return updated;
     });

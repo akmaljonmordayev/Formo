@@ -41,6 +41,7 @@ export function JerseyPreview({
         crest={item.crest || item.code || ''}
         patches={patch ? [patch] : []}
         textStyle={item.fontStyle}
+        glow={Boolean(item.glow)}
       />
     </View>
   );

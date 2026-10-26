@@ -37,6 +37,8 @@ function designSummary(design, t) {
   if (design.font) parts.push(`${t('orders.line.font')}: ${design.font}`);
   if (design.patch) parts.push(`${t('orders.line.patch')}: ${typeof design.patch === 'string' ? design.patch : design.patch.id ?? design.patch.name ?? '✓'}`);
   if (design.package) parts.push(`${t('orders.line.package')}: ${typeof design.package === 'string' ? design.package : design.package.id ?? design.package.name ?? '✓'}`);
+  if (design.textColor) parts.push(`${t('orders.line.textColor')}: ${design.textColor}`);
+  if (design.textEffect === 'neon') parts.push(t('orders.line.neon'));
   return parts.join(' · ');
 }
 
@@ -55,6 +57,12 @@ function OrderDetails({ order, t, date }) {
               {(l.printName || l.printNumber) && (
                 <>
                   , {t('orders.line.print')}: {[l.printName, l.printNumber].filter(Boolean).join(' ')}
+                </>
+              )}
+              {l.withShorts && (
+                <>
+                  , {t('orders.line.shorts')}: {l.shortsSize}
+                  {l.numberOnShorts && l.shortsNumber ? ` (${t('orders.line.shortsNumber')} ${l.shortsNumber})` : ''}
                 </>
               )}
               {l.kitId == null && l.design && <div className="op-sub">{designSummary(l.design, t)}</div>}

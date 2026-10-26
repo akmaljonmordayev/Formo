@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useState } from 'react';
 import {
+  ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -11,9 +12,9 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
-import { AuthTitle, BackButton, ErrorNote, OutlineButton, authColors } from '../../components/ui/AuthUi';
-import { useToast } from '../../components/ui/Toast';
+import { AuthTitle, BackButton, ErrorNote, authColors } from '../../components/ui/AuthUi';
 import { fonts } from '../../constants/theme';
+import { telegramErrorText } from '../../features/auth/telegram';
 
 // "90 123 45 67" ko'rinishida formatlash (faqat 9 ta raqam)
 function formatPhone(digits) {
@@ -29,20 +30,25 @@ function toLocalDigits(text) {
   return d.slice(0, 9);
 }
 
+const HOW_STEPS = [
+  { icon: 'cellphone', key: 'loginHow1' },
+  { icon: 'send-circle-outline', key: 'loginHow2' },
+  { icon: 'shield-key-outline', key: 'loginHow3' },
+];
+
 /**
- * Telefon raqam bosqichi — faqat SMS/OTP orqali kirish (parol yo'q).
- * Mavjud hisob bo'lsa `auth.verifyOtp` kiradi, bo'lmasa server avtomatik
- * ro'yxatdan o'tkazadi — shuning uchun bu yerda "kirish/ro'yxat" farqi yo'q.
+ * Kirish: telefon raqam → Telegram bot (`auth.startTelegram`). Parol va SMS yo'q.
+ * Mavjud hisob bo'lsa server kiritadi, bo'lmasa ro'yxatdan o'tkazadi — shuning uchun
+ * bu yerda "kirish/ro'yxat" farqi yo'q.
  *
- * Fokus: maydon uslubi fokusda faqat `borderColor`ni almashtiradi (soya/
- * elevation yo'q), ota Pressable `collapsable={false}` — Fabric TextInput'ni
- * qayta yaratmaydi va fokus yo'qolmaydi.
+ * Fokus: maydon uslubi fokusda faqat `borderColor`ni almashtiradi (soya/elevation yo'q),
+ * ota Pressable `collapsable={false}` — Fabric TextInput'ni qayta yaratmaydi va fokus yo'qolmaydi.
  */
-export default function PhoneScreen({ auth, t, initialPhone = '', onBack, onRequestOtp }) {
-  const toast = useToast();
+export default function PhoneScreen({ auth, t, initialPhone = '', onBack, onTelegramStarted }) {
   const [digits, setDigits] = useState(() => toLocalDigits(initialPhone));
   const [agree, setAgree] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [focused, setFocused] = useState(false);
   const [errorText, setErrorText] = useState(null);
 
   const phoneRef = useRef(null);
@@ -54,7 +60,7 @@ export default function PhoneScreen({ auth, t, initialPhone = '', onBack, onRequ
     setErrorText(null);
   }, []);
 
-  const handleProceed = useCallback(async () => {
+  const handleContinue = useCallback(async () => {
     if (loading) return;
     if (!isComplete) {
       setErrorText(t('phoneInvalid'));
@@ -64,41 +70,40 @@ export default function PhoneScreen({ auth, t, initialPhone = '', onBack, onRequ
       setErrorText(t('agreeRequired'));
       return;
     }
-
     setLoading(true);
     setErrorText(null);
     try {
-      const res = await auth.requestOtp(digits);
-      onRequestOtp?.({ phone: digits, isDemo: Boolean(res?.isDemo) });
-    } catch {
-      setErrorText(t('otpUnavailable'));
+      const challenge = await auth.startTelegram(digits);
+      onTelegramStarted?.({ phone: digits, challenge });
+    } catch (err) {
+      setErrorText(telegramErrorText(err, t));
     } finally {
       setLoading(false);
     }
-  }, [loading, isComplete, agree, auth, digits, onRequestOtp, t]);
+  }, [loading, isComplete, agree, auth, digits, onTelegramStarted, t]);
+
+  const helper = digits.length > 0 && !isComplete ? t('phoneDigitsLeft').replace('{n}', String(9 - digits.length)) : null;
 
   return (
     <SafeAreaView style={styles.safe}>
       {/* Android: app.json softwareKeyboardLayoutMode=resize oynani o'zi kichraytiradi */}
       <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
-        <ScrollView
-          contentContainerStyle={styles.scroll}
-          keyboardShouldPersistTaps="handled"
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={styles.topBar}>
-            {Boolean(onBack) && <BackButton onPress={onBack} label={t('back')} />}
-          </View>
+        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+          <View style={styles.topBar}>{Boolean(onBack) && <BackButton onPress={onBack} label={t('back')} />}</View>
 
           <View style={styles.head}>
-            <AuthTitle title={t('phoneTitle')} subtitle={t('phoneSub')} />
+            <View style={styles.badge}>
+              <FontAwesome name="telegram" size={26} color={authColors.teal} />
+            </View>
+            <AuthTitle title={t('phoneTitle')} subtitle={t('phoneSubTelegram')} />
           </View>
 
           <View style={styles.form}>
+            <Text style={styles.label}>{t('phone')}</Text>
             <Pressable
               collapsable={false}
               onPress={() => phoneRef.current?.focus()}
-              style={styles.phoneRow}
+              style={[styles.phoneRow, focused && styles.phoneRowFocused, Boolean(errorText) && styles.phoneRowError]}
             >
               <Text style={styles.code}>+998</Text>
               <View style={styles.divider} />
@@ -106,6 +111,8 @@ export default function PhoneScreen({ auth, t, initialPhone = '', onBack, onRequ
                 ref={phoneRef}
                 value={formatPhone(digits)}
                 onChangeText={handleDigitsChange}
+                onFocus={() => setFocused(true)}
+                onBlur={() => setFocused(false)}
                 placeholder="90 123 45 67"
                 placeholderTextColor={authColors.placeholder}
                 keyboardType="phone-pad"
@@ -117,12 +124,31 @@ export default function PhoneScreen({ auth, t, initialPhone = '', onBack, onRequ
                 importantForAutofill="yes"
                 selectionColor={authColors.accent}
                 returnKeyType="done"
-                onSubmitEditing={handleProceed}
+                onSubmitEditing={handleContinue}
                 accessibilityLabel={t('phone')}
                 style={styles.phoneInput}
               />
+              {isComplete && <MaterialCommunityIcons name="check-circle" size={20} color={authColors.teal} />}
             </Pressable>
+            {Boolean(helper) && !errorText && <Text style={styles.helper}>{helper}</Text>}
+            {Boolean(errorText) && <ErrorNote>{errorText}</ErrorNote>}
 
+            <View style={styles.how}>
+              {HOW_STEPS.map((step, i) => (
+                <React.Fragment key={step.key}>
+                  {i > 0 && <MaterialCommunityIcons name="chevron-right" size={16} color={authColors.placeholder} />}
+                  <View style={styles.howItem}>
+                    <MaterialCommunityIcons name={step.icon} size={20} color={authColors.tealText} />
+                    <Text style={styles.howText} numberOfLines={2}>{t(step.key)}</Text>
+                  </View>
+                </React.Fragment>
+              ))}
+            </View>
+          </View>
+
+          <View style={styles.spacer} />
+
+          <View style={styles.actions}>
             <Pressable
               onPress={() => {
                 setAgree((v) => !v);
@@ -142,26 +168,27 @@ export default function PhoneScreen({ auth, t, initialPhone = '', onBack, onRequ
               </Text>
             </Pressable>
 
-            {Boolean(errorText) && <ErrorNote>{errorText}</ErrorNote>}
-          </View>
-
-          <View style={styles.spacer} />
-
-          <View style={styles.actions}>
-            <OutlineButton
-              label={t('getCode')}
-              onPress={handleProceed}
-              loading={loading}
-              style={!canSubmit && !loading && styles.dimmed}
-            />
             <Pressable
-              onPress={() => toast.show(t('comingSoon'), 'info')}
+              onPress={handleContinue}
+              disabled={loading}
               accessibilityRole="button"
-              style={({ pressed }) => [styles.telegram, !canSubmit && styles.dimmed, pressed && styles.pressed]}
+              accessibilityState={{ disabled: !canSubmit, busy: loading }}
+              style={({ pressed }) => [styles.cta, !canSubmit && !loading && styles.ctaDisabled, pressed && canSubmit && styles.ctaPressed]}
             >
-              <FontAwesome name="telegram" size={22} color={authColors.teal} />
-              <Text style={styles.telegramText}>{t('telegramLogin')}</Text>
+              {loading ? (
+                <ActivityIndicator size="small" color="#FFFFFF" />
+              ) : (
+                <>
+                  <FontAwesome name="telegram" size={22} color="#FFFFFF" />
+                  <Text style={styles.ctaText}>{t('telegramContinue')}</Text>
+                </>
+              )}
             </Pressable>
+
+            <View style={styles.privacy}>
+              <MaterialCommunityIcons name="lock-outline" size={14} color={authColors.placeholder} />
+              <Text style={styles.privacyText}>{t('loginPrivacy')}</Text>
+            </View>
           </View>
         </ScrollView>
       </KeyboardAvoidingView>
@@ -174,8 +201,19 @@ const styles = StyleSheet.create({
   flex: { flex: 1 },
   scroll: { flexGrow: 1, paddingBottom: 16 },
   topBar: { paddingHorizontal: 20, paddingTop: 8, minHeight: 52 },
-  head: { paddingHorizontal: 24, paddingTop: 20 },
-  form: { paddingHorizontal: 24, paddingTop: 28, gap: 18 },
+  head: { paddingHorizontal: 24, paddingTop: 16, gap: 18 },
+  badge: {
+    width: 56,
+    height: 56,
+    borderRadius: 18,
+    backgroundColor: authColors.tealSoft,
+    borderWidth: 1,
+    borderColor: 'rgba(25,167,161,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  form: { paddingHorizontal: 24, paddingTop: 28, gap: 10 },
+  label: { color: authColors.soft, fontFamily: fonts.bodyMedium, fontSize: 14 },
   phoneRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -183,11 +221,12 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     backgroundColor: authColors.field,
     borderWidth: 1.5,
-    // Dizayn: doimiy 1.5px to'q sariq chegara (fokusga qarab uslub o'zgarmaydi)
-    borderColor: authColors.accent,
+    borderColor: authColors.lineStrong,
     paddingHorizontal: 18,
     gap: 14,
   },
+  phoneRowFocused: { borderColor: authColors.accent },
+  phoneRowError: { borderColor: 'rgba(232,84,63,0.7)' },
   code: { color: authColors.muted, fontFamily: fonts.bodyMedium, fontSize: 20 },
   divider: { width: 1, height: 26, backgroundColor: authColors.lineStrong },
   phoneInput: {
@@ -200,10 +239,27 @@ const styles = StyleSheet.create({
     fontSize: 20,
     letterSpacing: 0.8,
   },
+  helper: { color: authColors.muted, fontFamily: fonts.body, fontSize: 13, paddingLeft: 4 },
+  how: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 6,
+    marginTop: 18,
+    paddingVertical: 14,
+    paddingHorizontal: 14,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: authColors.line,
+  },
+  howItem: { flex: 1, alignItems: 'center', gap: 6 },
+  howText: { color: authColors.soft, fontFamily: fonts.bodyMedium, fontSize: 12, lineHeight: 16, textAlign: 'center' },
+  spacer: { flex: 1, minHeight: 28 },
+  actions: { paddingHorizontal: 24, gap: 16 },
   agreeRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 12 },
   checkbox: {
-    width: 24,
-    height: 24,
+    width: 22,
+    height: 22,
     borderRadius: 7,
     borderWidth: 1.5,
     borderColor: 'rgba(243,245,249,0.3)',
@@ -211,21 +267,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   checkboxOn: { backgroundColor: authColors.accent, borderColor: authColors.accent },
-  agreeText: { flex: 1, color: authColors.soft, fontFamily: fonts.body, fontSize: 14, lineHeight: 21 },
+  agreeText: { flex: 1, color: authColors.soft, fontFamily: fonts.body, fontSize: 13, lineHeight: 20 },
   agreeLink: { color: authColors.accent, textDecorationLine: 'underline' },
-  spacer: { flex: 1, minHeight: 32 },
-  actions: { paddingHorizontal: 24, gap: 12 },
-  dimmed: { opacity: 0.45 },
-  pressed: { opacity: 0.7 },
-  telegram: {
+  cta: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 10,
-    height: 56,
+    height: 58,
     borderRadius: 16,
-    borderWidth: 1,
-    borderColor: authColors.lineStrong,
+    backgroundColor: authColors.teal,
   },
-  telegramText: { color: authColors.text, fontFamily: fonts.bodyMedium, fontSize: 16 },
+  ctaDisabled: { opacity: 0.45 },
+  ctaPressed: { backgroundColor: '#14908B' },
+  ctaText: { color: '#FFFFFF', fontFamily: fonts.bodySemi, fontSize: 16 },
+  privacy: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, paddingHorizontal: 4 },
+  privacyText: { flex: 1, color: authColors.placeholder, fontFamily: fonts.body, fontSize: 12, lineHeight: 17 },
 });

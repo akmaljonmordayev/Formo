@@ -57,6 +57,14 @@ model User {
   defectReports DefectReport[]
   employees     Employee[]
 
+  telegram TelegramAccount?
+
+  // Ichki balans (so'm). Faqat WalletService o'zgartiradi — har o'zgarish BalanceTransaction'da;
+  // bazada CHECK (balance >= 0)
+  balance             Int                  @default(0)
+  balanceTransactions BalanceTransaction[]
+  topUps              TopUp[]
+
   @@index([role])
 }
 
@@ -75,6 +83,157 @@ model Session {
   updatedAt        DateTime  @updatedAt
 
   @@index([userId])
+}
+
+// ---------------------------------------------------------------------------
+// Telegram bot (telegram-bot/ servisi): kirish so'rovi, akkaunt ulash, xabarlar navbati
+// ---------------------------------------------------------------------------
+
+// Ilova "Telegram orqali kirish" bosganda ochiladi. Bot /start <token> bilan so'rovni
+// o'z Telegram foydalanuvchisiga bog'laydi, raqam faqat kontakt (request_contact) orqali
+// tasdiqlanadi, keyin botda 5 xonali kod beriladi. Token va kod faqat xesh ko'rinishida.
+model TelegramAuthChallenge {
+  id              String    @id @default(uuid())
+  phone           String
+  startTokenHash  String    @unique
+  telegramUserId  String? // Telegram ID'lari 2^31 dan katta — BigInt o'rniga matn (JSON'da muammosiz)
+  chatId          String?
+  claimedAt       DateTime?
+  phoneVerifiedAt DateTime? // kontakt raqami so'rovdagi raqamga mos keldi
+  codeHash        String?
+  codeExpiresAt   DateTime?
+  codeSentAt      DateTime?
+  codeSends       Int       @default(0)
+  attempts        Int       @default(0)
+  consumedAt      DateTime? // kod ishlatildi — qayta ishlatib bo'lmaydi
+  failedAt        DateTime? // raqam mos kelmadi yoki urinishlar tugadi
+  ip              String?
+  expiresAt       DateTime
+  createdAt       DateTime  @default(now())
+
+  @@index([phone, createdAt])
+  @@index([telegramUserId, claimedAt])
+}
+
+// Bitta Formo akkaunti ↔ bitta Telegram akkaunti. Faqat kontakt orqali raqam tasdiqlanib,
+// ilovada kod kiritilgandan keyin yoziladi.
+model TelegramAccount {
+  userId         Int      @id
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  telegramUserId String   @unique
+  chatId         String? // null — bot bloklangan yoki /stop: xabar yuborilmaydi
+  language       String? // bot tili: uz | ru | en (null — Telegram tilidan aniqlanadi)
+  linkedAt       DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+enum TelegramMessageStatus {
+  PENDING
+  SENT
+  FAILED
+}
+
+// Foydalanuvchiga boradigan Telegram xabarlari navbati (outbox). Buyurtma holati bilan bitta
+// tranzaksiyada yoziladi, bot olib yuboradi va natijani qaytaradi. dedupeKey — ikki marta yozilmasin.
+model TelegramOutbox {
+  id          Int                   @id @default(autoincrement())
+  userId      Int?
+  chatId      String
+  text        String
+  dedupeKey   String                @unique
+  status      TelegramMessageStatus @default(PENDING)
+  attempts    Int                   @default(0)
+  lockedUntil DateTime?
+  lastError   String?
+  createdAt   DateTime              @default(now())
+  sentAt      DateTime?
+
+  @@index([status, lockedUntil])
+}
+
+// ---------------------------------------------------------------------------
+// Balans: hisob-kitob daftari (ledger) va to'ldirish so'rovlari
+// ---------------------------------------------------------------------------
+
+enum BalanceTxType {
+  TOPUP // tasdiqlangan to'ldirish (admin yoki to'lov tizimi)
+  TOPUP_REVERSAL // to'lov tizimi bajarilgan tranzaksiyani bekor qildi
+  ORDER_PAYMENT // buyurtma balansdan to'landi
+  ORDER_REFUND // balansdan to'langan buyurtma bekor qilindi/qaytarildi
+}
+
+// Append-only. Unikal kalitlar ikki marta hisoblashni bazaning o'zida taqiqlaydi:
+// bitta to'ldirish bitta TOPUP, bitta buyurtma bitta ORDER_PAYMENT va bitta ORDER_REFUND.
+model BalanceTransaction {
+  id           Int           @id @default(autoincrement())
+  userId       Int
+  user         User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  type         BalanceTxType
+  amount       Int // + kirim, - chiqim (so'm)
+  balanceAfter Int
+  topUpId      Int?
+  orderId      Int?
+  actorId      Int? // tasdiqlagan admin (tizim/to'lov tizimi bo'lsa null)
+  note         String?
+  createdAt    DateTime      @default(now())
+
+  @@unique([type, topUpId])
+  @@unique([type, orderId])
+  @@index([userId, createdAt])
+}
+
+enum TopUpMethod {
+  MANUAL_CARD // kartaga o'tkazma + chek, admin qo'lda tekshiradi
+  CLICK
+  PAYME
+}
+
+enum TopUpStatus {
+  PENDING // to'lov kutilmoqda (qo'lda: chek hali yuborilmagan)
+  REVIEW // chek yuborildi — admin tekshiruvi
+  APPROVED // balansga qo'shildi
+  REJECTED // admin rad etdi yoki to'lov tizimi bekor qildi (qaytarildi)
+  CANCELLED // mijoz bekor qildi yoki muddati o'tdi
+}
+
+model TopUp {
+  id     Int         @id @default(autoincrement())
+  code   String      @unique // "TOP-000012" — o'tkazma izohi va mijoz bilan muloqot uchun
+  userId Int
+  user   User        @relation(fields: [userId], references: [id], onDelete: Restrict)
+  amount Int // so'm
+  method TopUpMethod
+  status TopUpStatus @default(PENDING)
+
+  // Qo'lda to'lov: chek Telegram fayli sifatida (fayl serverda saqlanmaydi)
+  receiptFileId      String?
+  receiptSubmittedAt DateTime?
+  // Telegram file_unique_id — bir xil rasm boshqa so'rovga qayta yuborilmasin (file_id har safar boshqacha)
+  receiptUniqueId       String?   @unique
+  // Chekni yuborgan, tasdiqlangan ulanishdagi Telegram akkaunti (yuborilgan paytdagi holat)
+  receiptTelegramUserId String?
+  // Admin summani chekka moslab o'zgartirsa — mijoz so'ragan dastlabki summa
+  requestedAmount       Int?
+
+  // Click / Payme
+  providerTransId   String?
+  providerState     Int? // Payme: 1, 2, -1, -2
+  providerCreatedAt DateTime? // Payme CreateTransaction "time"
+  createdOnProvider DateTime? // biz tranzaksiyani yaratgan vaqt (Payme create_time)
+  performedAt       DateTime?
+  cancelledAt       DateTime?
+  cancelReason      Int?
+
+  reviewedById Int?
+  reviewedAt   DateTime?
+  rejectReason String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([method, providerTransId])
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
 }
 
 // ---------------------------------------------------------------------------
@@ -181,6 +340,7 @@ model CartItem {
   printName      String?
   printNumber    String?
   numberOnShorts Boolean  @default(false)
+  shortsNumber   String? // shortikdagi raqam (null — futbolka raqami)
   withShorts     Boolean  @default(true)
   shirtSize      String
   shortsSize     String?
@@ -226,6 +386,7 @@ enum PaymentMethod {
   CLICK
   PAYME
   CASH
+  BALANCE // ichki Formo balansidan — checkout tranzaksiyasida yechiladi
 }
 
 enum PaymentStatus {
@@ -321,6 +482,7 @@ model OrderItem {
   printName      String?
   printNumber    String?
   numberOnShorts Boolean @default(false)
+  shortsNumber   String?
   withShorts     Boolean @default(true)
   shirtSize      String
   shortsSize     String?

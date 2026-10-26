@@ -15,6 +15,7 @@ export const PRICE_KEYS = {
   studioGradient: 'studio.gradient',
   studioPatch: 'studio.patch',
   studioGift: 'studio.gift',
+  studioShorts: 'studio.shorts',
 };
 
 // Jadval bo'sh bo'lsa (yangi baza) — shu standart qatorlar bilan yaratish taklif qilinadi
@@ -26,6 +27,7 @@ export const DEFAULT_PRICING = [
   { key: PRICE_KEYS.studioGradient, section: 'Dizayn studiyasi', step: 2, label: 'Gradient / maxsus rang', sub: "Bir rangga qo'shimcha", price: 30000 },
   { key: PRICE_KEYS.studioPatch, section: 'Dizayn studiyasi', step: 2, label: 'Yamoq', sub: 'Kapitan belgisi, bayroq va h.k.', price: 10000 },
   { key: PRICE_KEYS.studioGift, section: 'Dizayn studiyasi', step: 2, label: "Sovg'a qutisi", sub: 'Karton quti, lenta, tabriknoma', price: 15000 },
+  { key: PRICE_KEYS.studioShorts, section: 'Dizayn studiyasi', step: 2, label: 'Shortik (maxsus dizayn)', sub: "Maxsus futbolkaga qo'shimcha", price: 60000 },
 ];
 
 export const FALLBACK_PRICES = { shirt: 99000, shorts: 60000, print: 30000 };

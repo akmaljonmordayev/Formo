@@ -6,13 +6,8 @@ import { Button, Card, Header, Overline, Screen, formatMoney } from '../componen
 import ErrorView from '../components/ui/ErrorView';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { placeOrder, useAddresses, useDeliverySlots } from '../features/checkout';
-import {
-  ONLINE_PAYMENT_METHODS,
-  PAYMENT_METHODS,
-  UNAVAILABLE_PAYMENT_METHODS,
-  onlinePaymentsEnabled,
-  paymentText,
-} from '../features/orders';
+import { CHECKOUT_METHODS, paymentText } from '../features/orders';
+import useWallet, { canPayFromBalance } from '../features/wallet';
 import { ApiError } from '../services/api';
 import { errorText } from '../utils/errors';
 
@@ -31,7 +26,7 @@ const formatAddress = (a) => [a.address, a.apartment].filter(Boolean).join(', ')
  * (GET /api/checkout/delivery-slots) -> to'lov usuli -> POST /api/orders/checkout.
  * Narx serverda qayta hisoblanadi; savatdagi promokod buyurtmaga uzatiladi.
  */
-export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPickOnMap, initialAddressId }) {
+export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPickOnMap, onWallet, initialAddressId }) {
   const { addresses, isLoading: addrLoading, error: addrError, refetch: refetchAddresses, create } = useAddresses();
   const { days, isLoading: slotsLoading, error: slotsError, refetch: refetchSlots } = useDeliverySlots(3);
 
@@ -44,20 +39,16 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
 
   const [date, setDate] = useState(null);
   const [slot, setSlot] = useState(null);
-  const [paymentMethod, setPaymentMethod] = useState('CASH');
+  const [paymentMethod, setPaymentMethod] = useState('BALANCE');
+  // Balans serverdan; ilovaga (Telegram'dan) qaytganda yangilanadi
+  const wallet = useWallet();
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState(null);
 
-  // Naqd to'lov Superadmin sozlamasida o'chirilishi mumkin. Click/Payme esa
-  // faqat dev'da tanlanadi — productionda real provayder integratsiyasi yo'q.
-  const onlineEnabled = onlinePaymentsEnabled();
-  const methods = PAYMENT_METHODS.filter((method) =>
-    method === 'CASH' ? rules.allowCash : onlineEnabled,
-  );
-  const disabledMethods = onlineEnabled
-    ? UNAVAILABLE_PAYMENT_METHODS
-    : [...ONLINE_PAYMENT_METHODS, ...UNAVAILABLE_PAYMENT_METHODS];
+  // Asosiy usul — balansdan to'lash. Naqd faqat Superadmin yoqib qo'ygan bo'lsa (allowCash).
+  // Click/Payme mijozga ko'rsatilmaydi: balans Telegram bot orqali to'ldiriladi.
+  const methods = CHECKOUT_METHODS.filter((method) => method !== 'CASH' || rules.allowCash);
   useEffect(() => {
     if (!methods.includes(paymentMethod)) setPaymentMethod(methods[0]);
   }, [methods, paymentMethod]);
@@ -110,10 +101,13 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
   };
 
   const submit = async () => {
-    // Himoya: tanlangan usul hozir mavjud bo'lmasa (masalan, productionda
-    // Click/Payme) — to'lovsiz `PENDING_PAYMENT` buyurtma yaratilmaydi.
     if (!methods.includes(paymentMethod)) {
-      setSubmitError(t(onlineEnabled ? 'paymentUnavailable' : 'payOnlineUnavailable'));
+      setSubmitError(t('payNoMethods'));
+      return;
+    }
+    // Server baribir tekshiradi (yetmasa 400, buyurtma yaratilmaydi) — bu faqat tezkor ogohlantirish
+    if (paymentMethod === 'BALANCE' && wallet.balance != null && !canPayFromBalance(wallet.balance, cart.summary?.total ?? 0)) {
+      setSubmitError(t('balanceShort'));
       return;
     }
 
@@ -130,9 +124,11 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
       });
       // Server savatni tozaladi — lokal holatni ham yangilaymiz
       cart.refresh();
+      wallet.refetch({ silent: true });
       onPlaced(order);
     } catch (err) {
       setSubmitError(errorText(err, t));
+      if (paymentMethod === 'BALANCE') wallet.refetch({ silent: true });
       // Slot band bo'lib qolgan (409) — bo'sh joylarni qayta yuklaymiz
       if (err instanceof ApiError && err.status === 409) refetchSlots();
     } finally {
@@ -142,7 +138,13 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
 
   const { summary } = cart;
   const paused = !rules.acceptOrders;
-  const ready = Boolean(addressId && date && slot && paymentMethod && cart.items.length) && !submitting && !paused;
+  const total = summary?.total ?? 0;
+  const balanceShort = paymentMethod === 'BALANCE' && wallet.balance != null && !canPayFromBalance(wallet.balance, total);
+  const ready =
+    Boolean(addressId && date && slot && paymentMethod && cart.items.length) &&
+    !submitting &&
+    !paused &&
+    !(paymentMethod === 'BALANCE' && (wallet.balance == null || balanceShort));
 
   return (
     <Screen
@@ -268,23 +270,26 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
             key={method}
             selected={method === paymentMethod}
             title={paymentText(t, method)}
-            sub={method === 'CASH' ? t('payCashSub') : t('payOnlineSub')}
+            sub={
+              method === 'CASH'
+                ? t('payCashSub')
+                : wallet.balance == null
+                  ? wallet.error ? errorText(wallet.error, t) : '…'
+                  : `${t('walletBalance')}: ${formatMoney(wallet.balance)}`
+            }
             onPress={() => setPaymentMethod(method)}
           />
         ))}
-        {disabledMethods.map((method) => (
-          <Option
-            key={method}
-            disabled
-            title={paymentText(t, method)}
-            sub={t('payUnavailableSub')}
-          />
-        ))}
       </View>
-      {!onlineEnabled ? (
-        <Text style={styles.note}>
-          {methods.length ? t('payOnlineUnavailable') : t('payNoMethods')}
-        </Text>
+      {balanceShort ? (
+        <View style={styles.short}>
+          <Text style={styles.shortText}>
+            {t('balanceShort')} · {t('balanceNeed')} {formatMoney(total - wallet.balance)}
+          </Text>
+          <Button small variant="outline" onPress={onWallet}>
+            {t('topUp')}
+          </Button>
+        </View>
       ) : null}
 
       <TextInput
@@ -359,6 +364,18 @@ function Row({ label, value, strong }) {
 }
 
 const styles = StyleSheet.create({
+  short: {
+    marginTop: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.accentGlow,
+    borderWidth: 1,
+    borderColor: 'rgba(242,163,58,0.4)',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+  },
+  shortText: { flex: 1, color: colors.text, fontSize: 12, lineHeight: 17, fontWeight: '600' },
   options: { gap: spacing.sm },
   option: {
     flexDirection: 'row',

@@ -3,13 +3,15 @@ import { ConfigService } from '@nestjs/config';
 import { OrderStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
-export type NotifyEvent = 'newOrder' | 'paymentFailed' | 'lateOrder' | 'lowStock';
+export type NotifyEvent = 'newOrder' | 'paymentFailed' | 'lateOrder' | 'lowStock' | 'newTopUp';
 
 export const DEFAULT_NOTIFICATIONS = {
   newOrder: true,
   paymentFailed: true,
   lateOrder: true,
   lowStock: true,
+  newTopUp: true, // balans to'ldirish cheki tekshiruvga keldi
+
   telegramChatId: '',
 };
 

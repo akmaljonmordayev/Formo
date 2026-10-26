@@ -12,6 +12,7 @@ import { fonts } from '../../constants/theme';
  *   side: 'front' | 'back', player (orqada ism), number, crest (oldinda gerb matni)
  *   pattern: 'none' | 'stripes' | 'sash' | 'hoops', patches: ['cap' | 'flag' | 'star']
  *   textStyle: { fontWeight, fontStyle, letterSpacing } (studiya shrifti), width
+ *   glow: true — neon yozuv (rangli porlash + oq o'zak)
  */
 const BODY = 'M62 12 L84 4 Q100 16 116 4 L138 12 L192 42 L174 84 L152 74 L152 202 Q100 208 48 202 L48 74 L26 84 L8 42 Z';
 const STAR = 'l1.6 3.4 3.7.4-2.8 2.5.8 3.7-3.3-1.9-3.3 1.9.8-3.7-2.8-2.5 3.7-.4z';
@@ -26,6 +27,33 @@ function textProps(textStyle, family) {
     fontStyle: textStyle?.fontStyle === 'italic' ? 'italic' : undefined,
     letterSpacing: textStyle?.letterSpacing,
   };
+}
+
+/**
+ * Yozuv: oddiy yoki neon. Neon — ink rangidagi ikki yumshoq "porlash" qatlami (keng shaffof chiziq)
+ * va ustida oq o'zak; SVG filtrlarisiz, shuning uchun telefonlarda arzon chiziladi.
+ */
+function Ink({ glow, color, fontSize, children, ...props }) {
+  if (!glow) {
+    return (
+      <SvgText fontSize={fontSize} fill={color} {...props}>
+        {children}
+      </SvgText>
+    );
+  }
+  return (
+    <G>
+      <SvgText fontSize={fontSize} {...props} fill={color} fillOpacity={0.25} stroke={color} strokeOpacity={0.22} strokeWidth={fontSize * 0.24} strokeLinejoin="round">
+        {children}
+      </SvgText>
+      <SvgText fontSize={fontSize} {...props} fill={color} stroke={color} strokeOpacity={0.5} strokeWidth={fontSize * 0.1} strokeLinejoin="round">
+        {children}
+      </SvgText>
+      <SvgText fontSize={fontSize} {...props} fill="#FFFFFF" stroke={color} strokeWidth={Math.max(0.6, fontSize * 0.02)}>
+        {children}
+      </SvgText>
+    </G>
+  );
 }
 
 function Pattern({ pattern, trim }) {
@@ -52,6 +80,7 @@ export function Shirt({
   pattern = 'none',
   patches = [],
   textStyle,
+  glow = false,
   width = 200,
 }) {
   const id = useSvgId('shirt');
@@ -108,9 +137,9 @@ export function Shirt({
       {front ? (
         <G>
           {Boolean(num) && (
-            <SvgText x={126} y={64} textAnchor="middle" fontSize={24} fill={ink} {...tp}>
+            <Ink glow={glow} color={ink} x={126} y={64} textAnchor="middle" fontSize={24} {...tp}>
               {num}
-            </SvgText>
+            </Ink>
           )}
           {Boolean(crest) && (
             <G>
@@ -144,22 +173,23 @@ export function Shirt({
       ) : (
         <G>
           {Boolean(name) && (
-            <SvgText
+            <Ink
+              glow={glow}
+              color={ink}
               x={100}
               y={66}
               textAnchor="middle"
               fontSize={name.length > 9 ? 16 : 22}
-              fill={ink}
               {...textProps(textStyle, fonts.numericBold)}
               letterSpacing={textStyle?.letterSpacing ?? 2}
             >
               {name.toUpperCase()}
-            </SvgText>
+            </Ink>
           )}
           {Boolean(num) && (
-            <SvgText x={100} y={158} textAnchor="middle" fontSize={90} fill={ink} {...tp}>
+            <Ink glow={glow} color={ink} x={100} y={158} textAnchor="middle" fontSize={90} {...tp}>
               {num}
-            </SvgText>
+            </Ink>
           )}
         </G>
       )}
@@ -168,7 +198,7 @@ export function Shirt({
 }
 
 /** Dizayndagi `Shorts`: chap pochada raqam. */
-export function Shorts({ color = '#F3F5F9', trim = '#1D2F8C', ink, number = '', width = 160 }) {
+export function Shorts({ color = '#F3F5F9', trim = '#1D2F8C', ink, number = '', glow = false, textStyle, width = 160 }) {
   const id = useSvgId('shorts');
   const body = 'M22 6 L138 6 L150 104 Q124 112 94 108 L80 46 L66 108 Q36 112 10 104 Z';
   const num = String(number || '').trim();
@@ -189,9 +219,9 @@ export function Shorts({ color = '#F3F5F9', trim = '#1D2F8C', ink, number = '', 
       <Path d={body} fill="none" stroke="rgba(243,245,249,0.38)" strokeWidth={2} />
       <Path d="M80 15 L80 46" stroke="rgba(0,0,0,0.25)" strokeWidth={1.5} />
       {Boolean(num) && (
-        <SvgText x={42} y={92} textAnchor="middle" fontSize={28} fill={ink || trim} fontFamily={fonts.numeric}>
+        <Ink glow={glow} color={ink || trim} x={42} y={92} textAnchor="middle" fontSize={28} {...textProps(textStyle, fonts.numeric)}>
           {num}
-        </SvgText>
+        </Ink>
       )}
     </Svg>
   );

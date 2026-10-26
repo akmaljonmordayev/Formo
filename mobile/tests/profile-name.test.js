@@ -84,3 +84,19 @@ test('yangilanmagan server javobi (fullName should not exist) aniq ajratiladi', 
   assert.equal(isNameUnsupportedError(new ApiError('Ismingizni kiriting', 400)), false);
   assert.equal(isNameUnsupportedError(new ApiError('property fullName should not exist', 500)), false);
 });
+
+test("ro'yxatdan o'tishda familiya majburiy, profil tahririda — yo'q", () => {
+  assert.equal(validateName('Aziz', '', { requireLast: true }), 'lastNameRequired');
+  assert.equal(validateName('Aziz', '  ', { requireLast: true }), 'lastNameRequired');
+  assert.equal(validateName('Aziz', 'Rahimov', { requireLast: true }), null);
+  assert.equal(validateName('Aziz', ''), null);
+});
+
+test("profil qadamlari: ism/jins/yosh majburiy, bo'y/vazn ixtiyoriy", () => {
+  const { profileGaps } = require(src('utils/userName.js'));
+  assert.deepEqual(profileGaps(null), { required: false, optional: false });
+  assert.deepEqual(profileGaps({ fullName: 'Yangi mijoz' }), { required: true, optional: true });
+  assert.deepEqual(profileGaps({ fullName: 'Aziz Rahimov', gender: 'MALE', age: null }).required, true);
+  assert.deepEqual(profileGaps({ fullName: 'Aziz Rahimov', gender: 'MALE', age: 25 }), { required: false, optional: true });
+  assert.deepEqual(profileGaps({ fullName: 'Aziz Rahimov', gender: 'MALE', age: 25, height: 180, weight: 75 }), { required: false, optional: false });
+});

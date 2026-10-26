@@ -205,7 +205,12 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
       expect(cleared.body.weight).toBeNull();
       expect(cleared.body.height).toBe(180);
       await as(user).patch('/api/auth/me', { height: 10 }).expect(400);
-      await as(user).patch('/api/auth/me', { fullName: 'Hacker' }).expect(400); // faqat o'lchamlar
+      // fullName qabul qilinadi (profilni to'ldirish, 7ada9d6), lekin HTML/qisqa qiymat, telefon va rol — yo'q
+      expect((await as(user).patch('/api/auth/me', { fullName: 'Aziz Karimov' }).expect(200)).body.fullName).toBe('Aziz Karimov');
+      await as(user).patch('/api/auth/me', { fullName: '<b>Hacker</b>' }).expect(400);
+      await as(user).patch('/api/auth/me', { fullName: 'A' }).expect(400);
+      await as(user).patch('/api/auth/me', { phone: '+998900000000' }).expect(400);
+      await as(user).patch('/api/auth/me', { role: 'SUPERADMIN' }).expect(400);
     });
   });
 
@@ -245,7 +250,9 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
 
     it('/app/config studiya variantlari va narxlarini beradi (yoqilganlar)', async () => {
       const res = await api(app).get('/api/app/config').expect(200);
-      expect(res.body.studio.prices).toEqual({ custom: 129000, gradient: 30000, patch: 10000, gift: 15000 });
+      expect(res.body.studio.prices).toEqual({ custom: 129000, gradient: 30000, patch: 10000, gift: 15000, shorts: 60000 });
+      expect(res.body.studio.textColors).toContain('oltin');
+      expect(res.body.studio.textEffects).toEqual(['none', 'neon']);
       expect(res.body.studio.colors.solid).toContain('lojuvard');
       expect(res.body.studio.colors.custom).toBe(true);
       expect(res.body.studio.fonts).toEqual(['sport', 'klassik', 'oddiy']);

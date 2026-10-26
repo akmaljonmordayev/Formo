@@ -4,27 +4,29 @@ import * as storage from '../../utils/storage';
 import SplashScreen from './SplashScreen';
 import OnboardingScreen from './OnboardingScreen';
 import PhoneScreen from './PhoneScreen';
-import OtpScreen from './OtpScreen';
+import TelegramScreen from './TelegramScreen';
 
 const ONBOARDING_SEEN_KEY = 'formo_onboarding_seen';
 
 /**
- * Ilovaning yagona kirish oqimi — parolsiz, 4 qadam:
+ * Ilovaning yagona kirish oqimi — parolsiz, faqat Telegram bot orqali:
  *   1. SplashScreen     — avtomatik o'tadi
  *   2. OnboardingScreen — tanishtiruv (faqat birinchi marta; o'tkazib yuborish mumkin)
- *   3. PhoneScreen      — telefon raqam
- *   4. OtpScreen        — SMS kod (POST /auth/otp-login; dev demo kodi 12345)
+ *   3. PhoneScreen      — telefon raqam → POST /auth/telegram/start
+ *   4. TelegramScreen   — botni ochish va 5 xonali kod → POST /auth/telegram/verify
  *
  * Kod to'g'ri bo'lsa server mavjud hisobga kiritadi yoki yangi hisob ochadi —
  * `auth.isAuthenticated` o'zgargach AppNavigator keyingi ekranni (yangi
- * foydalanuvchi uchun ro'yxatdan o'tish qadamlari) ko'rsatadi.
+ * foydalanuvchi uchun profilni to'ldirish) ko'rsatadi.
  *
  * Android "orqaga" tugmasi ekrandagi orqaga tugmasi bilan bir xil ishlaydi:
- * otp → phone → onboarding → ilovadan chiqish.
+ * telegram → phone → onboarding → ilovadan chiqish.
  */
 export default function OtpLoginScreen({ auth, t }) {
   const [step, setStep] = useState('splash');
   const [phone, setPhone] = useState('');
+  // Telegram so'rovi: { challengeId, deepLink, expiresAt } — "Yangi so'rov" bilan almashtiriladi
+  const [challenge, setChallenge] = useState(null);
   const onboardingSeenRef = useRef(false);
 
   useEffect(() => {
@@ -48,7 +50,7 @@ export default function OtpLoginScreen({ auth, t }) {
   }, []);
 
   useEffect(() => {
-    const previous = { otp: 'phone', phone: 'onboarding' }[step];
+    const previous = { telegram: 'phone', phone: 'onboarding' }[step];
     if (!previous) return undefined;
     const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
       setStep(previous);
@@ -65,8 +67,17 @@ export default function OtpLoginScreen({ auth, t }) {
     return <OnboardingScreen onFinish={finishOnboarding} />;
   }
 
-  if (step === 'otp') {
-    return <OtpScreen phone={phone} auth={auth} t={t} onBack={() => setStep('phone')} />;
+  if (step === 'telegram' && challenge) {
+    return (
+      <TelegramScreen
+        phone={phone}
+        challenge={challenge}
+        auth={auth}
+        t={t}
+        onNewRequest={async () => setChallenge(await auth.startTelegram(phone))}
+        onBack={() => setStep('phone')}
+      />
+    );
   }
 
   return (
@@ -75,9 +86,10 @@ export default function OtpLoginScreen({ auth, t }) {
       t={t}
       initialPhone={phone}
       onBack={() => setStep('onboarding')}
-      onRequestOtp={({ phone: verifiedPhone }) => {
-        setPhone(verifiedPhone);
-        setStep('otp');
+      onTelegramStarted={({ phone: enteredPhone, challenge: started }) => {
+        setPhone(enteredPhone);
+        setChallenge(started);
+        setStep('telegram');
       }}
     />
   );

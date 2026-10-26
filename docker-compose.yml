@@ -47,6 +47,11 @@ services:
       SUPERADMIN_PHONE: ${SUPERADMIN_PHONE:-+998901111111}
       SUPERADMIN_PASSWORD: ${SUPERADMIN_PASSWORD:-admin123}
       SUPERADMIN_NAME: ${SUPERADMIN_NAME:-Super Admin}
+      # Telegram bot (telegram-bot/README.md). Qiymatlar ildizdagi .env dan; bo'sh bo'lsa
+      # Telegram orqali kirish 503 qaytaradi, qolgan hamma narsa odatdagidek ishlaydi.
+      TELEGRAM_BOT_USERNAME: ${TELEGRAM_BOT_USERNAME:-}
+      TELEGRAM_INTERNAL_TOKEN: ${TELEGRAM_INTERNAL_TOKEN:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
     ports:
       # 0.0.0.0 — telefondagi Expo ilova Wi-Fi orqali ulana olishi uchun.
       # Faqat shu kompyuterdan ochiq qolsin desangiz: FORMO_API_HOST=127.0.0.1
@@ -77,6 +82,22 @@ services:
       - ./frontend/public:/app/frontend/public
       - ./frontend/index.html:/app/frontend/index.html
       - ./frontend/vite.config.js:/app/frontend/vite.config.js
+
+  # Ixtiyoriy: docker compose --profile bot up --build
+  # Ildizdagi .env da TELEGRAM_BOT_TOKEN va TELEGRAM_INTERNAL_TOKEN bo'lishi shart (polling — ochiq URL kerak emas)
+  telegram-bot:
+    profiles: ['bot']
+    build:
+      context: ./telegram-bot
+    restart: unless-stopped
+    depends_on:
+      - backend
+    environment:
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_INTERNAL_TOKEN: ${TELEGRAM_INTERNAL_TOKEN:-}
+      BACKEND_URL: http://backend:3001/api
+      BOT_MODE: polling
+      PORT: 8080
 
 volumes:
   pgdata:

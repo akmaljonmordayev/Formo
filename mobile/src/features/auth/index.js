@@ -1,22 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, ApiError } from '../../services/api';
+import { api } from '../../services/api';
 import * as storage from '../../utils/storage';
-import { demoOtpHintText, isDemoOtpEnabled } from './demoOtp';
-
-/**
- * Maps an API error to a display-ready error object.
- * `key` is an i18n fallback; `message` is the server's own text when it is
- * trustworthy (never for 401, where the localized key reads better).
- */
-function toAuthError(err, fallbackKey) {
-  if (err instanceof ApiError) {
-    if (err.status === 0) return { key: 'networkError', message: null };
-    if (err.status === 401) return { key: 'loginError', message: null };
-    return { key: fallbackKey, message: err.message || null };
-  }
-  if (err instanceof TypeError) return { key: 'networkError', message: null };
-  return { key: fallbackKey, message: null };
-}
+import { isValidChallenge } from './telegram';
 
 /** PATCH /auth/me qabul qiladigan maydonlar (UpdateProfileDto). address yuborilmaydi — server 400 qaytaradi */
 const PROFILE_KEYS = ['fullName', 'gender', 'age', 'height', 'weight'];
@@ -33,25 +18,22 @@ export function pickProfileFields(fields) {
  * useAuth — manages authentication state for the whole app.
  *
  * On mount: reads the stored token, validates it with GET /auth/me.
- * Exposes login(), register(), logout(), refreshUser() and updateUser().
+ * Mijozlar faqat Telegram bot orqali kiradi: startTelegram() → verifyTelegram().
+ * Xatolar chaqiruvchi ekranga uzatiladi (ekran o'zi lokalizatsiya qiladi).
  *
- * `error` shape: { key: string, message: string|null } — screens render
- * `error.message || t(error.key)`.
- *
- * Returns: { user, isLoading, isSubmitting, isAuthenticated, error, login, register, logout, refreshUser, updateUser }
+ * Returns: { user, isLoading, isSubmitting, isAuthenticated, startTelegram, verifyTelegram, logout, refreshUser, updateUser }
  *   isLoading    — initial session restore only (full-screen loader)
- *   isSubmitting — login/register request in flight (inline button state)
+ *   isSubmitting — verify request in flight (inline button state)
  */
 export default function useAuth() {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   // `isLoading` only covers the initial session restore (AppNavigator shows a
-  // full-screen loader for it). Submits use `isSubmitting` so the login/register
-  // screen is not unmounted mid-request — remounting it dropped focus, closed
-  // the keyboard and wiped the typed credentials on a failed attempt.
+  // full-screen loader for it). Submits use `isSubmitting` so the auth screen is
+  // not unmounted mid-request — remounting it dropped focus, closed the keyboard
+  // and wiped the typed code on a failed attempt.
   const [isLoading, setIsLoading] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [error, setError] = useState(null);
 
   // ─── Session expiry: bounce back to the login screen ────────────────────────
   useEffect(() => {
@@ -92,70 +74,25 @@ export default function useAuth() {
     return () => { cancelled = true; };
   }, []);
 
-  // ─── Login ───────────────────────────────────────────────────────────────────
-  const login = useCallback(async (phone, password) => {
-    setIsSubmitting(true);
-    setError(null);
-
-    try {
-      const me = await api.auth.login(phone, password);
-      setUser(me);
-      setIsAuthenticated(true);
-      return true;
-    } catch (err) {
-      setError(toAuthError(err, 'authError'));
-      return false;
-    } finally {
-      setIsSubmitting(false);
-    }
+  // ─── Telegram bot orqali kirish (mijozlar uchun yagona kirish usuli) ──────────────────────────────────────────────
+  /** So'rov ochadi: { challengeId, deepLink, expiresAt, ... }. Xato chaqiruvchiga uzatiladi. */
+  const startTelegram = useCallback(async (phone) => {
+    const challenge = await api.auth.telegramStart(phone);
+    if (!isValidChallenge(challenge)) throw new Error('Unexpected Telegram challenge response');
+    return challenge;
   }, []);
 
-  // ─── Register ────────────────────────────────────────────────────────────────
   /**
-   * @param {{fullName, phone, password, gender?, age?, height?, weight?}} payload
+   * Botdagi kodni tekshiradi. Muvaffaqiyatda sessiya saqlanadi va `isAuthenticated` o'zgaradi —
+   * yangi hisob uchun AppNavigator ism/jins/yosh qadamlarini o'zi ko'rsatadi (ism "Yangi mijoz").
    */
-  const register = useCallback(async (payload) => {
+  const verifyTelegram = useCallback(async (challengeId, code) => {
     setIsSubmitting(true);
-    setError(null);
-
     try {
-      const me = await api.auth.register(payload);
-      setUser(me);
+      const result = await api.auth.telegramVerify(challengeId, code);
+      setUser(result.user);
       setIsAuthenticated(true);
-      return true;
-    } catch (err) {
-      setError(toAuthError(err, 'authError'));
-      return false;
-    } finally {
-      setIsSubmitting(false);
-    }
-  }, []);
-
-  // ─── SMS/OTP orqali kirish (dev-only demo) ──────────────────────────────────
-  /** Backendda SMS yo'q — faqat kod 123456 ekanini tekshiradi, SMS yubormaydi. */
-  const requestOtp = useCallback(async () => {
-    if (!isDemoOtpEnabled()) {
-      throw new Error('SMS orqali kirish hozircha mavjud emas');
-    }
-    return { isDemo: true, message: demoOtpHintText };
-  }, []);
-
-  /** Kod to'g'ri bo'lsa backend shu telefon uchun hisobni topadi yoki ochadi — parol yo'q. */
-  const verifyOtp = useCallback(async (phone, code) => {
-    if (!isDemoOtpEnabled()) {
-      throw new Error('SMS orqali kirish hozircha mavjud emas');
-    }
-
-    setIsSubmitting(true);
-    setError(null);
-    try {
-      const me = await api.auth.otpLogin(phone, code);
-      setUser(me);
-      setIsAuthenticated(true);
-      return true;
-    } catch (err) {
-      setError(toAuthError(err, 'authError'));
-      throw err;
+      return result;
     } finally {
       setIsSubmitting(false);
     }
@@ -193,11 +130,8 @@ export default function useAuth() {
     isLoading,
     isSubmitting,
     isAuthenticated,
-    error,
-    login,
-    register,
-    requestOtp,
-    verifyOtp,
+    startTelegram,
+    verifyTelegram,
     logout,
     refreshUser,
     updateUser,

@@ -83,6 +83,14 @@ export class ShopOrdersController {
     return this.orders.confirmPayment(user, id);
   }
 
+  @Post('orders/:id/payment/balance')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'To‘lov kutayotgan buyurtmani ichki balansdan to‘lash (bir marta yechiladi)' })
+  @ApiConflictResponse({ description: 'Buyurtma to‘lov kutmayapti' })
+  payWithBalance(@CurrentUser() user: AuthUser, @Param('id', ParseIdPipe) id: number) {
+    return this.orders.payWithBalance(user, id);
+  }
+
   @Patch('orders/:id/payment-method')
   @ApiOperation({ summary: '"Boshqa usulni tanlash" — to‘lanmagan buyurtmaning to‘lov usulini almashtirish' })
   @ApiConflictResponse({ description: 'Buyurtma to‘lov kutmayapti' })

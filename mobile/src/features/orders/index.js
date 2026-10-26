@@ -8,22 +8,10 @@ export const POLL_MS = 20000;
 export const FINAL_STATUSES = ['DELIVERED', 'CANCELLED', 'RETURNED'];
 export const isFinal = (order) => FINAL_STATUSES.includes(order?.status);
 
-// Backend `PaymentMethod` enum: CLICK | PAYME | CASH (prisma/schema.prisma).
-// Uzum backendda mavjud emas — ilovada ko'rsatiladi, lekin tanlanmaydi.
-export const PAYMENT_METHODS = ['CASH', 'CLICK', 'PAYME'];
-export const ONLINE_PAYMENT_METHODS = ['CLICK', 'PAYME'];
-export const UNAVAILABLE_PAYMENT_METHODS = ['UZUM'];
-
-/**
- * Haqiqiy Click/Payme integratsiyasi hali yo'q: backend faqat
- * `PENDING_PAYMENT` buyurtma yaratadi va u 30 daqiqadan keyin to'lovsiz
- * avtomatik bekor qilinadi. Production bundleida (`__DEV__ === false`) bu
- * usullar tanlanmaydi. Dev'da demo oqim saqlanadi — u ham backendning
- * `payment.demo` bayrog'i bilan cheklangan.
- */
-export function onlinePaymentsEnabled() {
-  return typeof __DEV__ !== 'undefined' && __DEV__ === true;
-}
+// Backend `PaymentMethod`: BALANCE | CASH | CLICK | PAYME (prisma/schema.prisma).
+// Mijoz ilovasida faqat balans (asosiy) va naqd (Superadmin allowCash) — Click/Payme ko'rsatilmaydi,
+// balans Telegram bot orqali to'ldiriladi. Eski CLICK/PAYME buyurtmalari nomi bilan ko'rinaveradi.
+export const CHECKOUT_METHODS = ['BALANCE', 'CASH'];
 
 /**
  * Holat nomi joriy tilda. Backend `statusLabel` faqat o'zbekcha — tarjima

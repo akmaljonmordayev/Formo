@@ -1,6 +1,7 @@
 import {
   AlertTriangle,
   BarChart3,
+  CreditCard,
   Factory,
   History,
   LayoutDashboard,
@@ -33,6 +34,7 @@ import Pricing from './Pricing';
 import Promocodes from './Promocodes';
 import Campaigns from './Campaigns';
 import Finance from './Finance';
+import TopUps from './TopUps';
 import Reports from './Reports';
 import SettingsPage from './Settings';
 import AuditLog from './AuditLog';
@@ -67,6 +69,7 @@ export const superadminRoutes = [
   { path: 'campaigns', element: <Campaigns /> },
   { path: 'factories', element: legacy(Factories_) },
   { path: 'finance', element: <Finance /> },
+  { path: 'topups', element: <TopUps /> },
   { path: 'reports', element: <Reports /> },
   { path: 'operator', element: legacy(Operator) },
   { path: 'settings', element: <SettingsPage /> },
@@ -92,6 +95,7 @@ export const superadminMenu = [
 
   { to: `${BASE}/factories`, label: 'Sexlar', icon: Factory, group: 'Operatsiya' },
   { to: `${BASE}/finance`, label: 'Moliya', icon: Wallet, group: 'Operatsiya' },
+  { to: `${BASE}/topups`, label: "Balans to'ldirish", icon: CreditCard, group: 'Operatsiya' },
   { to: `${BASE}/reports`, label: 'Hisobotlar', icon: BarChart3, group: 'Operatsiya' },
 
   { to: `${BASE}/operator`, label: 'Foydalanuvchilar va rollar', icon: ShieldCheck, group: 'Tizim' },

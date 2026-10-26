@@ -15,6 +15,8 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
 import { Button, Card, Header, Screen, Segment } from '../components/ui/Common';
 import { useAddresses } from '../features/checkout';
+import useWallet from '../features/wallet';
+import { WalletChip } from './WalletScreen';
 import { errorText } from '../utils/errors';
 import { formatUzPhone } from '../utils/phone';
 import { displayName, isNameUnsupportedError, joinFullName, nameInitial, realFullName, splitFullName, validateName } from '../utils/userName';
@@ -35,7 +37,8 @@ function formatDate(value) {
  * gender/age/height/weight). Profilda manzil maydoni yo'q — "Manzillarim"
  * rasmiylashtirishda saqlangan manzillarni ko'rsatadi (GET /addresses).
  */
-export default function ProfileScreen({ t, onSettings, onOrders, onAddresses, auth }) {
+export default function ProfileScreen({ t, onSettings, onOrders, onAddresses, onWallet, auth }) {
+  const wallet = useWallet();
   const [editVisible, setEditVisible] = useState(false);
   const [logoutRequested, setLogoutRequested] = useState(false);
   const { addresses, isLoading: addressesLoading, error: addressesError, refetch: refetchAddresses } = useAddresses();
@@ -48,7 +51,7 @@ export default function ProfileScreen({ t, onSettings, onOrders, onAddresses, au
   const stats = useMemo(
     () => [
       { icon: 'calendar-outline', value: user.age != null ? String(user.age) : '—', label: t('age') },
-      { icon: 'ruler-height', value: user.height != null ? String(user.height) : '—', label: `${t('height')}, sm` },
+      { icon: 'human-male-height', value: user.height != null ? String(user.height) : '—', label: `${t('height')}, sm` },
       { icon: 'scale-bathroom', value: user.weight != null ? String(user.weight) : '—', label: `${t('weight')}, kg` },
     ],
     [user.age, user.height, user.weight, t],
@@ -70,6 +73,7 @@ export default function ProfileScreen({ t, onSettings, onOrders, onAddresses, au
   return (
     <Screen>
       <Header
+        cart
         title={t('myProfile')}
         right={
           <Pressable onPress={onSettings} style={styles.headerButton} hitSlop={8}>
@@ -90,6 +94,8 @@ export default function ProfileScreen({ t, onSettings, onOrders, onAddresses, au
           </Text>
         </View>
       </Card>
+
+      <WalletChip t={t} balance={wallet.balance} onPress={onWallet} />
 
       <View style={styles.stats}>
         {stats.map((stat) => (
@@ -366,7 +372,7 @@ const styles = StyleSheet.create({
   nameMissing: { color: colors.muted, fontWeight: '600' },
   phone: { color: colors.muted, fontSize: 12, marginTop: 4 },
   memberSince: { color: '#59618D', fontSize: 10, marginTop: 3 },
-  stats: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg },
+  stats: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, marginTop: spacing.md },
   stat: {
     flex: 1,
     backgroundColor: colors.surface,

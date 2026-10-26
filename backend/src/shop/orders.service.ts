@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import {
   AuditCategory,
+  BalanceTxType,
   OrderChannel,
   OrderProductType,
   OrderStatus,
@@ -22,12 +23,14 @@ import { NotifyService } from '../notify/notify.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddressesService, formatAddress } from './addresses.service';
 import { CartService, lineProblem, toCartItem } from './cart.service';
+import { STATUS_LABEL } from './order-status';
 import { dayLabel, DeliveryService, todayLocal } from './delivery.service';
 import { ChangePaymentMethodDto, CheckoutDto, MyOrdersQueryDto } from './dto/checkout.dto';
 import { summarize } from './pricing';
 import { RulesService } from './rules.service';
 import { CUSTOM_TITLE, designSummary } from './studio';
 import { StudioService } from './studio.service';
+import { WalletService } from '../wallet/wallet.service';
 
 /** Click/Payme: buyurtma to'lov uchun shuncha vaqt band turadi */
 export const PAYMENT_HOLD_MS = 30 * 60 * 1000;
@@ -37,19 +40,7 @@ const FINAL: OrderStatus[] = [OrderStatus.DELIVERED, OrderStatus.CANCELLED, Orde
 // Sex qabul qilgunga qadar mijoz o'zi bekor qila oladi
 const CANCELLABLE: OrderStatus[] = [OrderStatus.PENDING_PAYMENT, OrderStatus.NEW, OrderStatus.SENT_TO_WORKSHOP];
 
-export const STATUS_LABEL: Record<OrderStatus, string> = {
-  PENDING_PAYMENT: "To'lov kutilmoqda",
-  NEW: 'Qabul qilindi',
-  SENT_TO_WORKSHOP: 'Sexga yuborildi',
-  ACCEPTED: 'Sex qabul qildi',
-  PRINTING: 'Bosilmoqda',
-  QUALITY_CHECK: 'Sifat nazorati',
-  READY: 'Tayyor',
-  DELIVERING: 'Yetkazishga chiqdi',
-  DELIVERED: 'Yetkazildi',
-  CANCELLED: 'Bekor qilindi',
-  RETURNED: 'Qaytarildi',
-};
+export { STATUS_LABEL };
 
 const TIMELINE: OrderStatus[] = [
   OrderStatus.NEW,
@@ -126,6 +117,7 @@ export class ShopOrdersService {
     private readonly rules: RulesService,
     private readonly notify: NotifyService,
     private readonly studio: StudioService,
+    private readonly wallet: WalletService,
   ) {}
 
   /** Muddati o'tgan to'lanmagan buyurtmalarni bekor qiladi (slot va promokod bo'shaydi) */
@@ -156,6 +148,8 @@ export class ShopOrdersService {
       });
       if (!count) return;
       await this.history.record({ orderId: id, from, to: OrderStatus.CANCELLED, actor, note }, tx);
+      // Balansdan to'langan bo'lsa — pul shu tranzaksiyada (bir marta) qaytadi
+      await this.wallet.refundOrder(tx, id, actor?.id ?? null);
       const order = await tx.order.findUniqueOrThrow({ where: { id }, select: { promocodeId: true } });
       if (order.promocodeId) {
         await tx.promocode.updateMany({
@@ -174,6 +168,7 @@ export class ShopOrdersService {
       this.addresses.get(user.id, dto.addressId),
     ]);
     const online = ONLINE.includes(dto.paymentMethod);
+    const fromBalance = dto.paymentMethod === PaymentMethod.BALANCE;
 
     const orderId = await this.prisma.$transaction(
       async (tx) => {
@@ -230,9 +225,10 @@ export class ShopOrdersService {
             totalSum: summary.total,
             channel: OrderChannel.APP,
             paymentMethod: dto.paymentMethod,
-            // Naqd — darhol operatorga tushadi; Click/Payme — to'lovdan keyin
+            // Naqd va balans — darhol operatorga tushadi; Click/Payme — to'lovdan keyin
             status: online ? OrderStatus.PENDING_PAYMENT : OrderStatus.NEW,
             paymentExpiresAt: online ? new Date(Date.now() + PAYMENT_HOLD_MS) : null,
+            ...(fromBalance && { paymentStatus: PaymentStatus.PAID, paidAt: new Date() }),
             promocodeId: promo?.id,
             deliveryDate: new Date(`${dto.deliveryDate}T00:00:00Z`),
             deliverySlot: dto.deliverySlot,
@@ -247,6 +243,7 @@ export class ShopOrdersService {
                 printName: i.printName,
                 printNumber: i.printNumber,
                 numberOnShorts: i.numberOnShorts,
+                shortsNumber: i.shortsNumber,
                 withShorts: i.withShorts,
                 shirtSize: i.shirtSize,
                 shortsSize: i.shortsSize,
@@ -258,6 +255,16 @@ export class ShopOrdersService {
           },
         });
         await tx.order.update({ where: { id: order.id }, data: { code: orderCode(order.id) } });
+        // Balans yetmasa InsufficientBalanceError — butun buyurtma (slot, promokod, savat) qaytadi
+        if (fromBalance && summary.total > 0) {
+          await this.wallet.debit(tx, {
+            userId: user.id,
+            amount: summary.total,
+            type: BalanceTxType.ORDER_PAYMENT,
+            orderId: order.id,
+            note: orderCode(order.id),
+          });
+        }
         await this.history.record({ orderId: order.id, from: null, to: order.status, actor: user }, tx);
         await tx.cartItem.deleteMany({ where: { userId: user.id } });
         return order.id;
@@ -356,8 +363,45 @@ export class ShopOrdersService {
     return this.notify.notify('newOrder', `🆕 Yangi buyurtma ${code} · ${customer} · ${total.toLocaleString('ru-RU')} so'm`);
   }
 
+  /**
+   * To'lov kutayotgan buyurtmani balansdan to'lash. Holat sharti + balans sharti bitta tranzaksiyada:
+   * ikki marta bosilsa ham bir marta yechiladi (ORDER_PAYMENT har buyurtmaga bitta).
+   */
+  async payWithBalance(user: AuthUser, id: number) {
+    await this.expireStale(user.id);
+    const order = await this.own(user.id, id);
+    if (order.status !== OrderStatus.PENDING_PAYMENT) throw new ConflictException("Buyurtma to'lov kutmayapti");
+
+    await this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.order.updateMany({
+        where: { id, status: OrderStatus.PENDING_PAYMENT },
+        data: {
+          paymentMethod: PaymentMethod.BALANCE,
+          status: OrderStatus.NEW,
+          paymentStatus: PaymentStatus.PAID,
+          paidAt: new Date(),
+          paymentExpiresAt: null,
+        },
+      });
+      if (!count) throw new ConflictException("Buyurtma to'lov kutmayapti");
+      if (order.totalSum > 0) {
+        await this.wallet.debit(tx, { userId: user.id, amount: order.totalSum, type: BalanceTxType.ORDER_PAYMENT, orderId: id, note: order.code });
+      }
+      await this.history.record(
+        { orderId: id, from: OrderStatus.PENDING_PAYMENT, to: OrderStatus.NEW, actor: user, note: "Balansdan to'landi" },
+        tx,
+      );
+    });
+
+    await this.audit.log({ actor: user, action: "Buyurtma balansdan to'landi", category: AuditCategory.PAYMENT, context: order.code });
+    void this.announceNew(order.code, order.customerName, order.totalSum);
+    return this.get(user.id, id);
+  }
+
   /** "Boshqa usulni tanlash" */
   async changePaymentMethod(user: AuthUser, id: number, dto: ChangePaymentMethodDto) {
+    // Balansga o'tish — faqat haqiqiy yechish bilan (aks holda to'lanmagan buyurtma operatorga tushib qolardi)
+    if (dto.paymentMethod === PaymentMethod.BALANCE) return this.payWithBalance(user, id);
     await this.expireStale(user.id);
     const order = await this.own(user.id, id);
     if (order.status !== OrderStatus.PENDING_PAYMENT) throw new ConflictException("To'lov usulini endi o'zgartirib bo'lmaydi");

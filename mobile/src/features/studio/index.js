@@ -43,6 +43,20 @@ export const PATCHES = [
 export const PACKAGES = [{ id: 'oddiy-paket' }, { id: 'sovga-qutisi' }];
 export const GIFT_PACKAGE = 'sovga-qutisi';
 
+// Ism/raqam rangi (backend TEXT_COLOR_IDS). null — fon rangiga qarab avtomatik
+export const TEXT_COLORS = [
+  { id: 'oq', hex: '#F3F5F9' },
+  { id: 'qora', hex: '#151827' },
+  { id: 'sariq', hex: '#F2A33A' },
+  { id: 'oltin', hex: '#D4AF37' },
+  { id: 'qizil', hex: '#E5484D' },
+  { id: 'firuza', hex: '#2BD9C8' },
+  { id: 'lojuvard', hex: '#4C6FFF' },
+  { id: 'yashil', hex: '#4ADE80' },
+];
+
+export const NEON = 'neon';
+
 export const HEX = /^#[0-9a-fA-F]{6}$/;
 
 const byId = (list, id) => list.find((entry) => entry.id === id) || null;
@@ -57,14 +71,15 @@ export function inkFor(hex) {
   return r * 0.299 + g * 0.587 + b * 0.114 > 150 ? '#0E1A3F' : '#F3F5F9';
 }
 
-/** Taxminiy narx (haqiqiysini server hisoblaydi): asosiy + gradient/maxsus rang + yamoq + sovg'a qutisi */
-export function estimatePrice(design, prices) {
+/** Taxminiy narx (haqiqiysini server hisoblaydi): asosiy + gradient/maxsus rang + yamoq + sovg'a qutisi (+ shortik) */
+export function estimatePrice(design, prices, withShorts = false) {
   if (!design || !prices) return 0;
   return (
     prices.custom +
     (design.color?.type !== 'solid' ? prices.gradient : 0) +
     (design.patch ? prices.patch : 0) +
-    (design.package === GIFT_PACKAGE ? prices.gift : 0)
+    (design.package === GIFT_PACKAGE ? prices.gift : 0) +
+    (withShorts ? prices.shorts ?? 0 : 0)
   );
 }
 
@@ -86,10 +101,11 @@ export function designPreview(design) {
   }
   return {
     color: base,
-    accent: inkFor(gradient ? gradient[1] : base),
+    accent: byId(TEXT_COLORS, design?.textColor)?.hex || inkFor(gradient ? gradient[1] : base),
     gradient,
     fontStyle: byId(FONTS, design?.font)?.style,
     patch: byId(PATCHES, design?.patch)?.sym || null,
+    glow: design?.textEffect === NEON,
   };
 }
 
@@ -112,6 +128,8 @@ export function designText(t, design) {
     colorLabel,
     design.font ? t(`font_${design.font}`) : null,
     design.patch ? t(`patch_${design.patch}`) : null,
+    design.textColor ? `${t('textColorShort')} — ${t(`tcolor_${design.textColor}`)}` : null,
+    design.textEffect === NEON ? t('neonEffect') : null,
     design.package === GIFT_PACKAGE ? t('pkg_sovga-qutisi') : null,
   ]
     .filter(Boolean)

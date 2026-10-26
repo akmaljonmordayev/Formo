@@ -36,6 +36,7 @@ interface Config {
   printName: string | null;
   printNumber: string | null;
   numberOnShorts: boolean;
+  shortsNumber: string | null;
   withShorts: boolean;
   shirtSize: string;
   shortsSize: string | null;
@@ -44,7 +45,11 @@ interface Config {
 /** Savat qatori hozir ham sotib olinadimi (forma o'chirilmagan, o'lcham tugamagan) */
 export function lineProblem(line: CartLine): string | null {
   const { kit } = line;
-  if (!kit) return ALL_SIZES.includes(line.shirtSize) ? null : `Futbolka ${line.shirtSize} o'lchami tugagan`;
+  if (!kit) {
+    if (!ALL_SIZES.includes(line.shirtSize)) return `Futbolka ${line.shirtSize} o'lchami tugagan`;
+    if (line.withShorts && (!line.shortsSize || !ALL_SIZES.includes(line.shortsSize))) return `Shortik ${line.shortsSize} o'lchami tugagan`;
+    return null;
+  }
   if (!kit.isActive || !kit.club.isActive || kit.club.category?.isActive === false) return 'Forma sotuvda emas';
   if (!kit.sizes.includes(line.shirtSize)) return `Futbolka ${line.shirtSize} o'lchami tugagan`;
   if (line.withShorts && (!line.shortsSize || !kit.sizes.includes(line.shortsSize))) {
@@ -56,7 +61,7 @@ export function lineProblem(line: CartLine): string | null {
 export function toCartItem(line: CartLine, studioPrices: StudioPrices) {
   const { kit } = line;
   const design = (line.design as unknown as Design | null) ?? null;
-  const price = kit ? unitPrice(kit, line) : studioPrice(design as Design, studioPrices);
+  const price = kit ? unitPrice(kit, line) : studioPrice(design as Design, studioPrices, line.withShorts);
   const problem = lineProblem(line);
   const print = [line.printName, line.printNumber].filter(Boolean).join(' · ');
   const sizes = line.withShorts ? `${line.shirtSize} / ${line.shortsSize}` : line.shirtSize;
@@ -72,6 +77,7 @@ export function toCartItem(line: CartLine, studioPrices: StudioPrices) {
     printName: line.printName,
     printNumber: line.printNumber,
     numberOnShorts: line.numberOnShorts,
+    shortsNumber: line.shortsNumber,
     withShorts: line.withShorts,
     shirtSize: line.shirtSize,
     shortsSize: line.shortsSize,
@@ -131,9 +137,11 @@ export class CartService {
     if (c.withShorts) {
       const shortsSize = c.shortsSize ?? c.shirtSize;
       if (!sizes.includes(shortsSize)) throw new BadRequestException(`Shortik ${shortsSize} o'lchami mavjud emas`);
-      return { ...c, shortsSize };
+      // Shortik raqami faqat "shortikka raqam" yoqilgan bo'lsa; berilmasa futbolka raqami
+      const shortsNumber = c.numberOnShorts ? (c.shortsNumber ?? c.printNumber) : null;
+      return { ...c, shortsSize, numberOnShorts: c.numberOnShorts && shortsNumber !== null, shortsNumber };
     }
-    return { ...c, shortsSize: null, numberOnShorts: false };
+    return { ...c, shortsSize: null, numberOnShorts: false, shortsNumber: null };
   }
 
   async add(userId: number, dto: AddCartItemDto) {
@@ -149,7 +157,9 @@ export class CartService {
       printName: dto.printName ?? null,
       printNumber: dto.printNumber ?? null,
       numberOnShorts: dto.numberOnShorts ?? false,
-      withShorts: custom ? false : (dto.withShorts ?? true),
+      shortsNumber: dto.shortsNumber ?? null,
+      // Maxsus dizaynda shortik ixtiyoriy (standart — yo'q), klub formasida standart — bor
+      withShorts: dto.withShorts ?? !custom,
       shirtSize: dto.shirtSize,
       shortsSize: dto.shortsSize ?? null,
     });
@@ -185,7 +195,8 @@ export class CartService {
       printName: dto.printName !== undefined ? dto.printName : line.printName,
       printNumber: dto.printNumber !== undefined ? dto.printNumber : line.printNumber,
       numberOnShorts: dto.numberOnShorts ?? line.numberOnShorts,
-      withShorts: line.kit ? (dto.withShorts ?? line.withShorts) : false,
+      shortsNumber: dto.shortsNumber !== undefined ? dto.shortsNumber : line.shortsNumber,
+      withShorts: dto.withShorts ?? line.withShorts,
       shirtSize: dto.shirtSize ?? line.shirtSize,
       // Shortik qayta qo'shilsa va o'lchami berilmasa — futbolka o'lchami olinadi
       shortsSize: dto.shortsSize ?? line.shortsSize,

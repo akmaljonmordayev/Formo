@@ -1,11 +1,11 @@
-import { ConflictException, ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, ConflictException, ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Role, User } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuthService } from './auth.service';
+import { AuthService, LEGACY_DUMMY_PASSWORD } from './auth.service';
 
 const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 const DAY = 24 * 60 * 60 * 1000;
@@ -49,6 +49,18 @@ describe('AuthService', () => {
 
   describe('register', () => {
     const dto = { phone: '+998901234567', password: PASSWORD, fullName: 'Aziz Rahimov' };
+
+    it('productionda o‘chiq — 403, raqam egaligi tekshirilmagan hisob ochilmaydi', async () => {
+      const nodeEnv = process.env.NODE_ENV;
+      process.env.NODE_ENV = 'production';
+      try {
+        await expect(service.register(dto, {})).rejects.toThrow(ForbiddenException);
+        expect(prisma.user.findUnique).not.toHaveBeenCalled();
+        expect(prisma.user.create).not.toHaveBeenCalled();
+      } finally {
+        process.env.NODE_ENV = nodeEnv;
+      }
+    });
 
     it('telefon band bo‘lsa — 409, akkaunt yaratilmaydi', async () => {
       prisma.user.findUnique.mockResolvedValue(user);
@@ -129,6 +141,49 @@ describe('AuthService', () => {
     it('bloklangan akkauntga noto‘g‘ri parol — 401 (blok holati oshkor bo‘lmaydi)', async () => {
       prisma.user.findUnique.mockResolvedValue({ ...user, isActive: false });
       await expect(service.login({ phone: user.phone, password: 'wrong' }, {})).rejects.toThrow(UnauthorizedException);
+    });
+
+    it('eski demo-OTP hisobi: repodagi ochiq parol xeshi mos kelsa ham — 401', async () => {
+      // Avvalgi versiya otp-login hisoblarini aynan shu parol xeshi bilan yaratgan
+      const legacy = { ...user, passwordHash: await bcrypt.hash(LEGACY_DUMMY_PASSWORD, 4) };
+      prisma.user.findUnique.mockResolvedValue(legacy);
+      await expect(service.login({ phone: user.phone, password: LEGACY_DUMMY_PASSWORD }, {})).rejects.toThrow(UnauthorizedException);
+      expect(prisma.session.create).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('otpLogin (demo SMS kodi)', () => {
+    const env = { ...process.env };
+    afterEach(() => {
+      process.env.NODE_ENV = env.NODE_ENV;
+      process.env.OTP_LOGIN_DEMO = env.OTP_LOGIN_DEMO;
+      if (env.OTP_LOGIN_DEMO === undefined) delete process.env.OTP_LOGIN_DEMO;
+    });
+
+    it.each([undefined, 'true'])('productionda (OTP_LOGIN_DEMO=%s) — 403, hisobga tegilmaydi', async (flag) => {
+      process.env.NODE_ENV = 'production';
+      if (flag) process.env.OTP_LOGIN_DEMO = flag;
+      prisma.user.findUnique.mockResolvedValue(user);
+      await expect(service.otpLogin({ phone: user.phone, code: '12345' }, {})).rejects.toThrow(ForbiddenException);
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
+      expect(prisma.session.create).not.toHaveBeenCalled();
+    });
+
+    it('ishlab chiqishda OTP_LOGIN_DEMO=false bilan ham o‘chiq', async () => {
+      process.env.NODE_ENV = 'development';
+      process.env.OTP_LOGIN_DEMO = 'false';
+      await expect(service.otpLogin({ phone: user.phone, code: '12345' }, {})).rejects.toThrow(ForbiddenException);
+    });
+
+    it('ishlab chiqishda yangi hisob ochiladi — paroli ma’lum emas (eski ochiq parol ishlamaydi)', async () => {
+      process.env.NODE_ENV = 'development';
+      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.user.create.mockImplementation(async ({ data }) => ({ id: 9, isActive: true, ...data }));
+
+      await service.otpLogin({ phone: '+998901112233', code: '12345' }, {});
+
+      const { data } = prisma.user.create.mock.calls[0][0];
+      expect(await bcrypt.compare(LEGACY_DUMMY_PASSWORD, data.passwordHash)).toBe(false);
     });
   });
 
@@ -240,6 +295,19 @@ describe('AuthService', () => {
       await expect(
         service.changePassword(7, SESSION_ID, { currentPassword: 'wrong', newPassword: 'newsecret' }),
       ).rejects.toThrow(UnauthorizedException);
+      expect(prisma.$transaction).not.toHaveBeenCalled();
+    });
+
+    it('eski ochiq parolni na joriy, na yangi parol sifatida ishlatib bo‘lmaydi', async () => {
+      prisma.user.findUnique.mockResolvedValue({ ...user, passwordHash: await bcrypt.hash(LEGACY_DUMMY_PASSWORD, 4) });
+      await expect(
+        service.changePassword(7, SESSION_ID, { currentPassword: LEGACY_DUMMY_PASSWORD, newPassword: 'newsecret' }),
+      ).rejects.toThrow(UnauthorizedException);
+
+      prisma.user.findUnique.mockResolvedValue(user);
+      await expect(
+        service.changePassword(7, SESSION_ID, { currentPassword: PASSWORD, newPassword: LEGACY_DUMMY_PASSWORD }),
+      ).rejects.toThrow(BadRequestException);
       expect(prisma.$transaction).not.toHaveBeenCalled();
     });
 

@@ -11,6 +11,9 @@ import {
   SOLID_COLOR_IDS,
   STUDIO_PRICE_KEYS,
   StudioPrices,
+  TEXT_COLOR_IDS,
+  TEXT_EFFECTS,
+  TextEffect,
 } from './studio';
 
 type Db = PrismaService | Prisma.TransactionClient;
@@ -31,6 +34,7 @@ export class StudioService {
       gradient: byKey.get(STUDIO_PRICE_KEYS.gradient) ?? DEFAULT_STUDIO_PRICES.gradient,
       patch: byKey.get(STUDIO_PRICE_KEYS.patch) ?? DEFAULT_STUDIO_PRICES.patch,
       gift: byKey.get(STUDIO_PRICE_KEYS.gift) ?? DEFAULT_STUDIO_PRICES.gift,
+      shorts: byKey.get(STUDIO_PRICE_KEYS.shorts) ?? DEFAULT_STUDIO_PRICES.shorts,
     };
   }
 
@@ -66,13 +70,22 @@ export class StudioService {
       fonts: this.enabled(FONT_IDS, t.font),
       patches: this.enabled(PATCH_IDS, t.patch),
       packages: this.enabled(PACKAGE_IDS, t.pkg),
+      textColors: [...TEXT_COLOR_IDS],
+      textEffects: [...TEXT_EFFECTS],
     };
   }
 
   /** Mijoz yuborgan tanlovni tekshiradi va faqat ma'lum maydonlar bilan qaytaradi (400 — yoqilmagan/noma'lum tanlov) */
   async validate(input: unknown, db: Db = this.prisma): Promise<Design> {
     if (!input || typeof input !== 'object') throw new BadRequestException('Dizayn tanlovi noto‘g‘ri');
-    const raw = input as { color?: { type?: string; id?: string; hex?: string }; font?: string; patch?: string | null; package?: string };
+    const raw = input as {
+      color?: { type?: string; id?: string; hex?: string };
+      font?: string;
+      patch?: string | null;
+      package?: string;
+      textColor?: string | null;
+      textEffect?: string;
+    };
     const cfg = await this.publicConfig(db);
 
     const type = raw.color?.type;
@@ -96,6 +109,13 @@ export class StudioService {
     const pkg = raw.package ?? cfg.packages[0];
     if (!cfg.packages.includes(pkg as never)) throw new BadRequestException('Bu paketni tanlab bo‘lmaydi');
 
-    return { color, font, patch, package: pkg };
+    const textColor = raw.textColor ?? null;
+    if (textColor !== null && !TEXT_COLOR_IDS.includes(textColor as never)) throw new BadRequestException('Bu yozuv rangini tanlab bo‘lmaydi');
+
+    const textEffect = (raw.textEffect ?? 'none') as TextEffect;
+    if (!TEXT_EFFECTS.includes(textEffect)) throw new BadRequestException('Bu yozuv effektini tanlab bo‘lmaydi');
+
+    // Eski savat qatorlari bilan bir xil JSON bo'lsin: standart qiymatlar saqlanmaydi
+    return { color, font, patch, package: pkg, ...(textColor && { textColor }), ...(textEffect !== 'none' && { textEffect }) };
   }
 }

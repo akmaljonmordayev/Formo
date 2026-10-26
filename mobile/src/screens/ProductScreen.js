@@ -4,7 +4,8 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
 import { Badge, Button, Card, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
-import { Shirt, Shorts } from '../components/ui/Shirt';
+import Jersey3D from '../components/ui/Jersey3D';
+import { Shirt } from '../components/ui/Shirt';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { visibleSizes } from '../features/config';
 import { useClub } from '../features/products';
@@ -76,6 +77,7 @@ export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCusto
       }
     >
       <Header
+        cart
         title={club?.name || product.name}
         subtitle={club?.season || t('baseKit')}
         onBack={onBack}
@@ -89,20 +91,18 @@ export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCusto
             <Badge label={product.badge} variant="teal" />
           </View>
         ) : null}
-        <View style={styles.shirtLayer}>
-        <Shirt
-          width={196}
-          color={kitColors.color}
-          ink={kitColors.ink}
-          side={side}
-          player={side === 'back' ? 'FORMO' : ''}
+        {/* key — forma almashganda aylanish holati qaytadan boshlanadi */}
+        <Jersey3D
+          key={product.kitId}
+          kit={{ color: kitColors.color, ink: kitColors.ink, crest: club?.code || '' }}
+          name="FORMO"
           number="10"
-          crest={club?.code || ''}
+          shorts={{ number: '10' }}
+          side={side}
+          onSideChange={setSide}
+          width={200}
         />
-        </View>
-        <View style={styles.shorts}>
-          <Shorts width={124} color={kitColors.color} trim={kitColors.ink} ink={kitColors.ink} number="10" />
-        </View>
+        <Text style={styles.rotateHint}>{t('rotateHint')}</Text>
         <Segment
           style={styles.segment}
           options={[t('front'), t('rear')]}
@@ -178,8 +178,7 @@ const styles = StyleSheet.create({
     marginTop: spacing.md,
   },
   // Dizayn: futbolka shortik ustida (z-index), shortik 12–14px ostiga kiradi
-  shirtLayer: { zIndex: 1 },
-  shorts: { marginTop: -14 },
+  rotateHint: { color: colors.muted, fontSize: 10, fontWeight: '700', marginTop: 2 },
   previewBox: {
     paddingTop: spacing.xl,
     paddingBottom: spacing.lg,

@@ -31,6 +31,9 @@ export const DEFAULT_CONFIG = {
   },
 };
 
+/** Telegram username: 5–32 ta lotin harfi, raqam yoki _ */
+export const isBotUsername = (value) => typeof value === 'string' && /^[A-Za-z0-9_]{5,32}$/.test(value);
+
 /** Bolalar o'lchamlari "2-3" ... "12-13" ko'rinishida */
 export const isKidSize = (size) => /^\d+-\d+$/.test(size);
 
@@ -62,7 +65,7 @@ function normalizeStudio(raw) {
  * tanlovlarining default'i yo'q — `studio` null bo'lsa ekran `error` + qayta urinishni ko'rsatadi.
  */
 export default function useAppConfig() {
-  const [config, setConfig] = useState({ ...DEFAULT_CONFIG, studio: null });
+  const [config, setConfig] = useState({ ...DEFAULT_CONFIG, studio: null, telegramBot: null });
   const [error, setError] = useState(null);
 
   const refresh = useCallback(async () => {
@@ -74,6 +77,8 @@ export default function useAppConfig() {
         general: { ...DEFAULT_CONFIG.general, ...data?.general },
         rules: { ...DEFAULT_CONFIG.rules, ...data?.rules },
         studio: studio || current.studio,
+        // Balansni to'ldirish boti (backend TELEGRAM_BOT_USERNAME) — yo'q bo'lsa tugma o'chiq
+        telegramBot: isBotUsername(data?.telegramBot) ? data.telegramBot : current.telegramBot,
       }));
       // Eski server `studio` bermasa — studiya ekrani xato + qayta urinishni ko'rsatadi
       if (!studio) setError(new Error('studio config missing'));

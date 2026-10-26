@@ -48,6 +48,21 @@ npm run start:clear
 
 Expo SDK 57 uchun React `19.2.3`, React Native `0.86.3` va Metro `0.84.x` versiyalari lock faylda birga saqlangan. `npm run export:android` Metro bundlingni tekshirish uchun ishlatiladi.
 
+## Production build (API manzili)
+
+`EXPO_PUBLIC_API_URL` build paytida JS ichiga yoziladi. Lokal `mobile/.env` dagi Wi-Fi IP (masalan `http://192.168.1.41:3001/api`) release buildga **tushib qolmasligi** kerak:
+
+- **EAS Build** (`eas build --profile production`) — manzil `eas.json` profillarida (`https://api.formo.uz/api`). `.env` git-ignored, EAS uni yuklamaydi.
+- **Lokal export** — manzilni aniq bering (u `.env` dan ustun):
+  ```powershell
+  $env:EXPO_PUBLIC_API_URL = 'https://api.formo.uz/api'; npx expo export --platform android
+  ```
+- O'zgaruvchi umuman berilmasa, ilova `https://api.formo.uz/api` dan foydalanadi (`src/services/api.js`).
+
+## Kirish
+
+Mijozlar faqat **Telegram bot** (`@formo_kit_bot`) orqali kiradi: telefon raqam → botda Start va «📱 Raqamni yuborish» → 5 xonali kod. Parol, SMS yoki demo kod yo'q. Yangi hisob ism, familiya, jins va yoshni to'ldiradi (bo'y/vazn ixtiyoriy) — keyin bosh sahifa. Batafsil: [`telegram-bot/README.md`](../telegram-bot/README.md).
+
 ## Arxitektura
 
 - `src/screens/` — har bir asosiy ekran alohida modulda.

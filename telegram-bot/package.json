@@ -1,0 +1,24 @@
+{
+  "name": "@formo/telegram-bot",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Formo Telegram bot: ilovaga kirish kodi, akkaunt ulash va buyurtma xabarlari",
+  "main": "dist/main.js",
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "start": "node dist/main.js",
+    "dev": "tsc -p tsconfig.build.json && node --env-file=.env dist/main.js",
+    "init-env": "node scripts/init-env.js",
+    "check": "tsc -p tsconfig.build.json && node --env-file=.env dist/check.js",
+    "typecheck":"tsc -p tsconfig.json --noEmit",
+    "test": "tsc -p tsconfig.json && node scripts/run-tests.js",
+    "clean": "node -e \"for (const d of ['dist','build']) require('fs').rmSync(d,{recursive:true,force:true})\""
+  },
+  "engines": {
+    "node": ">=20.6.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.11.0",
+    "typescript": "^5.3.3"
+  }
+}

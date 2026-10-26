@@ -36,7 +36,11 @@ export class AuthController {
   @Public()
   @Throttle(AUTH_LIMIT)
   @Post('register')
-  @ApiOperation({ summary: "Mobil ilova: foydalanuvchi ro'yxatdan o'tishi (role = USER)" })
+  @ApiOperation({
+    summary: "Parol bilan ro'yxatdan o'tish (role = USER) — faqat ishlab chiqish/test",
+    description: "Productionda 403: mijoz hisobi faqat Telegram bot orqali ochiladi (`POST /auth/telegram/start` + `/verify`).",
+  })
+  @ApiForbiddenResponse({ description: 'Productionda o‘chiq' })
   @ApiOkResponse({ type: AuthResponseDto })
   @ApiConflictResponse({ description: 'Telefon raqam band' })
   @ApiTooManyRequestsResponse({ description: "Juda ko'p urinish" })
@@ -70,7 +74,8 @@ export class AuthController {
     summary: 'Dev-only: telefon + SMS kod bilan parolsiz kirish',
     description:
       'Haqiqiy SMS integratsiyasigacha faqat demo kod (12345) qabul qilinadi. ' +
-      "Hisob topilmasa avtomatik ochiladi (role = USER). Productionda OTP_LOGIN_DEMO=true bilan yoqiladi.",
+      'Hisob topilmasa avtomatik ochiladi (role = USER). Productionda har doim o‘chiq (403) — ' +
+      'u yerda `POST /auth/telegram/start` + `/verify` ishlatiladi. Ishlab chiqishda o‘chirish: OTP_LOGIN_DEMO=false.',
   })
   @ApiOkResponse({ type: AuthResponseDto })
   @ApiUnauthorizedResponse({ description: "Tasdiqlash kodi noto'g'ri" })

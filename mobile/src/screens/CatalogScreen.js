@@ -1,20 +1,28 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, fonts, radii, spacing } from '../constants/theme';
-import { Badge, Button, Card, EmptyState, Header, Screen, SectionTitle } from '../components/ui/Common';
-import CartButton from '../components/ui/CartButton';
+import { Badge, EmptyState, Header, Screen, SectionTitle } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
-import LoadingSpinner from '../components/ui/LoadingSpinner';
-import { ProductCard } from '../components/ui/ProductCard';
+import KitCarousel from '../components/ui/KitCarousel';
 import { Shirt } from '../components/ui/Shirt';
+import Skeleton from '../components/ui/Skeleton';
 import { useCategories, useClubs, useFavorites, usePopularProducts } from '../features/products';
 
 const CLUB_GAP = 10;
+const FAVORITES = 'fav';
 
-export default function CatalogScreen({ t, onClub, cartCount = 0, onCart }) {
+/**
+ * Katalog: qidiruv, ligalar va "Sevimlilar" filtri, tavsiya formalar swiper'i, klublar to'ri.
+ * initialCategoryId / focusSearch — bosh sahifadan kelganda (liga plitkasi yoki qidiruv).
+ */
+export default function CatalogScreen({ t, onClub, initialCategoryId = null, focusSearch = false }) {
   const [query, setQuery] = useState('');
-  const [categoryId, setCategoryId] = useState(null);
+  const [categoryId, setCategoryId] = useState(initialCategoryId);
+  useEffect(() => {
+    setCategoryId(initialCategoryId);
+  }, [initialCategoryId]);
+  const favoritesOnly = categoryId === FAVORITES;
 
   const { categories, isLoading: catLoading } = useCategories();
   const {
@@ -22,13 +30,22 @@ export default function CatalogScreen({ t, onClub, cartCount = 0, onCart }) {
     isLoading: clubsLoading,
     error: clubsError,
     refetch: refetchClubs,
-  } = useClubs({ categoryId, search: query });
-  const { products, isLoading: prodLoading } = usePopularProducts(6);
+  } = useClubs({ categoryId: favoritesOnly ? null : categoryId, search: query });
+  const { products } = usePopularProducts(6);
   const { favorites, ids: favoriteIds, toggle: toggleFavorite } = useFavorites();
 
   const favoriteClub = favorites[0] || null;
-  const chips = [{ id: null, name: t('all') }, ...categories];
+  const chips = [
+    { id: null, name: t('all') },
+    ...(favoriteIds.length ? [{ id: FAVORITES, name: t('favorites'), icon: 'heart' }] : []),
+    ...categories,
+  ];
   const isFiltering = Boolean(query.trim() || categoryId);
+  const shown = favoritesOnly ? clubs.filter((c) => favoriteIds.includes(c.id)) : clubs;
+  const resetFilters = () => {
+    setQuery('');
+    setCategoryId(null);
+  };
   // 3 ustunli to'r: karta kengligi o'lchangan to'r kengligidan (gap hisobga olinadi) —
   // foizli kenglik + gap tor ekranlarda 2+1 bo'lib sinardi
   const [gridWidth, setGridWidth] = useState(0);
@@ -36,11 +53,7 @@ export default function CatalogScreen({ t, onClub, cartCount = 0, onCart }) {
 
   return (
     <Screen>
-      <Header
-        title={t('catalog')}
-        subtitle={t('catalogSub')}
-        right={<CartButton count={cartCount} onPress={onCart} t={t} />}
-      />
+      <Header cart title={t('catalog')} subtitle={t('catalogSub')} />
 
       {/* Modern Search Bar */}
       <View style={styles.searchBar}>
@@ -52,7 +65,8 @@ export default function CatalogScreen({ t, onClub, cartCount = 0, onCart }) {
           placeholderTextColor={colors.dim}
           style={styles.searchInput}
           returnKeyType="search"
-          clearButtonMode="while-editing"
+          autoFocus={focusSearch}
+          autoCorrect={false}
         />
         {query ? (
           <Pressable onPress={() => setQuery('')} hitSlop={8} style={styles.clearSearch}>
@@ -75,6 +89,9 @@ export default function CatalogScreen({ t, onClub, cartCount = 0, onCart }) {
               onPress={() => setCategoryId(chip.id)}
               style={[styles.chip, isActive && styles.chipActive]}
             >
+              {chip.icon ? (
+                <MaterialCommunityIcons name={chip.icon} size={13} color={isActive ? colors.primaryDark : colors.accent} />
+              ) : null}
               <Text style={[styles.chipText, isActive && styles.chipTextActive]}>
                 {chip.name}
               </Text>
@@ -82,6 +99,16 @@ export default function CatalogScreen({ t, onClub, cartCount = 0, onCart }) {
           );
         })}
       </ScrollView>
+
+      {/* Tavsiya formalar — filtrsiz ko'rinishda */}
+      {!isFiltering && products.length ? (
+        <View style={styles.featured}>
+          <SectionTitle title={t('featuredKits')} eyebrow={t('eyebrowModels')} />
+          <View style={styles.bleed}>
+            <KitCarousel t={t} items={products} onPress={(item) => onClub({ id: item.clubId, name: item.clubName }, item.kitId)} />
+          </View>
+        </View>
+      ) : null}
 
       {/* Favorite Club Highlight Card */}
       {favoriteClub && !isFiltering ? (
@@ -118,19 +145,23 @@ export default function CatalogScreen({ t, onClub, cartCount = 0, onCart }) {
 
       {/* Clubs Grid Section */}
       <SectionTitle
-        title={isFiltering ? `${t('allClubs')} (${clubs.length})` : t('allClubs')}
+        title={isFiltering ? `${t('allClubs')} (${shown.length})` : t('allClubs')}
+        action={isFiltering ? t('resetFilters') : undefined}
+        onAction={isFiltering ? resetFilters : undefined}
         eyebrow={t('eyebrowClubs')}
       />
 
       {clubsError ? (
         <ErrorView message={t('loadError')} onRetry={refetchClubs} retryLabel={t('retry')} />
       ) : clubsLoading && clubs.length === 0 ? (
-        <View style={styles.loadingBox}>
-          <LoadingSpinner />
-        </View>
-      ) : clubs.length > 0 ? (
         <View style={styles.clubGrid} onLayout={(e) => setGridWidth(e.nativeEvent.layout.width)}>
-          {clubs.map((club) => {
+          {[0, 1, 2, 3, 4, 5].map((i) => (
+            <Skeleton key={i} width={clubCardWidth || 100} height={132} />
+          ))}
+        </View>
+      ) : shown.length > 0 ? (
+        <View style={styles.clubGrid} onLayout={(e) => setGridWidth(e.nativeEvent.layout.width)}>
+          {shown.map((club) => {
             const isFav = favoriteIds.includes(club.id);
             return (
               <Pressable
@@ -181,28 +212,11 @@ export default function CatalogScreen({ t, onClub, cartCount = 0, onCart }) {
               ? t('noResultsSub')
               : t('catalogEmpty')
           }
-          actionLabel={isFiltering ? t('all') : undefined}
-          onAction={isFiltering ? () => { setQuery(''); setCategoryId(null); } : undefined}
+          actionLabel={isFiltering ? t('resetFilters') : undefined}
+          onAction={isFiltering ? resetFilters : undefined}
         />
       )}
 
-      {/* Popular Models Grid */}
-      {products.length > 0 ? (
-        <View style={styles.modelsSection}>
-          <SectionTitle title={t('popularModels')} eyebrow={t('eyebrowModels')} />
-          <View style={styles.modelsGrid}>
-            {products.map((item) => (
-              <ProductCard
-                key={item.kitId}
-                product={item}
-                favorite={favoriteIds.includes(item.clubId)}
-                onFavorite={() => toggleFavorite(item.clubId)}
-                onPress={() => onClub({ id: item.clubId, name: item.clubName }, item.kitId)}
-              />
-            ))}
-          </View>
-        </View>
-      ) : null}
     </Screen>
   );
 }
@@ -234,7 +248,12 @@ const styles = StyleSheet.create({
     gap: 8,
     paddingBottom: spacing.lg,
   },
+  featured: { marginBottom: spacing.lg },
+  bleed: { marginHorizontal: -spacing.lg },
   chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
     paddingVertical: 8,
     paddingHorizontal: 18,
     borderRadius: radii.round,

@@ -3,20 +3,25 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, screenStyles, spacing } from '../../constants/theme';
+import { HeaderCart } from './CartButton';
 
 export function Screen({ children, scroll = true, contentStyle, footer, footerStyle }) {
   const insets = useSafeAreaInsets();
   const Content = scroll ? ScrollView : View;
+  // Birinchi bola Header bo'lsa — skroll ustida qotib turadi (savat tugmasi doim ko'rinadi)
+  const items = React.Children.toArray(children);
+  const lead = scroll && items[0]?.type === Header ? items.shift() : null;
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={screenStyles.safe}>
+      {lead ? <View style={styles.stickyHeader}>{React.cloneElement(lead, { sticky: true })}</View> : null}
       <Content
-        contentContainerStyle={scroll ? [screenStyles.content, contentStyle] : undefined}
+        contentContainerStyle={scroll ? [screenStyles.content, lead && styles.contentUnderHeader, contentStyle] : undefined}
         style={!scroll ? [screenStyles.content, contentStyle] : undefined}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        {children}
+        {lead ? items : children}
       </Content>
       {footer ? (
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }, footerStyle]}>
@@ -27,12 +32,21 @@ export function Screen({ children, scroll = true, contentStyle, footer, footerSt
   );
 }
 
-export function Header({ title, subtitle, overline, onBack, right, logo }) {
+/** cart — o'ng burchakda savat tugmasi (soni bilan; CartContext orqali, har ekranga prop uzatmasdan) */
+export function Header({ title, subtitle, overline, onBack, right, logo, cart = false, sticky = false }) {
   const hasLead = Boolean(onBack || logo);
+  const actions = cart ? (
+    <>
+      {right}
+      <HeaderCart />
+    </>
+  ) : (
+    right
+  );
   return (
-    <View style={styles.header}>
+    <View style={[styles.header, sticky && styles.headerSticky]}>
       {onBack ? (
-        <Pressable onPress={onBack} style={styles.iconButton} hitSlop={8} accessibilityLabel="Back">
+        <Pressable onPress={onBack} style={styles.iconButton} hitSlop={8} accessibilityRole="button" accessibilityLabel="Back">
           <MaterialCommunityIcons name="chevron-left" size={26} color={colors.text} />
         </Pressable>
       ) : logo ? (
@@ -47,7 +61,7 @@ export function Header({ title, subtitle, overline, onBack, right, logo }) {
         </Text>
         {subtitle ? <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text> : null}
       </View>
-      {right ? <View style={styles.headerRight}>{right}</View> : null}
+      {actions ? <View style={styles.headerRight}>{actions}</View> : null}
     </View>
   );
 }
@@ -220,6 +234,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     marginBottom: spacing.lg,
   },
+  headerSticky: { marginBottom: 0 },
+  stickyHeader: {
+    paddingHorizontal: spacing.lg,
+    paddingTop: spacing.md,
+    paddingBottom: spacing.md,
+    backgroundColor: colors.background,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: colors.tabBarBorder,
+    zIndex: 5,
+  },
+  contentUnderHeader: { paddingTop: spacing.md },
   iconButton: {
     width: 42,
     height: 42,
@@ -254,6 +279,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 8,
   },
   headerOverline: {
     color: colors.muted,

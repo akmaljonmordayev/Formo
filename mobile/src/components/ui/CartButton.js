@@ -1,7 +1,17 @@
-import React from 'react';
+import React, { createContext, useContext } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors } from '../../constants/theme';
+
+/** { count, open, t } — AppNavigator beradi; Header `cart` bo'lsa shu orqali savatni ochadi */
+export const CartContext = createContext(null);
+
+/** Sarlavhadagi savat: kontekst bo'lmasa (masalan, kirish ekranlari) hech narsa chizmaydi */
+export function HeaderCart() {
+  const cart = useContext(CartContext);
+  if (!cart) return null;
+  return <CartButton count={cart.count} onPress={cart.open} t={cart.t} />;
+}
 
 export default function CartButton({ count = 0, onPress, t }) {
   return (

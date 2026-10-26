@@ -1,8 +1,8 @@
 import { ApiError } from '../services/api';
 
 /**
- * Server OTP orqali yangi hisob ochganda `fullName`ga shu qiymatni yozadi
- * (backend/src/auth/auth.service.ts: otpLogin). Bu haqiqiy ism emas — UI'da
+ * Server parolsiz (Telegram) yangi hisob ochganda `fullName`ga shu qiymatni yozadi
+ * (backend/src/auth/auth.service.ts: NEW_CUSTOMER_NAME). Bu haqiqiy ism emas — UI'da
  * "ism hali kiritilmagan" deb hisoblanadi.
  */
 export const SERVER_PLACEHOLDER_NAME = 'Yangi mijoz';
@@ -36,10 +36,11 @@ export function joinFullName(first, last) {
   return [first, last].map((part) => String(part || '').trim().replace(/\s+/g, ' ')).filter(Boolean).join(' ');
 }
 
-/** Lokal tekshiruv (backend UpdateProfileDto bilan bir xil): i18n kaliti yoki null. */
-export function validateName(first, last) {
+/** Lokal tekshiruv (backend UpdateProfileDto bilan bir xil): i18n kaliti yoki null. Ro'yxatdan o'tishda familiya ham majburiy. */
+export function validateName(first, last, { requireLast = false } = {}) {
   const full = joinFullName(first, last);
   if (!String(first || '').trim()) return 'fullNameRequired';
+  if (requireLast && !String(last || '').trim()) return 'lastNameRequired';
   if (full.length < NAME_LIMITS.min) return 'fullNameShort';
   if (full.length > NAME_LIMITS.max) return 'fullNameTooLong';
   if (/[<>]/.test(full)) return 'invalidValue';
@@ -52,4 +53,16 @@ export function validateName(first, last) {
  */
 export function isNameUnsupportedError(err) {
   return err instanceof ApiError && err.status === 400 && /fullName should not exist/i.test(err.message || '');
+}
+
+/**
+ * Ro'yxatdan o'tish qadamlari kerakmi: ism, jins va yosh majburiy (o'tkazib bo'lmaydi);
+ * bo'y/vazn ixtiyoriy — bir marta so'raladi.
+ */
+export function profileGaps(user) {
+  if (!user) return { required: false, optional: false };
+  return {
+    required: !realFullName(user) || user.gender == null || user.age == null,
+    optional: user.height == null || user.weight == null,
+  };
 }

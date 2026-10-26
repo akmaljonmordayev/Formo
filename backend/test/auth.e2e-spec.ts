@@ -406,4 +406,49 @@ describe('Auth (e2e)', () => {
       await login(app, dto.phone, 'newsecret1');
     });
   });
+
+  describe('demo SMS-login va eski ochiq parol (xavfsizlik regressiyasi)', () => {
+    const nodeEnv = process.env.NODE_ENV;
+    afterEach(() => {
+      process.env.NODE_ENV = nodeEnv;
+    });
+
+    it('productionda /auth/otp-login 12345 bilan mavjud mijozga kirita olmaydi — 403', async () => {
+      const dto = validUser();
+      await api(app).post('/api/auth/register').send(dto).expect(201);
+
+      process.env.NODE_ENV = 'production';
+      await api(app).post('/api/auth/otp-login').send({ phone: dto.phone, code: '12345' }).expect(403);
+      // yangi raqam uchun ham hisob ochilmaydi
+      const fresh = nextPhone();
+      await api(app).post('/api/auth/otp-login').send({ phone: fresh, code: '12345' }).expect(403);
+      expect(await prisma.user.count({ where: { phone: fresh } })).toBe(0);
+    });
+
+    it('productionda parol bilan ro‘yxatdan o‘tish yopiq, mavjud hisob parol bilan kirishda davom etadi', async () => {
+      const dto = validUser();
+      await api(app).post('/api/auth/register').send(dto).expect(201);
+
+      process.env.NODE_ENV = 'production';
+      const other = validUser();
+      await api(app).post('/api/auth/register').send(other).expect(403);
+      expect(await prisma.user.count({ where: { phone: other.phone } })).toBe(0);
+      await login(app, dto.phone, dto.password);
+    });
+
+    it('ishlab chiqishda demo kirish ishlaydi, ochilgan hisobga eski ochiq parol bilan kirib bo‘lmaydi', async () => {
+      const phone = nextPhone();
+      await api(app).post('/api/auth/otp-login').send({ phone, code: '12345' }).expect(200);
+      await api(app).post('/api/auth/login').send({ phone, password: 'formo-dummy-password' }).expect(401);
+    });
+
+    it('eski versiya yaratgan hisob (ochiq parol xeshi bilan) — parol bilan kirish 401', async () => {
+      const phone = nextPhone();
+      const bcrypt = await import('bcryptjs');
+      await prisma.user.create({
+        data: { phone, fullName: 'Yangi mijoz', passwordHash: await bcrypt.hash('formo-dummy-password', 4) },
+      });
+      await api(app).post('/api/auth/login').send({ phone, password: 'formo-dummy-password' }).expect(401);
+    });
+  });
 });

@@ -63,7 +63,16 @@ const stubs = {
     View: view,
     Text: svgTag('RNText'),
     StyleSheet: { create: (s) => s, absoluteFill: {} },
-    Linking: { openSettings: async () => {} },
+    Linking: {
+      opened: [],
+      openSettings: async () => {},
+      // tg:// — test boshqaradi (Telegram o'rnatilgan / yo'q)
+      canOpenURL: async (url) => !url.startsWith('tg://') || global.__stubs.telegramInstalled === true,
+      openURL: async (url) => {
+        stubs['react-native'].Linking.opened.push(url);
+      },
+    },
+    AppState: { addEventListener: () => ({ remove() {} }) },
     Platform: { OS: 'android', select: (o) => o.android ?? o.default },
   },
 };

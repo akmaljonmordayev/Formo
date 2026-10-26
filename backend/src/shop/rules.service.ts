@@ -40,6 +40,7 @@ export type GeneralSettings = typeof DEFAULT_GENERAL;
 export interface LineInput {
   printName?: string | null;
   printNumber?: string | null;
+  shortsNumber?: string | null;
   shirtSize?: string;
   shortsSize?: string | null;
   quantity?: number;
@@ -120,8 +121,9 @@ export class RulesService {
       const lower = name.toLowerCase();
       if (banned.some((w) => lower.includes(w))) throw new BadRequestException('Bu ismni formaga bosib bo‘lmaydi');
     }
-    if (line.printNumber) {
-      const n = Number(line.printNumber);
+    for (const value of [line.printNumber, line.shortsNumber]) {
+      if (!value) continue;
+      const n = Number(value);
       if (!Number.isInteger(n) || n < rules.printNumberMin || n > rules.printNumberMax) {
         throw new BadRequestException(`Raqam ${rules.printNumberMin} dan ${rules.printNumberMax} gacha bo‘lishi kerak`);
       }

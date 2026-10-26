@@ -255,6 +255,7 @@ function OrderModal({ order, onClose, onSaved }) {
                         <b>{custom ? t('Maxsus dizayn') : it.clubName}</b>
                         {!custom && it.kitLabel ? ` · ${it.kitLabel}` : ''} · {it.shirtSize}
                         {it.withShorts && it.shortsSize ? ` / ${it.shortsSize}` : ''}
+                        {it.withShorts && it.numberOnShorts && it.shortsNumber ? ` (${t('shortik raqami')} ${it.shortsNumber})` : ''}
                         {(it.printName || it.printNumber) && ` · ${[it.printName, it.printNumber].filter(Boolean).join(' ')}`}
                         {' '}× {it.quantity}
                       </span>
@@ -273,6 +274,8 @@ function OrderModal({ order, onClose, onSaved }) {
                         {d.font && <span>{t('Shrift')}: {d.font}</span>}
                         <span>{t('Patch')}: {d.patch ? (typeof d.patch === 'string' ? d.patch : JSON.stringify(d.patch)) : t("yo'q")}</span>
                         {d.package && <span>{t('Paket')}: {typeof d.package === 'string' ? d.package : JSON.stringify(d.package)}</span>}
+                        {d.textColor && <span>{t('Yozuv rangi')}: {d.textColor}</span>}
+                        {d.textEffect === 'neon' && <span>{t('Neon yozuv')}</span>}
                       </div>
                     )}
                   </div>

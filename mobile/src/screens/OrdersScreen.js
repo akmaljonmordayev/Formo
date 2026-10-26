@@ -34,7 +34,7 @@ export default function OrdersScreen({ t, onOrder }) {
           />
         }
       >
-        <Header title={t('myOrders')} />
+        <Header cart title={t('myOrders')} />
 
         {error && orders.length === 0 ? (
           <ErrorView message={errorText(error, t)} onRetry={refetch} retryLabel={t('retry')} />

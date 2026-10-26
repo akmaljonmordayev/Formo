@@ -31,7 +31,14 @@ export class CartItemOptionsDto {
   @IsBoolean()
   numberOnShorts?: boolean;
 
-  @ApiPropertyOptional({ default: true, description: "To'plamga shortik qo'shilsinmi" })
+  @ApiPropertyOptional({ example: '7', description: "Shortikdagi raqam: 0-99 (berilmasa — futbolka raqami). Faqat numberOnShorts=true bo'lsa" })
+  @IsOptional()
+  @emptyToNull()
+  @IsString()
+  @Matches(/^\d{1,2}$/, { message: "Shortik raqami 0 dan 99 gacha bo'lishi kerak" })
+  shortsNumber?: string | null;
+
+  @ApiPropertyOptional({ description: "To'plamga shortik qo'shilsinmi (klub formasi: standart true, maxsus dizayn: false)" })
   @IsOptional()
   @IsBoolean()
   withShorts?: boolean;

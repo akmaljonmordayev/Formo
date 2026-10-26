@@ -1,10 +1,11 @@
 export const colors = {
   // Brand foundation
-  background: '#070A20',
-  backgroundAlt: '#0A0F2C',
-  surface: '#0F1638',
-  surfaceRaised: '#161F4C',
-  surfaceSubtle: '#12193E',
+  // Formo palitrasi: fon #050818, sirt #0E1A3F, oltin #F2A33A, firuza #19A7A1
+  background: '#050818',
+  backgroundAlt: '#08102C',
+  surface: '#0E1A3F',
+  surfaceRaised: '#15234F',
+  surfaceSubtle: '#0B1535',
   border: '#212B60',
   borderLight: '#2D3A7A',
   borderActive: '#F2A33A',
@@ -35,7 +36,7 @@ export const colors = {
   // Chrome & Navigation
   chip: '#141C44',
   chipActive: '#1D285E',
-  tabBar: '#090E2A',
+  tabBar: '#070D26',
   tabBarBorder: '#18214F',
   white: '#FFFFFF',
   black: '#070A20',

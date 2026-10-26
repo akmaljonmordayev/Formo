@@ -1,4 +1,4 @@
-import { api } from '../../services/api';
+import { api, apiBlobUrl } from '../../services/api';
 
 const qs = (params = {}) => {
   const q = new URLSearchParams(
@@ -68,6 +68,15 @@ export const campaignsApi = {
 
 export const auditLogApi = {
   list: (params) => api(`/admin/audit-log${qs(params)}`),
+};
+
+// Balansni qo'lda to'ldirish so'rovlari (faqat superadmin). Pul faqat approve() da qo'shiladi
+export const topupsApi = {
+  list: (params) => api(`/admin/topups${qs(params)}`),
+  receiptUrl: (id) => apiBlobUrl(`/admin/topups/${id}/receipt`),
+  // amount — chekdagi haqiqiy summa so'rovdan farq qilsa (ixtiyoriy)
+  approve: (id, amount) => api(`/admin/topups/${id}/approve`, { method: 'POST', body: amount ? { amount } : {} }),
+  reject: (id, reason) => api(`/admin/topups/${id}/reject`, { method: 'POST', body: { reason } }),
 };
 
 export const settingsApi = {

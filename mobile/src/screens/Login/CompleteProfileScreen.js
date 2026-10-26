@@ -21,7 +21,7 @@ import { isNameUnsupportedError, joinFullName, realFullName, splitFullName, vali
 
 /**
  * Ro'yxatdan o'tish qadamlari (dizayn: Reg 1/3 → 2/3 → 3/3 → "Xush kelibsiz").
- * OTP orqali kirgan, ismi yoki o'lchovlari bo'sh foydalanuvchiga bir marta
+ * Telegram orqali kirgan, ismi yoki o'lchovlari bo'sh foydalanuvchiga bir marta
  * ko'rsatiladi. Saqlash — bitta PATCH /auth/me (auth.updateUser):
  * fullName + gender/age/height/weight (UpdateProfileDto).
  *
@@ -98,7 +98,7 @@ export default function CompleteProfileScreen({ auth, t, onSkip, onFinish }) {
   function goNext() {
     setError(null);
     if (step === 'gender') {
-      const nameError = validateName(firstName, lastName);
+      const nameError = validateName(firstName, lastName, { requireLast: true });
       if (nameError) {
         setError(t(nameError));
         return;
@@ -183,7 +183,9 @@ export default function CompleteProfileScreen({ auth, t, onSkip, onFinish }) {
       total={STEP_ORDER.length}
       onBack={stepIndex > 0 && !saving ? goBack : null}
       backLabel={t('back')}
-      onSkip={step === 'body' ? () => save(false) : step === 'gender' ? onSkip : null}
+      // Yangi hisob (ism hali "Yangi mijoz"): ism, jins va yosh majburiy — faqat bo'y/vazn o'tkazib yuboriladi.
+      // Ismi bor (faqat o'lchovlari bo'sh) foydalanuvchi birinchi qadamdan ham chiqib keta oladi.
+      onSkip={step === 'body' ? () => save(false) : step === 'gender' && realFullName(user) && user.gender && user.age ? onSkip : null}
       skipLabel={t('skip')}
     />
   );

@@ -9,7 +9,10 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#070A24"
+          "backgroundColor": "#050818",
+          "image": "./assets/formologo.png",
+          "imageWidth": 200,
+          "resizeMode": "contain"
         }
       ],
       [
@@ -23,7 +26,12 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.formo.app"
+      "bundleIdentifier": "com.formo.app",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": [
+          "tg"
+        ]
+      }
     },
     "android": {
       "package": "com.formo.app",

@@ -135,46 +135,33 @@ async function storeSession(data) {
 
 // ─── Auth API ────────────────────────────────────────────────────────────────
 
+// Mijozlar faqat Telegram bot orqali kiradi (parol/SMS yo'q) — backend/src/telegram
 export const auth = {
   /**
-   * Login with phone + password. Phone: "+998XXXXXXXXX".
-   * @returns {Promise<object>} user object
+   * Telegram bot orqali kirish, 1-qadam: so'rov ochish (10 daqiqa amal qiladi).
+   * Javob raqam ro'yxatdan o'tgan-o'tmaganiga bog'liq emas.
+   * @returns {Promise<{challengeId: string, botUsername: string, deepLink: string, expiresAt: string}>}
    */
-  async login(phone, password) {
-    const data = await request('/auth/login', {
+  telegramStart: (phone) =>
+    request('/auth/telegram/start', {
       method: 'POST',
       auth: false,
-      body: { phone: normalizePhone(phone), password },
-    });
-    return storeSession(data);
-  },
+      body: { phone: normalizePhone(phone) },
+    }),
 
   /**
-   * Register a new user.
-   * @param {{phone, password, fullName, gender?, age?, height?, weight?}} payload
-   * @returns {Promise<object>} user object
+   * Telegram bot orqali kirish, 2-qadam: botdagi 5 xonali kod. Hisob bo'lmasa server ochadi.
+   * Sessiya boshqa kirish usullari kabi saqlanadi (refresh/logout o'zgarmaydi).
+   * @returns {Promise<{user: object, isNewUser: boolean, profileComplete: boolean}>}
    */
-  async register(payload) {
-    const data = await request('/auth/register', {
+  async telegramVerify(challengeId, code) {
+    const data = await request('/auth/telegram/verify', {
       method: 'POST',
       auth: false,
-      body: { ...payload, phone: normalizePhone(payload.phone) },
+      body: { challengeId, code },
     });
-    return storeSession(data);
-  },
-
-  /**
-   * Dev-only: SMS/OTP orqali parolsiz kirish (kod to'g'ri bo'lsa hisob
-   * topilmasa avtomatik ochiladi). Phone: "+998XXXXXXXXX".
-   * @returns {Promise<object>} user object
-   */
-  async otpLogin(phone, code) {
-    const data = await request('/auth/otp-login', {
-      method: 'POST',
-      auth: false,
-      body: { phone: normalizePhone(phone), code },
-    });
-    return storeSession(data);
+    const user = await storeSession(data);
+    return { user, isNewUser: Boolean(data?.isNewUser), profileComplete: Boolean(data?.profileComplete) };
   },
 
   /** Fetch the currently authenticated user's profile. */
@@ -292,6 +279,15 @@ export const orders = {
     request(`/orders/${id}/payment-method`, { method: 'PATCH', body: { paymentMethod } }),
 };
 
+/**
+ * Ichki balans — server yagona manba (ilova balansni hech qachon o'zi hisoblamaydi).
+ * { balance, transactions: [{ id, type, amount, balanceAfter, note, createdAt }], topUps: [{ id, code, amount, status, rejectReason, createdAt }] }
+ * To'ldirish faqat Telegram bot orqali (summa → Humo karta → chek → admin tasdig'i).
+ */
+export const wallet = {
+  get: () => request('/wallet'),
+};
+
 /** Superadmin sozlamalarining ochiq ko'rinishi: { general, rules } (public) */
 export const appConfig = {
   get: () => request('/app/config', { auth: false }),
@@ -310,6 +306,7 @@ export const api = {
   cart,
   addresses,
   orders,
+  wallet,
   appConfig,
   notifications,
 };

@@ -18,7 +18,9 @@
     "db:up": "docker compose -f ../docker-compose.yml up -d postgres",
     "test:e2e": "jest --config ./test/jest-e2e.json --runInBand",
     "typecheck": "tsc --noEmit",
-    "prisma:deploy": "prisma migrate deploy"
+    "prisma:deploy": "prisma migrate deploy",
+    "catalog:import": "ts-node --transpile-only scripts/import-catalog.ts",
+    "seed:dev": "ts-node --transpile-only scripts/seed-dev.ts"
   },
   "dependencies": {
     "@nestjs/common": "^10.3.0",

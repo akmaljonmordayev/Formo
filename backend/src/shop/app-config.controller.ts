@@ -1,4 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Public } from '../common/decorators/public.decorator';
 import { RulesService } from './rules.service';
@@ -11,6 +12,7 @@ export class AppConfigController {
   constructor(
     private readonly rules: RulesService,
     private readonly studio: StudioService,
+    private readonly env: ConfigService,
   ) {}
 
   @Public()
@@ -24,6 +26,8 @@ export class AppConfigController {
   @ApiOkResponse()
   async config() {
     const [base, studio] = await Promise.all([this.rules.publicConfig(), this.studio.publicConfig()]);
-    return { ...base, studio };
+    // Balansni to'ldirish faqat Telegram bot orqali — ilova botni shu username bilan ochadi
+    const telegramBot = (this.env.get<string>('TELEGRAM_BOT_USERNAME') ?? '').replace(/^@/, '').trim() || null;
+    return { ...base, studio, telegramBot };
   }
 }

@@ -8,8 +8,7 @@ import { JerseyPreview } from '../components/ui/JerseyPreview';
 import { designText, itemPreview } from '../features/studio';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import {
-  PAYMENT_METHODS,
-  onlinePaymentsEnabled,
+  CHECKOUT_METHODS,
   paymentText,
   statusText,
   useOrder,
@@ -67,12 +66,9 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
   }
 
   const pending = order.status === 'PENDING_PAYMENT';
-  // Productionda Click/Payme taklif qilinmaydi: real provayder yo'q va bunday
-  // buyurtma 30 daqiqadan keyin to'lovsiz bekor qilinadi.
-  const switchMethods = PAYMENT_METHODS.filter(
-    (method) =>
-      method !== order.paymentMethod &&
-      (method === 'CASH' ? rules.allowCash : onlinePaymentsEnabled()),
+  // To'lov kutayotgan buyurtma: balansdan to'lash (server darhol yechadi) yoki naqd
+  const switchMethods = CHECKOUT_METHODS.filter(
+    (method) => method !== order.paymentMethod && (method !== 'CASH' || rules.allowCash),
   );
   const stopped = ['CANCELLED', 'RETURNED'].includes(order.status);
   const payment = order.payment || {};
