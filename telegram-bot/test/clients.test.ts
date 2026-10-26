@@ -42,9 +42,10 @@ describe('BackendClient', () => {
   it('Bearer ichki token bilan va JSON tanasi bilan yuboradi', async () => {
     const { impl, calls } = scriptedFetch([json(200, { result: 'INVALID' })]);
     const client = new BackendClient('http://api.test/api', INTERNAL, impl, noSleep);
-    await client.claim('t'.repeat(43), '1', '1');
+    await client.claim('t'.repeat(43), '1', '1', 'ru');
     assert.equal(calls[0].url, 'http://api.test/api/internal/telegram/claim');
     assert.equal((calls[0].init.headers as Record<string, string>).Authorization, `Bearer ${INTERNAL}`);
+    assert.deepEqual(JSON.parse(String(calls[0].init.body)), { startToken: 't'.repeat(43), telegramUserId: '1', chatId: '1', language: 'ru' });
   });
 
   it('kod chiqaruvchi so‘rov 5xx/timeout da qayta yuborilmaydi (ikki kod chiqmasin)', async () => {

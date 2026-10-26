@@ -98,6 +98,7 @@ model TelegramAuthChallenge {
   startTokenHash  String    @unique
   telegramUserId  String? // Telegram ID'lari 2^31 dan katta — BigInt o'rniga matn (JSON'da muammosiz)
   chatId          String?
+  language        String? // botda tanlangan til — hisob ulanganda TelegramAccount ga o'tadi
   claimedAt       DateTime?
   phoneVerifiedAt DateTime? // kontakt raqami so'rovdagi raqamga mos keldi
   codeHash        String?

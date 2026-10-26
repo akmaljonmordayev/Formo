@@ -2,7 +2,7 @@ import { BadRequestException, HttpException, HttpStatus, Injectable } from '@nes
 import { OrderStatus, Role, TopUpMethod } from '@prisma/client';
 import { NEW_CUSTOMER_NAME } from '../auth/auth.service';
 import { PrismaService } from '../prisma/prisma.service';
-import { STATUS_LABEL } from '../shop/order-status';
+import { asBotLang, orderStatusLabel } from './bot-texts';
 import { RulesService } from '../shop/rules.service';
 import { TopUpsService } from '../wallet/topups.service';
 import { WalletService } from '../wallet/wallet.service';
@@ -41,8 +41,12 @@ export class TelegramAccountService {
     return { linked: true as const, firstName: name, balance: user.balance, activeOrders, language: user.language };
   }
 
-  /** Bot tili — faqat ulangan akkaunt uchun saqlanadi (backend xabarlari shu tilda yoziladi) */
+  /** Bot tili: ulangan akkauntda va ochiq kirish so'rovlarida (ulanganda akkauntga o'tadi) saqlanadi */
   async setLanguage(telegramUserId: string, language: string) {
+    await this.prisma.telegramAuthChallenge.updateMany({
+      where: { telegramUserId, consumedAt: null, failedAt: null, expiresAt: { gt: new Date() } },
+      data: { language },
+    });
     const { count } = await this.prisma.telegramAccount.updateMany({ where: { telegramUserId }, data: { language } });
     return { linked: count > 0 };
   }
@@ -65,7 +69,7 @@ export class TelegramAccountService {
     });
     return {
       linked: true as const,
-      orders: rows.map((o) => ({ ...o, statusLabel: STATUS_LABEL[o.status] })),
+      orders: rows.map((o) => ({ ...o, statusLabel: orderStatusLabel(o.status, asBotLang(user.language)) })),
     };
   }
 

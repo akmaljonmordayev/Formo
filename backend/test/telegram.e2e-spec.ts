@@ -20,10 +20,10 @@ describe('Telegram bot orqali kirish (e2e)', () => {
     api(app).post(`/api/internal/telegram/${path}`).set(bearer(token)).send(body);
 
   /** Ilova so'rov ochadi, bot /start bosilganini va kontaktni yuboradi */
-  async function challenge(phone: string, tgUser = String(++tgSeq), contactPhone = phone) {
+  async function challenge(phone: string, tgUser = String(++tgSeq), contactPhone = phone, language?: string) {
     const start = await api(app).post('/api/auth/telegram/start').send({ phone }).expect(200);
     const startToken = start.body.deepLink.split('?start=')[1];
-    const claim = await bot('claim', { startToken, telegramUserId: tgUser, chatId: tgUser }).expect(200);
+    const claim = await bot('claim', { startToken, telegramUserId: tgUser, chatId: tgUser, language }).expect(200);
     const contact = await bot('contact', { telegramUserId: tgUser, chatId: tgUser, phone: contactPhone }).expect(200);
     return { challengeId: start.body.challengeId as string, startToken, tgUser, claim: claim.body, contact: contact.body };
   }
@@ -178,6 +178,12 @@ describe('Telegram bot orqali kirish (e2e)', () => {
     });
   });
 
+  it('kirishda botda tanlangan til ulangan akkauntga yoziladi', async () => {
+    const c = await challenge(nextPhone(), undefined, undefined, 'en');
+    await verify(c.challengeId, c.contact.code).expect(200);
+    expect(await prisma.telegramAccount.findUnique({ where: { telegramUserId: c.tgUser } })).toMatchObject({ language: 'en' });
+  });
+
   describe('buyurtma xabarlari (outbox)', () => {
     let userToken: string;
     let tgUser: string;
@@ -238,9 +244,18 @@ describe('Telegram bot orqali kirish (e2e)', () => {
       await placeOrder();
       expect((await api(app).get('/api/internal/telegram/outbox').set(bearer(INTERNAL)).expect(200)).body).toEqual([]);
 
-      expect((await bot('hello', { telegramUserId: tgUser, chatId: tgUser }).expect(200)).body).toEqual({ linked: true });
+      expect((await bot('hello', { telegramUserId: tgUser, chatId: tgUser }).expect(200)).body).toEqual({ linked: true, language: null });
       await placeOrder();
       expect((await api(app).get('/api/internal/telegram/outbox').set(bearer(INTERNAL)).expect(200)).body).toHaveLength(1);
+    });
+
+    it('botda tanlangan til: buyurtma xabari shu tilda, hello tilni qaytaradi', async () => {
+      await bot('language', { telegramUserId: tgUser, language: 'ru' }).expect(200);
+      expect((await bot('hello', { telegramUserId: tgUser, chatId: tgUser }).expect(200)).body).toEqual({ linked: true, language: 'ru' });
+      const order = await placeOrder();
+      const leased = await api(app).get('/api/internal/telegram/outbox?limit=10').set(bearer(INTERNAL)).expect(200);
+      expect(leased.body).toEqual([expect.objectContaining({ text: `📦 Статус заказа ${order.code}: Принят` })]);
+      await bot(`outbox/${leased.body[0].id}/result`, { result: 'SENT' }).expect(200);
     });
 
     it('/stop — xabarlar o‘chadi', async () => {

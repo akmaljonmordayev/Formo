@@ -41,7 +41,7 @@ describe('TelegramAuthService', () => {
       update: jest.fn(),
       updateMany: jest.fn(),
     },
-    telegramAccount: { updateMany: jest.fn() },
+    telegramAccount: { updateMany: jest.fn(), findUnique: jest.fn() },
     $transaction: jest.fn((fn: (t: typeof tx) => unknown) => fn(tx)),
   };
   const auth = { issueTokens: jest.fn() };
@@ -58,6 +58,7 @@ describe('TelegramAuthService', () => {
     startTokenHash: 'h',
     telegramUserId: TG,
     chatId: CHAT,
+    language: null,
     claimedAt: new Date(),
     phoneVerifiedAt: null,
     codeHash: null,
@@ -145,6 +146,21 @@ describe('TelegramAuthService', () => {
 
       expect(await service.claim('a'.repeat(43), TG, CHAT)).toEqual({ result: 'CONTACT_REQUIRED', maskedPhone: '+998 90 *** ** 67' });
       expect(prisma.telegramAuthChallenge.updateMany.mock.calls[0][0].where).toEqual({ id: ID, telegramUserId: null });
+    });
+
+    it('botda tanlangan til so‘rovga yoziladi', async () => {
+      prisma.telegramAuthChallenge.findUnique
+        .mockResolvedValueOnce(challenge({ telegramUserId: null, chatId: null, claimedAt: null }))
+        .mockResolvedValueOnce(challenge());
+      prisma.telegramAuthChallenge.updateMany.mockResolvedValue({ count: 1 });
+
+      await service.claim('a'.repeat(43), TG, CHAT, 'ru');
+      expect(prisma.telegramAuthChallenge.updateMany.mock.calls[0][0].data).toMatchObject({ telegramUserId: TG, language: 'ru' });
+
+      // allaqachon egallangan so'rov: til yangilanadi
+      prisma.telegramAuthChallenge.findUnique.mockResolvedValueOnce(challenge());
+      await service.claim('a'.repeat(43), TG, CHAT, 'en');
+      expect(prisma.telegramAuthChallenge.update).toHaveBeenLastCalledWith({ where: { id: ID }, data: { language: 'en' } });
     });
 
     it('poygada boshqasi oldinroq egallasa — INVALID', async () => {
@@ -237,7 +253,18 @@ describe('TelegramAuthService', () => {
       expect(tx.user.create).not.toHaveBeenCalled();
       expect(res).toMatchObject({ accessToken: 'a', isNewUser: false, profileComplete: true });
       expect(tx.telegramAccount.deleteMany).toHaveBeenCalledWith({ where: { telegramUserId: TG, userId: { not: 7 } } });
-      expect(tx.telegramAccount.upsert.mock.calls[0][0].create).toEqual({ userId: 7, telegramUserId: TG, chatId: CHAT });
+      expect(tx.telegramAccount.upsert.mock.calls[0][0].create).toEqual({ userId: 7, telegramUserId: TG, chatId: CHAT, language: null });
+    });
+
+    it('botda tanlangan til ulanishga o‘tadi (buyurtma xabarlari shu tilda)', async () => {
+      const code = await ready({ language: 'ru' });
+      tx.user.findUnique.mockResolvedValue({ id: 7, phone: PHONE, role: Role.USER, isActive: true, fullName: 'Aziz' });
+
+      await service.verify(ID, code, {});
+
+      const { create, update } = tx.telegramAccount.upsert.mock.calls[0][0];
+      expect(create.language).toBe('ru');
+      expect(update.language).toBe('ru');
     });
 
     it('yangi raqam: USER hisobi ochiladi, parol bilan kirib bo‘lmaydi', async () => {
@@ -284,6 +311,13 @@ describe('TelegramAuthService', () => {
     expect(await service.stop(TG)).toEqual({ linked: true });
     expect(prisma.telegramAccount.updateMany).toHaveBeenLastCalledWith({ where: { telegramUserId: TG }, data: { chatId: null } });
     prisma.telegramAccount.updateMany.mockResolvedValue({ count: 0 });
-    expect(await service.hello(TG, CHAT)).toEqual({ linked: false });
+    expect(await service.hello(TG, CHAT)).toEqual({ linked: false, language: null });
+  });
+
+  it('hello: ulangan akkauntning saqlangan tilini qaytaradi', async () => {
+    prisma.telegramAccount.updateMany.mockResolvedValue({ count: 1 });
+    prisma.telegramAccount.findUnique.mockResolvedValue({ language: 'ru' });
+    expect(await service.hello(TG, CHAT)).toEqual({ linked: true, language: 'ru' });
+    expect(prisma.telegramAccount.updateMany).toHaveBeenLastCalledWith({ where: { telegramUserId: TG }, data: { chatId: CHAT } });
   });
 });

@@ -9,6 +9,7 @@
     "start": "node dist/main.js",
     "dev": "tsc -p tsconfig.build.json && node --env-file=.env dist/main.js",
     "init-env": "node scripts/init-env.js",
+    "setup-profile": "node --env-file=.env scripts/setup-profile.js",
     "check": "tsc -p tsconfig.build.json && node --env-file=.env dist/check.js",
     "typecheck":"tsc -p tsconfig.json --noEmit",
     "test": "tsc -p tsconfig.json && node scripts/run-tests.js",

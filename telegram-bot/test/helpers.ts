@@ -13,6 +13,7 @@ import {
 } from '../src/backend';
 import { RecentIds } from '../src/dedupe';
 import { Deps } from '../src/handlers';
+import { Lang } from '../src/i18n';
 import { Logger } from '../src/log';
 import { UserSessions } from '../src/session';
 import { SendOptions, TgUpdate } from '../src/telegram';
@@ -32,6 +33,8 @@ export class FakeBackend implements Backend {
   claimResult: ClaimResult = { result: 'CONTACT_REQUIRED', maskedPhone: '+998 90 *** ** 67' };
   codeResult: CodeResult = { result: 'CODE', code: '48213', expiresInSec: 300, maskedPhone: '+998 90 *** ** 67' };
   linked = false;
+  /** hello() qaytaradigan saqlangan til */
+  language: string | null = null;
   fail = false;
   outbox: OutboxMessage[] = [];
   reports: { id: number; result: OutboxResult; error?: string }[] = [];
@@ -41,7 +44,7 @@ export class FakeBackend implements Backend {
     if (this.fail) throw new Error('backend down');
     return value;
   }
-  claim(...args: [string, string, string]) {
+  claim(...args: [string, string, string, string]) {
     return this.rec('claim', args, this.claimResult);
   }
   contact(...args: [string, string, string]) {
@@ -51,7 +54,7 @@ export class FakeBackend implements Backend {
     return this.rec('resend', args, this.codeResult);
   }
   hello(...args: [string, string]) {
-    return this.rec('hello', args, { linked: this.linked });
+    return this.rec('hello', args, { linked: this.linked, language: this.language });
   }
   stop(...args: [string]) {
     return this.rec('stop', args, { linked: this.linked });
@@ -174,6 +177,9 @@ export function photoUpdate(fileIds: string[], lang?: string): TgUpdate {
 }
 
 export const USER_ID = USER.id;
+
+/** Foydalanuvchi tilni avval tanlagan (xotirada) — til so'ralmaydi va backend'dan qidirilmaydi */
+export const chooseLang = (deps: Deps, lang: Lang) => deps.sessions.setLang(String(USER.id), lang);
 
 /** Ketma-ket javoblar beradigan soxta fetch; har chaqiruv yoziladi */
 export function scriptedFetch(responses: (Response | Error)[]) {

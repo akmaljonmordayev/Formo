@@ -85,7 +85,7 @@ export class TelegramAuthService {
   }
 
   /** Bot: /start <token>. Boshqa Telegram foydalanuvchisi egallagan so'rovni olib bo'lmaydi */
-  async claim(startToken: string, telegramUserId: string, chatId: string) {
+  async claim(startToken: string, telegramUserId: string, chatId: string, language?: string) {
     const now = new Date();
     const found = await this.prisma.telegramAuthChallenge.findUnique({ where: { startTokenHash: sha256(startToken) } });
     if (!found || !this.isOpen(found, now)) return { result: 'INVALID' as const };
@@ -93,12 +93,14 @@ export class TelegramAuthService {
     if (!found.telegramUserId) {
       await this.prisma.telegramAuthChallenge.updateMany({
         where: { id: found.id, telegramUserId: null },
-        data: { telegramUserId, chatId, claimedAt: now },
+        data: { telegramUserId, chatId, claimedAt: now, ...(language && { language }) },
       });
       const fresh = await this.prisma.telegramAuthChallenge.findUnique({ where: { id: found.id } });
       if (fresh?.telegramUserId !== telegramUserId) return { result: 'INVALID' as const };
     } else if (found.telegramUserId !== telegramUserId) {
       return { result: 'INVALID' as const };
+    } else if (language && language !== found.language) {
+      await this.prisma.telegramAuthChallenge.update({ where: { id: found.id }, data: { language } });
     }
     return { result: 'CONTACT_REQUIRED' as const, maskedPhone: maskPhone(found.phone) };
   }
@@ -172,7 +174,7 @@ export class TelegramAuthService {
       if (result.user.role !== Role.USER) throw new ForbiddenException('Bu hisob uchun parol bilan kiring');
       if (!result.user.isActive) throw new ForbiddenException('Akkauntingiz bloklangan. Administratorga murojaat qiling');
 
-      await this.link(tx, result.user.id, challenge.telegramUserId!, challenge.chatId);
+      await this.link(tx, result.user.id, challenge.telegramUserId!, challenge.chatId, challenge.language);
       return result;
     });
 
@@ -183,7 +185,9 @@ export class TelegramAuthService {
   /** Bot: /start (payloadsiz) — ulangan bo'lsa xabarlarni qayta yoqadi (masalan /stop yoki bloklashdan keyin) */
   async hello(telegramUserId: string, chatId: string) {
     const { count } = await this.prisma.telegramAccount.updateMany({ where: { telegramUserId }, data: { chatId } });
-    return { linked: count > 0 };
+    if (!count) return { linked: false, language: null };
+    const account = await this.prisma.telegramAccount.findUnique({ where: { telegramUserId }, select: { language: true } });
+    return { linked: true, language: account?.language ?? null };
   }
 
   /** Bot: /stop — xabarlar o'chiriladi, ulanish saqlanadi */
@@ -243,12 +247,18 @@ export class TelegramAuthService {
   }
 
   /** Bitta Telegram akkaunti faqat bitta Formo hisobiga ulanadi: avvalgi ulanish ko'chiriladi */
-  private async link(tx: Prisma.TransactionClient, userId: number, telegramUserId: string, chatId: string | null) {
+  private async link(
+    tx: Prisma.TransactionClient,
+    userId: number,
+    telegramUserId: string,
+    chatId: string | null,
+    language: string | null,
+  ) {
     await tx.telegramAccount.deleteMany({ where: { telegramUserId, userId: { not: userId } } });
     await tx.telegramAccount.upsert({
       where: { userId },
-      create: { userId, telegramUserId, chatId },
-      update: { telegramUserId, chatId },
+      create: { userId, telegramUserId, chatId, language },
+      update: { telegramUserId, chatId, ...(language && { language }) },
     });
   }
 

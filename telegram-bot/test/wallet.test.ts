@@ -3,7 +3,7 @@ import { beforeEach, describe, it } from 'node:test';
 import { handleUpdate, resetLimitsCache } from '../src/handlers';
 import { T } from '../src/i18n';
 import { parseAmount } from '../src/wallet';
-import { callbackUpdate, fakeDeps, photoUpdate, textUpdate, USER_ID } from './helpers';
+import { callbackUpdate, chooseLang, fakeDeps, photoUpdate, textUpdate, USER_ID } from './helpers';
 
 type Inline = { inline_keyboard: { text: string; callback_data: string }[][] };
 const LIMITS = { min: 10000, max: 10000000 };
@@ -69,6 +69,7 @@ describe('balans va to‘ldirish (bot)', () => {
 
   it('chek rasmi: eng katta rasm yuboriladi, faqat ochiq so‘rovga', async () => {
     const { deps, backend, sent } = fakeDeps();
+    chooseLang(deps, 'uz');
     await handleUpdate(photoUpdate(['small_file_id_000', 'large_file_id_111']), deps);
     assert.deepEqual(backend.calls[0], { name: 'attachReceipt', args: [String(USER_ID), 'large_file_id_111', 'u_large_file_id_111'] });
     assert.match(sent[0].text, /Ochiq to‘ldirish so‘rovi yo‘q/);
@@ -88,6 +89,7 @@ describe('balans va to‘ldirish (bot)', () => {
 
   it('ilovadan /start topup — summa tanlash ochiladi', async () => {
     const { deps, sent } = fakeDeps();
+    chooseLang(deps, 'uz');
     await handleUpdate(textUpdate('/start topup'), deps);
     assert.equal((sent[0].options?.reply_markup as Inline).inline_keyboard[0][0].callback_data, 'tu:30000');
   });

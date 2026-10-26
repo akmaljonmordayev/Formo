@@ -1,8 +1,8 @@
 import { Backend, CodeResult, TopUpMethods } from './backend';
 import { RecentIds } from './dedupe';
-import { Lang, langFromCode, menuAction, money, T } from './i18n';
+import { FIRST_LANGUAGE_PROMPT, isLang, Lang, langFromCode, menuAction, money, T } from './i18n';
 import { errorMessage, Logger } from './log';
-import { contactKeyboard, removeKeyboard, RESEND_DATA, resendKeyboard, text } from './messages';
+import { contactKeyboard, LOGIN, removeKeyboard, RESEND_DATA, resendKeyboard } from './messages';
 import { UserSessions } from './session';
 import { SendOptions, TelegramError, TgCallbackQuery, TgMessage, TgUpdate, TgUser } from './telegram';
 import {
@@ -52,37 +52,45 @@ export async function handleUpdate(update: TgUpdate, deps: Deps) {
   }
 }
 
-/** Tanlangan til (xotirada) yoki Telegram ilovasining tili */
-const langOf = (deps: Deps, from: TgUser): Lang => deps.sessions.lang(String(from.id)) ?? langFromCode(from.language_code);
+/** Xotiradagi til yoki (hali noma'lum bo'lsa) Telegram ilovasining tili — backend'ga murojaatsiz */
+const quickLang = (deps: Deps, from: TgUser): Lang => deps.sessions.lang(String(from.id)) ?? langFromCode(from.language_code);
+
+/**
+ * Foydalanuvchi tili: tanlangani (xotirada) → qayta ishga tushgandan keyin backend'da saqlangani
+ * (bir marta so'raladi) → Telegram ilovasining tili.
+ */
+async function langOf(deps: Deps, from: TgUser): Promise<Lang> {
+  const userId = String(from.id);
+  const known = deps.sessions.lang(userId);
+  if (known) return known;
+  if (deps.sessions.markLangLookup(userId)) {
+    const me = await deps.backend.me(userId).catch(() => null);
+    if (me?.linked && isLang(me.language)) {
+      deps.sessions.setLang(userId, me.language);
+      return me.language;
+    }
+  }
+  return langFromCode(from.language_code);
+}
+
+const START_TOKEN = /^[A-Za-z0-9_-]{20,64}$/;
 
 async function onMessage(msg: TgMessage, deps: Deps) {
   // Faqat shaxsiy chat: guruhda kod yoki raqam boshqalarga ko'rinmasin
   if (msg.chat.type !== 'private' || !msg.from || msg.from.is_bot) return;
   const userId = String(msg.from.id);
   const chatId = String(msg.chat.id);
-  const lang = langOf(deps, msg.from);
-  const reply = (body: string, options?: SendOptions) => send(deps, chatId, body, options);
 
   if (msg.contact) return onContact(msg, deps);
-  if (msg.photo || msg.document) return onReceipt(msg, deps, lang);
 
   const body = msg.text?.trim() ?? '';
   const start = START.exec(body);
-  if (start) {
-    deps.sessions.clearAmount(userId);
-    const payload = start[1];
-    if (!payload) {
-      const { linked } = await guarded(deps, chatId, lang, () => deps.backend.hello(userId, chatId));
-      return linked ? reply(T[lang].welcomeLinked, { reply_markup: mainMenu(lang) }) : reply(T[lang].welcome);
-    }
-    // Ilovadagi "Balansni to'ldirish" tugmasi: t.me/<bot>?start=topup
-    if (payload === 'topup') return startTopUp(deps, userId, chatId, lang);
-    // Payload shakli noto'g'ri bo'lsa backend'ga yubormaymiz
-    if (!/^[A-Za-z0-9_-]{20,64}$/.test(payload)) return reply(text.invalidLink);
-    const res = await guarded(deps, chatId, lang, () => deps.backend.claim(payload, userId, chatId));
-    if (res.result === 'CONTACT_REQUIRED') return reply(text.askContact(res.maskedPhone), { parse_mode: 'HTML', reply_markup: contactKeyboard });
-    return reply(text.invalidLink);
-  }
+  if (start) return onStart(deps, msg.from, chatId, start[1] ?? '');
+
+  const lang = await langOf(deps, msg.from);
+  const reply = (text: string, options?: SendOptions) => send(deps, chatId, text, options);
+  if (msg.photo || msg.document) return onReceipt(msg, deps, lang);
+
   if (COMMAND('stop').test(body)) {
     deps.sessions.clearAmount(userId);
     const { linked } = await guarded(deps, chatId, lang, () => deps.backend.stop(userId));
@@ -109,6 +117,49 @@ async function onMessage(msg: TgMessage, deps: Deps) {
   return reply(T[lang].help);
 }
 
+/**
+ * /start [payload]. Til hali tanlanmagan bo'lsa (xotirada ham, ulangan akkauntda ham yo'q) — avval til so'raladi,
+ * payload eslab qolinadi va til tanlangach davom etadi (continueStart).
+ */
+async function onStart(deps: Deps, from: TgUser, chatId: string, payload: string) {
+  const userId = String(from.id);
+  deps.sessions.clearAmount(userId);
+  // Payload shakli noto'g'ri bo'lsa backend'ga yubormaymiz
+  if (payload && payload !== 'topup' && !START_TOKEN.test(payload)) return send(deps, chatId, LOGIN[quickLang(deps, from)].invalidLink);
+
+  let lang = deps.sessions.lang(userId);
+  let linked: boolean | undefined;
+  if (!payload || !lang) {
+    const hello = await guarded(deps, chatId, quickLang(deps, from), () => deps.backend.hello(userId, chatId));
+    linked = hello.linked;
+    if (!lang && isLang(hello.language)) {
+      lang = hello.language;
+      deps.sessions.setLang(userId, lang);
+    }
+  }
+  if (!lang) {
+    deps.sessions.setPendingStart(userId, payload);
+    return send(deps, chatId, FIRST_LANGUAGE_PROMPT, { reply_markup: languageKeyboard });
+  }
+  return continueStart(deps, userId, chatId, lang, payload, linked);
+}
+
+async function continueStart(deps: Deps, userId: string, chatId: string, lang: Lang, payload: string, linked?: boolean) {
+  if (!payload) {
+    if (linked === undefined) linked = (await guarded(deps, chatId, lang, () => deps.backend.hello(userId, chatId))).linked;
+    return linked
+      ? send(deps, chatId, T[lang].welcomeLinked, { reply_markup: mainMenu(lang) })
+      : send(deps, chatId, T[lang].welcome);
+  }
+  // Ilovadagi "Balansni to'ldirish" tugmasi: t.me/<bot>?start=topup
+  if (payload === 'topup') return startTopUp(deps, userId, chatId, lang);
+  const res = await guarded(deps, chatId, lang, () => deps.backend.claim(payload, userId, chatId, lang));
+  if (res.result === 'CONTACT_REQUIRED') {
+    return send(deps, chatId, LOGIN[lang].askContact(res.maskedPhone), { parse_mode: 'HTML', reply_markup: contactKeyboard(lang) });
+  }
+  return send(deps, chatId, LOGIN[lang].invalidLink);
+}
+
 function commandAction(body: string) {
   if (COMMAND('balance').test(body)) return 'balance' as const;
   if (COMMAND('topup').test(body)) return 'topup' as const;
@@ -120,12 +171,15 @@ function commandAction(body: string) {
 async function onContact(msg: TgMessage, deps: Deps) {
   const chatId = String(msg.chat.id);
   const contact = msg.contact!;
-  const lang = langOf(deps, msg.from!);
   // Telegram faqat "raqamni yuborish" tugmasida user_id = yuboruvchining o'zi bo'ladi.
   // Boshqa kontaktni ulashish yoki qo'lda yozilgan raqam — dalil emas.
-  if (contact.user_id !== msg.from!.id) return send(deps, chatId, text.notOwnContact, { reply_markup: contactKeyboard });
+  if (contact.user_id !== msg.from!.id) {
+    const lang = quickLang(deps, msg.from!);
+    return send(deps, chatId, LOGIN[lang].notOwnContact, { reply_markup: contactKeyboard(lang) });
+  }
+  const lang = await langOf(deps, msg.from!);
   const res = await guarded(deps, chatId, lang, () => deps.backend.contact(String(msg.from!.id), chatId, contact.phone_number));
-  return replyCode(deps, chatId, res);
+  return replyCode(deps, chatId, lang, res);
 }
 
 /**
@@ -151,20 +205,23 @@ async function onCallback(query: TgCallbackQuery, deps: Deps) {
   const chatId = String(chat.id);
   const userId = String(query.from.id);
   const data = query.data;
-  let lang = langOf(deps, query.from);
-
-  if (data === RESEND_DATA) {
-    const res = await guarded(deps, chatId, lang, () => deps.backend.resend(userId));
-    return replyCode(deps, chatId, res);
-  }
 
   if (data.startsWith(CB.lang)) {
     const chosen = parseLangData(data);
     if (!chosen) return;
     deps.sessions.setLang(userId, chosen);
-    lang = chosen;
-    const { linked } = await guarded(deps, chatId, lang, () => deps.backend.setLanguage(userId, chosen));
-    return send(deps, chatId, T[lang].languageSaved, linked ? { reply_markup: mainMenu(lang) } : undefined);
+    const { linked } = await guarded(deps, chatId, chosen, () => deps.backend.setLanguage(userId, chosen));
+    // Birinchi /start til so'rash uchun to'xtatilgan bo'lsa — shu tilda davom etadi
+    const pending = deps.sessions.takePendingStart(userId);
+    if (pending !== undefined) return continueStart(deps, userId, chatId, chosen, pending, linked);
+    return send(deps, chatId, T[chosen].languageSaved, linked ? { reply_markup: mainMenu(chosen) } : undefined);
+  }
+
+  const lang = await langOf(deps, query.from);
+
+  if (data === RESEND_DATA) {
+    const res = await guarded(deps, chatId, lang, () => deps.backend.resend(userId));
+    return replyCode(deps, chatId, lang, res);
   }
 
   if (data === CB.abort) {
@@ -284,20 +341,21 @@ export const resetLimitsCache = () => {
   limitsCache = null;
 };
 
-function replyCode(deps: Deps, chatId: string, res: CodeResult) {
+function replyCode(deps: Deps, chatId: string, lang: Lang, res: CodeResult) {
+  const t = LOGIN[lang];
   switch (res.result) {
     case 'CODE':
-      return send(deps, chatId, text.code(res.code, res.maskedPhone, res.expiresInSec), { parse_mode: 'HTML', reply_markup: resendKeyboard });
+      return send(deps, chatId, t.code(res.code, res.maskedPhone, res.expiresInSec), { parse_mode: 'HTML', reply_markup: resendKeyboard(lang) });
     case 'PHONE_MISMATCH':
-      return send(deps, chatId, text.phoneMismatch, { reply_markup: removeKeyboard });
+      return send(deps, chatId, t.phoneMismatch, { reply_markup: removeKeyboard });
     case 'COOLDOWN':
-      return send(deps, chatId, text.cooldown(res.retryAfterSec));
+      return send(deps, chatId, t.cooldown(res.retryAfterSec));
     case 'LIMIT':
-      return send(deps, chatId, text.limit, { reply_markup: removeKeyboard });
+      return send(deps, chatId, t.limit, { reply_markup: removeKeyboard });
     case 'CONTACT_REQUIRED':
-      return send(deps, chatId, text.contactRequired, { reply_markup: contactKeyboard });
+      return send(deps, chatId, t.contactRequired, { reply_markup: contactKeyboard(lang) });
     default:
-      return send(deps, chatId, text.noChallenge, { reply_markup: removeKeyboard });
+      return send(deps, chatId, t.noChallenge, { reply_markup: removeKeyboard });
   }
 }
 

@@ -40,7 +40,7 @@ export class TelegramInternalController {
   @Post('claim')
   @HttpCode(HttpStatus.OK)
   claim(@Body() dto: TelegramClaimDto) {
-    return this.auth.claim(dto.startToken, dto.telegramUserId, dto.chatId);
+    return this.auth.claim(dto.startToken, dto.telegramUserId, dto.chatId, dto.language);
   }
 
   @Post('contact')

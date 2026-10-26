@@ -47,6 +47,8 @@ export class TelegramChatDto extends TelegramUserDto {
 export class TelegramClaimDto extends TelegramChatDto {
   // /start payload: base64url, Telegram cheklovi 64 belgi
   @Matches(/^[A-Za-z0-9_-]{20,64}$/) startToken: string;
+  // Botda tanlangan til — hisob ulanganda saqlanadi
+  @IsOptional() @IsIn(['uz', 'ru', 'en']) language?: 'uz' | 'ru' | 'en';
 }
 
 export class TelegramContactDto extends TelegramChatDto {

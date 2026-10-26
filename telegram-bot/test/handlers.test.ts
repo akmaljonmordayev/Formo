@@ -2,16 +2,17 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { handleUpdate } from '../src/handlers';
 import { RESEND_DATA } from '../src/messages';
-import { callbackUpdate, contactUpdate, fakeDeps, textUpdate, USER_ID } from './helpers';
+import { callbackUpdate, chooseLang, contactUpdate, fakeDeps, textUpdate, USER_ID } from './helpers';
 
 const START_TOKEN = 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcde';
 
 describe('handleUpdate', () => {
   it('/start <token>: so‘rovni egallaydi va kontakt tugmasini ko‘rsatadi', async () => {
     const { deps, backend, sent } = fakeDeps();
+    chooseLang(deps, 'uz');
     await handleUpdate(textUpdate(`/start ${START_TOKEN}`), deps);
 
-    assert.deepEqual(backend.calls[0], { name: 'claim', args: [START_TOKEN, String(USER_ID), String(USER_ID)] });
+    assert.deepEqual(backend.calls[0], { name: 'claim', args: [START_TOKEN, String(USER_ID), String(USER_ID), 'uz'] });
     assert.match(sent[0].text, /\+998 90 \*\*\* \*\* 67/);
     const markup = sent[0].options?.reply_markup as { keyboard: { request_contact?: boolean }[][] };
     assert.equal(markup.keyboard[0][0].request_contact, true);
@@ -19,6 +20,7 @@ describe('handleUpdate', () => {
 
   it('/start: yaroqsiz yoki eskirgan token', async () => {
     const { deps, backend, sent } = fakeDeps();
+    chooseLang(deps, 'uz');
     backend.claimResult = { result: 'INVALID' };
     await handleUpdate(textUpdate(`/start ${START_TOKEN}`), deps);
     assert.match(sent[0].text, /eskirgan/);
@@ -32,13 +34,16 @@ describe('handleUpdate', () => {
   it('/start payloadsiz: ulangan bo‘lsa xabarlarni qayta yoqadi', async () => {
     const { deps, backend, sent } = fakeDeps();
     backend.linked = true;
+    backend.language = 'uz'; // akkauntda saqlangan til — qayta so'ralmaydi
     await handleUpdate(textUpdate('/start'), deps);
     assert.equal(backend.calls[0].name, 'hello');
+    assert.equal(backend.calls.length, 1);
     assert.match(sent[0].text, /ulangan/);
   });
 
   it('o‘z kontakti: kod HTML <code> ichida va "Yangi kod" tugmasi bilan', async () => {
     const { deps, backend, sent } = fakeDeps();
+    chooseLang(deps, 'uz');
     await handleUpdate(contactUpdate('998901234567', USER_ID), deps);
 
     assert.deepEqual(backend.calls[0], { name: 'contact', args: [String(USER_ID), String(USER_ID), '998901234567'] });
@@ -74,6 +79,7 @@ describe('handleUpdate', () => {
 
   it('"Yangi kod" tugmasi: callback javoblanadi va resend chaqiriladi', async () => {
     const { deps, backend, sent, answered } = fakeDeps();
+    chooseLang(deps, 'uz');
     await handleUpdate(callbackUpdate(RESEND_DATA), deps);
     assert.equal(answered.length, 1);
     assert.deepEqual(backend.calls[0], { name: 'resend', args: [String(USER_ID)] });
@@ -89,6 +95,7 @@ describe('handleUpdate', () => {
 
   it('takroriy update (bir xil update_id) ikkinchi marta qayta ishlanmaydi', async () => {
     const { deps, backend } = fakeDeps();
+    chooseLang(deps, 'uz');
     const update = contactUpdate('+998901234567', USER_ID);
     await handleUpdate(update, deps);
     await handleUpdate(update, deps);
@@ -106,6 +113,7 @@ describe('handleUpdate', () => {
   it('/stop: xabarlarni o‘chiradi', async () => {
     const { deps, backend, sent } = fakeDeps();
     backend.linked = true;
+    chooseLang(deps, 'uz');
     await handleUpdate(textUpdate('/stop'), deps);
     assert.equal(backend.calls[0].name, 'stop');
     assert.match(sent[0].text, /o‘chirildi/);

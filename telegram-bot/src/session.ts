@@ -5,6 +5,10 @@ const MAX_USERS = 10_000;
 
 interface Entry {
   lang?: Lang;
+  /** Til so'ralganda to'xtatilgan /start payload'i ('' — payloadsiz) — til tanlangach davom etadi */
+  pendingStart?: string;
+  /** Backend'dan saqlangan til allaqachon so'ralgan (qayta ishga tushgandan keyin bir marta) */
+  langLookedUp?: boolean;
   /** "Boshqa summa" bosilgan — keyingi matn summa sifatida o'qiladi (shu vaqtgacha) */
   awaitingAmountUntil?: number;
   touched: number;
@@ -36,6 +40,25 @@ export class UserSessions {
 
   setLang(userId: string, lang: Lang) {
     this.entry(userId).lang = lang;
+  }
+
+  /** true — shu chaqiruvda birinchi marta (keyingilari false) */
+  markLangLookup(userId: string) {
+    const e = this.entry(userId);
+    if (e.langLookedUp) return false;
+    e.langLookedUp = true;
+    return true;
+  }
+
+  setPendingStart(userId: string, payload: string) {
+    this.entry(userId).pendingStart = payload;
+  }
+
+  takePendingStart(userId: string): string | undefined {
+    const e = this.map.get(userId);
+    const payload = e?.pendingStart;
+    if (e) e.pendingStart = undefined;
+    return payload;
   }
 
   awaitAmount(userId: string) {

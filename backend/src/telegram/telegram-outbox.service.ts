@@ -1,8 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { OrderStatus, Prisma, TelegramMessageStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { STATUS_LABEL } from '../shop/order-status';
-import { asBotLang, BotLang } from './bot-texts';
+import { asBotLang, BotLang, orderStatusText } from './bot-texts';
 import { OutboxResult } from './dto/telegram.dto';
 
 /** Bot xabarni olib ketgandan keyin shu vaqt ichida natija qaytarmasa, xabar qayta beriladi */
@@ -32,15 +31,15 @@ export class TelegramOutboxService {
     if (status === OrderStatus.PENDING_PAYMENT) return;
     const order = await db.order.findUnique({
       where: { id: orderId },
-      select: { code: true, customerId: true, customer: { select: { telegram: { select: { chatId: true } } } } },
+      select: { code: true, customerId: true, customer: { select: { telegram: { select: { chatId: true, language: true } } } } },
     });
-    const chatId = order?.customer?.telegram?.chatId;
-    if (!order || !chatId) return;
+    const telegram = order?.customer?.telegram;
+    if (!order || !telegram?.chatId) return;
     await db.telegramOutbox.create({
       data: {
         userId: order.customerId,
-        chatId,
-        text: `📦 ${order.code} buyurtmangiz holati: ${STATUS_LABEL[status]}`,
+        chatId: telegram.chatId,
+        text: orderStatusText(asBotLang(telegram.language), order.code, status),
         dedupeKey: `order-status:${logId}`,
       },
     });

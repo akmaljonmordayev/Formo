@@ -1,5 +1,5 @@
 /**
- * Menyu va balans matnlari (uz / ru / en). Kirish oqimi matnlari — messages.ts (o'zbekcha).
+ * Menyu va balans matnlari (uz / ru / en). Kirish oqimi matnlari — messages.ts.
  * HTML rejimida faqat raqam, kod va esc() qilingan qiymatlar qo'yiladi.
  */
 
@@ -14,6 +14,9 @@ export function langFromCode(code?: string | null): Lang {
   if (c.startsWith('en')) return 'en';
   return 'uz';
 }
+
+/** Birinchi /start: til hali noma'lum — savol uch tilda */
+export const FIRST_LANGUAGE_PROMPT = 'Tilni tanlang 🇺🇿\nВыберите язык 🇷🇺\nChoose a language 🇬🇧';
 
 export const isLang = (v: unknown): v is Lang => v === 'uz' || v === 'ru' || v === 'en';
 

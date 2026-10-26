@@ -20,6 +20,8 @@ export interface OutboxMessage {
 export type OutboxResult = 'SENT' | 'RETRY' | 'BLOCKED' | 'FAILED';
 
 type NotLinked = { linked: false };
+/** language — ulangan akkauntda saqlangan bot tili (null — hali tanlanmagan) */
+export type HelloResult = { linked: boolean; language?: string | null };
 export type TopUpStatus = 'PENDING' | 'REVIEW' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
 
 export interface TopUpView {
@@ -57,10 +59,10 @@ export type ReceiptResult =
 export type CancelTopUpResult = { result: 'OK'; topUp: TopUpView } | { result: 'NOT_LINKED' } | { result: 'NOT_CANCELLABLE' };
 
 export interface Backend {
-  claim(startToken: string, telegramUserId: string, chatId: string): Promise<ClaimResult>;
+  claim(startToken: string, telegramUserId: string, chatId: string, language: string): Promise<ClaimResult>;
   contact(telegramUserId: string, chatId: string, phone: string): Promise<CodeResult>;
   resend(telegramUserId: string): Promise<CodeResult>;
-  hello(telegramUserId: string, chatId: string): Promise<{ linked: boolean }>;
+  hello(telegramUserId: string, chatId: string): Promise<HelloResult>;
   stop(telegramUserId: string): Promise<{ linked: boolean }>;
   leaseOutbox(limit: number): Promise<OutboxMessage[]>;
   reportOutbox(id: number, result: OutboxResult, error?: string): Promise<void>;
@@ -129,8 +131,8 @@ export class BackendClient implements Backend {
     }
   }
 
-  claim(startToken: string, telegramUserId: string, chatId: string) {
-    return this.request<ClaimResult>('POST', '/internal/telegram/claim', { startToken, telegramUserId, chatId }, true);
+  claim(startToken: string, telegramUserId: string, chatId: string, language: string) {
+    return this.request<ClaimResult>('POST', '/internal/telegram/claim', { startToken, telegramUserId, chatId, language }, true);
   }
 
   contact(telegramUserId: string, chatId: string, phone: string) {
@@ -142,7 +144,7 @@ export class BackendClient implements Backend {
   }
 
   hello(telegramUserId: string, chatId: string) {
-    return this.request<{ linked: boolean }>('POST', '/internal/telegram/hello', { telegramUserId, chatId }, true);
+    return this.request<HelloResult>('POST', '/internal/telegram/hello', { telegramUserId, chatId }, true);
   }
 
   stop(telegramUserId: string) {
