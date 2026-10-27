@@ -32,12 +32,24 @@ test('KIT_PRESETS: hammasi yaroqli dizayn', () => {
 });
 
 test('normalizePrint: ism katta harf, 12 belgigacha; raqam 0–99', () => {
-  assert.deepEqual(normalizePrint({ backName: '  rahimov ', number: '10' }), { backName: 'RAHIMOV', number: '10' });
-  assert.deepEqual(normalizePrint({ backName: 'алиев', number: 7 }), { backName: 'АЛИЕВ', number: '7' });
+  assert.deepEqual(normalizePrint({ backName: '  rahimov ', number: '10' }), { backName: 'RAHIMOV', number: '10', glow: false, patch: null });
+  assert.equal(normalizePrint({ backName: 'алиев', number: 7 }).backName, 'АЛИЕВ');
   assert.equal(normalizePrint({ backName: 'abcdefghijklmnop' }).backName, 'ABCDEFGHIJKL');
   assert.equal(normalizePrint({ number: '07' }).number, '7');
   assert.equal(normalizePrint({ number: '0' }).number, '0');
   assert.equal(normalizePrint({ number: 'x9y9z' }).number, '99');
   assert.equal(normalizePrint({ number: '' }).number, '');
-  assert.deepEqual(normalizePrint(), { backName: '', number: '' });
+  assert.deepEqual(normalizePrint(), { backName: '', number: '', glow: false, patch: null });
+});
+
+test("normalizeDesign: v1 shakli — designVersion va backTopText doim bor", () => {
+  const d = normalizeDesign({ backTopText: 'Turon FC'.repeat(5), designVersion: 99 });
+  assert.equal(d.designVersion, 1);
+  assert.equal(d.backTopText.length, 20);
+  assert.deepEqual(Object.keys(normalizeDesign({})).sort(), Object.keys(DEFAULT_KIT_DESIGN).sort());
+});
+
+test('normalizePrint: neon va yamoq faqat aniq berilganda', () => {
+  assert.deepEqual(normalizePrint({ glow: 'yes', patch: '  ' }), { backName: '', number: '', glow: false, patch: null });
+  assert.equal(normalizePrint({ glow: true, patch: 'UZB!' }).patch, 'UZB');
 });

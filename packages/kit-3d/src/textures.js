@@ -330,7 +330,19 @@ function drawSide(ctx, s, back, M) {
     ctx.fillStyle = '#16141f';
     ctx.font = `700 ${U(0.026)}px ${KIT_FONT_FAMILY}`;
     ctx.fillText('2026/27', X(-0.41), Y(-0.89));
+    if (s.patch) drawPatch(ctx, s.patch, M);
   } else {
+    if (s.backTop) {
+      ctx.font = `700 ${U(0.05)}px ${KIT_FONT_FAMILY}`;
+      ctx.globalAlpha = 0.85;
+      ctx.fillText(s.backTop.toUpperCase(), X(0), Y(0.97));
+      ctx.globalAlpha = 1;
+    }
+    if (s.glow) {
+      // Neon: yozuv o'z rangida "porlaydi" (DTF/reflektiv bosma)
+      ctx.shadowColor = tc;
+      ctx.shadowBlur = U(0.05);
+    }
     ctx.font = `800 ${U(0.12)}px ${KIT_FONT_FAMILY}`;
     ctx.fillText(s.player, X(0), Y(0.66));
     ctx.font = `900 ${U(0.6)}px ${KIT_FONT_FAMILY}`;
@@ -338,13 +350,34 @@ function drawSide(ctx, s, back, M) {
     ctx.strokeStyle = shade(s.c2, -0.25);
     ctx.strokeText(s.number, X(0), Y(-0.3));
     ctx.fillText(s.number, X(0), Y(-0.3));
+    ctx.shadowBlur = 0;
+    ctx.shadowColor = 'transparent';
   }
+}
+
+/** Mobil studiyadagi yamoq (kapitan "C", bayroq "UZ", yulduz) — chap yengda, liga yamog'iga qarama-qarshi */
+function drawPatch(ctx, sym, { X, Y, U }) {
+  ctx.save();
+  ctx.beginPath();
+  ctx.arc(X(0.79), Y(0.79), U(0.06), 0, 7);
+  ctx.fillStyle = '#f2a33a';
+  ctx.fill();
+  ctx.lineWidth = U(0.008);
+  ctx.strokeStyle = 'rgba(0,0,0,0.35)';
+  ctx.stroke();
+  ctx.fillStyle = '#1b1a24';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.font = `900 ${U(sym.length > 1 ? 0.04 : 0.06)}px ${KIT_FONT_FAMILY}`;
+  ctx.fillText(sym, X(0.79), Y(0.785));
+  ctx.restore();
 }
 
 /**
  * Old va orqa teksturalarini chizadi.
  * @param {import('./design.js').KitDesign} design
- * @param {{ backName?: string, number?: string|number }} [print] orqadagi ism/raqam (bo'sh — dizaynning o'zi)
+ * @param {{ backName?: string, number?: string|number, glow?: boolean, patch?: string|null }} [print]
+ *   orqadagi ism/raqam (bo'sh — dizaynning o'zi) va mobil studiya qo'shimchalari (normalizePrint)
  * @param {{ size?: number, createCanvas?: (w: number, h: number) => HTMLCanvasElement,
  *   images?: { crest?: CanvasImageSource|null, sponsor?: CanvasImageSource|null } }} [opts]
  * @returns {{ front: HTMLCanvasElement, back: HTMLCanvasElement }}
@@ -361,11 +394,14 @@ export function drawKitTextures(design, print, opts = {}) {
     c3: d.textColor,
     pattern: d.pattern,
     sponsor: d.sponsorText || '',
+    backTop: d.backTopText || '',
     initials: crestInitials(d.name),
     crest: opts.images?.crest || null,
     sponsorImage: opts.images?.sponsor || null,
     player: p.backName,
     number: p.number,
+    glow: p.glow,
+    patch: p.patch,
   };
   const draw = (back) => {
     const cv = create(size, size);

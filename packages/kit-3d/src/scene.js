@@ -13,9 +13,10 @@ import { loadKitFonts } from './fonts.js';
  * (eski "legacy lights" yorug'ligini saqlash uchun).
  */
 
-export const STUDIO_BACKGROUND = 'radial-gradient(70% 70% at 50% 42%, #2c2d31 0%, #1a1b1e 55%, #111113 100%)';
+export { STUDIO_BACKGROUND } from './scene-background.js';
 
 const PI = Math.PI;
+const PRINT_KEYS = ['backName', 'number', 'glow', 'patch'];
 
 function studioEnvironment(renderer, scene) {
   const cv = document.createElement('canvas');
@@ -103,7 +104,8 @@ function imageCache(onLoad) {
 
 /**
  * @param {HTMLElement} container o'lchami bor element (canvas uning ichiga joylanadi)
- * @param {{ design?: object, backName?: string, number?: string|number, view?: 'front'|'back',
+ * @param {{ design?: object, backName?: string, number?: string|number, glow?: boolean, patch?: string|null,
+ *   view?: 'front'|'back',
  *   autoRotate?: boolean, textureSize?: number, debounceMs?: number, maxPixelRatio?: number,
  *   shadows?: boolean, onViewChange?: (view: 'front'|'back') => void }} [opts]
  */
@@ -274,7 +276,7 @@ export function createKitScene(container, opts = {}) {
     /** Dizayn va/yoki orqadagi ism-raqamni yangilaydi (tekstura debounce bilan qayta chiziladi) */
     update(next = {}) {
       const nd = 'design' in next ? normalizeDesign(next.design) : design;
-      const np = 'backName' in next || 'number' in next ? normalizePrint({ ...print, ...next }) : print;
+      const np = PRINT_KEYS.some((k) => k in next) ? normalizePrint({ ...print, ...next }) : print;
       const key = JSON.stringify([nd, np]);
       if (key === lastKey) return;
       lastKey = key;

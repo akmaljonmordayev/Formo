@@ -91,3 +91,16 @@ test('crestInitials', () => {
   assert.equal(crestInitials('zumrad'), 'ZU');
   assert.equal(crestInitials('  '), 'FC');
 });
+
+test("drawKitTextures: orqa tepadagi yozuv, neon soya va yengdagi yamoq", () => {
+  const { create } = fakeCanvasFactory();
+  const { front, back } = drawKitTextures(
+    { ...design, backTopText: 'Turon fc' },
+    { backName: 'Ali', number: 9, glow: true, patch: 'C' },
+    { size: 256, createCanvas: create },
+  );
+  assert.ok(textsOf(back).includes('TURON FC'));
+  assert.ok(textsOf(front).includes('C'));
+  const nameCall = back.calls.find((c) => c.fn === 'fillText' && c.args[0] === 'ALI');
+  assert.ok(nameCall);
+});

@@ -14,7 +14,8 @@
     "src"
   ],
   "scripts": {
-    "test": "node --test \"tests/*.test.js\""
+    "test": "node --test \"tests/*.test.js\" && node scripts/build-viewer.mjs --check",
+    "build:viewer": "node scripts/build-viewer.mjs"
   },
   "dependencies": {
     "@fontsource/big-shoulders-display": "^5.1.0",
@@ -27,5 +28,8 @@
     "react": {
       "optional": true
     }
+  },
+  "devDependencies": {
+    "esbuild": "0.25.10"
   }
 }
