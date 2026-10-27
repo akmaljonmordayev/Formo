@@ -29,7 +29,12 @@ function apply(props = {}) {
       // Ilova o'zi ~80 ms debounce qiladi — sahifada qo'shimcha kechikish kerak emas
       textureSize: props.textureSize || 1024,
       debounceMs: 0,
-      onViewChange: (face) => send('face', { view: face }),
+      // Barmoq bilan aylantirilganda ilova "view"ni shu tomonga o'zgartiradi — qaytib kelgan update
+      // kamerani qayta burmasligi uchun joriy tomon shu yerda yangilanadi
+      onViewChange: (face) => {
+        view = face;
+        send('face', { view: face });
+      },
     });
     return;
   }
