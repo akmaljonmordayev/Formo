@@ -1,3 +1,6 @@
+import { tmpdir } from 'os';
+import { join } from 'path';
+
 // Har bir test fayli uchun muhit: alohida test bazasi, yuqori rate-limit
 process.env.DATABASE_URL =
   process.env.TEST_DATABASE_URL ?? 'postgresql://formo:formo@localhost:5435/formo_test?schema=public';
@@ -24,3 +27,6 @@ process.env.PAYME_MERCHANT_ID = 'payme-test-merchant';
 process.env.PAYME_KEY = 'payme-test-key';
 process.env.PAYME_TEST = 'true';
 process.env.PAYMENT_RETURN_URL = '';
+// Fayl xotirasi: hech qachon real S3 emas, lokal vaqtinchalik papka
+process.env.S3_BUCKET = '';
+process.env.UPLOAD_DIR = join(tmpdir(), 'formo-e2e-uploads');

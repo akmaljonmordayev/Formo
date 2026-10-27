@@ -1,23 +1,39 @@
-import React, { useEffect, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Switch,
+  Text,
+  TextInput,
+  View,
+  useWindowDimensions,
+} from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing, TAB_BAR_HEIGHT } from '../constants/theme';
 import { Button, Card, Header, Overline, Screen, Segment, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
 import Jersey3D from '../components/ui/Jersey3D';
-import { patchKind } from '../components/ui/Shirt';
+import KitDesignPicker from '../components/ui/KitDesignPicker';
+import KitViewer from '../components/ui/KitViewer';
+import { Shorts, patchKind } from '../components/ui/Shirt';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { visibleSizes } from '../features/config';
+import { clubKitDesign, studioKitDesign, useKitDesigns } from '../features/kit3d';
 import { GIFT_PACKAGE, NEON, PATCHES, SOLID_COLORS, TEXT_COLORS, designPreview, estimatePrice } from '../features/studio';
 import { errorText } from '../utils/errors';
 
-// Studiyaning ikki rejimi:
-//  - "Maxsus dizayn" (pastki tabdan) — POST /cart/items { design }: bir rang (gradient va
-//    o'z HEX rangi hozircha o'chirilgan), yozuv rangi, neon effekt, shrift, yamoq, qadoq,
-//    ism/raqam va ixtiyoriy shortik (o'z raqami bilan). Tanlovlar GET /app/config → `studio`dan;
-//    faqat yoqilganlari ko'rsatiladi. Logo yuklash yo'q (serverda fayl saqlash hali yo'q).
+// Studiyaning ikki rejimi (ikkalasida forma — admin paneldagi bilan bir xil 3D, WebView'da):
+//  - "Maxsus dizayn" (pastki tabdan):
+//      · Superadmin nashr qilgan 3D dizayn (GET /kits/designs) — POST /cart/items { kitDesignId }:
+//        ism/raqam, o'lcham, shortik; narx serverda (club.* narxlari).
+//      · "O'z rangim" — POST /cart/items { design }: bir rang, yozuv rangi, neon, shrift, yamoq,
+//        qadoq. Tanlovlar GET /app/config → `studio`dan; faqat yoqilganlari ko'rsatiladi.
 //  - "Klub formasi" (klub sahifasidan) — POST /cart/items { kitId }: o'lcham,
 //    ism/raqam bosmasi, shortik.
+// Ism yoki raqam maydoniga bosilganda forma orqasiga buriladi; yozilgani orqada darhol ko'rinadi.
 const pickSize = (sizes, preferred) => {
   const open = sizes.filter((s) => s.available).map((s) => s.size);
   return open.includes(preferred) ? preferred : open[0] || null;
@@ -98,7 +114,7 @@ function Tabs({ tabs, value, onChange }) {
   );
 }
 
-function PrintInputs({ t, rules, name, setName, number, setNumber, nameStyle }) {
+function PrintInputs({ t, rules, name, setName, number, setNumber, nameStyle, onFocus }) {
   const numberValue = number === '' ? null : Number(number);
   const numberInvalid = numberValue != null && (numberValue < rules.printNumberMin || numberValue > rules.printNumberMax);
   return (
@@ -107,6 +123,7 @@ function PrintInputs({ t, rules, name, setName, number, setNumber, nameStyle }) 
         <TextInput
           value={name}
           onChangeText={setName}
+          onFocus={onFocus}
           placeholder={t('namePlaceholder')}
           placeholderTextColor={colors.muted}
           style={[styles.textInput, { flex: 1 }, nameStyle]}
@@ -116,6 +133,7 @@ function PrintInputs({ t, rules, name, setName, number, setNumber, nameStyle }) 
         <TextInput
           value={number}
           onChangeText={(value) => setNumber(value.replace(/\D/g, ''))}
+          onFocus={onFocus}
           placeholder="10"
           placeholderTextColor={colors.muted}
           style={[styles.textInput, styles.number]}
@@ -245,14 +263,47 @@ function SideSwitch({ t, side, setSide }) {
   );
 }
 
-function Preview({ t, side, setSide, children }) {
+/**
+ * 3D forma (WebView, admin bilan bir xil) + "Old/Orqa" + shortik (2D, forma ostida).
+ * fallback — WebView moduli yo'q eski dev-build'da yoki WebView ishdan chiqsa oldingi expo-gl ko'rinish.
+ */
+function Preview({ t, side, setSide, design, name, number, glow, patch, shorts, fallback }) {
+  const { height: screenH } = useWindowDimensions();
+  const height = Math.max(320, Math.min(520, Math.round(screenH * 0.55)));
   return (
-    <View style={styles.preview}>
-      {children}
-      <View style={styles.previewSide}>
-        <SideSwitch t={t} side={side} setSide={setSide} />
+    <View style={styles.previewWrap}>
+      <View style={styles.preview}>
+        <KitViewer
+          t={t}
+          height={height}
+          design={design}
+          backName={name}
+          number={number}
+          glow={glow}
+          patch={patch}
+          view={side}
+          onViewChange={setSide}
+          fallback={fallback}
+        />
+        <View style={styles.previewSide}>
+          <SideSwitch t={t} side={side} setSide={setSide} />
+        </View>
       </View>
+      {shorts ? (
+        <View style={styles.shorts} pointerEvents="none">
+          <Shorts width={120} color={design.primaryColor} trim={design.secondaryColor} ink={design.textColor} number={shorts.number} glow={glow} />
+        </View>
+      ) : null}
     </View>
+  );
+}
+
+/** iOS'da klaviatura pastki tugmani yopmasin (Android — app.json: softwareKeyboardLayoutMode=resize) */
+function KeyboardSafe({ children }) {
+  return (
+    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+      {children}
+    </KeyboardAvoidingView>
   );
 }
 
@@ -296,6 +347,26 @@ function DesignStudio({ t, cart, rules, studio, studioError, onRetryConfig, onBa
   const shorts = useShorts(false);
   const { adding, feedback, setFeedback, add } = useAddToCart(t, cart);
 
+  // Superadmin 3D dizaynlari: birinchi yuklanishda birinchisi tanlanadi; null — "O'z rangim"
+  const kits = useKitDesigns();
+  const [kitDesignId, setKitDesignId] = useState(null);
+  const autoPicked = useRef(false);
+  useEffect(() => {
+    if (!autoPicked.current && kits.designs.length) {
+      autoPicked.current = true;
+      setKitDesignId(kits.designs[0].id);
+      setTab('print');
+    }
+    // Admin nashrdan olgan dizayn tanlangan bo'lib qolmasin
+    setKitDesignId((current) => (current == null || kits.designs.some((d) => d.id === current) ? current : null));
+  }, [kits.designs]);
+  const kit = kits.designs.find((d) => d.id === kitDesignId) || null;
+  const selectDesign = (id) => {
+    autoPicked.current = true;
+    setKitDesignId(id);
+    setTab(id == null ? 'color' : 'print');
+  };
+
   const sizes = visibleSizes(DESIGN_SIZES, rules);
   // Gradient va o'z rangi hozircha o'chirilgan — faqat tayyor ranglar
   const solidColors = studio ? SOLID_COLORS.filter((c) => studio.colors.solid.includes(c.id)) : [];
@@ -318,12 +389,27 @@ function DesignStudio({ t, cart, rules, studio, studioError, onRetryConfig, onBa
   }, [rules.allowKidsSizes]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const header = <Header cart onBack={onBack} title={t('designStudio')} />;
+  // Rang turi, shrift yoki qadoq umuman yoqilmagan bo'lsa server "O'z rangim" dizaynini qabul qilmaydi
+  const customReady = Boolean(studio && solidColors.length && studio.fonts.length && studio.packages.length);
+  const picker = (
+    <KitDesignPicker
+      t={t}
+      designs={kits.designs}
+      loading={kits.loading}
+      error={kits.error}
+      onRetry={kits.reload}
+      selectedId={kit ? kit.id : null}
+      onSelect={selectDesign}
+      showCustom={customReady || !studio}
+    />
+  );
 
-  if (!studio) {
+  if (!kit && !studio) {
     return (
       <Screen>
         {header}
         {modeSwitch}
+        {picker}
         {studioError ? (
           <ErrorView message={t('studioLoadError')} onRetry={onRetryConfig} retryLabel={t('retry')} />
         ) : (
@@ -333,12 +419,12 @@ function DesignStudio({ t, cart, rules, studio, studioError, onRetryConfig, onBa
     );
   }
 
-  // Rang turi, shrift yoki qadoq umuman yoqilmagan bo'lsa server dizaynni qabul qilmaydi
-  if (!solidColors.length || !studio.fonts.length || !studio.packages.length) {
+  if (!kit && !customReady) {
     return (
       <Screen>
         {header}
         {modeSwitch}
+        {picker}
         <Card style={styles.unavailable}>
           <MaterialCommunityIcons name="palette-outline" size={36} color={colors.accent} />
           <Text style={styles.unavailableText}>{t('studioUnavailable')}</Text>
@@ -356,19 +442,26 @@ function DesignStudio({ t, cart, rules, studio, studioError, onRetryConfig, onBa
     ...(neon && neonAvailable && { textEffect: NEON }),
   };
   const preview = designPreview(design);
-  const unit = estimatePrice(design, studio.prices, shorts.withShorts);
-  const maxQty = Math.max(1, Math.min(rules.maxQtyPerItem, 20));
   const printName = name.trim();
+  // Narx taxminiy ko'rsatiladi — yakuniysini server hisoblaydi (3D dizayn: club.*, o'z rangim: studio.*)
+  const unit = kit
+    ? kit.prices.shirt + (printName || number ? kit.prices.print : 0) + (shorts.withShorts ? kit.prices.shorts : 0)
+    : estimatePrice(design, studio.prices, shorts.withShorts);
+  const maxQty = Math.max(1, Math.min(rules.maxQtyPerItem, 20));
   const paused = !rules.acceptOrders;
 
-  const showExtras = studio.patches.length > 0 || studio.packages.length > 1;
+  const showExtras = !kit && (studio.patches.length > 0 || studio.packages.length > 1);
   const tabs = [
-    ['color', t('tabColor')],
+    ...(kit ? [] : [['color', t('tabColor')]]),
     ['print', t('tabPrint')],
     ['shorts', t('tabShorts')],
     ...(showExtras ? [['extras', t('tabExtras')]] : []),
     ['size', t('tabSize')],
   ];
+  const activeTab = tabs.some(([key]) => key === tab) ? tab : tabs[0][0];
+  // 3D ko'rinishdagi forma: tanlangan admin dizayni yoki "o'z rangim" (rang + neon + yamoq)
+  const viewDesign = kit ? kit.design : studioKitDesign(preview);
+  const turnToBack = () => setSide('back');
 
   const addToCart = () => {
     if (!shirtSize) return;
@@ -377,7 +470,7 @@ function DesignStudio({ t, cart, rules, studio, studioError, onRetryConfig, onBa
       return;
     }
     add({
-      design,
+      ...(kit ? { kitDesignId: kit.id } : { design }),
       shirtSize,
       printName: printName || null,
       printNumber: number || null,
@@ -409,8 +502,16 @@ function DesignStudio({ t, cart, rules, studio, studioError, onRetryConfig, onBa
         setName={setName}
         number={number}
         setNumber={setNumber}
-        nameStyle={preview.fontStyle}
+        nameStyle={kit ? undefined : preview.fontStyle}
+        onFocus={turnToBack}
       />
+      {kit ? <Text style={styles.hint}>{t('printHint')} · +{formatMoney(kit.prices.print)}</Text> : renderPrintStyle()}
+    </View>
+  );
+
+  // "O'z rangim" uchun: yozuv rangi, neon va shrift (3D dizaynda bular admin dizaynida belgilangan)
+  const renderPrintStyle = () => (
+    <View>
       <Overline style={styles.overlineGap}>{t('textColor')}</Overline>
       <View style={styles.swatches}>
         <Swatch label={t('textColorAuto')} selected={!textColor} onPress={() => setTextColor(null)}>
@@ -524,53 +625,72 @@ function DesignStudio({ t, cart, rules, studio, studioError, onRetryConfig, onBa
   );
 
   const renderShorts = () => (
-    <ShortsPanel t={t} rules={rules} sizes={sizes} price={studio.prices.shorts ?? 0} s={{ ...shorts, fallbackNumber: number }} />
+    <ShortsPanel
+      t={t}
+      rules={rules}
+      sizes={sizes}
+      price={kit ? kit.prices.shorts : (studio.prices.shorts ?? 0)}
+      s={{ ...shorts, fallbackNumber: number }}
+    />
   );
 
   const panels = { color: renderColor, print: renderPrint, shorts: renderShorts, extras: renderExtras, size: renderSize };
 
   return (
-    <Screen
-      contentStyle={{ paddingBottom: 170 }}
-      footerStyle={{ bottom: TAB_BAR_HEIGHT }}
-      footer={
-        <StudioFooter
-          t={t}
-          label={t('estimatedTotal')}
-          price={unit * quantity}
-          paused={paused}
-          rules={rules}
-          feedback={feedback}
-          adding={adding}
-          disabled={!shirtSize}
-          onAdd={addToCart}
-        />
-      }
-    >
-      {header}
-      {modeSwitch}
+    <KeyboardSafe>
+      <Screen
+        contentStyle={{ paddingBottom: 170 }}
+        footerStyle={{ bottom: TAB_BAR_HEIGHT }}
+        footer={
+          <StudioFooter
+            t={t}
+            label={t('estimatedTotal')}
+            price={unit * quantity}
+            paused={paused}
+            rules={rules}
+            feedback={feedback}
+            adding={adding}
+            disabled={!shirtSize}
+            onAdd={addToCart}
+          />
+        }
+      >
+        {header}
+        {modeSwitch}
+        {picker}
 
-      <Preview t={t} side={side} setSide={setSide}>
-        <Jersey3D
-          kit={{
-            color: preview.color,
-            ink: preview.accent,
-            textStyle: preview.fontStyle,
-            glow: preview.glow,
-            patches: patchKind(preview.patch) ? [patchKind(preview.patch)] : [],
-          }}
+        <Preview
+          t={t}
+          side={side}
+          setSide={setSide}
+          design={viewDesign}
           name={printName}
           number={number}
+          glow={!kit && preview.glow}
+          patch={kit ? null : preview.patch}
           shorts={shortsPreview(shorts, number)}
-          side={side}
-          onSideChange={setSide}
-          width={190}
+          fallback={
+            <Jersey3D
+              kit={{
+                color: viewDesign.primaryColor,
+                ink: viewDesign.textColor,
+                textStyle: kit ? undefined : preview.fontStyle,
+                glow: !kit && preview.glow,
+                patches: !kit && patchKind(preview.patch) ? [patchKind(preview.patch)] : [],
+              }}
+              name={printName}
+              number={number}
+              side={side}
+              onSideChange={setSide}
+              width={190}
+            />
+          }
         />
-      </Preview>
 
-      <Tabs tabs={tabs} value={panels[tab] ? tab : 'color'} onChange={setTab} />
-      <View style={styles.panel}>{(panels[tab] || renderColor)()}</View>
-    </Screen>
+        <Tabs tabs={tabs} value={activeTab} onChange={setTab} />
+        <View style={styles.panel}>{panels[activeTab]()}</View>
+      </Screen>
+    </KeyboardSafe>
   );
 }
 
@@ -620,6 +740,8 @@ function KitStudio({ t, product, cart, rules, onBack, onPickKit, modeSwitch }) {
   const printName = name.trim();
   const hasPrint = Boolean(printName || number);
   const prices = product.priceBreakdown;
+  // 3D ko'rinish uchun: forma rangi, yozuv rangi, nishonda klub kodi (haqiqiy klub logotipi emas)
+  const design = useMemo(() => clubKitDesign(product), [product]);
   const price = prices.shirt + (withShorts ? prices.shorts : 0) + (hasPrint ? prices.print : 0);
   const paused = !rules.acceptOrders;
 
@@ -657,7 +779,15 @@ function KitStudio({ t, product, cart, rules, onBack, onPickKit, modeSwitch }) {
       return (
         <View>
           <Overline>{t('nameNumber')}</Overline>
-          <PrintInputs t={t} rules={rules} name={name} setName={setName} number={number} setNumber={setNumber} />
+          <PrintInputs
+            t={t}
+            rules={rules}
+            name={name}
+            setName={setName}
+            number={number}
+            setNumber={setNumber}
+            onFocus={() => setSide('back')}
+          />
           <Text style={styles.hint}>{t('printHint')} · +{formatMoney(prices.print)}</Text>
         </View>
       );
@@ -666,68 +796,78 @@ function KitStudio({ t, product, cart, rules, onBack, onPickKit, modeSwitch }) {
   };
 
   return (
-    <Screen
-      contentStyle={{ paddingBottom: 170 }}
-      footerStyle={{ bottom: TAB_BAR_HEIGHT }}
-      footer={
-        <StudioFooter
-          t={t}
-          label={t('total')}
-          price={price}
-          paused={paused}
-          rules={rules}
-          feedback={feedback}
-          adding={adding}
-          disabled={!shirtSize}
-          onAdd={addToCart}
-        />
-      }
-    >
-      <Header cart onBack={onBack} title={t('designStudio')} />
-      {modeSwitch}
+    <KeyboardSafe>
+      <Screen
+        contentStyle={{ paddingBottom: 170 }}
+        footerStyle={{ bottom: TAB_BAR_HEIGHT }}
+        footer={
+          <StudioFooter
+            t={t}
+            label={t('total')}
+            price={price}
+            paused={paused}
+            rules={rules}
+            feedback={feedback}
+            adding={adding}
+            disabled={!shirtSize}
+            onAdd={addToCart}
+          />
+        }
+      >
+        <Header cart onBack={onBack} title={t('designStudio')} />
+        {modeSwitch}
 
-      {/* Klub formasi: shortik tanlansa ostida ko'rinadi, "shortikka raqam" darhol aks etadi */}
-      <Preview t={t} side={side} setSide={setSide}>
-        <Jersey3D
-          kit={{ color: product.color || '#1A3582', ink: product.accent || '#FFFFFF', crest: product.code }}
+        {/* Klub formasi: shortik tanlansa ostida ko'rinadi, "shortikka raqam" darhol aks etadi */}
+        <Preview
+          t={t}
+          side={side}
+          setSide={setSide}
+          design={design}
           name={printName}
           number={number}
           shorts={shortsPreview(shorts, number)}
-          side={side}
-          onSideChange={setSide}
-          width={190}
+          fallback={
+            <Jersey3D
+              kit={{ color: product.color || '#1A3582', ink: product.accent || '#FFFFFF', crest: product.code }}
+              name={printName}
+              number={number}
+              side={side}
+              onSideChange={setSide}
+              width={190}
+            />
+          }
         />
-      </Preview>
 
-      <Pressable style={styles.kitRow} onPress={onPickKit}>
-        <View style={{ flex: 1 }}>
-          <Text style={styles.rowTitle} numberOfLines={1}>{product.name}</Text>
-          <Text style={styles.rowSub}>{t('chooseOtherKit')}</Text>
-        </View>
-        <MaterialCommunityIcons name="chevron-right" size={20} color={colors.accent} />
-      </Pressable>
+        <Pressable style={styles.kitRow} onPress={onPickKit}>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.rowTitle} numberOfLines={1}>{product.name}</Text>
+            <Text style={styles.rowSub}>{t('chooseOtherKit')}</Text>
+          </View>
+          <MaterialCommunityIcons name="chevron-right" size={20} color={colors.accent} />
+        </Pressable>
 
-      <Tabs tabs={tabs} value={tab} onChange={setTab} />
-      <View style={styles.panel}>{renderPanel()}</View>
-    </Screen>
+        <Tabs tabs={tabs} value={tab} onChange={setTab} />
+        <View style={styles.panel}>{renderPanel()}</View>
+      </Screen>
+    </KeyboardSafe>
   );
 }
 
 const styles = StyleSheet.create({
   modeSwitch: { alignSelf: 'stretch', marginBottom: spacing.md },
-  // Sahna fon rangi = 3D GL fon rangi (colors.surface) — chegarasiz ko'rinadi
+  flex: { flex: 1 },
+  previewWrap: { marginBottom: spacing.lg },
+  // 3D sahna (WebView) butun qutini egallaydi; fon — viewer'dagi studiya foni bilan bir xil
   preview: {
     minHeight: 330,
     borderRadius: radii.xl,
-    backgroundColor: colors.surface,
+    backgroundColor: '#1a1b1e',
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
-    marginBottom: spacing.lg,
-    paddingTop: spacing.sm,
-    paddingBottom: 56,
   },
   previewSide: { position: 'absolute', bottom: 12, alignSelf: 'center' },
+  shorts: { alignItems: 'center', marginTop: spacing.sm },
   autoSwatch: { alignItems: 'center', justifyContent: 'center', backgroundColor: colors.surfaceRaised },
   autoHalf: { ...StyleSheet.absoluteFillObject, left: '50%' },
   autoA: { fontSize: 18, fontWeight: '900' },

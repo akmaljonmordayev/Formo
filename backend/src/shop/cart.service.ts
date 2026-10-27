@@ -5,9 +5,10 @@ import { visibleClub } from './catalog.service';
 import { DeliveryService } from './delivery.service';
 import { AddCartItemDto, MAX_ITEM_QTY, UpdateCartItemDto } from './dto/cart.dto';
 import { RulesService } from './rules.service';
-import { ALL_SIZES, promoError, summarize, unitPrice } from './pricing';
+import { ALL_SIZES, KitPrices, loadKitDesignPrices, promoError, summarize, unitPrice } from './pricing';
 import { CUSTOM_TITLE, Design, designSummary, StudioPrices, studioPrice } from './studio';
 import { StudioService } from './studio.service';
+import { KIT_DESIGN_TITLE, toDesignV1 } from '../kits/kit-design';
 
 export const MAX_CART_LINES = 20;
 
@@ -28,9 +29,16 @@ const lineInclude = {
       },
     },
   },
+  kitDesign: true,
 } satisfies Prisma.CartItemInclude;
 
 export type CartLine = Prisma.CartItemGetPayload<{ include: typeof lineInclude }>;
+
+/** Savat narxlari serverdagi jadvallardan: maxsus dizayn (studio.*) va 3D dizayn (club.*) */
+export interface CartPrices {
+  studio: StudioPrices;
+  kitDesign: KitPrices;
+}
 
 interface Config {
   printName: string | null;
@@ -45,6 +53,12 @@ interface Config {
 /** Savat qatori hozir ham sotib olinadimi (forma o'chirilmagan, o'lcham tugamagan) */
 export function lineProblem(line: CartLine): string | null {
   const { kit } = line;
+  if (line.kitDesignId) {
+    if (!line.kitDesign?.isActive) return 'Dizayn sotuvda emas';
+    if (!ALL_SIZES.includes(line.shirtSize)) return `Futbolka ${line.shirtSize} o'lchami tugagan`;
+    if (line.withShorts && (!line.shortsSize || !ALL_SIZES.includes(line.shortsSize))) return `Shortik ${line.shortsSize} o'lchami tugagan`;
+    return null;
+  }
   if (!kit) {
     if (!ALL_SIZES.includes(line.shirtSize)) return `Futbolka ${line.shirtSize} o'lchami tugagan`;
     if (line.withShorts && (!line.shortsSize || !ALL_SIZES.includes(line.shortsSize))) return `Shortik ${line.shortsSize} o'lchami tugagan`;
@@ -58,21 +72,35 @@ export function lineProblem(line: CartLine): string | null {
   return null;
 }
 
-export function toCartItem(line: CartLine, studioPrices: StudioPrices) {
-  const { kit } = line;
+/** Qator narxi faqat server jadvallaridan: klub formasi — o'z narxi, 3D dizayn — club.*, maxsus — studio.* */
+function linePrice(line: CartLine, prices: CartPrices) {
+  if (line.kit) return unitPrice(line.kit, line);
+  if (line.kitDesignId) return unitPrice(prices.kitDesign, line);
+  return studioPrice(line.design as unknown as Design, prices.studio, line.withShorts);
+}
+
+export function toCartItem(line: CartLine, prices: CartPrices) {
+  const { kit, kitDesign } = line;
   const design = (line.design as unknown as Design | null) ?? null;
-  const price = kit ? unitPrice(kit, line) : studioPrice(design as Design, studioPrices, line.withShorts);
+  const price = linePrice(line, prices);
   const problem = lineProblem(line);
   const print = [line.printName, line.printNumber].filter(Boolean).join(' · ');
   const sizes = line.withShorts ? `${line.shirtSize} / ${line.shortsSize}` : line.shirtSize;
+  const title = kit
+    ? `${kit.club.name} · ${kit.label} formasi`
+    : kitDesign
+      ? `${kitDesign.name} · ${KIT_DESIGN_TITLE}`
+      : `${CUSTOM_TITLE} futbolka`;
   return {
     id: line.id,
     kitId: kit?.id ?? null,
     club: kit ? { id: kit.club.id, name: kit.club.name, code: kit.club.code, markColor: kit.club.markColor } : null,
     kit: kit ? { label: kit.label, bgColor: kit.bgColor, textColor: kit.textColor } : null,
+    kitDesignId: line.kitDesignId,
+    kitDesign: kitDesign ? { id: kitDesign.id, name: kitDesign.name, thumbnailUrl: kitDesign.thumbnailUrl, design: toDesignV1(kitDesign) } : null,
     design,
     designSummary: design ? designSummary(design) : null,
-    title: kit ? `${kit.club.name} · ${kit.label} formasi` : `${CUSTOM_TITLE} futbolka`,
+    title,
     subtitle: [print, sizes].filter(Boolean).join(' · '),
     printName: line.printName,
     printNumber: line.printNumber,
@@ -110,9 +138,13 @@ export class CartService {
     return promo as Promocode;
   }
 
+  prices(db: Db = this.prisma): Promise<CartPrices> {
+    return Promise.all([this.studio.prices(db), loadKitDesignPrices(db)]).then(([studio, kitDesign]) => ({ studio, kitDesign }));
+  }
+
   async view(userId: number, promocode?: string) {
-    const [lines, studioPrices] = await Promise.all([this.lines(userId), this.studio.prices()]);
-    const items = lines.map((l) => toCartItem(l, studioPrices));
+    const [lines, prices] = await Promise.all([this.lines(userId), this.prices()]);
+    const items = lines.map((l) => toCartItem(l, prices));
     const subtotal = items.filter((i) => i.available).reduce((s, i) => s + i.totalPrice, 0);
     const promo = promocode ? await this.resolvePromo(promocode, subtotal) : null;
     const summary = summarize(subtotal, await this.delivery.fee(), promo);
@@ -144,13 +176,21 @@ export class CartService {
     return { ...c, shortsSize: null, numberOnShorts: false, shortsNumber: null };
   }
 
+  private async assertKitDesign(id: number) {
+    const design = await this.prisma.kitDesign.findFirst({ where: { id, isActive: true }, select: { id: true } });
+    if (!design) throw new NotFoundException('Dizayn topilmadi yoki sotuvda emas');
+    return design;
+  }
+
   async add(userId: number, dto: AddCartItemDto) {
-    // Ikki xil mahsulot: klub formasi (kitId) yoki dizayn studiyasidagi maxsus futbolka (design)
+    // Uch xil mahsulot: klub formasi (kitId), maxsus futbolka (design) yoki Superadmin 3D dizayni (kitDesignId)
     const custom = dto.design !== undefined;
-    if (custom === (dto.kitId != null)) {
-      throw new BadRequestException('Klub formasi (kitId) yoki maxsus dizayn (design) dan faqat bittasini yuboring');
+    const kinds = [dto.kitId != null, custom, dto.kitDesignId != null].filter(Boolean).length;
+    if (kinds !== 1) {
+      throw new BadRequestException('Klub formasi (kitId), maxsus dizayn (design) yoki 3D dizayn (kitDesignId) dan faqat bittasini yuboring');
     }
-    const kit = custom ? null : await this.assertKit(dto.kitId as number);
+    const kit = dto.kitId != null ? await this.assertKit(dto.kitId) : null;
+    const kitDesign = dto.kitDesignId != null ? await this.assertKitDesign(dto.kitDesignId) : null;
     const design = custom ? ((await this.studio.validate(dto.design)) as unknown as Prisma.InputJsonObject) : null;
 
     const config = this.normalize(kit ? kit.sizes : [...ALL_SIZES], {
@@ -158,8 +198,8 @@ export class CartService {
       printNumber: dto.printNumber ?? null,
       numberOnShorts: dto.numberOnShorts ?? false,
       shortsNumber: dto.shortsNumber ?? null,
-      // Maxsus dizaynda shortik ixtiyoriy (standart — yo'q), klub formasida standart — bor
-      withShorts: dto.withShorts ?? !custom,
+      // Maxsus va 3D dizaynda shortik ixtiyoriy (standart — yo'q), klub formasida standart — bor
+      withShorts: dto.withShorts ?? Boolean(kit),
       shirtSize: dto.shirtSize,
       shortsSize: dto.shortsSize ?? null,
     });
@@ -169,7 +209,13 @@ export class CartService {
 
     // Aynan shu sozlamadagi mahsulot savatda bo'lsa — yangi qator emas, soni oshiriladi
     const same = await this.prisma.cartItem.findFirst({
-      where: { userId, kitId: kit?.id ?? null, ...config, design: design ? { equals: design } : { equals: Prisma.DbNull } },
+      where: {
+        userId,
+        kitId: kit?.id ?? null,
+        kitDesignId: kitDesign?.id ?? null,
+        ...config,
+        design: design ? { equals: design } : { equals: Prisma.DbNull },
+      },
     });
     if (same) {
       await this.prisma.cartItem.update({
@@ -181,7 +227,7 @@ export class CartService {
       if (count >= MAX_CART_LINES) throw new BadRequestException(`Savatda ${MAX_CART_LINES} tadan ortiq mahsulot bo'lmaydi`);
       await this.rules.assertLineCount(count);
       await this.prisma.cartItem.create({
-        data: { userId, kitId: kit?.id ?? null, ...config, quantity, ...(design && { design }) },
+        data: { userId, kitId: kit?.id ?? null, kitDesignId: kitDesign?.id ?? null, ...config, quantity, ...(design && { design }) },
       });
     }
     return this.view(userId);

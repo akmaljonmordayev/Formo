@@ -39,7 +39,7 @@ const dictionaries = {
     editProfile: 'Profilni tahrirlash', save: 'Saqlash', saving: 'Saqlanmoqda...', saved: 'Saqlandi', address: 'Manzil', memberSince: 'A’zo bo‘lgan sana', retry: 'Qayta urinish',
     // Katalog, studiya, savat
     searchClub: 'Klub qidirish', kitsWord: 'forma', loadError: 'Ma’lumotni yuklab bo‘lmadi', noKits: 'Hozircha sotuvdagi forma yo‘q', kitIncludes: 'To‘plam', kitIncludesValue: 'Futbolka + shortik', shirtPrice: 'Futbolka', shortsPrice: 'Shortik', printPrice: 'Ism/raqam bosmasi',
-    tabSize: 'O‘lcham', tabPrint: 'Ism va raqam', shirtSize: 'FUTBOLKA O‘LCHAMI', shortsSize: 'SHORTIK O‘LCHAMI', numberOnShorts: 'Shortikka ham raqam', printHint: 'Bo‘sh qoldirilsa bosma narxi qo‘shilmaydi', numberRange: 'Raqam oralig‘i', adding: 'Qo‘shilmoqda...', chooseOtherKit: 'Boshqa formani tanlash',
+    tabSize: 'O‘lcham', tabPrint: 'Ism va raqam', shirtSize: 'FUTBOLKA O‘LCHAMI', shortsSize: 'SHORTIK O‘LCHAMI', numberOnShorts: 'Shortikka ham raqam', printHint: 'Bo‘sh qoldirilsa bosma narxi qo‘shilmaydi', numberRange: 'Raqam oralig‘i', adding: 'Qo‘shilmoqda...', chooseOtherKit: 'Boshqa formani tanlash', kit3dCustom: 'O‘z rangim', kit3dLoadError: 'Dizaynlar yuklanmadi', kit3dRetry: '3D yuklanmadi — qayta urinish',
     discount: 'Chegirma', promoApplied: 'Promokod qo‘llandi', promoRemove: 'Olib tashlash', minOrder: 'Minimal buyurtma', cartBlocked: 'Savatda sotuvda bo‘lmagan mahsulot bor — uni olib tashlang', ordersPaused: 'Buyurtma qabul qilish vaqtincha to‘xtatilgan',
     // Rasmiylashtirish
     checkoutTitle: 'Rasmiylashtirish', deliveryAddress: 'YETKAZISH MANZILI', addAddress: 'Yangi manzil qo‘shish', addrLabelPlaceholder: 'Nomi: Uy, Ish...', addrPlaceholder: 'Tuman, ko‘cha, uy', addrApartmentPlaceholder: 'Xonadon (ixtiyoriy)', addrDefaultLabel: 'Uy',
@@ -97,7 +97,7 @@ const dictionaries = {
     editProfile: 'Редактировать профиль', save: 'Сохранить', saving: 'Сохранение...', saved: 'Сохранено', address: 'Адрес', memberSince: 'Дата регистрации', retry: 'Повторить',
     // Каталог, студия, корзина
     searchClub: 'Найти клуб', kitsWord: 'форм', loadError: 'Не удалось загрузить данные', noKits: 'Пока нет форм в продаже', kitIncludes: 'Комплект', kitIncludesValue: 'Футболка + шорты', shirtPrice: 'Футболка', shortsPrice: 'Шорты', printPrice: 'Печать имени/номера',
-    tabSize: 'Размер', tabPrint: 'Имя и номер', shirtSize: 'РАЗМЕР ФУТБОЛКИ', shortsSize: 'РАЗМЕР ШОРТ', numberOnShorts: 'Номер и на шортах', printHint: 'Если оставить пустым, печать не оплачивается', numberRange: 'Диапазон номера', adding: 'Добавляем...', chooseOtherKit: 'Выбрать другую форму',
+    tabSize: 'Размер', tabPrint: 'Имя и номер', shirtSize: 'РАЗМЕР ФУТБОЛКИ', shortsSize: 'РАЗМЕР ШОРТ', numberOnShorts: 'Номер и на шортах', printHint: 'Если оставить пустым, печать не оплачивается', numberRange: 'Диапазон номера', adding: 'Добавляем...', chooseOtherKit: 'Выбрать другую форму', kit3dCustom: 'Свой цвет', kit3dLoadError: 'Дизайны не загрузились', kit3dRetry: '3D не загрузилось — повторить',
     discount: 'Скидка', promoApplied: 'Промокод применён', promoRemove: 'Убрать', minOrder: 'Минимальный заказ', cartBlocked: 'В корзине есть товар не в продаже — удалите его', ordersPaused: 'Приём заказов временно приостановлен',
     // Оформление
     checkoutTitle: 'Оформление', deliveryAddress: 'АДРЕС ДОСТАВКИ', addAddress: 'Добавить адрес', addrLabelPlaceholder: 'Название: Дом, Работа...', addrPlaceholder: 'Район, улица, дом', addrApartmentPlaceholder: 'Квартира (необязательно)', addrDefaultLabel: 'Дом',
@@ -155,7 +155,7 @@ const dictionaries = {
     editProfile: 'Edit profile', save: 'Save', saving: 'Saving...', saved: 'Saved', address: 'Address', memberSince: 'Member since', retry: 'Retry',
     // Catalog, studio, cart
     searchClub: 'Search club', kitsWord: 'kits', loadError: 'Could not load data', noKits: 'No kits on sale yet', kitIncludes: 'Set', kitIncludesValue: 'Jersey + shorts', shirtPrice: 'Jersey', shortsPrice: 'Shorts', printPrice: 'Name/number print',
-    tabSize: 'Size', tabPrint: 'Name & number', shirtSize: 'JERSEY SIZE', shortsSize: 'SHORTS SIZE', numberOnShorts: 'Number on shorts too', printHint: 'Leave empty to skip the print fee', numberRange: 'Number range', adding: 'Adding...', chooseOtherKit: 'Choose another kit',
+    tabSize: 'Size', tabPrint: 'Name & number', shirtSize: 'JERSEY SIZE', shortsSize: 'SHORTS SIZE', numberOnShorts: 'Number on shorts too', printHint: 'Leave empty to skip the print fee', numberRange: 'Number range', adding: 'Adding...', chooseOtherKit: 'Choose another kit', kit3dCustom: 'My colour', kit3dLoadError: 'Designs did not load', kit3dRetry: '3D failed — retry',
     discount: 'Discount', promoApplied: 'Promo code applied', promoRemove: 'Remove', minOrder: 'Minimum order', cartBlocked: 'Your cart has an item that is no longer on sale — remove it', ordersPaused: 'Order intake is temporarily paused',
     // Checkout
     checkoutTitle: 'Checkout', deliveryAddress: 'DELIVERY ADDRESS', addAddress: 'Add new address', addrLabelPlaceholder: 'Name: Home, Work...', addrPlaceholder: 'District, street, building', addrApartmentPlaceholder: 'Apartment (optional)', addrDefaultLabel: 'Home',

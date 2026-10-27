@@ -59,6 +59,13 @@ export function validateEnv(config: Record<string, unknown>) {
       errors.push(`TELEGRAM_INTERNAL_TOKEN kamida ${MIN_PROD_SECRET_LENGTH} belgidan iborat bo'lishi kerak (openssl rand -hex 32)`);
     }
 
+    // Fayl xotirasi (3D dizayn rasmlari): S3 berilgan bo'lsa — to'liq bo'lishi shart.
+    // Berilmasa yuklash 503 qaytaradi (UPLOAD_DIR volume bo'lmasa Railway diski deploy'da tozalanadi).
+    if (str('S3_BUCKET')) {
+      if (!/^https:\/\/[^\s]+$/.test(str('S3_PUBLIC_URL'))) errors.push("S3_PUBLIC_URL berilmagan yoki https:// bilan boshlanmaydi (masalan https://cdn.formo.uz)");
+      if (!str('S3_ACCESS_KEY_ID') || !str('S3_SECRET_ACCESS_KEY')) errors.push('S3_ACCESS_KEY_ID va S3_SECRET_ACCESS_KEY berilishi shart');
+    }
+
     // Superadmin paroli faqat birinchi seed uchun kerak; berilgan bo'lsa — kuchli bo'lishi shart
     const password = str('SUPERADMIN_PASSWORD');
     if (password && PUBLIC_PASSWORDS.has(password.toLowerCase())) {
