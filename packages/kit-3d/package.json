@@ -14,7 +14,7 @@
     "src"
   ],
   "scripts": {
-    "test": "node --test \"tests/*.test.js\" && node scripts/build-viewer.mjs --check",
+    "test": "node --test tests/design.test.js tests/kit.test.js && node scripts/build-viewer.mjs --check",
     "build:viewer": "node scripts/build-viewer.mjs"
   },
   "dependencies": {
