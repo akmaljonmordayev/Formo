@@ -18,7 +18,7 @@ COPY packages/kit-3d/package.json packages/kit-3d/
 # ---------- dev ----------
 FROM base AS dev
 # dedupe-peer-dependents=false: usiz pnpm --filter ni e'tiborsiz qoldirib butun monoreponi (mobil ilova bilan) o'rnatadi
-RUN pnpm install --frozen-lockfile --filter @formo/frontend --config.dedupe-peer-dependents=false
+RUN pnpm install --frozen-lockfile --filter @formo/frontend --filter @formo/kit-3d --config.dedupe-peer-dependents=false
 # Admin 3D forma ko'rinishi workspace paketidan (@formo/kit-3d) — manba kodi build'ga kerak
 COPY packages/kit-3d/ packages/kit-3d/
 COPY frontend/ frontend/
