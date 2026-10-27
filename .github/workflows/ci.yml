@@ -94,11 +94,13 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - name: Install
-        run: $PNPM_INSTALL --filter @formo/frontend
+        run: $PNPM_INSTALL --filter @formo/frontend --filter @formo/kit-3d
       - name: Lint
         run: pnpm lint
       - name: Tests
         run: pnpm test
+      - name: Kit 3D tests
+        run: pnpm --filter @formo/kit-3d test
       - name: Build
         run: pnpm build
 

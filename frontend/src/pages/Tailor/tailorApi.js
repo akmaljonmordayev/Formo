@@ -49,7 +49,8 @@ const orderToQueueItem = (order) => {
     composition: '',
     qty: line?.quantity ?? order.quantity ?? 0,
     printColor: '',
-    jerseyColor: '#172238',
+    // 3D dizayn: buyurtma paytidagi nusxa — sex aynan shu ranglar bilan tikadi
+    jerseyColor: line?.designSnapshot?.primaryColor ?? '#172238',
     jerseyColorName: '',
     location: '',
     status,
@@ -60,6 +61,7 @@ const orderToQueueItem = (order) => {
       ? { time: order.deliverySlot, done: status === 'tayyor' }
       : null,
     design: line?.design ?? null,
+    kitDesign: line?.designSnapshot ?? null,
     clubName: line?.clubName ?? '',
     kitLabel: line?.kitLabel ?? '',
     isCustomDesign: Boolean(line && (line.kitId == null || line.design)),

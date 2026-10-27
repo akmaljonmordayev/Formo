@@ -29,6 +29,7 @@ import { ChangePaymentMethodDto, CheckoutDto, MyOrdersQueryDto } from './dto/che
 import { summarize } from './pricing';
 import { RulesService } from './rules.service';
 import { CUSTOM_TITLE, designSummary } from './studio';
+import { KIT_DESIGN_TITLE } from '../kits/kit-design';
 import { StudioService } from './studio.service';
 import { WalletService } from '../wallet/wallet.service';
 
@@ -174,14 +175,15 @@ export class ShopOrdersService {
       async (tx) => {
         const lines = await this.cart.lines(user.id, tx);
         if (!lines.length) throw new BadRequestException("Savat bo'sh");
+        const prices = await this.cart.prices(tx);
         const problems = lines
           .map((l) => [l, lineProblem(l)] as const)
           .filter(([, p]) => p)
-          .map(([l, p]) => `${l.kit ? `${l.kit.club.name} · ${l.kit.label}` : CUSTOM_TITLE}: ${p}`);
+          .map(([l, p]) => `${l.kit ? `${l.kit.club.name} · ${l.kit.label}` : (l.kitDesign?.name ?? CUSTOM_TITLE)}: ${p}`);
         if (problems.length) throw new BadRequestException(`Savatni yangilang — ${problems.join('; ')}`);
 
-        const studioPrices = await this.studio.prices(tx);
-        const items = lines.map((l) => toCartItem(l, studioPrices));
+        // Narxlar faqat server jadvallaridan (mijoz yuborgan summa yo'q)
+        const items = lines.map((l) => toCartItem(l, prices));
         const subtotal = items.reduce((s, i) => s + i.totalPrice, 0);
         await this.rules.assertCheckout(
           {
@@ -213,8 +215,12 @@ export class ShopOrdersService {
             customerPhone: customer.phone,
             // Admin paneldagi ro'yxat uchun qisqa ma'lumot — birinchi mahsulotdan
             clubId: first.club?.id ?? null,
-            kitLabel: first.kit?.label ?? CUSTOM_TITLE,
-            productType: first.kit ? OrderProductType.CLUB_KIT : OrderProductType.CUSTOM_DESIGN,
+            kitLabel: first.kit?.label ?? (first.kitDesign ? KIT_DESIGN_TITLE : CUSTOM_TITLE),
+            productType: first.kit
+              ? OrderProductType.CLUB_KIT
+              : first.kitDesign
+                ? OrderProductType.KIT_DESIGN
+                : OrderProductType.CUSTOM_DESIGN,
             printName: first.printName,
             printNumber: first.printNumber,
             size: first.shirtSize,
@@ -237,9 +243,12 @@ export class ShopOrdersService {
             items: {
               create: items.map((i) => ({
                 kitId: i.kitId,
-                clubName: i.club?.name ?? CUSTOM_TITLE,
-                kitLabel: i.kit?.label ?? (i.design ? designSummary(i.design) : CUSTOM_TITLE),
+                clubName: i.club?.name ?? i.kitDesign?.name ?? CUSTOM_TITLE,
+                kitLabel: i.kit?.label ?? (i.kitDesign ? KIT_DESIGN_TITLE : i.design ? designSummary(i.design) : CUSTOM_TITLE),
                 design: (i.design ?? undefined) as unknown as Prisma.InputJsonObject | undefined,
+                // 3D dizayn: buyurtma paytidagi nusxa — keyin tahrirlansa/o'chirilsa ham sex aynan shuni tikadi
+                kitDesignId: i.kitDesignId,
+                designSnapshot: (i.kitDesign?.design ?? undefined) as unknown as Prisma.InputJsonObject | undefined,
                 printName: i.printName,
                 printNumber: i.printNumber,
                 numberOnShorts: i.numberOnShorts,

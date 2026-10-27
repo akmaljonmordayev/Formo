@@ -112,6 +112,9 @@ export function designPreview(design) {
 /** Savat/buyurtma qatori uchun preview: maxsus dizayn yoki klub formasi ranglari */
 export function itemPreview(item) {
   if (item?.design) return designPreview(item.design);
+  // 3D dizayn: savatda kitDesign.design, buyurtmada designSnapshot (v1)
+  const kit3d = item?.kitDesign?.design || item?.designSnapshot;
+  if (kit3d) return { color: kit3d.primaryColor || '#242749', accent: kit3d.textColor || '#FFFFFF' };
   return {
     color: item?.kit?.bgColor || item?.bgColor || '#242749',
     accent: item?.kit?.textColor || item?.textColor || '#FFFFFF',

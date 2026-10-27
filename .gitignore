@@ -35,6 +35,9 @@ lerna-debug.log*
 # Turbo
 .turbo/
 
+# Backend lokal fayl xotirasi (dev: 3D dizayn rasmlari; prod — S3)
+backend/uploads/
+
 # IDE
 .vscode/
 .idea/

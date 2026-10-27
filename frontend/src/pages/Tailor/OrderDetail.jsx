@@ -48,12 +48,24 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
     return { text: c.id ?? c.hex ?? '', swatch: c.hex };
   };
   const designColor = colorOf(design?.color);
+  const kit3d = order.kitDesign;
   const specs = [
     { label: t('order.spec.name'), value: order.apiPrintName || order.customer },
     { label: t('order.spec.number'), value: order.number, isHighlight: true },
     { label: t('order.spec.size'), value: order.size },
     { label: t('order.spec.qty'), value: t('order.qtyUnit', { n: order.qty }) },
-    ...(design
+    ...(kit3d
+      ? [
+          { label: t('order.spec.design'), value: `${t('order.spec.kit3d')} · ${kit3d.name}` },
+          { label: t('order.spec.colorPrimary'), value: kit3d.primaryColor, swatch: kit3d.primaryColor },
+          { label: t('order.spec.colorSecondary'), value: kit3d.secondaryColor, swatch: kit3d.secondaryColor },
+          { label: t('order.spec.printColor'), value: kit3d.textColor, swatch: kit3d.textColor },
+          { label: t('order.spec.pattern'), value: kit3d.pattern },
+          { label: t('order.spec.neck'), value: kit3d.neck },
+          { label: t('order.spec.sponsor'), value: kit3d.sponsorText || t('order.spec.none') },
+          { label: t('order.spec.backTop'), value: kit3d.backTopText || t('order.spec.none') },
+        ]
+      : design
       ? [
           { label: t('order.spec.design'), value: t('order.spec.customDesign') },
           { label: t('order.spec.designColor'), value: designColor?.text, swatch: designColor?.swatch },

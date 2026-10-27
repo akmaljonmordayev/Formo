@@ -15,6 +15,7 @@ COPY mobile/package.json mobile/
 COPY packages/ui/package.json packages/ui/
 COPY packages/types/package.json packages/types/
 COPY packages/config/package.json packages/config/
+COPY packages/kit-3d/package.json packages/kit-3d/
 
 # ---------- dev ----------
 FROM base AS dev

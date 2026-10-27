@@ -1,6 +1,8 @@
+import { Suspense, lazy } from 'react';
 import {
   AlertTriangle,
   BarChart3,
+  Box,
   CreditCard,
   Factory,
   History,
@@ -41,6 +43,14 @@ import AuditLog from './AuditLog';
 
 const BASE = '/superadmin';
 
+// three.js (~600 KB) faqat 3D formalar sahifasi ochilganda yuklanadi
+const KitDesigns = lazy(() => import('./KitDesigns'));
+const lazyPage = (El) => (
+  <Suspense fallback={<div className="sa-table__sub" style={{ padding: 20 }}>Yuklanmoqda...</div>}>
+    <El />
+  </Suspense>
+);
+
 // Til (uz / ўз / ru) konteksti va tarjima qilingan menyu shu wrapper ichida
 export const superadminLayout = AdminLayout;
 
@@ -62,6 +72,7 @@ export const superadminRoutes = [
   { path: 'clubs', element: <Clubs /> },
   { path: 'categories', element: <Categories /> },
   { path: 'design-studio', element: <DesignStudio /> },
+  { path: 'kit-designs', element: lazyPage(KitDesigns) },
   { path: 'inventory', element: <Inventory /> },
   { path: 'pricing', element: <Pricing /> },
   { path: 'users', element: legacy(CustomersUsers) },
@@ -86,6 +97,7 @@ export const superadminMenu = [
   { to: `${BASE}/clubs`, label: 'Klublar va formalar', icon: Shirt, group: 'Katalog' },
   { to: `${BASE}/categories`, label: 'Kategoriyalar', icon: Layers, group: 'Katalog' },
   { to: `${BASE}/design-studio`, label: 'Dizayn studiyasi', icon: Palette, group: 'Katalog' },
+  { to: `${BASE}/kit-designs`, label: '3D formalar', icon: Box, group: 'Katalog' },
   { to: `${BASE}/inventory`, label: 'Zaxira', icon: Package, group: 'Katalog' },
   { to: `${BASE}/pricing`, label: 'Narxlar', icon: Tag, group: 'Katalog' },
 

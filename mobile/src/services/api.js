@@ -293,6 +293,20 @@ export const appConfig = {
   get: () => request('/app/config', { auth: false }),
 };
 
+/**
+ * Superadmin yasagan 3D forma dizaynlari (faqat nashr qilinganlar, tartib bo'yicha):
+ * [{ id, name, thumbnailUrl, design: { designVersion: 1, ... }, prices: { shirt, shorts, print } }]
+ */
+export const kits = {
+  designs: () => request('/kits/designs', { auth: false }),
+};
+
+/** Server bergan fayl manzili: lokal xotirada "/api/uploads/..." (API origin'iga qo'shiladi), S3'da to'liq URL */
+export function assetUrl(url) {
+  if (!url || /^https?:\/\//.test(url)) return url || null;
+  return `${BASE_URL.replace(/\/api$/, '')}${url.startsWith('/') ? '' : '/'}${url}`;
+}
+
 /** Bildirishnomalar (Superadmin push kampaniyalari): { items: [{ id, title, message, sentAt }] } */
 export const notifications = {
   list: () => request('/notifications'),
@@ -309,4 +323,5 @@ export const api = {
   wallet,
   appConfig,
   notifications,
+  kits,
 };

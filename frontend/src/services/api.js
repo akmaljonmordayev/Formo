@@ -10,15 +10,20 @@ export class ApiError extends Error {
   }
 }
 
+/** Server bergan fayl manzili: lokal xotirada nisbiy (/api/uploads/...), S3'da to'liq URL */
+export const assetUrl = (url) => (!url || /^https?:\/\//.test(url) ? url : `${BASE_URL}${url}`);
+
 async function request(path, { method = 'GET', body, auth = true } = {}) {
   const token = auth ? session.accessToken : null;
+  // FormData (fayl yuklash) — Content-Type'ni brauzer o'zi boundary bilan qo'yadi
+  const form = typeof FormData !== 'undefined' && body instanceof FormData;
   const res = await fetch(`${BASE_URL}/api${path}`, {
     method,
     headers: {
-      'Content-Type': 'application/json',
+      ...(!form && { 'Content-Type': 'application/json' }),
       ...(token && { Authorization: `Bearer ${token}` }),
     },
-    body: body ? JSON.stringify(body) : undefined,
+    body: form ? body : body ? JSON.stringify(body) : undefined,
   });
   const data = await res.json().catch(() => null);
   return { res, data };

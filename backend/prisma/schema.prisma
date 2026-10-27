@@ -207,8 +207,8 @@ model TopUp {
   status TopUpStatus @default(PENDING)
 
   // Qo'lda to'lov: chek Telegram fayli sifatida (fayl serverda saqlanmaydi)
-  receiptFileId      String?
-  receiptSubmittedAt DateTime?
+  receiptFileId         String?
+  receiptSubmittedAt    DateTime?
   // Telegram file_unique_id — bir xil rasm boshqa so'rovga qayta yuborilmasin (file_id har safar boshqacha)
   receiptUniqueId       String?   @unique
   // Chekni yuborgan, tasdiqlangan ulanishdagi Telegram akkaunti (yuborilgan paytdagi holat)
@@ -318,6 +318,33 @@ model Kit {
   @@index([clubId])
 }
 
+// Superadmin 3D tahrirlovchisida yasagan forma dizayni. Maydonlar @formo/kit-3d dagi
+// v1 shakli bilan bir xil (designVersion) — admin va mobil aynan shu obyektni chizadi.
+model KitDesign {
+  id              Int      @id @default(autoincrement())
+  designVersion   Int      @default(1)
+  name            String
+  primaryColor    String // #rrggbb
+  secondaryColor  String
+  textColor       String
+  pattern         String // fade | split | geo | stripes | hoops | sash | halftone | plain (DTO tekshiradi)
+  neck            String   @default("round") // round | v
+  sponsorText     String   @default("")
+  backTopText     String   @default("")
+  crestImageUrl   String?
+  sponsorImageUrl String?
+  thumbnailUrl    String? // saqlashda bir marta chizilgan PNG (ro'yxat uchun)
+  isActive        Boolean  @default(false) // true — nashr qilingan, ilovada ko'rinadi
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  cartItems  CartItem[]
+  orderItems OrderItem[]
+
+  @@index([isActive, sortOrder])
+}
+
 model FavoriteClub {
   userId    Int
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -333,22 +360,24 @@ model FavoriteClub {
 // ---------------------------------------------------------------------------
 
 model CartItem {
-  id             Int      @id @default(autoincrement())
+  id             Int        @id @default(autoincrement())
   userId         Int
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kitId          Int? // null — dizayn studiyasidagi maxsus futbolka (`design` to'ldirilgan)
-  kit            Kit?     @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kitId          Int? // null — dizayn studiyasidagi maxsus futbolka (`design`) yoki 3D dizayn (`kitDesignId`)
+  kit            Kit?       @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  kitDesignId    Int? // Superadmin 3D dizayni; o'chirilsa savatdan ham olinadi
+  kitDesign      KitDesign? @relation(fields: [kitDesignId], references: [id], onDelete: Cascade)
   printName      String?
   printNumber    String?
-  numberOnShorts Boolean  @default(false)
+  numberOnShorts Boolean    @default(false)
   shortsNumber   String? // shortikdagi raqam (null — futbolka raqami)
-  withShorts     Boolean  @default(true)
+  withShorts     Boolean    @default(true)
   shirtSize      String
   shortsSize     String?
-  quantity       Int      @default(1)
+  quantity       Int        @default(1)
   design         Json? // dizayn studiyasi tanlovlari (rang, shrift, patch, paket)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
 
   @@index([userId])
 }
@@ -376,6 +405,7 @@ model Address {
 enum OrderProductType {
   CLUB_KIT // klub formasi katalogidan
   CUSTOM_DESIGN // dizayn studiyasida o'zi yasagan
+  KIT_DESIGN // Superadmin yasagan 3D dizayn (orqasiga ism/raqam)
 }
 
 enum OrderChannel {
@@ -473,26 +503,31 @@ model Order {
 
 // Buyurtma qatorlari — narx va nomlar buyurtma paytidagi holatda saqlanadi
 model OrderItem {
-  id             Int     @id @default(autoincrement())
+  id             Int        @id @default(autoincrement())
   orderId        Int
-  order          Order   @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  order          Order      @relation(fields: [orderId], references: [id], onDelete: Cascade)
   kitId          Int?
-  kit            Kit?    @relation(fields: [kitId], references: [id], onDelete: SetNull)
+  kit            Kit?       @relation(fields: [kitId], references: [id], onDelete: SetNull)
   clubName       String
   kitLabel       String
   printName      String?
   printNumber    String?
-  numberOnShorts Boolean @default(false)
+  numberOnShorts Boolean    @default(false)
   shortsNumber   String?
-  withShorts     Boolean @default(true)
+  withShorts     Boolean    @default(true)
   shirtSize      String
   shortsSize     String?
   quantity       Int
   unitPrice      Int
   totalPrice     Int
   design         Json?
+  // 3D dizayn: ism/raqam/o'lcham — printName, printNumber, shirtSize maydonlarida
+  kitDesignId    Int?
+  kitDesign      KitDesign? @relation(fields: [kitDesignId], references: [id], onDelete: SetNull)
+  designSnapshot Json? // buyurtma paytidagi dizayn (v1) — keyin tahrirlansa ham sex aynan shuni tikadi
 
   @@index([orderId])
+  @@index([kitDesignId])
 }
 
 // Buyurtma holati tarixi: har o'zgarish kim tomonidan, qachon va qanday izoh bilan
