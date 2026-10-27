@@ -7,6 +7,7 @@ import { AuthModule } from './auth/auth.module';
 import { validateEnv } from './config/env.validation';
 import { HealthModule } from './health/health.module';
 import { JwtAuthGuard } from './common/guards/jwt-auth.guard';
+import { KitsModule } from './kits/kits.module';
 import { RolesGuard } from './common/guards/roles.guard';
 import { NotifyModule } from './notify/notify.module';
 import { PrismaModule } from './prisma/prisma.module';
@@ -28,6 +29,7 @@ import { WalletModule } from './wallet/wallet.module';
     AuthModule,
     AdminModule,
     ShopModule,
+    KitsModule,
     HealthModule,
   ],
   providers: [
