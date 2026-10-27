@@ -42,20 +42,37 @@ describe('KitDesignEditor', () => {
     expect(viewer().dataset.number).toBe('12');
   });
 
-  it("saqlashda sinov ism/raqami dizaynga qo'shilmaydi", () => {
+  it("saqlash: v1 dizayn, tartib va qoralama holati; sinov ism/raqami qo'shilmaydi", () => {
     const onSave = vi.fn();
-    render(<KitDesignEditor initial={{ name: 'Tun', pattern: 'hoops' }} onSave={onSave} />);
+    render(<KitDesignEditor initial={{ design: { name: 'Tun', pattern: 'hoops' }, sortOrder: 3 }} onSave={onSave} />);
     fireEvent.change(screen.getByPlaceholderText('RAHIMOV'), { target: { value: 'Aliyev' } });
+    fireEvent.change(screen.getByPlaceholderText('TURON FC'), { target: { value: 'Tun FC' } });
     fireEvent.click(screen.getByRole('button', { name: 'Saqlash' }));
     expect(onSave).toHaveBeenCalledTimes(1);
-    const saved = onSave.mock.calls[0][0];
-    expect(saved).toMatchObject({ name: 'Tun', pattern: 'hoops', neck: 'round' });
-    expect(saved).not.toHaveProperty('backName');
-    expect(saved).not.toHaveProperty('number');
+    const [payload, thumbnail] = onSave.mock.calls[0];
+    expect(payload).toMatchObject({ isActive: false, sortOrder: 3 });
+    expect(payload.design).toMatchObject({ designVersion: 1, name: 'Tun', pattern: 'hoops', neck: 'round', backTopText: 'Tun FC' });
+    expect(payload.design).not.toHaveProperty('backName');
+    expect(payload.design).not.toHaveProperty('number');
+    expect(typeof thumbnail).toBe('function');
   });
 
-  it("onSave berilmasa saqlash tugmasi yo'q", () => {
+  it('nashr qilish: isActive=true; nashr qilingan dizaynda — «Nashrdan olish»', () => {
+    const onSave = vi.fn();
+    const { unmount } = render(<KitDesignEditor initial={{ design: { name: 'Tun' } }} onSave={onSave} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Nashr qilish' }));
+    expect(onSave.mock.calls[0][0].isActive).toBe(true);
+    unmount();
+
+    render(<KitDesignEditor initial={{ design: { name: 'Tun' }, isActive: true }} onSave={onSave} />);
+    expect(screen.queryByRole('button', { name: 'Nashr qilish' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Nashrdan olish' }));
+    expect(onSave.mock.calls[1][0].isActive).toBe(false);
+  });
+
+  it("onSave berilmasa saqlash tugmalari yo'q", () => {
     render(<KitDesignEditor initial={null} />);
     expect(screen.queryByRole('button', { name: 'Saqlash' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Nashr qilish' })).toBeNull();
   });
 });
