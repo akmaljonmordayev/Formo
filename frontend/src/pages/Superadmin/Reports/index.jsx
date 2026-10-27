@@ -9,8 +9,8 @@ const RANGES = [
   { label: '90 kun', days: 90 },
 ];
 
-const PRODUCT_LABEL = { CLUB_KIT: 'Klub formalari', CUSTOM_DESIGN: "O'z dizayni" };
-const PRODUCT_COLOR = { CLUB_KIT: 'var(--sa-blue)', CUSTOM_DESIGN: 'var(--sa-teal)' };
+const PRODUCT_LABEL = { CLUB_KIT: 'Klub formalari', CUSTOM_DESIGN: "O'z dizayni", KIT_DESIGN: '3D dizayn' };
+const PRODUCT_COLOR = { CLUB_KIT: 'var(--sa-blue)', CUSTOM_DESIGN: 'var(--sa-teal)', KIT_DESIGN: 'var(--sa-violet)' };
 
 export default function SuperadminReports() {
   const money = useMoney();
