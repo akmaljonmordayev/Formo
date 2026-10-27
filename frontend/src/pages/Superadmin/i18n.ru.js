@@ -714,6 +714,33 @@ const RU = {
   "shortik raqami": "номер на шортах",
   "Yozuv rangi": "Цвет надписи",
   "Neon yozuv": "Неоновая надпись",
+
+  // --- 3D формы ---
+  '3D formalar': '3D-формы',
+  "Forma dizaynlari: ilovada mijoz shu dizaynni 3D ko'rinishda ko'radi va orqasiga ism-raqam yozadi.":
+    'Дизайны форм: в приложении клиент видит дизайн в 3D и наносит на спину имя и номер.',
+  'Tayyor ranglar': 'Готовые цвета',
+  Ikkinchi: 'Второй',
+  Yozuvlar: 'Надписи',
+  Naqsh: 'Узор',
+  Yoqa: 'Воротник',
+  'Homiy matni': 'Текст спонсора',
+  "Faqat o'zingizning yoki ruxsat olingan nom — haqiqiy brend logotiplari ishlatilmaydi":
+    'Только собственное или разрешённое название — логотипы реальных брендов не используются',
+  'Sinov uchun (saqlanmaydi)': 'Для проверки (не сохраняется)',
+  'Orqadagi ism': 'Имя на спине',
+  Aylantirish: 'Вращение',
+  "Ko'rinish": 'Вид',
+  "Sichqoncha bilan aylantiring · g'ildirak bilan yaqinlashtiring": 'Вращайте мышью · колесо — приближение',
+  'Oqim (gradient)': 'Поток (градиент)',
+  "Ikki rangga bo'lingan": 'Два цвета',
+  'Raqamli naqsh': 'Цифровой узор',
+  'Vertikal chiziqlar': 'Вертикальные полосы',
+  'Gorizontal chiziqlar': 'Горизонтальные полосы',
+  'Diagonal lenta': 'Диагональная лента',
+  'Nuqtali gradient': 'Точечный градиент',
+  Dumaloq: 'Круглый',
+  'V-simon': 'V-образный',
 };
 
 export default RU;
