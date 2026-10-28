@@ -24,6 +24,12 @@ export default defineConfig(({ mode }) => {
       restoreMocks: true,
       unstubGlobals: true,
       unstubEnvs: true,
+      // frontend/.env'dagi lokal dev qiymatlari (haqiqiy backend manzili, mock-auth) testlarga sizib chiqmasin —
+      // testlar fetch'ni o'zi mock qiladi va nisbiy yo'l (/api/...) kutadi
+      env: {
+        VITE_API_URL: '',
+        VITE_USE_MOCK_AUTH: 'false',
+      },
     },
   };
 });
