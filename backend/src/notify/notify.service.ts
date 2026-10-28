@@ -86,14 +86,19 @@ export class NotifyService implements OnModuleInit, OnModuleDestroy {
     }
   }
 
+  /** Token URL ichida — tarmoq xatosi hech qachon o'zining asl matni bilan tashqariga (logga) chiqarilmaydi */
   private async send(token: string, chatId: string, text: string) {
-    const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chat_id: chatId, text }),
-      signal: AbortSignal.timeout(8000),
-    });
-    return res.ok;
+    try {
+      const res = await fetch(`https://api.telegram.org/bot${token}/sendMessage`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chat_id: chatId, text }),
+        signal: AbortSignal.timeout(8000),
+      });
+      return res.ok;
+    } catch {
+      throw new Error('Telegram so‘rovi muvaffaqiyatsiz (tarmoq xatosi)');
+    }
   }
 
   /** Qabul qilingandan 21 soatdan ko'p o'tgan, tayyor bo'lmagan buyurtmalar — har biri haqida bir marta */
