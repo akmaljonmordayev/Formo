@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Bell, Menu } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import Sidebar from './Sidebar';
@@ -20,11 +20,35 @@ const OUTER_CHROME_CSS = `
   body.tailor-shell .layout__content { padding: 0 !important; }
   body.tailor-shell .layout__main { background: #0b0f19 !important; }
   body.tailor-shell { background: #0b0f19 !important; }
+
+  @keyframes tl-page-in {
+    0% { opacity: 0; transform: translateY(14px) scale(0.985); filter: blur(6px); }
+    100% { opacity: 1; transform: none; filter: none; }
+  }
+  @keyframes tl-fade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes tl-fade-out { from { opacity: 1; } to { opacity: 0; } }
+  @keyframes tl-slide-in { from { transform: translateX(100%); } to { transform: none; } }
+  @keyframes tl-slide-out { from { transform: none; } to { transform: translateX(100%); } }
+  @keyframes tl-pop { 0% { opacity: 0; transform: translateY(10px) scale(0.97); } 100% { opacity: 1; transform: none; } }
+  @keyframes tl-drop { 0% { opacity: 0; transform: translateY(-8px) scale(0.97); } 100% { opacity: 1; transform: none; } }
+  @keyframes tl-drift {
+    0%, 100% { transform: translate3d(0, 0, 0); }
+    50% { transform: translate3d(40px, 30px, 0); }
+  }
+  /* backwards: animatsiyadan keyin transform/filter qolmasin — aks holda ichidagi fixed oynalar (modal) sahifa balandligiga cho'zilib, tugmalar ekrandan tashqarida qoladi */
+  .tl-page { animation: tl-page-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+  .tl-pop { animation: tl-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards; animation-delay: var(--tl-delay, 0ms); }
+  .tl-drop { animation: tl-drop 0.2s ease-out both; }
+  .tl-glass { background: rgba(18, 24, 41, 0.72); backdrop-filter: blur(14px); }
+  @media (prefers-reduced-motion: reduce) {
+    .tl-page, .tl-pop, .tl-drop { animation: none !important; }
+  }
 `;
 
 export default function TailorShell({ title, subtitle, children }) {
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const [prefs, setPrefs] = useState(() => loadPrefs(user?.id));
   const [orders, setOrdersState] = useState([]);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -202,13 +226,23 @@ export default function TailorShell({ title, subtitle, children }) {
 
   return (
     <TailorContext.Provider value={ctxValue}>
-      <div className="min-h-screen bg-[#0b0f19] text-slate-200">
+      <div className="relative min-h-screen bg-[#0b0f19] text-slate-200">
         <style>{OUTER_CHROME_CSS}</style>
+        <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
+          <div
+            className="absolute -right-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-teal-500/10 blur-3xl"
+            style={{ animation: 'tl-drift 18s ease-in-out infinite' }}
+          />
+          <div
+            className="absolute -bottom-40 left-1/3 h-[26rem] w-[26rem] rounded-full bg-indigo-500/10 blur-3xl"
+            style={{ animation: 'tl-drift 24s ease-in-out infinite reverse' }}
+          />
+        </div>
 
         <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
 
-        <div className="lg:pl-[264px]">
-          <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0b0f19]/90 backdrop-blur-md">
+        <div className="relative lg:pl-[264px]">
+          <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0b0f19]/70 backdrop-blur-xl">
             <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
               <button
                 type="button"
@@ -220,7 +254,7 @@ export default function TailorShell({ title, subtitle, children }) {
               </button>
 
               <div className="min-w-0 flex-1">
-                <h1 className="truncate text-lg font-extrabold text-white">{t(title)}</h1>
+                <h1 className="truncate bg-gradient-to-r from-white to-slate-300 bg-clip-text text-lg font-extrabold text-transparent">{t(title)}</h1>
                 {subtitle && <p className="truncate text-xs font-medium text-slate-400">{t(subtitle)}</p>}
               </div>
 
@@ -261,7 +295,7 @@ export default function TailorShell({ title, subtitle, children }) {
                   </button>
 
                   {notesOpen && (
-                    <div className="absolute right-0 top-12 z-50 w-[min(22rem,calc(100vw-2rem))] overflow-hidden rounded-2xl border border-white/10 bg-[#121829] shadow-2xl">
+                    <div className="tl-drop absolute right-0 top-12 z-50 w-[min(22rem,calc(100vw-2rem))] origin-top-right overflow-hidden rounded-2xl border border-white/10 bg-[#121829] shadow-2xl">
                       <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
                         <p className="text-xs font-extrabold text-white">{t('shell.notifications')}</p>
                         {unreadCount > 0 && (
@@ -309,7 +343,7 @@ export default function TailorShell({ title, subtitle, children }) {
             </div>
           )}
 
-          <main className="p-4 sm:p-6">{children}</main>
+          <main key={pathname} className="tl-page p-4 sm:p-6">{children}</main>
         </div>
       </div>
     </TailorContext.Provider>

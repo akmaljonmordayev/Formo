@@ -1,13 +1,70 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Briefcase, Clock, Edit3, Factory, Gauge, Globe, MapPin, Phone, Plus, ShieldCheck, Trash2, User, Check } from 'lucide-react';
+import {
+  BellRing, Briefcase, Check, Clock, Edit3, Factory, Gauge, Globe, MapPin, Phone, ShieldCheck, Trash2, User, Users,
+} from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { Card, Toggle } from './ui';
+import { Toggle } from './ui';
 import EmployeeModal from './EmployeeModal';
 import ProfileModal from './ProfileModal';
 import { useTailor } from './prefs';
 import { LANGS, translate, useT } from './i18n';
-import { initialsOf, prettyPhone } from './utils';
+import { cx, initialsOf, prettyPhone } from './utils';
 import { deleteEmployee, getWorkshopProfile, listEmployees } from './tailorApi';
+
+const NOTIFICATIONS = [
+  ['newOrders', 'profile.n.newOrders', 'profile.n.newOrdersHint'],
+  ['deadline', 'profile.n.deadline', 'profile.n.deadlineHint'],
+  ['summary', 'profile.n.summary', 'profile.n.summaryHint'],
+];
+
+function Panel({ icon: Icon, title, action, delay = 0, className, children }) {
+  return (
+    <section
+      className={cx('tl-pop rounded-3xl border border-white/10 bg-[#121829]/80 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl', className)}
+      style={{ '--tl-delay': `${delay}ms` }}
+    >
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-slate-300">
+          {Icon && <Icon className="h-4 w-4 text-teal-400" aria-hidden="true" />}
+          {title}
+        </h3>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function InfoRow({ icon: Icon, label, value }) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl bg-[#0e1424] px-3.5 py-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-400/10 text-teal-300">
+        <Icon className="h-4 w-4" aria-hidden="true" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
+        <p className="truncate text-sm font-bold text-white">{value || '—'}</p>
+      </div>
+    </div>
+  );
+}
+
+function StatTile({ icon: Icon, label, value, delay }) {
+  return (
+    <div
+      className="tl-pop flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 transition duration-200 hover:-translate-y-0.5 hover:border-teal-400/30"
+      style={{ '--tl-delay': `${delay}ms` }}
+    >
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400/25 to-indigo-500/20 text-teal-300 ring-1 ring-inset ring-teal-400/25">
+        <Icon className="h-5 w-5" aria-hidden="true" />
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+        <p className="truncate text-lg font-black leading-tight text-white">{value}</p>
+      </div>
+    </div>
+  );
+}
 
 export default function Profile() {
   const { user } = useAuth();
@@ -24,7 +81,12 @@ export default function Profile() {
   const [employeeModal, setEmployeeModal] = useState({ open: false, employee: null });
   const [deleting, setDeleting] = useState(null);
   const [deleteBusy, setDeleteBusy] = useState(false);
+
   const name = profile?.fullName || user?.fullName || '';
+  const workshop = profile?.workshopName || user?.workshopName || '';
+  const phone = prettyPhone(profile?.phone || user?.phone || '');
+  const shift = profile?.shiftStart || profile?.shiftEnd ? `${profile.shiftStart || '—'} — ${profile.shiftEnd || '—'}` : '—';
+  const capacity = profile?.dailyCapacity != null ? t('profile.capacityUnit', { n: profile.dailyCapacity }) : '—';
 
   const loadEmployees = useCallback(async () => {
     try {
@@ -42,7 +104,10 @@ export default function Profile() {
     let cancelled = false;
     getWorkshopProfile()
       .then((data) => {
-        if (!cancelled) setProfile(data);
+        if (!cancelled) {
+          setProfile(data);
+          setProfileError('');
+        }
       })
       .catch((err) => {
         if (!cancelled) setProfileError(err?.message || t('profile.loadError'));
@@ -55,6 +120,12 @@ export default function Profile() {
   useEffect(() => {
     loadEmployees();
   }, [loadEmployees]);
+
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timer = window.setTimeout(() => setNotice(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
   const onProfileSaved = (saved) => {
     setProfile(saved);
@@ -89,12 +160,6 @@ export default function Profile() {
     }
   };
 
-  useEffect(() => {
-    if (!notice) return undefined;
-    const timer = window.setTimeout(() => setNotice(null), 4000);
-    return () => window.clearTimeout(timer);
-  }, [notice]);
-
   const changeLanguage = async (lang) => {
     try {
       await savePrefs({ ...prefs, lang });
@@ -120,176 +185,200 @@ export default function Profile() {
     }
   };
 
+  const langIndex = Math.max(0, LANGS.findIndex((l) => l.value === prefs.lang));
+
   return (
-    <div className="relative mx-auto max-w-4xl space-y-5">
+    <div className="relative mx-auto max-w-5xl space-y-5">
       {notice && (
         <div
           role={notice.error ? 'alert' : 'status'}
-          className={`fixed right-6 top-20 z-50 flex items-center gap-2 rounded-2xl px-5 py-3 text-xs font-black shadow-2xl ${
+          className={cx(
+            'tl-drop fixed right-6 top-20 z-[60] flex items-center gap-2 rounded-2xl px-5 py-3 text-xs font-black shadow-2xl',
             notice.error ? 'bg-rose-500 text-white' : 'bg-teal-400 text-slate-950'
-          }`}
+          )}
         >
           <Check className="h-4 w-4 stroke-[3]" />
           {notice.text}
         </div>
       )}
 
-      <Card className="flex flex-col gap-6 border border-white/10 bg-[#121829] p-6 shadow-2xl">
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-5">
-          <div className="flex items-center gap-4">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-teal-500/20 text-lg font-black text-teal-400 ring-2 ring-teal-500/40">
+      {/* Hero */}
+      <section className="tl-pop relative overflow-hidden rounded-3xl border border-white/10 bg-[#121829]/80 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)]">
+        <div aria-hidden="true" className="h-24 bg-gradient-to-r from-teal-500/40 via-emerald-500/20 to-indigo-500/30 sm:h-28">
+          <div className="h-full w-full bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.18),transparent_45%)]" />
+        </div>
+        <div className="flex flex-wrap items-end justify-between gap-4 px-5 pb-5 sm:px-6">
+          <div className="-mt-10 flex min-w-0 items-end gap-4 sm:-mt-12">
+            <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-teal-400 to-emerald-500 text-2xl font-black text-slate-950 shadow-glow ring-4 ring-[#121829] sm:h-24 sm:w-24 sm:text-3xl">
               {initialsOf(name)}
             </span>
-            <div>
+            <div className="min-w-0 pb-1">
               <div className="flex flex-wrap items-center gap-2">
-                <h2 className="text-2xl font-black text-white">{name || '—'}</h2>
-                <span className={`rounded-full px-2.5 py-0.5 text-[10px] font-bold ${user?.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-300'}`}>
+                <h2 className="truncate text-xl font-black text-white sm:text-2xl">{name || '—'}</h2>
+                <span
+                  className={cx(
+                    'rounded-full px-2.5 py-0.5 text-[10px] font-bold',
+                    user?.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-300'
+                  )}
+                >
                   {t(user?.isActive ? 'profile.active' : 'profile.inactive')}
                 </span>
               </div>
-              <p className="mt-0.5 text-xs font-semibold text-slate-400">{t('profile.rolePerson')}</p>
+              <p className="mt-0.5 truncate text-xs font-semibold text-slate-400">
+                {workshop || t('profile.workshopMissing')}
+                {phone ? ` · ${phone}` : ''}
+              </p>
             </div>
           </div>
           <button
             type="button"
             disabled={!profile}
             onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 rounded-xl bg-teal-400 px-5 py-2.5 text-xs font-extrabold text-slate-950 shadow-glow transition hover:bg-teal-300 active:scale-95 disabled:opacity-50"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-400 to-emerald-400 px-5 py-2.5 text-xs font-extrabold text-slate-950 shadow-glow transition hover:brightness-110 active:scale-95 disabled:opacity-50"
           >
             <Edit3 className="h-4 w-4" />
             <span>{t('profile.edit')}</span>
           </button>
         </div>
+      </section>
 
-        <section>
-          <h3 className="mb-3 text-xs font-extrabold uppercase tracking-wider text-slate-400">{t('profile.data')}</h3>
-          <div className="grid gap-4 sm:grid-cols-2">
-            {[
-              { label: t('profile.nameLabel'), value: name, Icon: User },
-              { label: t('profile.phoneLabel'), value: prettyPhone(profile?.phone || user?.phone || ''), Icon: Phone },
-              { label: t('profile.workshopLabel'), value: profile?.workshopName || user?.workshopName || t('profile.workshopMissing'), Icon: Factory },
-              { label: t('profile.addressLabel'), value: profile?.address || '—', Icon: MapPin },
-              { label: t('profile.capacityLabel'), value: profile?.dailyCapacity != null ? t('profile.capacityUnit', { n: profile.dailyCapacity }) : '—', Icon: Gauge },
-              { label: t('profile.shiftLabel'), value: profile?.shiftStart || profile?.shiftEnd ? `${profile.shiftStart || '—'} — ${profile.shiftEnd || '—'}` : '—', Icon: Clock },
-            ].map(({ label, value, Icon }) => (
-              <label key={label} className="block">
-                <span className="mb-1 block text-[11px] font-bold text-slate-400">{label}</span>
-                <span className="relative block">
-                  <Icon className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
-                  <input
-                    type="text"
-                    readOnly
-                    value={value}
-                    className="w-full rounded-xl border border-white/10 bg-[#0e1424] py-2.5 pl-10 pr-4 text-xs font-bold text-white outline-none"
-                  />
-                </span>
-              </label>
-            ))}
-            <label className="block">
-              <span className="mb-1 block text-[11px] font-bold text-slate-400">{t('profile.langLabel')}</span>
-              <span className="relative block">
-                <Globe className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" aria-hidden="true" />
-                <select
-                  value={prefs.lang}
-                  onChange={(event) => changeLanguage(event.target.value)}
-                  className="w-full rounded-xl border border-white/10 bg-[#0e1424] py-2.5 pl-10 pr-4 text-xs font-bold text-white outline-none"
-                >
-                  {LANGS.map((language) => (
-                    <option key={language.value} value={language.value}>{language.label}</option>
-                  ))}
-                </select>
-              </span>
-            </label>
+      {profileError && (
+        <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-xs text-rose-200">
+          {profileError}
+        </p>
+      )}
+
+      {/* Stats */}
+      <div className="grid gap-3 sm:grid-cols-3">
+        <StatTile icon={Gauge} label={t('profile.capacityLabel')} value={capacity} delay={60} />
+        <StatTile icon={Clock} label={t('profile.shiftLabel')} value={shift} delay={110} />
+        <StatTile icon={Users} label={t('profile.employees')} value={employeesLoading ? '…' : employees.length} delay={160} />
+      </div>
+
+      <div className="grid gap-5 lg:grid-cols-2">
+        {/* Ma'lumotlar */}
+        <Panel icon={User} title={t('profile.data')} delay={120}>
+          <div className="grid gap-2.5">
+            <InfoRow icon={User} label={t('profile.nameLabel')} value={name} />
+            <InfoRow icon={Phone} label={t('profile.phoneLabel')} value={phone} />
+            <InfoRow icon={Factory} label={t('profile.workshopLabel')} value={workshop || t('profile.workshopMissing')} />
+            <InfoRow icon={MapPin} label={t('profile.addressLabel')} value={profile?.address} />
           </div>
-          <p className="mt-3 text-xs leading-5 text-slate-400">{t('profile.accountReadOnly')}</p>
-          {profileError && <p role="alert" className="mt-2 text-xs text-rose-300">{profileError}</p>}
-        </section>
+          <p className="mt-3 text-[11px] leading-5 text-slate-500">{t('profile.accountReadOnly')}</p>
+        </Panel>
 
-        <section className="border-t border-white/10 pt-5">
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400">{t('profile.employees')}</h3>
-            <button
-              type="button"
-              onClick={() => setEmployeeModal({ open: true, employee: null })}
-              className="flex items-center gap-1.5 rounded-xl bg-teal-400 px-3.5 py-2 text-xs font-extrabold text-slate-950 hover:bg-teal-300"
+        {/* Sozlamalar */}
+        <Panel icon={BellRing} title={t('profile.notifications')} delay={170}>
+          <div role="group" aria-label={t('profile.langLabel')}>
+            <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              <Globe className="h-3.5 w-3.5" aria-hidden="true" />
+              {t('profile.langLabel')}
+            </span>
+            <div
+              className="relative grid rounded-xl border border-white/10 bg-[#0e1424] p-1"
+              style={{ gridTemplateColumns: `repeat(${LANGS.length}, minmax(0, 1fr))` }}
             >
-              <Plus className="h-4 w-4" />
-              {t('profile.employeeAdd')}
-            </button>
+              <span
+                aria-hidden="true"
+                className="absolute inset-y-1 left-1 rounded-lg bg-gradient-to-r from-teal-400 to-emerald-400 shadow-glow transition-transform duration-300 ease-out"
+                style={{ width: `calc((100% - 0.5rem) / ${LANGS.length})`, transform: `translateX(${langIndex * 100}%)` }}
+              />
+              {LANGS.map((language) => {
+                const active = language.value === prefs.lang;
+                return (
+                  <button
+                    key={language.value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => !active && changeLanguage(language.value)}
+                    className={cx(
+                      'relative z-10 rounded-lg py-2 text-xs font-extrabold transition-colors duration-300',
+                      active ? 'text-slate-950' : 'text-slate-400 hover:text-white'
+                    )}
+                  >
+                    {language.label}
+                  </button>
+                );
+              })}
+            </div>
           </div>
-          {employeesLoading && <p className="text-xs text-slate-400">{t('api.loading')}</p>}
-          {employeesError && <p role="alert" className="text-xs text-rose-300">{employeesError}</p>}
-          {!employeesLoading && !employeesError && employees.length === 0 && (
-            <p className="text-xs text-slate-400">{t('profile.employeesEmpty')}</p>
-          )}
-          <ul className="flex flex-col gap-2">
-            {employees.map((emp) => (
-              <li key={emp.id} className="flex items-center justify-between gap-3 rounded-xl bg-[#0e1424] px-3.5 py-3">
-                <div className="flex min-w-0 items-center gap-3">
-                  <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-500/20 text-xs font-black text-teal-300">
-                    {initialsOf(emp.fullName)}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate text-xs font-extrabold text-white">{emp.fullName}</p>
-                    <p className="flex items-center gap-1 truncate text-[10px] text-slate-400">
-                      <Briefcase className="h-3 w-3" aria-hidden="true" />
-                      {emp.role}{emp.phone ? ` · ${prettyPhone(emp.phone)}` : ''}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex shrink-0 gap-1">
-                  <button
-                    type="button"
-                    onClick={() => setEmployeeModal({ open: true, employee: emp })}
-                    aria-label={t('profile.edit')}
-                    className="rounded-lg p-1.5 text-slate-400 hover:bg-white/10 hover:text-white"
-                  >
-                    <Edit3 className="h-4 w-4" />
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setDeleting(emp)}
-                    aria-label={t('profile.employeeDelete')}
-                    className="rounded-lg p-1.5 text-rose-300 hover:bg-rose-500/10"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </section>
 
-        <section className="border-t border-white/10 pt-5">
-          <h3 className="mb-3 text-xs font-extrabold uppercase tracking-wider text-slate-400">{t('profile.notifications')}</h3>
-          <div className="flex flex-col gap-2">
-            {[
-              ['newOrders', 'profile.n.newOrders', 'profile.n.newOrdersHint'],
-              ['deadline', 'profile.n.deadline', 'profile.n.deadlineHint'],
-              ['summary', 'profile.n.summary', 'profile.n.summaryHint'],
-            ].map(([key, labelKey, hintKey]) => (
-              <div key={key} className="flex items-center justify-between gap-4 rounded-xl bg-[#0e1424] px-3.5">
-                <div className="py-3">
-                  <h4 className="text-xs font-extrabold text-white">{t(labelKey)}</h4>
-                  <p className="text-[10px] text-slate-400">{t(hintKey)}</p>
-                </div>
+          <div className="mt-4 flex flex-col gap-2">
+            {NOTIFICATIONS.map(([key, labelKey, hintKey]) => (
+              <div key={key} className="rounded-2xl bg-[#0e1424] px-3.5">
                 <Toggle
+                  label={t(labelKey)}
+                  description={t(hintKey)}
                   checked={prefs.notifications[key]}
                   onChange={() => togglePreference(key)}
-                  ariaLabel={t(labelKey)}
                   disabled={preferenceSaving}
                 />
               </div>
             ))}
           </div>
-          <p className="mt-3 text-xs text-slate-500">{t('profile.localNotifications')}</p>
-        </section>
+          <p className="mt-3 text-[11px] text-slate-500">{t('profile.localNotifications')}</p>
+        </Panel>
+      </div>
 
-        <div className="flex items-start gap-3 rounded-2xl border border-teal-500/30 bg-[#0e1d24] p-4 text-teal-200">
-          <ShieldCheck className="h-5 w-5 shrink-0 text-teal-400" aria-hidden="true" />
-          <p className="text-xs leading-relaxed font-medium">{t('profile.backendNote')}</p>
-        </div>
-      </Card>
+      {/* Xodimlar */}
+      <Panel icon={Users} title={t('profile.employees')} delay={220}>
+        {employeesLoading && <p className="text-xs text-slate-400">{t('api.loading')}</p>}
+        {employeesError && <p role="alert" className="text-xs text-rose-300">{employeesError}</p>}
+        {!employeesLoading && !employeesError && employees.length === 0 && (
+          <p className="rounded-2xl border border-dashed border-white/10 px-4 py-6 text-center text-xs text-slate-400">
+            {t('profile.employeesEmpty')}
+          </p>
+        )}
+        <ul className="grid gap-2.5 sm:grid-cols-2">
+          {employees.map((emp, index) => (
+            <li
+              key={emp.id}
+              style={{ '--tl-delay': `${index * 50}ms` }}
+              className="tl-pop group flex items-center justify-between gap-3 rounded-2xl border border-white/5 bg-[#0e1424] px-3.5 py-3 transition duration-200 hover:-translate-y-0.5 hover:border-teal-400/30 hover:bg-[#111a30] hover:shadow-lg"
+            >
+              <div className="flex min-w-0 items-center gap-3">
+                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400/25 to-indigo-500/20 text-xs font-black text-teal-200 ring-1 ring-inset ring-teal-400/30">
+                  {initialsOf(emp.fullName)}
+                </span>
+                <div className="min-w-0">
+                  <p className="truncate text-xs font-extrabold text-white">{emp.fullName}</p>
+                  <p className="flex items-center gap-1 truncate text-[10px] text-slate-400">
+                    <Briefcase className="h-3 w-3 shrink-0" aria-hidden="true" />
+                    <span className="truncate">{emp.role}{emp.phone ? ` · ${prettyPhone(emp.phone)}` : ''}</span>
+                  </p>
+                </div>
+              </div>
+              <div className="flex shrink-0 gap-1 opacity-70 transition group-hover:opacity-100">
+                <button
+                  type="button"
+                  onClick={() => setEmployeeModal({ open: true, employee: emp })}
+                  aria-label={t('profile.edit')}
+                  className="rounded-lg p-1.5 text-slate-400 transition hover:bg-teal-400/10 hover:text-teal-300"
+                >
+                  <Edit3 className="h-4 w-4" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setDeleting(emp)}
+                  aria-label={t('profile.employeeDelete')}
+                  className="rounded-lg p-1.5 text-rose-300 transition hover:bg-rose-500/10"
+                >
+                  <Trash2 className="h-4 w-4" />
+                </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </Panel>
+
+      <div
+        className="tl-pop flex items-start gap-3 rounded-2xl border border-teal-500/30 bg-[#0e1d24] p-4 text-teal-200"
+        style={{ '--tl-delay': '270ms' }}
+      >
+        <ShieldCheck className="h-5 w-5 shrink-0 text-teal-400" aria-hidden="true" />
+        <p className="text-xs font-medium leading-relaxed">{t('profile.backendNote')}</p>
+      </div>
+
       <ProfileModal open={modalOpen} profile={profile} onClose={() => setModalOpen(false)} onSaved={onProfileSaved} />
       <EmployeeModal
         open={employeeModal.open}
@@ -297,24 +386,32 @@ export default function Profile() {
         onClose={() => setEmployeeModal({ open: false, employee: null })}
         onSaved={onEmployeeSaved}
       />
+
       {deleting && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4">
-          <div role="dialog" aria-modal="true" className="w-full max-w-sm rounded-2xl border border-white/10 bg-[#121829] p-6">
-            <h3 className="text-base font-black text-white">{t('profile.employeeDelete')}</h3>
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          style={{ animation: 'tl-fade 0.2s ease-out both' }}
+        >
+          <div role="dialog" aria-modal="true" className="tl-pop w-full max-w-sm rounded-3xl border border-white/10 bg-[#121829] p-6">
+            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-rose-500/15 text-rose-300">
+              <Trash2 className="h-5 w-5" aria-hidden="true" />
+            </span>
+            <h3 className="mt-3 text-base font-black text-white">{t('profile.employeeDelete')}</h3>
             <p className="mt-2 text-xs text-slate-400">{t('profile.employeeDeleteConfirm', { name: deleting.fullName })}</p>
             <div className="mt-5 flex justify-end gap-2">
               <button
                 type="button"
                 onClick={() => setDeleting(null)}
-                className="rounded-xl border border-white/10 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-white/10"
+                disabled={deleteBusy}
+                className="rounded-xl border border-white/10 px-4 py-2 text-xs font-bold text-slate-300 transition hover:bg-white/10 disabled:opacity-50"
               >
                 {t('emp.cancel')}
               </button>
               <button
                 type="button"
-                disabled={deleteBusy}
                 onClick={confirmDelete}
-                className="rounded-xl bg-rose-500 px-4 py-2 text-xs font-extrabold text-white hover:bg-rose-400 disabled:opacity-50"
+                disabled={deleteBusy}
+                className="rounded-xl bg-rose-500 px-4 py-2 text-xs font-extrabold text-white transition hover:bg-rose-400 active:scale-95 disabled:opacity-60"
               >
                 {t('profile.employeeDelete')}
               </button>

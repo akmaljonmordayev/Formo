@@ -1,5 +1,5 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, Plus, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { ArrowRight, Check, Minus, Plus, X } from 'lucide-react';
 import { Card } from './ui';
 import { useT } from './i18n';
 import { STOCK_COLORS, STOCK_SIZES } from './tailorConstants';
@@ -25,133 +25,6 @@ const matrixToInventory = (matrix) => STOCK_COLORS.flatMap(({ name }) => STOCK_S
   size: itemSize,
   qty: matrix[name]?.[itemSize] ?? 0,
 })));
-
-function StyledSelect({ label, value, options, onChange }) {
-  const [open, setOpen] = useState(false);
-  const controlId = useId();
-  const rootRef = useRef(null);
-  const triggerRef = useRef(null);
-  const selected = options.find((option) => option.value === value);
-
-  const openOptions = () => {
-    setOpen(true);
-    window.requestAnimationFrame(() => {
-      const menuOptions = [...(rootRef.current?.querySelectorAll('[role="option"]') ?? [])];
-      const selectedOption = menuOptions.find((option) => option.getAttribute('aria-selected') === 'true');
-      (selectedOption ?? menuOptions[0])?.focus();
-    });
-  };
-
-  useEffect(() => {
-    if (!open) return undefined;
-    const onPointerDown = (event) => {
-      if (!rootRef.current?.contains(event.target)) setOpen(false);
-    };
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') {
-        setOpen(false);
-        triggerRef.current?.focus();
-      }
-    };
-    document.addEventListener('pointerdown', onPointerDown);
-    document.addEventListener('keydown', onKeyDown);
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown);
-      document.removeEventListener('keydown', onKeyDown);
-    };
-  }, [open]);
-
-  const selectOption = (option) => {
-    onChange(option.value);
-    setOpen(false);
-    triggerRef.current?.focus();
-  };
-
-  return (
-    <div ref={rootRef} className="relative">
-      <span className="mb-1.5 block text-xs font-bold text-slate-400">{label}</span>
-      <button
-        ref={triggerRef}
-        type="button"
-        aria-label={label}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-controls={controlId}
-        onClick={() => {
-          if (open) setOpen(false);
-          else openOptions();
-        }}
-        onKeyDown={(event) => {
-          if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
-            event.preventDefault();
-            openOptions();
-          }
-        }}
-        className="group flex w-full items-center gap-3 rounded-2xl border border-white/10 bg-gradient-to-r from-[#172238] to-[#0e1424] px-3.5 py-3 text-left shadow-inner shadow-black/20 transition hover:border-teal-400/40 hover:from-[#1a2941] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-teal-400/70"
-      >
-        {selected?.hex ? (
-          <span className="h-9 w-9 shrink-0 rounded-xl border border-white/10 p-1">
-            <span className="block h-full w-full rounded-lg shadow-inner" style={{ backgroundColor: selected.hex }} />
-          </span>
-        ) : (
-          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl border border-teal-400/15 bg-teal-400/10 text-xs font-black text-teal-300">
-            {selected?.label}
-          </span>
-        )}
-        <span className="min-w-0 flex-1">
-          <span className="block text-[9px] font-bold uppercase tracking-[0.16em] text-slate-500">{label}</span>
-          <span className="mt-0.5 block truncate text-sm font-extrabold text-white">{selected?.label}</span>
-        </span>
-        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5 text-slate-400 transition group-hover:bg-teal-400/10 group-hover:text-teal-300">
-          <ChevronDown className={`h-4 w-4 transition-transform ${open ? 'rotate-180' : ''}`} aria-hidden="true" />
-        </span>
-      </button>
-      {open && (
-        <div
-          id={controlId}
-          role="listbox"
-          aria-label={label}
-          className="absolute inset-x-0 top-full z-30 mt-2 overflow-hidden rounded-2xl border border-white/10 bg-[#111a2c] p-1.5 shadow-2xl shadow-black/50 ring-1 ring-black/20"
-          onKeyDown={(event) => {
-            if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
-            event.preventDefault();
-            const optionsInMenu = [...event.currentTarget.querySelectorAll('[role="option"]')];
-            const currentIndex = optionsInMenu.indexOf(document.activeElement);
-            const direction = event.key === 'ArrowDown' ? 1 : -1;
-            optionsInMenu[(currentIndex + direction + optionsInMenu.length) % optionsInMenu.length]?.focus();
-          }}
-        >
-          {options.map((option) => (
-            <button
-              key={option.value}
-              type="button"
-              role="option"
-              aria-selected={option.value === value}
-              onClick={() => selectOption(option)}
-              className={`flex w-full items-center gap-3 rounded-xl px-2.5 py-2 text-left transition ${
-                option.value === value
-                  ? 'bg-teal-400/10 text-white ring-1 ring-inset ring-teal-400/20'
-                  : 'text-slate-300 hover:bg-white/5 hover:text-white'
-              }`}
-            >
-              {option.hex ? (
-                <span className="h-8 w-8 shrink-0 rounded-lg border border-white/10 p-1">
-                  <span className="block h-full w-full rounded-md" style={{ backgroundColor: option.hex }} />
-                </span>
-              ) : (
-                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-white/5 text-[11px] font-black text-slate-300">
-                  {option.label}
-                </span>
-              )}
-              <span className="flex-1 text-sm font-bold">{option.label}</span>
-              {option.value === value && <Check className="h-4 w-4 text-teal-300" aria-hidden="true" />}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
 
 export default function Zaxira() {
   const t = useT();
@@ -186,6 +59,8 @@ export default function Zaxira() {
       cancelled = true;
     };
   }, []);
+
+  const currentQty = matrix[color]?.[size] ?? 0;
 
   const summary = useMemo(() => {
     const values = STOCK_COLORS.flatMap(({ name }) => STOCK_SIZES.map((itemSize) => matrix[name]?.[itemSize] ?? 0));
@@ -330,59 +205,157 @@ export default function Zaxira() {
       )}
 
       {formOpen && (
-        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm">
+        <div
+          className="fixed inset-0 z-[70] flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
+          style={{ animation: 'tl-fade 0.2s ease-out both' }}
+        >
           <button
             type="button"
             aria-label={t('stock.add.cancel')}
             className="absolute inset-0 h-full w-full cursor-default"
             onClick={() => setFormOpen(false)}
           />
-          <Card
+          <div
             role="dialog"
             aria-modal="true"
             aria-labelledby="tailor-stock-add-title"
-            className="relative z-10 w-full max-w-md p-5 shadow-2xl"
+            className="tl-pop relative z-10 w-full max-w-md rounded-3xl border border-white/10 bg-[#101627] p-5 shadow-2xl"
           >
-            <div className="flex items-center justify-between gap-4">
-              <h3 id="tailor-stock-add-title" className="text-sm font-extrabold text-white">
+            <div aria-hidden="true" className="pointer-events-none absolute -right-16 -top-16 h-44 w-44 rounded-full bg-teal-400/15 blur-3xl" />
+            <div className="relative flex items-center justify-between gap-4">
+              <h3 id="tailor-stock-add-title" className="text-base font-black text-white">
                 {t('stock.add.title')}
               </h3>
               <button
                 type="button"
                 aria-label={t('stock.add.cancel')}
                 onClick={() => setFormOpen(false)}
-                className="rounded-lg p-2 text-slate-400 transition hover:bg-white/10 hover:text-white"
+                className="rounded-xl p-2 text-slate-400 transition hover:rotate-90 hover:bg-white/10 hover:text-white"
               >
                 <X size={17} aria-hidden="true" />
               </button>
             </div>
-            <form className="mt-4 space-y-4" onSubmit={addStock}>
-              <StyledSelect
-                label={t('stock.add.color')}
-                value={color}
-                options={STOCK_COLORS.map((item) => ({
-                  value: item.name,
-                  label: t(`color.${item.key}`),
-                  hex: item.hex,
-                }))}
-                onChange={setColor}
-              />
-              <StyledSelect
-                label={t('stock.add.size')}
-                value={size}
-                options={STOCK_SIZES.map((itemSize) => ({ value: itemSize, label: itemSize }))}
-                onChange={setSize}
-              />
-              <label className="block text-xs font-bold text-slate-400">
-                <span className="mb-1.5 block">{t('stock.add.qty')}</span>
-                <input type="number" min="1" step="1" required value={quantity} onChange={(event) => setQuantity(event.target.value)} className="w-full rounded-xl border border-white/10 bg-[#0e1424] px-3.5 py-3 text-sm font-semibold text-white outline-none transition focus:border-teal-400/70 focus:ring-4 focus:ring-teal-400/10" />
-              </label>
-              <button type="submit" disabled={saving || loading || !inventoryLoaded} className="flex w-full items-center justify-center gap-2 rounded-xl bg-teal-400 px-4 py-2.5 text-xs font-extrabold text-slate-950 transition hover:bg-teal-300 disabled:cursor-not-allowed disabled:opacity-50">
+            <form className="relative mt-3.5 space-y-3.5" onSubmit={addStock}>
+              <fieldset>
+                <legend className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('stock.add.color')}</legend>
+                <div className="grid grid-cols-4 gap-2" role="radiogroup" aria-label={t('stock.add.color')}>
+                  {STOCK_COLORS.map((item) => {
+                    const active = item.name === color;
+                    return (
+                      <button
+                        key={item.name}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => setColor(item.name)}
+                        className={`group flex flex-col items-center gap-1 rounded-xl border px-1 py-2 transition active:scale-95 ${
+                          active
+                            ? 'border-teal-400/60 bg-teal-400/10 shadow-[0_0_0_3px_rgba(45,212,191,0.12)]'
+                            : 'border-white/10 bg-[#0e1424] hover:border-white/25'
+                        }`}
+                      >
+                        <span className="relative flex h-7 w-7 items-center justify-center rounded-full ring-2 ring-white/20 transition group-hover:scale-110" style={{ backgroundColor: item.hex }}>
+                          {active && <Check size={16} strokeWidth={3} className="text-teal-300 mix-blend-difference" aria-hidden="true" />}
+                        </span>
+                        <span className={`max-w-full truncate text-[10px] font-bold ${active ? 'text-white' : 'text-slate-400'}`}>
+                          {t(`color.${item.key}`)}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
+              <fieldset>
+                <legend className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('stock.add.size')}</legend>
+                <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={t('stock.add.size')}>
+                  {STOCK_SIZES.map((itemSize) => {
+                    const active = itemSize === size;
+                    return (
+                      <button
+                        key={itemSize}
+                        type="button"
+                        role="radio"
+                        aria-checked={active}
+                        onClick={() => setSize(itemSize)}
+                        className={`min-w-[2.75rem] rounded-lg border px-3 py-1.5 text-sm font-black transition active:scale-95 ${
+                          active
+                            ? 'border-teal-300 bg-teal-400 text-slate-950 shadow-glow'
+                            : 'border-white/10 bg-[#0e1424] text-slate-300 hover:border-white/25 hover:text-white'
+                        }`}
+                      >
+                        {itemSize}
+                      </button>
+                    );
+                  })}
+                </div>
+              </fieldset>
+
+              <div>
+                <label htmlFor="tailor-stock-qty" className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  {t('stock.add.qty')}
+                </label>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    aria-label="-1"
+                    onClick={() => setQuantity(String(Math.max(1, (Number(quantity) || 1) - 1)))}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-[#0e1424] text-slate-300 transition hover:border-teal-400/40 hover:text-white active:scale-95"
+                  >
+                    <Minus size={16} aria-hidden="true" />
+                  </button>
+                  <input
+                    id="tailor-stock-qty"
+                    type="number"
+                    min="1"
+                    step="1"
+                    required
+                    value={quantity}
+                    onChange={(event) => setQuantity(event.target.value)}
+                    className="h-10 w-full min-w-0 rounded-xl border border-white/10 bg-[#0e1424] px-3 text-center text-lg font-black text-white outline-none transition [appearance:textfield] focus:border-teal-400 focus:ring-4 focus:ring-teal-400/10 [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                  />
+                  <button
+                    type="button"
+                    aria-label="+1"
+                    onClick={() => setQuantity(String((Number(quantity) || 0) + 1))}
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-white/10 bg-[#0e1424] text-slate-300 transition hover:border-teal-400/40 hover:text-white active:scale-95"
+                  >
+                    <Plus size={16} aria-hidden="true" />
+                  </button>
+                </div>
+                <div className="mt-1.5 flex gap-2">
+                  {[5, 10, 20, 50].map((preset) => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setQuantity(String((Number(quantity) || 0) + preset))}
+                      className="flex-1 rounded-lg bg-white/5 py-1 text-[11px] font-bold text-slate-300 ring-1 ring-inset ring-white/10 transition hover:bg-teal-400/10 hover:text-teal-200 active:scale-95"
+                    >
+                      +{preset}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between rounded-xl border border-white/10 bg-[#0e1424] px-4 py-2.5">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t(`color.${STOCK_COLORS.find((item) => item.name === color)?.key}`)} · {size}</span>
+                <span className="flex items-center gap-2 text-sm font-black">
+                  <span className="text-slate-400">{currentQty}</span>
+                  <ArrowRight size={14} className="text-slate-500" aria-hidden="true" />
+                  <span className="text-teal-300">{currentQty + (Number(quantity) > 0 ? Math.floor(Number(quantity)) : 0)}</span>
+                </span>
+              </div>
+
+              <button
+                type="submit"
+                disabled={saving || loading || !inventoryLoaded}
+                className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-teal-400 to-emerald-400 px-4 py-2.5 text-xs font-extrabold text-slate-950 shadow-glow transition hover:brightness-110 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
+              >
                 <Plus size={15} aria-hidden="true" />
                 {saving ? t('api.saving') : t('stock.add.submit')}
               </button>
             </form>
-          </Card>
+          </div>
         </div>
       )}
     </div>
