@@ -53,7 +53,10 @@ export function createBotServer({ webhook, process, log }: ServerOptions): Serve
     if (req.method === 'GET' && path === '/health') return reply(200, { ok: true });
     if (!webhook || path !== webhook.path) return reply(404);
     if (req.method !== 'POST') return reply(405);
-    if (!secretMatches(req.headers[SECRET_HEADER], webhook.secret)) return reply(401);
+    if (!secretMatches(req.headers[SECRET_HEADER], webhook.secret)) {
+      log.warn('webhook: noto‘g‘ri secret_token');
+      return reply(401);
+    }
 
     let update: TgUpdate;
     try {

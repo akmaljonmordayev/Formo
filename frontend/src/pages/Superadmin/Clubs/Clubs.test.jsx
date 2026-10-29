@@ -15,7 +15,10 @@ function mockBackend({ rejectTypeFilter = false } = {}) {
   vi.stubGlobal(
     'fetch',
     vi.fn(async (url) => {
-      const [path, query = ''] = url.split('?');
+      // frontend/.env'dagi VITE_API_URL tufayli api() to'liq URL yasaydi (http://localhost:3001/api/...) —
+      // host qismini olib tashlab, faqat yo'l bilan solishtiramiz
+      const [rawPath, query = ''] = url.replace(/^https?:\/\/[^/]+/, '').split('?');
+      const path = rawPath;
       const params = new URLSearchParams(query);
       if (path === '/api/admin/categories') return json(200, [{ id: 1, name: 'LaLiga', clubsCount: 1 }]);
       if (path === '/api/admin/pricing')
