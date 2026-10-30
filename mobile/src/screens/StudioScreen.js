@@ -18,10 +18,12 @@ import ErrorView from '../components/ui/ErrorView';
 import Jersey3D from '../components/ui/Jersey3D';
 import KitDesignPicker from '../components/ui/KitDesignPicker';
 import KitViewer from '../components/ui/KitViewer';
+import Kit360Viewer from '../components/ui/Kit360Viewer';
 import { Shorts, patchKind } from '../components/ui/Shirt';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { visibleSizes } from '../features/config';
 import { clubKitDesign, studioKitDesign, useKitDesigns } from '../features/kit3d';
+import { kit360Team } from '../features/kit360';
 import { GIFT_PACKAGE, NEON, PATCHES, SOLID_COLORS, TEXT_COLORS, designPreview, estimatePrice } from '../features/studio';
 import { errorText } from '../utils/errors';
 
@@ -294,6 +296,31 @@ function Preview({ t, side, setSide, design, name, number, glow, patch, shorts, 
           <Shorts width={120} color={design.primaryColor} trim={design.secondaryColor} ink={design.textColor} number={shorts.number} glow={glow} />
         </View>
       ) : null}
+    </View>
+  );
+}
+
+/** Klub formasi foto-360° (admin paneldagi Forma 360°): ism/raqam formaga, shortik raqami old tomonda — viewer ichida */
+function Preview360({ t, side, setSide, team, name, number, fallback }) {
+  const { height: screenH } = useWindowDimensions();
+  const height = Math.max(320, Math.min(520, Math.round(screenH * 0.55)));
+  return (
+    <View style={styles.previewWrap}>
+      <View style={styles.preview}>
+        <Kit360Viewer
+          t={t}
+          height={height}
+          team={team}
+          name={name}
+          number={number}
+          view={side}
+          onViewChange={setSide}
+          fallback={fallback}
+        />
+        <View style={styles.previewSide}>
+          <SideSwitch t={t} side={side} setSide={setSide} />
+        </View>
+      </View>
     </View>
   );
 }
@@ -742,6 +769,17 @@ function KitStudio({ t, product, cart, rules, onBack, onPickKit, modeSwitch }) {
   const prices = product.priceBreakdown;
   // 3D ko'rinish uchun: forma rangi, yozuv rangi, nishonda klub kodi (haqiqiy klub logotipi emas)
   const design = useMemo(() => clubKitDesign(product), [product]);
+  const team360 = kit360Team(product);
+  const fallback = (
+    <Jersey3D
+      kit={{ color: product.color || '#1A3582', ink: product.accent || '#FFFFFF', crest: product.code }}
+      name={printName}
+      number={number}
+      side={side}
+      onSideChange={setSide}
+      width={190}
+    />
+  );
   const price = prices.shirt + (withShorts ? prices.shorts : 0) + (hasPrint ? prices.print : 0);
   const paused = !rules.acceptOrders;
 
@@ -817,26 +855,22 @@ function KitStudio({ t, product, cart, rules, onBack, onPickKit, modeSwitch }) {
         <Header cart onBack={onBack} title={t('designStudio')} />
         {modeSwitch}
 
-        {/* Klub formasi: shortik tanlansa ostida ko'rinadi, "shortikka raqam" darhol aks etadi */}
-        <Preview
-          t={t}
-          side={side}
-          setSide={setSide}
-          design={design}
-          name={printName}
-          number={number}
-          shorts={shortsPreview(shorts, number)}
-          fallback={
-            <Jersey3D
-              kit={{ color: product.color || '#1A3582', ink: product.accent || '#FFFFFF', crest: product.code }}
-              name={printName}
-              number={number}
-              side={side}
-              onSideChange={setSide}
-              width={190}
-            />
-          }
-        />
+        {/* Klub formasi: foto-360° bor klublar (10 ta) uchun — haqiqiy forma surati; qolganlari 3D.
+            3D'da shortik tanlansa ostida ko'rinadi, "shortikka raqam" darhol aks etadi */}
+        {team360 ? (
+          <Preview360 t={t} side={side} setSide={setSide} team={team360} name={printName} number={number} fallback={fallback} />
+        ) : (
+          <Preview
+            t={t}
+            side={side}
+            setSide={setSide}
+            design={design}
+            name={printName}
+            number={number}
+            shorts={shortsPreview(shorts, number)}
+            fallback={fallback}
+          />
+        )}
 
         <Pressable style={styles.kitRow} onPress={onPickKit}>
           <View style={{ flex: 1 }}>
