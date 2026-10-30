@@ -94,13 +94,38 @@ jobs:
           node-version: ${{ env.NODE_VERSION }}
           cache: pnpm
       - name: Install
-        run: $PNPM_INSTALL --filter @formo/frontend
+        run: $PNPM_INSTALL --filter @formo/frontend --filter @formo/kit-3d
       - name: Lint
         run: pnpm lint
       - name: Tests
         run: pnpm test
+      - name: Kit 3D tests
+        run: pnpm --filter @formo/kit-3d test
       - name: Build
         run: pnpm build
+
+  telegram-bot:
+    name: Telegram bot · typecheck, test, build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: telegram-bot
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: telegram-bot/package-lock.json
+      - name: Install
+        run: npm ci --no-audit --no-fund
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Tests
+        run: npm test
+      - name: Build
+        run: npm run build
 
   docker:
     name: Docker · production images

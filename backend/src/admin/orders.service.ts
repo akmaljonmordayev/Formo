@@ -1,10 +1,21 @@
-import { NotFoundException, Injectable } from '@nestjs/common';
-import { AuditCategory, OrderStatus, Prisma } from '@prisma/client';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { AuditCategory, OrderStatus, Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditEntry, AuditService } from './audit.service';
-import { ListOrdersQueryDto, UpdateOrderStatusDto } from './dto/order.dto';
+import { AssignWorkshopDto, ListOrdersQueryDto, UpdateOrderStatusDto } from './dto/order.dto';
+import { OrderHistoryService } from './order-history.service';
+import { WalletService } from '../wallet/wallet.service';
 
 const ACTIVE_STATUSES: OrderStatus[] = [
+  OrderStatus.SENT_TO_WORKSHOP,
+  OrderStatus.ACCEPTED,
+  OrderStatus.PRINTING,
+  OrderStatus.QUALITY_CHECK,
+  OrderStatus.READY,
+  OrderStatus.DELIVERING,
+];
+const WORKSHOP_STAGES: OrderStatus[] = [
+  OrderStatus.SENT_TO_WORKSHOP,
   OrderStatus.ACCEPTED,
   OrderStatus.PRINTING,
   OrderStatus.QUALITY_CHECK,
@@ -12,6 +23,8 @@ const ACTIVE_STATUSES: OrderStatus[] = [
   OrderStatus.DELIVERING,
 ];
 const REVENUE_STATUSES: OrderStatus[] = [
+  OrderStatus.NEW,
+  OrderStatus.SENT_TO_WORKSHOP,
   OrderStatus.ACCEPTED,
   OrderStatus.PRINTING,
   OrderStatus.QUALITY_CHECK,
@@ -20,24 +33,36 @@ const REVENUE_STATUSES: OrderStatus[] = [
   OrderStatus.DELIVERED,
 ];
 
-const include = {
+export const include = {
   club: { select: { name: true } },
   items: { orderBy: { id: 'asc' } },
-  workshop: { select: { id: true, fullName: true, workshopName: true } },
+  workshop: { select: { id: true, fullName: true, workshopName: true, phone: true } },
 } satisfies Prisma.OrderInclude;
+
+export const detailInclude = {
+  ...include,
+  promocode: { select: { code: true } },
+  statusLogs: { orderBy: { id: 'asc' } },
+} satisfies Prisma.OrderInclude;
+
+/** Operator sexga yubora oladigan holatlar: yangi yoki hali sex tasdiqlamagan (qayta biriktirish) */
+const ASSIGNABLE: OrderStatus[] = [OrderStatus.NEW, OrderStatus.SENT_TO_WORKSHOP];
 
 @Injectable()
 export class OrdersService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    private readonly history: OrderHistoryService,
+    private readonly wallet: WalletService,
   ) {}
 
   async list(query: ListOrdersQueryDto) {
-    const { search, status, workshopId, page = 1, limit = 20 } = query;
+    const { search, status, paymentStatus, workshopId, page = 1, limit = 20 } = query;
     const where: Prisma.OrderWhereInput = {};
     if (status) where.status = status;
     if (workshopId) where.workshopId = workshopId;
+    if (paymentStatus) where.paymentStatus = paymentStatus;
     if (search) {
       const digits = search.replace(/\D/g, '');
       where.OR = [
@@ -47,7 +72,7 @@ export class OrdersService {
       ];
     }
 
-    const [[items, total], counts] = await Promise.all([
+    const [[items, total], counts, payments] = await Promise.all([
       this.prisma.$transaction([
         this.prisma.order.findMany({
           where,
@@ -59,20 +84,84 @@ export class OrdersService {
         this.prisma.order.count({ where }),
       ]),
       this.prisma.order.groupBy({ by: ['status'], _count: { _all: true } }),
+      // Bekor qilingan buyurtmalar tushum/kutilayotgan summaga kirmaydi
+      this.prisma.order.groupBy({
+        by: ['paymentStatus'],
+        where: { status: { not: OrderStatus.CANCELLED } },
+        _sum: { totalSum: true },
+      }),
     ]);
 
     const byStatus = Object.fromEntries(counts.map((c) => [c.status, c._count._all])) as Record<string, number>;
-    return { items, total, page, limit, byStatus };
+    const paymentTotals = Object.fromEntries(payments.map((p) => [p.paymentStatus, p._sum.totalSum ?? 0])) as Record<string, number>;
+    return { items, total, page, limit, byStatus, paymentTotals };
+  }
+
+  async get(id: number) {
+    const order = await this.prisma.order.findUnique({ where: { id }, include: detailInclude });
+    if (!order) throw new NotFoundException('Buyurtma topilmadi');
+    return order;
+  }
+
+  /** Operator buyurtmani tekshirib, tikuv sexiga yuboradi (yoki hali tasdiqlanmagan bo'lsa boshqa sexga o'tkazadi) */
+  async assign(id: number, dto: AssignWorkshopDto, actor: NonNullable<AuditEntry['actor']>, ip?: string) {
+    const order = await this.prisma.order.findUnique({ where: { id }, select: { status: true, code: true } });
+    if (!order) throw new NotFoundException('Buyurtma topilmadi');
+    if (!ASSIGNABLE.includes(order.status)) {
+      throw new ConflictException(
+        order.status === OrderStatus.PENDING_PAYMENT
+          ? "Buyurtma hali to'lanmagan"
+          : 'Buyurtmani faqat NEW yoki SENT_TO_WORKSHOP holatida sexga yuborish mumkin',
+      );
+    }
+    const workshop = await this.prisma.user.findFirst({
+      where: { id: dto.workshopId, role: Role.TAILOR },
+      select: { isActive: true, workshopName: true, fullName: true },
+    });
+    if (!workshop) throw new BadRequestException('Tikuv sexi topilmadi');
+    if (!workshop.isActive) throw new BadRequestException('Tikuv sexi bloklangan');
+
+    await this.prisma.$transaction(async (tx) => {
+      // Shu orada holat o'zgargan bo'lsa (mijoz bekor qildi, sex qabul qildi) — yozilmaydi
+      const { count } = await tx.order.updateMany({
+        where: { id, status: order.status },
+        data: { status: OrderStatus.SENT_TO_WORKSHOP, workshopId: dto.workshopId },
+      });
+      if (!count) throw new ConflictException("Buyurtma holati hozirgina o'zgardi, qayta urinib ko'ring");
+      await this.history.record({ orderId: id, from: order.status, to: OrderStatus.SENT_TO_WORKSHOP, actor, note: dto.note }, tx);
+    });
+
+    await this.audit.log({
+      actor,
+      action: `Buyurtma sexga yuborildi: ${workshop.workshopName || workshop.fullName}`,
+      category: AuditCategory.ORDER,
+      context: order.code,
+      ip,
+    });
+    return this.get(id);
   }
 
   async updateStatus(id: number, dto: UpdateOrderStatusDto, actor: AuditEntry['actor'], ip?: string) {
     const current = await this.prisma.order.findUnique({ where: { id } });
     if (!current) throw new NotFoundException('Buyurtma topilmadi');
+    this.assertTransition(current, dto);
 
-    const order = await this.prisma.order.update({
-      where: { id },
-      data: { status: dto.status, ...(dto.workshopId !== undefined && { workshopId: dto.workshopId }) },
-      include,
+    const order = await this.prisma.$transaction(async (tx) => {
+      const updated = await tx.order.update({
+        where: { id },
+        data: { status: dto.status, ...(dto.workshopId !== undefined && { workshopId: dto.workshopId }) },
+        include,
+      });
+      if (current.status !== dto.status) {
+        await this.history.record({ orderId: id, from: current.status, to: dto.status, actor, note: dto.note }, tx);
+        // Balansdan to'langan buyurtma bekor qilinsa yoki qaytarilsa — pul mijoz balansiga bir marta qaytadi
+        if (dto.status === OrderStatus.CANCELLED || dto.status === OrderStatus.RETURNED) {
+          if (await this.wallet.refundOrder(tx, id, actor?.id ?? null)) {
+            return tx.order.findUniqueOrThrow({ where: { id }, include });
+          }
+        }
+      }
+      return updated;
     });
 
     await this.audit.log({
@@ -84,6 +173,23 @@ export class OrdersService {
     });
 
     return order;
+  }
+
+  /** Yakuniy holatdan qaytib bo'lmaydi; DELIVERED faqat yetkazishdan keyin; sex bosqichlari sexsiz bo'lmaydi */
+  private assertTransition(current: { status: OrderStatus; workshopId: number | null }, dto: UpdateOrderStatusDto) {
+    if (dto.status === current.status) return;
+    if (current.status === OrderStatus.CANCELLED || current.status === OrderStatus.RETURNED) {
+      throw new ConflictException(`Buyurtma ${current.status} holatida — o'zgartirib bo'lmaydi`);
+    }
+    if (current.status === OrderStatus.DELIVERED && dto.status !== OrderStatus.RETURNED) {
+      throw new ConflictException("Yetkazilgan buyurtmani faqat qaytarilgan (RETURNED) deb belgilash mumkin");
+    }
+    if (dto.status === OrderStatus.DELIVERED && current.status !== OrderStatus.DELIVERING) {
+      throw new ConflictException('Yetkazildi deb faqat yetkazishdagi (DELIVERING) buyurtmani belgilash mumkin');
+    }
+    if (WORKSHOP_STAGES.includes(dto.status) && (dto.workshopId ?? current.workshopId) == null) {
+      throw new BadRequestException("Bu holat uchun tikuv sexi kerak — avval buyurtmani sexga yuboring (assign)");
+    }
   }
 
   /** Dashboard/hisobotlar uchun berilgan davr bo'yicha xom buyurtmalar — aggregatsiya shu ustida hisoblanadi */

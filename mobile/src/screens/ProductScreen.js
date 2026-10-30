@@ -1,77 +1,168 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
-import { Button, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
-import { JerseyPreview } from '../components/ui/JerseyPreview';
+import { Badge, Button, Card, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
+import ErrorView from '../components/ui/ErrorView';
+import Jersey3D from '../components/ui/Jersey3D';
+import { Shirt } from '../components/ui/Shirt';
+import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { visibleSizes } from '../features/config';
+import { useClub } from '../features/products';
 
-export default function ProductScreen({ product, t, onBack, onCustomize }) {
+export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCustomize }) {
   const [side, setSide] = useState('front');
-  const [variant, setVariant] = useState(0);
-  const variants = [
-    { label: t('kitHome'), color: product.color },
-    { label: t('kitAway'), color: '#242749' },
-    { label: t('kitThird'), color: '#F5A55E' },
-  ];
-  const previewProduct = { ...product, color: variants[variant].color };
+  const [selectedId, setSelectedId] = useState(kitId || null);
+  const { club, products, isLoading, error, refetch } = useClub(clubId);
+
+  useEffect(() => {
+    if (products.length && !products.some((p) => p.kitId === selectedId)) {
+      setSelectedId(products.find((p) => p.kitId === kitId)?.kitId ?? products[0].kitId);
+    }
+  }, [products, selectedId, kitId]);
+
+  const product = products.find((p) => p.kitId === selectedId) || products[0];
+
+  if (!product) {
+    return (
+      <Screen>
+        <Header title={club?.name || t('catalog')} onBack={onBack} />
+        {error ? (
+          <ErrorView message={t('loadError')} onRetry={refetch} retryLabel={t('retry')} />
+        ) : isLoading ? (
+          <LoadingSpinner />
+        ) : (
+          <Text style={styles.emptyText}>{t('noKits')}</Text>
+        )}
+      </Screen>
+    );
+  }
+
+  const available = visibleSizes(product.sizes, rules).filter((s) => s.available).map((s) => s.size);
+  const breakdown = product.priceBreakdown || {
+    shirt: product.price || 0,
+    shorts: 0,
+    print: 0,
+  };
+
+  // Faqat serverdan kelgan ma'lumot (Kit: colorsLabel, narx tarkibi, o'lchamlar)
   const specs = [
-    [t('fabric'), '100%'],
-    [t('designTime'), '48 h'],
-    [t('sizes'), '7–XXL'],
-  ];
+    [t('kitIncludes'), t('kitIncludesValue')],
+    product.colorsLabel ? [t('kitColors'), product.colorsLabel] : null,
+    [t('shirtPrice'), formatMoney(breakdown.shirt)],
+    [t('shortsPrice'), formatMoney(breakdown.shorts)],
+    [t('printPrice'), formatMoney(breakdown.print)],
+    [t('sizes'), available.length ? `${available[0]}–${available[available.length - 1]}` : '—'],
+  ].filter(Boolean);
+  const kitColors = { color: product.color || '#1A3582', ink: product.accent || '#FFFFFF' };
+
   return (
     <Screen
-      contentStyle={{ paddingBottom: 110 }}
+      contentStyle={{ paddingBottom: 120 }}
       footer={
         <View style={styles.footer}>
           <View>
             <Text style={styles.footerLabel}>{t('total')}</Text>
             <Text style={styles.footerPrice}>{formatMoney(product.price)}</Text>
           </View>
-          <Button onPress={() => onCustomize(product)}>{t('customize')}</Button>
+          <Button
+            variant="primary"
+            size="regular"
+            onPress={() => onCustomize(product)}
+            icon={<MaterialCommunityIcons name="pencil-ruler" size={18} color={colors.primaryDark} />}
+          >
+            {t('customize')}
+          </Button>
         </View>
       }
     >
-      <Header title={product.name} subtitle={t('baseKit')} onBack={onBack} />
-
-      <Segment
-        style={styles.segment}
-        options={[t('front'), t('rear')]}
-        value={side === 'front' ? t('front') : t('rear')}
-        onChange={(value) => setSide(value === t('front') ? 'front' : 'back')}
+      <Header
+        cart
+        title={club?.name || product.name}
+        subtitle={club?.season || t('baseKit')}
+        onBack={onBack}
       />
 
-      <View style={styles.preview}>
+      {/* Mahsulot sahnasi: futbolka + shortik (dizayn: Shirt/Shorts), old/orqa */}
+      <View style={styles.previewBox}>
         <View style={styles.glow} />
-        <Text style={styles.badge}>{product.badge}</Text>
-        <JerseyPreview
-          product={previewProduct}
+        {product.badge ? (
+          <View style={styles.badgeWrap}>
+            <Badge label={product.badge} variant="teal" />
+          </View>
+        ) : null}
+        {/* key — forma almashganda aylanish holati qaytadan boshlanadi */}
+        <Jersey3D
+          key={product.kitId}
+          kit={{ color: kitColors.color, ink: kitColors.ink, crest: club?.code || '' }}
+          name="FORMO"
           number="10"
-          large
+          shorts={{ number: '10' }}
           side={side}
-          name="AZIZ"
+          onSideChange={setSide}
+          width={200}
+        />
+        <Text style={styles.rotateHint}>{t('rotateHint')}</Text>
+        <Segment
+          style={styles.segment}
+          options={[t('front'), t('rear')]}
+          value={side === 'front' ? t('front') : t('rear')}
+          onChange={(value) => setSide(value === t('front') ? 'front' : 'back')}
         />
       </View>
 
+      {/* Sibling Kits Selector (Home, Away, 3rd) */}
+      <Text style={styles.sectionHeader}>{t('clubKitTitle')}</Text>
       <View style={styles.previewRow}>
-        {variants.map((item, index) => (
-          <Pressable
-            key={item.label}
-            onPress={() => setVariant(index)}
-            style={[styles.thumb, variant === index && styles.thumbActive]}
+        {products.map((item) => {
+          const isSelected = product.kitId === item.kitId;
+          return (
+            <Pressable
+              key={item.kitId}
+              onPress={() => setSelectedId(item.kitId)}
+              style={[styles.thumb, isSelected && styles.thumbActive]}
+            >
+              <View style={styles.thumbJersey}>
+                <Shirt width={58} color={item.color || '#1A3582'} ink={item.accent || '#FFFFFF'} side="front" crest={club?.code || ''} />
+              </View>
+              <Text style={[styles.thumbLabel, isSelected && styles.thumbLabelActive]}>
+                {item.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+
+      {/* Available Sizes Strip */}
+      <Text style={styles.sectionHeader}>{t('sizes').toUpperCase()}</Text>
+      <View style={styles.sizesRow}>
+        {visibleSizes(product.sizes, rules).map((sz) => (
+          <View
+            key={sz.size}
+            style={[styles.sizeChip, !sz.available && styles.sizeChipDisabled]}
           >
-            <View style={styles.thumbJersey}>
-              <JerseyPreview product={{ ...product, color: item.color }} number="10" tiny />
-            </View>
-            <Text style={[styles.thumbLabel, variant === index && styles.thumbLabelActive]}>{item.label}</Text>
-          </Pressable>
+            <Text style={[styles.sizeChipText, !sz.available && styles.sizeChipTextDisabled]}>
+              {sz.size}
+            </Text>
+          </View>
         ))}
       </View>
 
-      <Text style={styles.description}>{t('description')}</Text>
+      {/* Tavsif — faqat serverda bo'lsa (Kit.description) */}
+      {product.description ? (
+        <>
+          <Text style={styles.sectionHeader}>{t('aboutKit')}</Text>
+          <Text style={styles.description}>{product.description}</Text>
+        </>
+      ) : null}
 
-      <View style={styles.specs}>
-        {specs.map(([label, value]) => (
-          <View key={label} style={styles.specRow}>
+      {/* Specs / Breakdown Card */}
+      <View style={styles.specsCard}>
+        {specs.map(([label, value], idx) => (
+          <View
+            key={label}
+            style={[styles.specRow, idx === specs.length - 1 && styles.specRowLast]}
+          >
             <Text style={styles.specLabel}>{label}</Text>
             <Text style={styles.specValue}>{value}</Text>
           </View>
@@ -82,68 +173,124 @@ export default function ProductScreen({ product, t, onBack, onCustomize }) {
 }
 
 const styles = StyleSheet.create({
-  segment: { alignSelf: 'center', marginBottom: spacing.lg },
-  preview: {
-    height: 300,
+  segment: {
+    alignSelf: 'center',
+    marginTop: spacing.md,
+  },
+  // Dizayn: futbolka shortik ustida (z-index), shortik 12–14px ostiga kiradi
+  rotateHint: { color: colors.muted, fontSize: 10, fontWeight: '700', marginTop: 2 },
+  previewBox: {
+    paddingTop: spacing.xl,
+    paddingBottom: spacing.lg,
     borderRadius: radii.xl,
-    backgroundColor: '#0C1130',
+    backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#1A2048',
+    borderColor: colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
     marginBottom: spacing.lg,
+    position: 'relative',
   },
   glow: {
     position: 'absolute',
-    width: 230,
-    height: 230,
-    borderRadius: 115,
-    backgroundColor: '#182256',
-    opacity: 0.75,
+    width: 240,
+    height: 240,
+    borderRadius: 120,
+    backgroundColor: 'rgba(242, 163, 58, 0.08)',
   },
-  badge: {
+  badgeWrap: {
     position: 'absolute',
-    top: spacing.lg,
-    left: spacing.lg,
-    color: colors.accent,
-    backgroundColor: '#171E4B',
-    borderRadius: 6,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    fontSize: 9,
-    fontWeight: '900',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-    overflow: 'hidden',
+    top: spacing.md,
+    left: spacing.md,
     zIndex: 2,
   },
-  previewRow: { flexDirection: 'row', gap: spacing.md, marginBottom: spacing.lg },
+  sectionHeader: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    marginBottom: spacing.sm,
+    marginTop: spacing.md,
+  },
+  previewRow: {
+    flexDirection: 'row',
+    gap: spacing.md,
+    marginBottom: spacing.sm,
+  },
   thumb: {
     flex: 1,
-    height: 96,
+    height: 100,
     borderRadius: radii.md,
     backgroundColor: colors.surface,
     borderWidth: 1.5,
-    borderColor: '#1B2150',
-    paddingTop: 6,
+    borderColor: colors.border,
+    paddingTop: 8,
     alignItems: 'center',
     justifyContent: 'center',
     overflow: 'hidden',
   },
-  thumbActive: { borderColor: colors.accent, backgroundColor: '#0E1330' },
-  thumbJersey: { width: '100%', height: 64, alignItems: 'center', justifyContent: 'center', overflow: 'hidden' },
-  thumbLabel: { color: colors.muted, fontSize: 9, fontWeight: '700', marginTop: 4 },
-  thumbLabelActive: { color: colors.accent },
-  description: { color: colors.muted, fontSize: 12, lineHeight: 18 },
-  specs: {
+  thumbActive: {
+    borderColor: colors.accent,
+    backgroundColor: colors.surfaceRaised,
+  },
+  thumbJersey: {
+    width: '100%',
+    height: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+  },
+  thumbLabel: {
+    color: colors.muted,
+    fontSize: 10,
+    fontWeight: '700',
+    marginTop: 4,
+  },
+  thumbLabelActive: {
+    color: colors.accent,
+    fontWeight: '900',
+  },
+  sizesRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: spacing.sm,
+  },
+  sizeChip: {
+    paddingVertical: 7,
+    paddingHorizontal: 14,
+    borderRadius: radii.sm,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  sizeChipDisabled: {
+    opacity: 0.4,
+  },
+  sizeChipText: {
+    color: colors.text,
+    fontSize: 12,
+    fontWeight: '800',
+  },
+  sizeChipTextDisabled: {
+    color: colors.muted,
+    textDecorationLine: 'line-through',
+  },
+  description: {
+    color: colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 20,
+    marginBottom: spacing.md,
+  },
+  specsCard: {
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: '#1B2150',
+    borderColor: colors.border,
     paddingHorizontal: spacing.lg,
-    marginTop: spacing.sm,
-    marginBottom: spacing.sm,
+    marginBottom: spacing.md,
   },
   specRow: {
     flexDirection: 'row',
@@ -151,11 +298,44 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: '#171C3F',
+    borderBottomColor: colors.border,
   },
-  specLabel: { color: colors.muted, fontSize: 13 },
-  specValue: { color: colors.text, fontSize: 13, fontWeight: '800' },
-  footer: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  footerLabel: { color: colors.muted, fontSize: 10, fontWeight: '800', letterSpacing: 0.6 },
-  footerPrice: { color: colors.text, fontSize: 17, fontWeight: '900', marginTop: 3 },
+  specRowLast: {
+    borderBottomWidth: 0,
+  },
+  specLabel: {
+    color: colors.muted,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  specValue: {
+    color: colors.text,
+    fontSize: 13,
+    fontWeight: '800',
+  },
+  footer: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  footerLabel: {
+    color: colors.muted,
+    fontSize: 11,
+    fontWeight: '800',
+    letterSpacing: 0.8,
+    textTransform: 'uppercase',
+  },
+  footerPrice: {
+    color: colors.accent,
+    fontSize: 18,
+    fontWeight: '900',
+    marginTop: 2,
+  },
+  emptyText: {
+    color: colors.muted,
+    fontSize: 13,
+    textAlign: 'center',
+    marginTop: 40,
+  },
 });

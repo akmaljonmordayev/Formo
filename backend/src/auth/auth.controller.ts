@@ -17,8 +17,9 @@ import { AuthService, ClientInfo } from './auth.service';
 import { AuthResponseDto, MessageResponseDto, UserResponseDto } from './dto/auth-response.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
+import { OtpLoginDto } from './dto/otp-login.dto';
 import { RefreshDto } from './dto/refresh.dto';
-import { RegisterDto } from './dto/register.dto';
+import { RegisterDto, UpdateProfileDto } from './dto/register.dto';
 
 const AUTH_LIMIT = { default: { limit: Number(process.env.THROTTLE_AUTH_LIMIT ?? 10), ttl: 60_000 } };
 
@@ -35,7 +36,11 @@ export class AuthController {
   @Public()
   @Throttle(AUTH_LIMIT)
   @Post('register')
-  @ApiOperation({ summary: "Mobil ilova: foydalanuvchi ro'yxatdan o'tishi (role = USER)" })
+  @ApiOperation({
+    summary: "Parol bilan ro'yxatdan o'tish (role = USER) — faqat ishlab chiqish/test",
+    description: "Productionda 403: mijoz hisobi faqat Telegram bot orqali ochiladi (`POST /auth/telegram/start` + `/verify`).",
+  })
+  @ApiForbiddenResponse({ description: 'Productionda o‘chiq' })
   @ApiOkResponse({ type: AuthResponseDto })
   @ApiConflictResponse({ description: 'Telefon raqam band' })
   @ApiTooManyRequestsResponse({ description: "Juda ko'p urinish" })
@@ -59,6 +64,25 @@ export class AuthController {
   @ApiTooManyRequestsResponse({ description: "Juda ko'p urinish" })
   login(@Body() dto: LoginDto, @Req() req: Request) {
     return this.auth.login(dto, clientInfo(req));
+  }
+
+  @Public()
+  @Throttle(AUTH_LIMIT)
+  @Post('otp-login')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Dev-only: telefon + SMS kod bilan parolsiz kirish',
+    description:
+      'Haqiqiy SMS integratsiyasigacha faqat demo kod (12345) qabul qilinadi. ' +
+      'Hisob topilmasa avtomatik ochiladi (role = USER). Productionda har doim o‘chiq (403) — ' +
+      'u yerda `POST /auth/telegram/start` + `/verify` ishlatiladi. Ishlab chiqishda o‘chirish: OTP_LOGIN_DEMO=false.',
+  })
+  @ApiOkResponse({ type: AuthResponseDto })
+  @ApiUnauthorizedResponse({ description: "Tasdiqlash kodi noto'g'ri" })
+  @ApiForbiddenResponse({ description: 'Mavjud emas / akkaunt bloklangan / xodim hisobi' })
+  @ApiTooManyRequestsResponse({ description: "Juda ko'p urinish" })
+  otpLogin(@Body() dto: OtpLoginDto, @Req() req: Request) {
+    return this.auth.otpLogin(dto, clientInfo(req));
   }
 
   @Public()
@@ -95,6 +119,14 @@ export class AuthController {
   @ApiOkResponse({ type: UserResponseDto })
   me(@CurrentUser() user: AuthUser) {
     return this.auth.me(user.id);
+  }
+
+  @ApiBearerAuth()
+  @Patch('me')
+  @ApiOperation({ summary: "Profilni yangilash: jins, yosh, bo'y, vazn (null — tozalash)" })
+  @ApiOkResponse({ type: UserResponseDto })
+  updateMe(@CurrentUser() user: AuthUser, @Body() dto: UpdateProfileDto) {
+    return this.auth.updateProfile(user.id, dto);
   }
 
   @ApiBearerAuth()

@@ -19,6 +19,7 @@ describe('PrismaExceptionFilter', () => {
 
   it.each([
     ['P2002', 409],
+    ['P2003', 409],
     ['P2025', 404],
     ['P2034', 409],
   ])('%s -> %d', (code, expected) => {

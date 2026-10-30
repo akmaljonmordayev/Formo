@@ -1,3 +1,6 @@
+import { tmpdir } from 'os';
+import { join } from 'path';
+
 // Har bir test fayli uchun muhit: alohida test bazasi, yuqori rate-limit
 process.env.DATABASE_URL =
   process.env.TEST_DATABASE_URL ?? 'postgresql://formo:formo@localhost:5435/formo_test?schema=public';
@@ -10,3 +13,20 @@ process.env.SUPERADMIN_NAME = 'Super Admin';
 process.env.FRONTEND_URL = 'http://localhost:5173';
 process.env.THROTTLE_AUTH_LIMIT ??= '10000';
 process.env.THROTTLE_LIMIT ??= '10000';
+
+// Prisma Client import paytida backend/.env ni process.env ga yuklaydi (mavjud qiymatlarni bosmaydi).
+// Dasturchining haqiqiy bot tokeni / to'lov kalitlari testlarga sizmasligi uchun hammasi shu yerda
+// test qiymatlariga qotiriladi. Bular soxta — hech qanday real tizimga ulanmaydi.
+process.env.TELEGRAM_BOT_TOKEN = '';
+process.env.TELEGRAM_BOT_USERNAME = 'formo_e2e_bot';
+process.env.TELEGRAM_INTERNAL_TOKEN = 'e2e-internal-token-0123456789abcdef0123';
+process.env.CLICK_SERVICE_ID = '12345';
+process.env.CLICK_MERCHANT_ID = '678';
+process.env.CLICK_SECRET_KEY = 'click-test-secret';
+process.env.PAYME_MERCHANT_ID = 'payme-test-merchant';
+process.env.PAYME_KEY = 'payme-test-key';
+process.env.PAYME_TEST = 'true';
+process.env.PAYMENT_RETURN_URL = '';
+// Fayl xotirasi: hech qachon real S3 emas, lokal vaqtinchalik papka
+process.env.S3_BUCKET = '';
+process.env.UPLOAD_DIR = join(tmpdir(), 'formo-e2e-uploads');

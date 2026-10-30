@@ -7,7 +7,7 @@ import { ParseIdPipe } from '../common/pipes/parse-id.pipe';
 import { AddressesService } from './addresses.service';
 import { CreateAddressDto, UpdateAddressDto } from './dto/address.dto';
 
-@ApiTags('Manzillar')
+@ApiTags('Mobil · Manzillar')
 @ApiBearerAuth()
 @ApiForbiddenResponse({ description: 'Faqat mobil ilova foydalanuvchisi' })
 @Roles(Role.USER)

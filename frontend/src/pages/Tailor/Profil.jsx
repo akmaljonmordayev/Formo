@@ -1,277 +1,279 @@
-import { useState, useEffect } from 'react';
-import { User, Clock, Globe, Edit3, ShieldCheck, Phone, Check } from 'lucide-react';
-import Card from './ui/Card';
-import Toggle from './ui/Toggle';
-import EmployeeModal from './EmployeeModal';
+import { useEffect, useState } from 'react';
+import {
+  BellRing, Check, Clock, Edit3, Factory, Gauge, Globe, MapPin, Phone, User,
+} from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { initialsOf, prettyPhone } from './utils';
+import { Toggle } from './ui';
+import ProfileModal from './ProfileModal';
+import { useTailor } from './prefs';
+import { LANGS, translate, useT } from './i18n';
+import { cx, initialsOf, prettyPhone } from './utils';
+import { getWorkshopProfile } from './tailorApi';
 
-// Ism, telefon va sex nomi bazadagi akkauntdan olinadi (buildProfile).
-// Smena, til va bildirishnomalar uchun backend hali yo'q — lokal qiymatlar.
-const INITIAL_PROFILE = {
-  id: 1,
-  name: '',
-  initials: '',
-  role: "Mas'ul shaxs",
-  factory: '',
-  phone: '',
-  shiftStart: '09:00',
-  shiftEnd: '18:00',
-  language: "O'zbekcha",
-  active: true,
-  notifications: { push: true, sms: true, email: true },
-};
+const NOTIFICATIONS = [
+  ['newOrders', 'profile.n.newOrders', 'profile.n.newOrdersHint'],
+  ['deadline', 'profile.n.deadline', 'profile.n.deadlineHint'],
+  ['summary', 'profile.n.summary', 'profile.n.summaryHint'],
+];
 
-const buildProfile = (user) => ({
-  ...INITIAL_PROFILE,
-  id: user?.id ?? INITIAL_PROFILE.id,
-  name: user?.fullName ?? '',
-  initials: initialsOf(user?.fullName),
-  factory: user?.workshopName ?? '',
-  phone: prettyPhone(user?.phone),
-});
+function Panel({ icon: Icon, title, action, delay = 0, className, children }) {
+  return (
+    <section
+      className={cx('tl-pop rounded-3xl border border-white/10 bg-[#121829]/80 p-5 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)] backdrop-blur-xl', className)}
+      style={{ '--tl-delay': `${delay}ms` }}
+    >
+      <div className="mb-4 flex items-center justify-between gap-3">
+        <h3 className="flex items-center gap-2 text-xs font-extrabold uppercase tracking-wider text-slate-300">
+          {Icon && <Icon className="h-4 w-4 text-teal-400" aria-hidden="true" />}
+          {title}
+        </h3>
+        {action}
+      </div>
+      {children}
+    </section>
+  );
+}
+
+function InfoRow({ icon: Icon, label, value }) {
+  return (
+    <div className="flex items-center gap-3 rounded-2xl bg-[#0e1424] px-3.5 py-3">
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-400/10 text-teal-300">
+        <Icon className="h-4 w-4" aria-hidden="true" />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[10px] font-bold uppercase tracking-wider text-slate-500">{label}</p>
+        <p className="truncate text-sm font-bold text-white">{value || '—'}</p>
+      </div>
+    </div>
+  );
+}
+
+function StatTile({ icon: Icon, label, value, delay }) {
+  return (
+    <div
+      className="tl-pop flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 transition duration-200 hover:-translate-y-0.5 hover:border-teal-400/30"
+      style={{ '--tl-delay': `${delay}ms` }}
+    >
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400/25 to-indigo-500/20 text-teal-300 ring-1 ring-inset ring-teal-400/25">
+        <Icon className="h-5 w-5" aria-hidden="true" />
+      </span>
+      <div className="min-w-0">
+        <p className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
+        <p className="truncate text-lg font-black leading-tight text-white">{value}</p>
+      </div>
+    </div>
+  );
+}
 
 export default function Profile() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState(() => buildProfile(user));
-
-  // /auth/me dan yangilangan ma'lumot kelsa — profilni yangilaymiz
-  useEffect(() => {
-    if (!user) return;
-    setProfile((prev) => ({
-      ...prev,
-      name: user.fullName,
-      initials: initialsOf(user.fullName),
-      factory: user.workshopName ?? '',
-      phone: prettyPhone(user.phone),
-    }));
-  }, [user]);
+  const { prefs, savePrefs } = useTailor();
+  const t = useT();
+  const [notice, setNotice] = useState(null);
+  const [preferenceSaving, setPreferenceSaving] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [profileError, setProfileError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
-  const [toastMsg, setToastMsg] = useState('');
 
-  // Dynamically update document theme background tint on language change
+  const name = profile?.fullName || user?.fullName || '';
+  const workshop = profile?.workshopName || user?.workshopName || '';
+  const phone = prettyPhone(profile?.phone || user?.phone || '');
+  const shift = profile?.shiftStart || profile?.shiftEnd ? `${profile.shiftStart || '—'} — ${profile.shiftEnd || '—'}` : '—';
+  const capacity = profile?.dailyCapacity != null ? t('profile.capacityUnit', { n: profile.dailyCapacity }) : '—';
+
   useEffect(() => {
-    if (profile.language === 'Русский') {
-      document.body.style.backgroundColor = '#081226';
-    } else {
-      document.body.style.backgroundColor = '#0b0f19';
-    }
-    // Sahifadan chiqqanda fonni qaytaramiz (aks holda boshqa sahifalarga ham o'tib qoladi)
+    let cancelled = false;
+    getWorkshopProfile()
+      .then((data) => {
+        if (!cancelled) {
+          setProfile(data);
+          setProfileError('');
+        }
+      })
+      .catch((err) => {
+        if (!cancelled) setProfileError(err?.message || t('profile.loadError'));
+      });
     return () => {
-      document.body.style.backgroundColor = '';
+      cancelled = true;
     };
-  }, [profile.language]);
+  }, [t]);
 
-  const showToast = (msg) => {
-    setToastMsg(msg);
-    setTimeout(() => setToastMsg(''), 3000);
-  };
+  useEffect(() => {
+    if (!notice) return undefined;
+    const timer = window.setTimeout(() => setNotice(null), 4000);
+    return () => window.clearTimeout(timer);
+  }, [notice]);
 
-  const handleSaveModal = (updatedForm) => {
-    setProfile(updatedForm);
+  const onProfileSaved = (saved) => {
+    setProfile(saved);
+    window.dispatchEvent(
+      new CustomEvent('formo:tailor-profile-updated', {
+        detail: { ...saved, name: saved.fullName, factory: saved.workshopName },
+      })
+    );
     setModalOpen(false);
-    showToast(
-      profile.language === 'Русский'
-        ? 'Профиль успешно сохранен!'
-        : "Profil ma'lumotlari muvaffaqiyatli saqlandi!"
-    );
+    setNotice({ text: t('profile.savedToast'), error: false });
   };
 
-  const toggleNotification = (key) => {
-    setProfile((prev) => ({
-      ...prev,
-      notifications: {
-        ...prev.notifications,
-        [key]: !prev.notifications[key],
-      },
-    }));
-    showToast(
-      profile.language === 'Русский'
-        ? 'Настройки уведомлений обновлены!'
-        : "Bildirishnoma sozlamasi yangilandi!"
-    );
+  const changeLanguage = async (lang) => {
+    try {
+      await savePrefs({ ...prefs, lang });
+      setNotice({ text: translate(lang, lang === 'ru' ? 'profile.langToastRu' : 'profile.langToast'), error: false });
+    } catch {
+      setNotice({ text: translate(lang, 'profile.persistError'), error: true });
+    }
   };
 
-  const isRu = profile.language === 'Русский';
+  const togglePreference = async (key) => {
+    if (preferenceSaving) return;
+    setPreferenceSaving(true);
+    try {
+      await savePrefs({
+        ...prefs,
+        notifications: { ...prefs.notifications, [key]: !prefs.notifications[key] },
+      });
+      setNotice({ text: t('profile.notifToast'), error: false });
+    } catch {
+      setNotice({ text: t('profile.preferenceError'), error: true });
+    } finally {
+      setPreferenceSaving(false);
+    }
+  };
+
+  const langIndex = Math.max(0, LANGS.findIndex((l) => l.value === prefs.lang));
 
   return (
-    <div className="relative space-y-5 max-w-4xl mx-auto">
-      {/* Toast Alert */}
-      {toastMsg && (
-        <div className="fixed top-20 right-6 z-50 rounded-2xl bg-teal-400 px-5 py-3 text-xs font-black text-slate-950 shadow-2xl animate-fade-in flex items-center gap-2">
+    <div className="relative mx-auto max-w-5xl space-y-5">
+      {notice && (
+        <div
+          role={notice.error ? 'alert' : 'status'}
+          className={cx(
+            'tl-drop fixed right-6 top-20 z-[60] flex items-center gap-2 rounded-2xl px-5 py-3 text-xs font-black shadow-2xl',
+            notice.error ? 'bg-rose-500 text-white' : 'bg-teal-400 text-slate-950'
+          )}
+        >
           <Check className="h-4 w-4 stroke-[3]" />
-          <span>{toastMsg}</span>
+          {notice.text}
         </div>
       )}
 
-      {/* Main Personal Profile Settings Card */}
-      <Card className="flex flex-col gap-6 bg-[#121829] p-6 border border-white/10 shadow-2xl">
-        {/* Header Banner */}
-        <div className="flex flex-wrap items-center justify-between gap-4 border-b border-white/10 pb-5">
-          <div className="flex items-center gap-4">
-            <span className="flex h-14 w-14 items-center justify-center rounded-full bg-teal-500/20 text-lg font-black text-teal-400 ring-2 ring-teal-500/40">
-              {profile.initials}
+      {/* Hero */}
+      <section className="tl-pop relative overflow-hidden rounded-3xl border border-white/10 bg-[#121829]/80 shadow-[0_20px_60px_-30px_rgba(0,0,0,0.9)]">
+        <div aria-hidden="true" className="h-24 bg-gradient-to-r from-teal-500/40 via-emerald-500/20 to-indigo-500/30 sm:h-28">
+          <div className="h-full w-full bg-[radial-gradient(circle_at_20%_20%,rgba(255,255,255,0.18),transparent_45%)]" />
+        </div>
+        <div className="flex flex-wrap items-end justify-between gap-4 px-5 pb-5 sm:px-6">
+          <div className="-mt-10 flex min-w-0 items-end gap-4 sm:-mt-12">
+            <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-3xl bg-gradient-to-br from-teal-400 to-emerald-500 text-2xl font-black text-slate-950 shadow-glow ring-4 ring-[#121829] sm:h-24 sm:w-24 sm:text-3xl">
+              {initialsOf(name)}
             </span>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-2xl font-black text-white">{profile.name}</h2>
-                <span className="rounded-full bg-emerald-500/20 px-2.5 py-0.5 text-[10px] font-bold text-emerald-400">
-                  {isRu ? 'АКТИВНЫЙ' : 'FAOL'}
+            <div className="min-w-0 pb-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h2 className="truncate text-xl font-black text-white sm:text-2xl">{name || '—'}</h2>
+                <span
+                  className={cx(
+                    'rounded-full px-2.5 py-0.5 text-[10px] font-bold',
+                    user?.isActive ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-300'
+                  )}
+                >
+                  {t(user?.isActive ? 'profile.active' : 'profile.inactive')}
                 </span>
               </div>
-              <p className="mt-0.5 text-xs font-semibold text-slate-400">
-                {isRu ? 'Ответственное лицо' : profile.role}{profile.factory && ` · ${profile.factory}`}
+              <p className="mt-0.5 truncate text-xs font-semibold text-slate-400">
+                {workshop || t('profile.workshopMissing')}
+                {phone ? ` · ${phone}` : ''}
               </p>
             </div>
           </div>
-
           <button
             type="button"
+            disabled={!profile}
             onClick={() => setModalOpen(true)}
-            className="flex items-center gap-2 rounded-xl bg-teal-400 px-5 py-2.5 text-xs font-extrabold text-slate-950 shadow-glow transition hover:bg-teal-300 active:scale-95 cursor-pointer"
+            className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-teal-400 to-emerald-400 px-5 py-2.5 text-xs font-extrabold text-slate-950 shadow-glow transition hover:brightness-110 active:scale-95 disabled:opacity-50"
           >
             <Edit3 className="h-4 w-4" />
-            <span>{isRu ? 'Редактировать' : 'Tahrirlash'}</span>
+            <span>{t('profile.edit')}</span>
           </button>
         </div>
+      </section>
 
-        {/* Section 1: Profil Ma'lumotlari */}
-        <div>
-          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-3">
-            {isRu ? 'ДАННЫЕ ПРОФИЛЯ' : 'PROFIL MA\'LUMOTLARI'}
-          </h3>
-          <div className="grid gap-4 sm:grid-cols-2">
-            <div>
-              <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                {isRu ? 'Имя и фамилия' : 'Ism va familiya'}
-              </label>
-              <div className="relative">
-                <User className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <input
-                  type="text"
-                  readOnly
-                  value={profile.name}
-                  className="w-full rounded-xl border border-white/10 bg-[#0e1424] pl-10 pr-4 py-2.5 text-xs font-bold text-white outline-none"
-                />
-              </div>
-            </div>
+      {profileError && (
+        <p role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-xs text-rose-200">
+          {profileError}
+        </p>
+      )}
 
-            <div>
-              <label className="block text-[11px] font-bold text-slate-400 mb-1">{isRu ? 'Телефон' : 'Telefon'}</label>
-              <div className="relative">
-                <Phone className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <input
-                  type="text"
-                  readOnly
-                  value={profile.phone}
-                  className="w-full rounded-xl border border-white/10 bg-[#0e1424] pl-10 pr-4 py-2.5 text-xs font-bold text-white outline-none"
-                />
-              </div>
-            </div>
+      {/* Stats */}
+      <div className="grid gap-3 sm:grid-cols-2">
+        <StatTile icon={Gauge} label={t('profile.capacityLabel')} value={capacity} delay={60} />
+        <StatTile icon={Clock} label={t('profile.shiftLabel')} value={shift} delay={110} />
+      </div>
 
-            <div>
-              <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                {isRu ? 'Рабочее время' : 'Ish vaqti'}
-              </label>
-              <div className="relative">
-                <Clock className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <input
-                  type="text"
-                  readOnly
-                  value={`${profile.shiftStart} — ${profile.shiftEnd}`}
-                  className="w-full rounded-xl border border-white/10 bg-[#0e1424] pl-10 pr-4 py-2.5 text-xs font-bold text-white outline-none"
-                />
-              </div>
-            </div>
+      <div className="grid gap-5 lg:grid-cols-2">
+        {/* Ma'lumotlar */}
+        <Panel icon={User} title={t('profile.data')} delay={120}>
+          <div className="grid gap-2.5">
+            <InfoRow icon={User} label={t('profile.nameLabel')} value={name} />
+            <InfoRow icon={Phone} label={t('profile.phoneLabel')} value={phone} />
+            <InfoRow icon={Factory} label={t('profile.workshopLabel')} value={workshop || t('profile.workshopMissing')} />
+            <InfoRow icon={MapPin} label={t('profile.addressLabel')} value={profile?.address} />
+          </div>
+          <p className="mt-3 text-[11px] leading-5 text-slate-500">{t('profile.accountReadOnly')}</p>
+        </Panel>
 
-            <div>
-              <label className="block text-[11px] font-bold text-slate-400 mb-1">
-                {isRu ? 'Язык интерфейса' : 'Interfeys tili'}
-              </label>
-              <div className="relative">
-                <Globe className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />
-                <select
-                  value={profile.language}
-                  onChange={(e) => {
-                    const newLang = e.target.value;
-                    setProfile({ ...profile, language: newLang });
-                    showToast(newLang === 'Русский' ? 'Язык интерфейса изменен на Русский!' : 'Interfeys tili O\'zbekchaga o\'zgardi!');
-                  }}
-                  className="w-full rounded-xl border border-white/10 bg-[#0e1424] pl-10 pr-4 py-2.5 text-xs font-bold text-white outline-none"
-                >
-                  <option value="O'zbekcha" className="bg-[#121829]">O'zbekcha</option>
-                  <option value="Русский" className="bg-[#121829]">Русский</option>
-                </select>
-              </div>
+        {/* Sozlamalar */}
+        <Panel icon={BellRing} title={t('profile.notifications')} delay={170}>
+          <div role="group" aria-label={t('profile.langLabel')}>
+            <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
+              <Globe className="h-3.5 w-3.5" aria-hidden="true" />
+              {t('profile.langLabel')}
+            </span>
+            <div
+              className="relative grid rounded-xl border border-white/10 bg-[#0e1424] p-1"
+              style={{ gridTemplateColumns: `repeat(${LANGS.length}, minmax(0, 1fr))` }}
+            >
+              <span
+                aria-hidden="true"
+                className="absolute inset-y-1 left-1 rounded-lg bg-gradient-to-r from-teal-400 to-emerald-400 shadow-glow transition-transform duration-300 ease-out"
+                style={{ width: `calc((100% - 0.5rem) / ${LANGS.length})`, transform: `translateX(${langIndex * 100}%)` }}
+              />
+              {LANGS.map((language) => {
+                const active = language.value === prefs.lang;
+                return (
+                  <button
+                    key={language.value}
+                    type="button"
+                    aria-pressed={active}
+                    onClick={() => !active && changeLanguage(language.value)}
+                    className={cx(
+                      'relative z-10 rounded-lg py-2 text-xs font-extrabold transition-colors duration-300',
+                      active ? 'text-slate-950' : 'text-slate-400 hover:text-white'
+                    )}
+                  >
+                    {language.label}
+                  </button>
+                );
+              })}
             </div>
           </div>
-        </div>
 
-        {/* Section 2: Bildirishnomalar */}
-        <div className="border-t border-white/10 pt-5">
-          <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 mb-3">
-            {isRu ? 'УВЕДОМЛЕНИЯ' : 'BILDIRISHNOMALAR'}
-          </h3>
-          <div className="flex flex-col gap-3">
-            <div className="flex items-center justify-between rounded-xl bg-[#0e1424] p-3.5">
-              <div>
-                <h4 className="text-xs font-extrabold text-white">{isRu ? 'Новые заказы' : 'Yangi buyurtmalar'}</h4>
-                <p className="text-[10px] text-slate-400">
-                  {isRu ? 'Уведомлять при появлении нового заказа в очереди' : 'Navbatga yangi vazifa tushganda bildirishnoma yuborish'}
-                </p>
+          <div className="mt-4 flex flex-col gap-2">
+            {NOTIFICATIONS.map(([key, labelKey, hintKey]) => (
+              <div key={key} className="rounded-2xl bg-[#0e1424] px-3.5">
+                <Toggle
+                  label={t(labelKey)}
+                  description={t(hintKey)}
+                  checked={prefs.notifications[key]}
+                  onChange={() => togglePreference(key)}
+                  disabled={preferenceSaving}
+                />
               </div>
-              <Toggle
-                checked={profile.notifications.push}
-                onChange={() => toggleNotification('push')}
-              />
-            </div>
-
-            <div className="flex items-center justify-between rounded-xl bg-[#0e1424] p-3.5">
-              <div>
-                <h4 className="text-xs font-extrabold text-white">{isRu ? 'Напоминания о сроках' : 'Muddat eslatmalari'}</h4>
-                <p className="text-[10px] text-slate-400">
-                  {isRu ? 'Предупреждение за 30 минут до окончания срока' : 'Muddatga 30 daqiqa qolganda ogohlantirish'}
-                </p>
-              </div>
-              <Toggle
-                checked={profile.notifications.sms}
-                onChange={() => toggleNotification('sms')}
-              />
-            </div>
-
-            <div className="flex items-center justify-between rounded-xl bg-[#0e1424] p-3.5">
-              <div>
-                <h4 className="text-xs font-extrabold text-white">{isRu ? 'Итоги смены' : 'Smena xulosasi'}</h4>
-                <p className="text-[10px] text-slate-400">
-                  {isRu ? 'Формирование отчета в конце рабочей смены' : 'Kun yakunidagi ishlab chiqarish hisobotini tayyorlash'}
-                </p>
-              </div>
-              <Toggle
-                checked={profile.notifications.email}
-                onChange={() => toggleNotification('email')}
-              />
-            </div>
+            ))}
           </div>
-        </div>
-
-        {/* Permission Info Footer */}
-        <div className="flex items-center gap-3 rounded-2xl border border-teal-500/30 bg-[#0e1d24] p-4 text-teal-200">
-          <ShieldCheck className="h-5 w-5 shrink-0 text-teal-400" />
-          <p className="text-xs leading-relaxed font-medium">
-            {isRu
-              ? 'Начальник смены просматривает все задачи печати, управляет запасами, подтверждает брак и формирует отчеты.'
-              : "Smena boshlig'i barcha bosma vazifalarini ko'radi, zaxirani boshqaradi, brakni tasdiqlaydi va hisobotlarni shakllantiradi."}
-          </p>
-        </div>
-      </Card>
-
-      {/* Edit Profile Modal Drawer */}
-      <EmployeeModal
-        open={modalOpen}
-        employee={profile}
-        onClose={() => setModalOpen(false)}
-        onSave={handleSaveModal}
-      />
+          <p className="mt-3 text-[11px] text-slate-500">{t('profile.localNotifications')}</p>
+        </Panel>
+      </div>
+      <ProfileModal open={modalOpen} profile={profile} onClose={() => setModalOpen(false)} onSaved={onProfileSaved} />
     </div>
   );
 }

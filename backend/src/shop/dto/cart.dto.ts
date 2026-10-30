@@ -1,12 +1,15 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { IsBoolean, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import { IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import { CleanText, NoHtml } from '../../common/utils/no-html';
 import { ALL_SIZES } from '../pricing';
 
 export const MAX_ITEM_QTY = 20;
 const upper = () => Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value));
 const emptyToNull = () => Transform(({ value }) => (typeof value === 'string' && value.trim() === '' ? null : value));
+
+/** Orqadagi ism: 1-12 belgi — lotin (o'zbekcha o'/g' bilan) yoki kirill harflari, bo'shliq, nuqta, defis, apostrof */
+export const PRINT_NAME = /^[A-Za-zÀ-ɏЀ-ӿ .'’‘ʻʼ-]{1,12}$/u;
 
 export class CartItemOptionsDto {
   @ApiPropertyOptional({ example: 'AZIZ', description: "Orqadagi ism (bo'sh qoldirilsa bosma narxi qo'shilmaydi)" })
@@ -16,7 +19,7 @@ export class CartItemOptionsDto {
   @upper()
   @IsString()
   @NoHtml()
-  @Matches(/^[\p{L}\p{M} .'’-]{1,12}$/u, { message: "Ism 1-12 ta harfdan iborat bo'lishi kerak" })
+  @Matches(PRINT_NAME, { message: "Ism 1-12 ta lotin yoki kirill harfidan iborat bo'lishi kerak" })
   printName?: string | null;
 
   @ApiPropertyOptional({ example: '10', description: 'Raqam: 0-99' })
@@ -31,7 +34,14 @@ export class CartItemOptionsDto {
   @IsBoolean()
   numberOnShorts?: boolean;
 
-  @ApiPropertyOptional({ default: true, description: "To'plamga shortik qo'shilsinmi" })
+  @ApiPropertyOptional({ example: '7', description: "Shortikdagi raqam: 0-99 (berilmasa — futbolka raqami). Faqat numberOnShorts=true bo'lsa" })
+  @IsOptional()
+  @emptyToNull()
+  @IsString()
+  @Matches(/^\d{1,2}$/, { message: "Shortik raqami 0 dan 99 gacha bo'lishi kerak" })
+  shortsNumber?: string | null;
+
+  @ApiPropertyOptional({ description: "To'plamga shortik qo'shilsinmi (klub formasi: standart true, maxsus dizayn: false)" })
   @IsOptional()
   @IsBoolean()
   withShorts?: boolean;
@@ -52,11 +62,31 @@ export class CartItemOptionsDto {
 }
 
 export class AddCartItemDto extends CartItemOptionsDto {
-  @ApiProperty({ example: 1, description: 'Forma (kit) id' })
+  @ApiPropertyOptional({ example: 1, description: 'Klub formasi (kit) id. `design` bilan birga yuborilmaydi' })
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  kitId: number;
+  kitId?: number;
+
+  @ApiPropertyOptional({
+    description:
+      "Dizayn studiyasidagi maxsus futbolka (kitId o'rniga): `{ color: { type: 'solid'|'gradient'|'custom', id?, hex? }, font?, patch?, package? }`. " +
+      "Variantlar va narxlar `GET /app/config` → `studio`.",
+  })
+  @IsOptional()
+  @IsObject()
+  design?: Record<string, unknown>;
+
+  @ApiPropertyOptional({
+    example: 3,
+    description: "Superadmin yasagan 3D dizayn id (GET /kits/designs). kitId/design bilan birga yuborilmaydi; narx serverda hisoblanadi",
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  kitDesignId?: number;
 
   @ApiProperty({ example: 'L', enum: ALL_SIZES, description: "Futbolka o'lchami" })
   @upper()

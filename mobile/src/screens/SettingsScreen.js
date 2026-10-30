@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import { Linking, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 import { colors, radii, spacing } from '../constants/theme';
 import { languageOptions } from '../i18n';
 import { Button, Header, Overline, Screen } from '../components/ui/Common';
@@ -14,7 +14,7 @@ const LANGUAGE_SUBS = {
 const NOTIF_KEY = 'formo_notif_prefs';
 const DEFAULT_NOTIF = { orders: true, sms: true, promo: false };
 
-export default function SettingsScreen({ language, setLanguage, t, onBack, auth }) {
+export default function SettingsScreen({ language, setLanguage, t, onBack, auth, general, onNotifications }) {
   const [notif, setNotif] = useState(DEFAULT_NOTIF);
   const [loaded, setLoaded] = useState(false);
 
@@ -86,6 +86,39 @@ export default function SettingsScreen({ language, setLanguage, t, onBack, auth 
         ))}
       </View>
 
+      <Pressable style={[styles.option, styles.sectionGap]} onPress={onNotifications}>
+        <Text style={styles.optionTitle}>{t('notifications')}</Text>
+        <Text style={styles.optionSub}>{t('notificationsSub')}</Text>
+      </Pressable>
+
+      {/* Aloqa — GET /api/app/config -> general (Superadmin "Umumiy" sozlamasi) */}
+      {general && (general.supportPhone || general.supportTelegram || general.supportEmail) ? (
+        <>
+          <Overline style={styles.sectionGap}>{t('support')}</Overline>
+          <View style={styles.notifCard}>
+            {[
+              ['phone', general.supportPhone, `tel:${String(general.supportPhone).replace(/[^\d+]/g, '')}`],
+              ['Telegram', general.supportTelegram, `https://t.me/${String(general.supportTelegram).replace(/^@/, '')}`],
+              ['Email', general.supportEmail, `mailto:${general.supportEmail}`],
+            ]
+              .filter(([, value]) => value)
+              .map(([label, value, url]) => (
+                <Pressable key={label} style={[styles.notifRow, styles.notifRowBorder]} onPress={() => Linking.openURL(url).catch(() => {})}>
+                  <View style={{ flex: 1 }}>
+                    <Text style={styles.notifTitle}>{label === 'phone' ? t('phone') : label}</Text>
+                    <Text style={styles.notifSub}>{value}</Text>
+                  </View>
+                </Pressable>
+              ))}
+            <View style={styles.notifRow}>
+              <Text style={styles.notifSub}>
+                {t('workHours')}: {general.workHoursFrom}–{general.workHoursTo}
+              </Text>
+            </View>
+          </View>
+        </>
+      ) : null}
+
       <Button variant="secondary" style={styles.logoutButton} onPress={() => auth?.logout?.()}>
         {t('logout')}
       </Button>
@@ -102,9 +135,9 @@ const styles = StyleSheet.create({
     borderRadius: radii.md,
     padding: spacing.lg,
     borderWidth: 1.5,
-    borderColor: 'transparent',
+    borderColor: colors.border,
   },
-  selected: { borderColor: colors.accent, backgroundColor: '#141A3E' },
+  selected: { borderColor: colors.accent, backgroundColor: colors.surfaceRaised },
   optionTitle: { color: colors.text, fontWeight: '800', fontSize: 15 },
   selectedTitle: { color: colors.accent },
   optionSub: { color: colors.muted, fontSize: 11, marginTop: 4 },
@@ -113,14 +146,14 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: '#1B2150',
+    borderColor: colors.border,
     paddingHorizontal: spacing.lg,
     overflow: 'hidden',
   },
   notifRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 14 },
-  notifRowBorder: { borderBottomWidth: 1, borderBottomColor: '#171C3F' },
+  notifRowBorder: { borderBottomWidth: 1, borderBottomColor: colors.border },
   notifTitle: { color: colors.text, fontSize: 13, fontWeight: '700' },
   notifSub: { color: colors.muted, fontSize: 11, marginTop: 3 },
   logoutButton: { marginTop: spacing.xl },
-  version: { color: '#59618D', textAlign: 'center', fontSize: 10, marginTop: spacing.lg, marginBottom: spacing.sm },
+  version: { color: colors.dim, textAlign: 'center', fontSize: 11, marginTop: spacing.lg, marginBottom: spacing.sm },
 });

@@ -18,31 +18,31 @@ const shell = (title, subtitle, element) => (
 export const tailorRoutes = [
   {
     path: '',
-    element: shell('Bugungi navbat', 'Bugungi buyurtmalar va bosma navbati', <Navbat />),
+    element: shell('route.queue.title', 'route.queue.sub', <Navbat />),
   },
   {
     path: 'partiyalar',
-    element: shell('Partiyalar', "Model bo'yicha bosma partiyalari", <Partiyalar />),
+    element: shell('route.batches.title', 'route.batches.sub', <Partiyalar />),
   },
   {
     path: 'zaxira',
-    element: shell('Zaxira', "Mato va material qoldig'i", <Zaxira />),
+    element: shell('route.stock.title', 'route.stock.sub', <Zaxira />),
   },
   {
     path: 'statistika',
-    element: shell('Statistika', 'Sex samaradorligi va bosma hisoboti', <Statistika />),
+    element: shell('route.stats.title', 'route.stats.sub', <Statistika />),
   },
   {
     path: 'chat',
-    element: shell('Operator bilan chat', "Operator va smena boshlig'i muloqoti", <Chat />),
+    element: shell('route.chat.title', 'route.chat.sub', <Chat />),
   },
   {
     path: 'brak',
-    element: shell('Brakni qayd etish', 'Nosozlik va jarima qayd etish', <Brak />),
+    element: shell('route.brak.title', 'route.brak.sub', <Brak />),
   },
   {
     path: 'profil',
-    element: shell('Profil va sozlamalar', 'Xodimlar va shaxsiy sozlamalar', <Profil />),
+    element: shell('route.profile.title', 'route.profile.sub', <Profil />),
   },
 ];
 

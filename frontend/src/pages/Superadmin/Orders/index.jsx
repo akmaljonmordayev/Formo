@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useState } from 'react';
 import { ordersApi, ORDER_STATUS, paymentLabel, formatDateTime } from '../../../features/platform/platformApi';
 import { prettyPhone, workshopsApi } from '../../../features/accounts/accountsApi';
 import { useDebounced } from '../../../hooks/useDebounced';
@@ -6,6 +6,9 @@ import { downloadCsv } from '../../../utils/csvExport';
 import Modal from '../../../components/ui/Modal';
 import { useLang, useMoney } from '../i18n';
 import { loadAdminPrefs } from '../prefs';
+
+// 3D ko'rinish (three.js) faqat 3D dizaynli buyurtma ochilganda yuklanadi
+const KitOrderPreview = lazy(() => import('../KitDesigns/KitOrderPreview'));
 
 const TABS = [
   { label: 'Barchasi', status: undefined },
@@ -140,7 +143,12 @@ export default function SuperadminOrders() {
                 const st = ORDER_STATUS[o.status] ?? { label: o.status, color: 'blue' };
                 return (
                   <tr key={o.id} onClick={() => setSelected(o)} style={{ cursor: 'pointer' }}>
-                    <td><b>{o.code}</b></td>
+                    <td>
+                      <b>{o.code}</b>
+                      {o.productType === 'KIT_DESIGN' && (
+                        <span className="sa-badge sa-badge--violet" style={{ marginLeft: 6 }}>3D</span>
+                      )}
+                    </td>
                     <td>
                       {o.customerName}
                       <span className="sa-table__sub">{prettyPhone(o.customerPhone)}</span>
@@ -245,17 +253,71 @@ function OrderModal({ order, onClose, onSaved }) {
           <>
             <div style={{ margin: '0 0 8px', fontWeight: 600, fontSize: 13.5 }}>{t("Mahsulotlar")}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
-              {order.items.map((it) => (
-                <div key={it.id} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, fontSize: 13 }}>
-                  <span>
-                    {it.clubName} · {it.kitLabel} · {it.shirtSize}
-                    {it.withShorts && it.shortsSize ? ` / ${it.shortsSize}` : ''}
-                    {(it.printName || it.printNumber) && ` · ${[it.printName, it.printNumber].filter(Boolean).join(' ')}`}
-                    {' '}× {it.quantity}
-                  </span>
-                  <b>{money(it.totalPrice)}</b>
-                </div>
-              ))}
+              {order.items.map((it) => {
+                // 3D dizayn: buyurtma paytidagi nusxa (designSnapshot) — dizayn keyin o'zgarsa ham shu tikiladi
+                if (it.designSnapshot) {
+                  const s = it.designSnapshot;
+                  return (
+                    <div key={it.id} style={{ fontSize: 13 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                        <span>
+                          <b>{s.name || it.clubName}</b> · {t('3D dizayn')} · {it.shirtSize}
+                          {it.withShorts && it.shortsSize ? ` / ${it.shortsSize}` : ''} × {it.quantity}
+                        </span>
+                        <b>{money(it.totalPrice)}</b>
+                      </div>
+                      <div className="sa-table__sub" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginTop: 2 }}>
+                        <span>{t('Orqadagi ism')}: <b>{it.printName || '—'}</b></span>
+                        <span>{t('Raqam')}: <b>{it.printNumber ?? '—'}</b></span>
+                        <span>{t("O'lcham")}: <b>{it.shirtSize}</b></span>
+                        <span style={{ display: 'inline-flex', gap: 4, alignItems: 'center' }}>
+                          {[s.primaryColor, s.secondaryColor, s.textColor].map((c) => (
+                            <span key={c} style={{ width: 12, height: 12, borderRadius: 3, background: c, border: '1px solid var(--sa-line)' }} />
+                          ))}
+                          {s.pattern}
+                        </span>
+                      </div>
+                      <Suspense fallback={<div className="sa-table__sub">{t('Yuklanmoqda...')}</div>}>
+                        <KitOrderPreview snapshot={s} backName={it.printName} number={it.printNumber} />
+                      </Suspense>
+                    </div>
+                  );
+                }
+                const custom = it.kitId == null || it.design;
+                const d = it.design;
+                return (
+                  <div key={it.id} style={{ fontSize: 13 }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', gap: 12 }}>
+                      <span>
+                        <b>{custom ? t('Maxsus dizayn') : it.clubName}</b>
+                        {!custom && it.kitLabel ? ` · ${it.kitLabel}` : ''} · {it.shirtSize}
+                        {it.withShorts && it.shortsSize ? ` / ${it.shortsSize}` : ''}
+                        {it.withShorts && it.numberOnShorts && it.shortsNumber ? ` (${t('shortik raqami')} ${it.shortsNumber})` : ''}
+                        {(it.printName || it.printNumber) && ` · ${[it.printName, it.printNumber].filter(Boolean).join(' ')}`}
+                        {' '}× {it.quantity}
+                      </span>
+                      <b>{money(it.totalPrice)}</b>
+                    </div>
+                    {custom && d && (
+                      <div className="sa-table__sub" style={{ display: 'flex', gap: 12, flexWrap: 'wrap', alignItems: 'center', marginTop: 2 }}>
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          {t('Rang')}:
+                          {d.color?.hex && (
+                            <span style={{ width: 14, height: 14, borderRadius: 4, background: d.color.hex, border: '1px solid var(--sa-line)' }} />
+                          )}
+                          {d.color?.hex || d.color?.id || '—'}
+                          {d.color?.type === 'gradient' ? ` (${t('gradient')})` : ''}
+                        </span>
+                        {d.font && <span>{t('Shrift')}: {d.font}</span>}
+                        <span>{t('Patch')}: {d.patch ? (typeof d.patch === 'string' ? d.patch : JSON.stringify(d.patch)) : t("yo'q")}</span>
+                        {d.package && <span>{t('Paket')}: {typeof d.package === 'string' ? d.package : JSON.stringify(d.package)}</span>}
+                        {d.textColor && <span>{t('Yozuv rangi')}: {d.textColor}</span>}
+                        {d.textEffect === 'neon' && <span>{t('Neon yozuv')}</span>}
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </>
         )}

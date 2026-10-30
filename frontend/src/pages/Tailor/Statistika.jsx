@@ -1,178 +1,128 @@
-import { useState } from 'react';
-import { BarChart3, TrendingUp, Clock, AlertTriangle, Zap, PieChart } from 'lucide-react';
-import Card from './ui/Card';
+import { useEffect, useState } from 'react';
+import { Activity, AlertTriangle, BarChart3, Factory, Layers, Timer } from 'lucide-react';
+import { Card } from './ui';
+import { useT } from './i18n';
 import { cx } from './utils';
+import { getTailorDashboard, getTailorProduction } from './tailorApi';
 
-const STAT_DATA = {
-  bugun: {
-    total: '185 dona',
-    growth: "+5% bugungi smena bo'yicha",
-    avgTime: '11.8 daq',
-    avgDiff: '1.5 daq tezroq',
-    defectRate: '0.5%',
-    defectCount: '1 dona futbolka',
-    efficiency: '98.2%',
-    points: [
-      { label: '08:00', val: 25 },
-      { label: '10:00', val: 40 },
-      { label: '12:00', val: 35 },
-      { label: '14:00', val: 50 },
-      { label: '16:00', val: 30 },
-      { label: '18:00', val: 15 },
-    ],
-    maxVal: 60,
-    materials: { white: 88, black: 72, red: 30, fabric: 95 },
-  },
-  hafta: {
-    total: '1,335 dona',
-    growth: "+14% o'tgan haftaga nisbatan",
-    avgTime: '14.2 daq',
-    avgDiff: '2.1 daq tezlashgan',
-    defectRate: '1.2%',
-    defectCount: '6 dona futbolka',
-    efficiency: '94.8%',
-    points: [
-      { label: 'Dush', val: 140 },
-      { label: 'Sesh', val: 185 },
-      { label: 'Chor', val: 210 },
-      { label: 'Pay', val: 175 },
-      { label: 'Jum', val: 240 },
-      { label: 'Shan', val: 195 },
-      { label: 'Yak', val: 90 },
-    ],
-    maxVal: 280,
-    materials: { white: 82, black: 65, red: 45, fabric: 91 },
-  },
-  oy: {
-    total: '5,840 dona',
-    growth: "+22% o'tgan oyga nisbatan",
-    avgTime: '13.5 daq',
-    avgDiff: "O'rtacha barqaror",
-    defectRate: '0.9%',
-    defectCount: '24 dona futbolka',
-    efficiency: '96.5%',
-    points: [
-      { label: '1-hafta', val: 1320 },
-      { label: '2-hafta', val: 1480 },
-      { label: '3-hafta', val: 1650 },
-      { label: '4-hafta', val: 1390 },
-    ],
-    maxVal: 2000,
-    materials: { white: 78, black: 80, red: 60, fabric: 88 },
-  },
-};
+const PERIODS = [
+  { key: 'bugun', labelKey: 'stat.today', days: 1 },
+  { key: 'hafta', labelKey: 'stat.week', days: 7 },
+  { key: 'oy', labelKey: 'stat.month', days: 30 },
+];
 
 export default function Statistika() {
+  const t = useT();
   const [period, setPeriod] = useState('hafta');
-  const current = STAT_DATA[period];
+  const [dashboard, setDashboard] = useState(null);
+  const [production, setProduction] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const operatorStats = [
-    { name: 'Dilshod Nurmatov', role: 'Bosma operatori', done: 142, avgTime: '12 daq', defect: 1, rate: '98.5%' },
-    { name: 'Sardor Olimov', role: 'Bosma operatori', done: 128, avgTime: '14 daq', defect: 2, rate: '96.2%' },
-    { name: 'Otabek Toshpo‘latov', role: 'Tikuvchi', done: 110, avgTime: '16 daq', defect: 0, rate: '100%' },
-    { name: 'Bekzod Qodirov', role: 'Tikuvchi', done: 95, avgTime: '18 daq', defect: 3, rate: '94.0%' },
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+    setDashboard(null);
+    setProduction(null);
+    const days = PERIODS.find((item) => item.key === period).days;
+    Promise.allSettled([getTailorDashboard(days), getTailorProduction()])
+      .then(([dashboardResult, productionResult]) => {
+        if (cancelled) return;
+        if (dashboardResult.status === 'fulfilled') setDashboard(dashboardResult.value);
+        if (productionResult.status === 'fulfilled') setProduction(productionResult.value);
+        setError([dashboardResult, productionResult]
+          .filter((result) => result.status === 'rejected')
+          .map((result) => result.reason.message)
+          .join(' · '));
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [period]);
+
+  const points = (dashboard?.dailyTrend ?? []).map((item) => ({
+    label: new Date(`${item.date}T00:00:00`).toLocaleDateString(t.locale, { day: '2-digit', month: '2-digit' }),
+    value: item.count,
+  }));
+  const maxValue = Math.max(1, ...points.map((point) => point.value));
+  const pointsString = points.map((point, index) => {
+    const x = (index / Math.max(1, points.length - 1)) * 500 + 40;
+    const y = 200 - (point.value / maxValue) * 160;
+    return `${x},${y}`;
+  }).join(' ');
+  const fillAreaString = `40,200 ${pointsString} 540,200`;
+
+  const stats = [
+    { label: 'stat.apiOrders', value: dashboard?.ordersCount, hint: 'stat.apiOrdersHint', Icon: Layers, iconStyle: 'bg-teal-500/20 text-teal-400' },
+    { label: 'stat.apiActive', value: dashboard?.activeCount, hint: 'stat.apiActiveHint', Icon: Activity, iconStyle: 'bg-blue-500/20 text-blue-400' },
+    { label: 'stat.apiLate', value: dashboard?.lateCount, hint: 'stat.apiLateHint', Icon: AlertTriangle, iconStyle: 'bg-rose-500/20 text-rose-400' },
+    {
+      label: 'stat.apiLoad',
+      value: dashboard?.loadPct == null ? null : `${dashboard.loadPct}%`,
+      hint: 'stat.apiCapacity',
+      hintVars: { n: dashboard?.capacity ?? '—' },
+      Icon: Timer,
+      iconStyle: 'bg-amber-500/20 text-amber-400',
+    },
   ];
-
-  // Helper to generate SVG polyline / curve path from points
-  const pointsString = current.points
-    .map((p, i) => {
-      const x = (i / (current.points.length - 1)) * 500 + 40;
-      const y = 200 - (p.val / current.maxVal) * 160;
-      return `${x},${y}`;
-    })
-    .join(' ');
-
-  const fillAreaString = `40,200 ${pointsString} ${ (current.points.length - 1) * (500 / (current.points.length - 1)) + 40 },200`;
 
   return (
     <div className="space-y-5">
-      {/* Top Header */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h1 className="text-2xl font-black text-white">Statistika va Hisobotlar</h1>
-          <p className="mt-1 text-xs font-medium text-slate-400">
-            Sex samaradorligi, bosma hajmi va brak ko'rsatkichlari dinamikasi
-          </p>
+          <h1 className="text-2xl font-black text-white">{t('stat.title')}</h1>
+          <p className="mt-1 text-xs font-medium text-slate-400">{t('stat.subtitle')}</p>
         </div>
-
-        <div className="flex rounded-xl bg-[#121829] p-1 border border-white/10">
-          {['bugun', 'hafta', 'oy'].map((p) => (
+        <div className="flex rounded-xl border border-white/10 bg-[#121829] p-1">
+          {PERIODS.map((item) => (
             <button
-              key={p}
+              key={item.key}
               type="button"
-              onClick={() => setPeriod(p)}
+              onClick={() => setPeriod(item.key)}
               className={cx(
-                'rounded-lg px-3 py-1.5 text-xs font-extrabold capitalize transition cursor-pointer',
-                period === p
-                  ? 'bg-teal-400 text-slate-950 shadow-md'
-                  : 'text-slate-400 hover:text-white'
+                'cursor-pointer rounded-lg px-3 py-1.5 text-xs font-extrabold capitalize transition',
+                period === item.key ? 'bg-teal-400 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'
               )}
             >
-              {p}
+              {t(item.labelKey)}
             </button>
           ))}
         </div>
       </div>
 
-      {/* 4 Summary Stat Cards */}
+      {loading && <div role="status" className="text-xs text-slate-400">{t('api.loading')}</div>}
+      {error && <div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{error}</div>}
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <Card className="flex items-center gap-4 bg-[#121829] p-5 border border-white/10">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-teal-500/20 text-teal-400">
-            <TrendingUp className="h-6 w-6" />
-          </div>
-          <div>
-            <span className="text-xs font-semibold text-slate-400">Jami bosma hajmi</span>
-            <p className="mt-1 text-2xl font-black text-white">{current.total}</p>
-            <span className="text-[10px] font-bold text-emerald-400">{current.growth}</span>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-4 bg-[#121829] p-5 border border-white/10">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-500/20 text-blue-400">
-            <Clock className="h-6 w-6" />
-          </div>
-          <div>
-            <span className="text-xs font-semibold text-slate-400">O'rtacha vaqt</span>
-            <p className="mt-1 text-2xl font-black text-white">{current.avgTime}</p>
-            <span className="text-[10px] font-bold text-teal-400">{current.avgDiff}</span>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-4 bg-[#121829] p-5 border border-white/10">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-rose-500/20 text-rose-400">
-            <AlertTriangle className="h-6 w-6" />
-          </div>
-          <div>
-            <span className="text-xs font-semibold text-slate-400">Brak darajasi</span>
-            <p className="mt-1 text-2xl font-black text-rose-400">{current.defectRate}</p>
-            <span className="text-[10px] font-bold text-slate-400">{current.defectCount}</span>
-          </div>
-        </Card>
-
-        <Card className="flex items-center gap-4 bg-[#121829] p-5 border border-white/10">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-amber-500/20 text-amber-400">
-            <Zap className="h-6 w-6" />
-          </div>
-          <div>
-            <span className="text-xs font-semibold text-slate-400">Smena samaradorligi</span>
-            <p className="mt-1 text-2xl font-black text-amber-300">{current.efficiency}</p>
-            <span className="text-[10px] font-bold text-emerald-400">Yuqori samaradorlik</span>
-          </div>
-        </Card>
+        {stats.map(({ label, value, hint, hintVars, Icon, iconStyle }) => (
+          <Card key={label} className="flex items-center gap-4 border border-white/10 bg-[#121829] p-5">
+            <div className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ${iconStyle}`}>
+              <Icon className="h-6 w-6" />
+            </div>
+            <div className="min-w-0">
+              <span className="text-xs font-semibold text-slate-400">{t(label)}</span>
+              <p className="mt-1 text-2xl font-black text-white">
+                {typeof value === 'number' ? value.toLocaleString(t.locale) : value ?? '—'}
+              </p>
+              <span className="text-[10px] font-bold text-slate-400">{t(hint, hintVars)}</span>
+            </div>
+          </Card>
+        ))}
       </div>
 
-      {/* Main Dynamic Area Diagram & Donut Chart Row */}
       <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_340px]">
-        {/* Left: Dynamic SVG Area Curve Chart */}
-        <Card className="flex flex-col justify-between bg-[#121829] p-6 border border-white/10">
+        <Card className="border border-white/10 bg-[#121829] p-6">
           <div className="flex items-center justify-between border-b border-white/10 pb-4">
             <div>
-              <h3 className="text-base font-extrabold text-white">Bosma hajmi dinamika grafigi</h3>
-              <p className="text-xs text-slate-400">Tanlangan davr ({period}) bo'yicha ishlab chiqarish egri grafigi</p>
+              <h3 className="text-base font-extrabold text-white">{t('stat.volumeChart')}</h3>
+              <p className="text-xs text-slate-400">{t('stat.volumeChartHint', { period: t(PERIODS.find((item) => item.key === period).labelKey) })}</p>
             </div>
             <BarChart3 className="h-5 w-5 text-teal-400" />
           </div>
-
           <div className="relative mt-4 h-60 w-full pt-4">
             <svg viewBox="0 0 580 230" className="h-full w-full overflow-visible">
               <defs>
@@ -181,137 +131,79 @@ export default function Statistika() {
                   <stop offset="100%" stopColor="#22d3ee" stopOpacity="0" />
                 </linearGradient>
               </defs>
-
-              {/* Horizontal Grid lines */}
               <line x1="40" y1="40" x2="540" y2="40" stroke="#ffffff15" strokeDasharray="4" />
               <line x1="40" y1="90" x2="540" y2="90" stroke="#ffffff15" strokeDasharray="4" />
               <line x1="40" y1="145" x2="540" y2="145" stroke="#ffffff15" strokeDasharray="4" />
               <line x1="40" y1="200" x2="540" y2="200" stroke="#ffffff30" />
-
-              {/* Area Gradient Fill */}
               <polygon points={fillAreaString} fill="url(#areaGradient)" />
-
-              {/* Glowing Line Chart */}
-              <polyline
-                fill="none"
-                stroke="#22d3ee"
-                strokeWidth="3.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                points={pointsString}
-              />
-
-              {/* Data Node Circles */}
-              {current.points.map((p, i) => {
-                const x = (i / (current.points.length - 1)) * 500 + 40;
-                const y = 200 - (p.val / current.maxVal) * 160;
+              <polyline fill="none" stroke="#22d3ee" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" points={pointsString} />
+              {points.map((point, index) => {
+                const x = (index / Math.max(1, points.length - 1)) * 500 + 40;
+                const y = 200 - (point.value / maxValue) * 160;
                 return (
-                  <g key={p.label}>
+                  <g key={point.label}>
                     <circle cx={x} cy={y} r="5" fill="#0b0f19" stroke="#22d3ee" strokeWidth="3" />
-                    <text x={x} y={y - 12} textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="bold">
-                      {p.val}
-                    </text>
-                    <text x={x} y="220" textAnchor="middle" fill="#94a3b8" fontSize="11" fontWeight="600">
-                      {p.label}
-                    </text>
+                    <text x={x} y={y - 12} textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="bold">{point.value}</text>
+                    <text x={x} y="220" textAnchor="middle" fill="#94a3b8" fontSize="11" fontWeight="600">{point.label}</text>
                   </g>
                 );
               })}
             </svg>
+            {!loading && !error && points.length === 0 && (
+              <p className="absolute inset-0 flex items-center justify-center text-xs text-slate-500">{t('api.empty')}</p>
+            )}
           </div>
         </Card>
 
-        {/* Right: Material & Defect Breakdown Donut Ring Chart */}
-        <Card className="flex flex-col justify-between bg-[#121829] p-6 border border-white/10">
-          <div>
-            <div className="flex items-center justify-between border-b border-white/10 pb-3">
-              <h3 className="text-base font-extrabold text-white">Materiallar va Brak ulushi</h3>
-              <PieChart className="h-5 w-5 text-teal-400" />
-            </div>
-
-            {/* Donut Chart Visual */}
-            <div className="my-5 flex justify-center">
-              <div className="relative flex h-36 w-36 items-center justify-center">
-                <svg viewBox="0 0 100 100" className="h-full w-full -rotate-90">
-                  <circle cx="50" cy="50" r="38" stroke="#1e293b" strokeWidth="12" fill="none" />
-                  <circle cx="50" cy="50" r="38" stroke="#22d3ee" strokeWidth="12" strokeDasharray="238" strokeDashoffset={238 - (238 * current.materials.white) / 100} fill="none" />
-                  <circle cx="50" cy="50" r="38" stroke="#3b82f6" strokeWidth="12" strokeDasharray="238" strokeDashoffset={238 - (238 * current.materials.black) / 100} fill="none" opacity="0.7" />
-                </svg>
-                <div className="absolute text-center">
-                  <span className="text-xl font-black text-white">{current.materials.white}%</span>
-                  <span className="block text-[9px] font-bold text-slate-400 uppercase">Oq bo'yoq</span>
+        <Card className="border border-white/10 bg-[#121829] p-6">
+          <div className="flex items-center justify-between border-b border-white/10 pb-3">
+            <h3 className="text-base font-extrabold text-white">{t('stat.workshops')}</h3>
+            <Factory className="h-5 w-5 text-teal-400" />
+          </div>
+          <div className="mt-4 space-y-4">
+            {(production?.workshops ?? []).map((workshop) => (
+              <div key={workshop.id}>
+                <div className="flex justify-between gap-3 text-xs font-bold">
+                  <span className="truncate text-slate-300">{workshop.name}</span>
+                  <span className="shrink-0 text-teal-400">{workshop.activeCount} / {workshop.capacity ?? '—'}</span>
+                </div>
+                <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
+                  <div className="h-full rounded-full bg-teal-400" style={{ width: `${Math.min(100, workshop.loadPct ?? 0)}%` }} />
                 </div>
               </div>
-            </div>
-
-            {/* Material Meters */}
-            <div className="space-y-3">
-              <div>
-                <div className="flex justify-between text-xs font-bold">
-                  <span className="text-slate-300">Oq bo'yoq (Plastisol)</span>
-                  <span className="text-teal-400">{current.materials.white}%</span>
-                </div>
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full rounded-full bg-teal-400 transition-all duration-500" style={{ width: `${current.materials.white}%` }} />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs font-bold">
-                  <span className="text-slate-300">Qora bo'yoq (Plastisol)</span>
-                  <span className="text-blue-400">{current.materials.black}%</span>
-                </div>
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full rounded-full bg-blue-400 transition-all duration-500" style={{ width: `${current.materials.black}%` }} />
-                </div>
-              </div>
-
-              <div>
-                <div className="flex justify-between text-xs font-bold">
-                  <span className="text-slate-300">Interlok mato rollari</span>
-                  <span className="text-emerald-400">{current.materials.fabric}%</span>
-                </div>
-                <div className="mt-1 h-2 overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full rounded-full bg-emerald-400 transition-all duration-500" style={{ width: `${current.materials.fabric}%` }} />
-                </div>
-              </div>
-            </div>
+            ))}
+            {!loading && !error && !(production?.workshops?.length) && (
+              <p className="py-8 text-center text-xs text-slate-500">{t('api.empty')}</p>
+            )}
           </div>
         </Card>
       </div>
 
-      {/* Operator Ranking Table */}
-      <Card className="overflow-hidden bg-[#121829] p-6 border border-white/10">
-        <h3 className="text-base font-extrabold text-white mb-1">Xodimlar unumdorligi reytingi</h3>
-        <p className="text-xs text-slate-400 mb-4">Bajarilgan buyurtmalar soni va sifat darajasi bo'yicha</p>
-
+      <Card className="overflow-hidden border border-white/10 bg-[#121829] p-6">
+        <h3 className="mb-1 text-base font-extrabold text-white">{t('stat.workshops')}</h3>
+        <p className="mb-4 text-xs text-slate-400">{t('stat.workshopsHint')}</p>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
-              <tr className="border-b border-white/10 text-slate-400 uppercase font-bold tracking-wider">
-                <th className="pb-3">Xodim</th>
-                <th className="pb-3">Rol</th>
-                <th className="pb-3">Bajarildi</th>
-                <th className="pb-3">O'rtacha vaqt</th>
-                <th className="pb-3">Brak soni</th>
-                <th className="pb-3">Sifat ko'rsatkichi</th>
+              <tr className="border-b border-white/10 font-bold uppercase tracking-wider text-slate-400">
+                <th className="pb-3">{t('stat.col.workshop')}</th>
+                <th className="pb-3">{t('stat.col.active')}</th>
+                <th className="pb-3">{t('stat.col.capacity')}</th>
+                <th className="pb-3">{t('stat.col.load')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 text-slate-200">
-              {operatorStats.map((op) => (
-                <tr key={op.name} className="hover:bg-white/5 transition">
-                  <td className="py-3.5 font-extrabold text-white">{op.name}</td>
-                  <td className="py-3.5 text-slate-400">{op.role}</td>
-                  <td className="py-3.5 font-bold text-teal-400">{op.done} dona</td>
-                  <td className="py-3.5 font-semibold">{op.avgTime}</td>
-                  <td className="py-3.5 font-semibold text-rose-400">{op.defect} dona</td>
-                  <td className="py-3.5">
-                    <span className="rounded-full bg-emerald-500/20 px-2.5 py-1 font-extrabold text-emerald-400 ring-1 ring-emerald-500/40">
-                      {op.rate}
-                    </span>
-                  </td>
+              {(production?.workshops ?? []).map((workshop) => (
+                <tr key={workshop.id} className="transition hover:bg-white/5">
+                  <td className="py-3.5 font-extrabold text-white">{workshop.name}</td>
+                  <td className="py-3.5 font-bold text-teal-400">{workshop.activeCount}</td>
+                  <td className="py-3.5 text-slate-400">{workshop.capacity ?? '—'}</td>
+                  <td className="py-3.5 font-semibold">{workshop.loadPct == null ? '—' : `${workshop.loadPct}%`}</td>
                 </tr>
               ))}
+              {!loading && !error && !(production?.workshops?.length) && (
+                <tr><td colSpan={4} className="py-6 text-center text-xs text-slate-500">{t('api.empty')}</td></tr>
+              )}
             </tbody>
           </table>
         </div>

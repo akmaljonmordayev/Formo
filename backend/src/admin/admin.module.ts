@@ -1,6 +1,10 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module';
 import { AccountsService } from './accounts.service';
+import { AdminChatController, AdminDefectsController } from './workshop-ops.controller';
+import { ChatService } from './chat.service';
+import { DefectsService } from './defects.service';
+import { WorkshopProfileService } from './workshop-profile.service';
 import { AuditController } from './audit.controller';
 import { AuditService } from './audit.service';
 import { CategoriesController } from './categories.controller';
@@ -15,6 +19,7 @@ import { InventoryController } from './inventory.controller';
 import { InventoryService } from './inventory.service';
 import { OperatorController } from './operator.controller';
 import { OrdersController } from './orders.controller';
+import { OrderHistoryService } from './order-history.service';
 import { OrdersService } from './orders.service';
 import { PricingController } from './pricing.controller';
 import { PricingService } from './pricing.service';
@@ -23,6 +28,9 @@ import { PromocodesService } from './promocodes.service';
 import { SettingsController } from './settings.controller';
 import { SettingsService } from './settings.service';
 import { UsersController } from './users.controller';
+import { WorkshopOrdersController } from './workshop-orders.controller';
+import { WorkshopPanelController } from './workshop-panel.controller';
+import { WorkshopOrdersService } from './workshop-orders.service';
 import { WorkshopsController } from './workshops.controller';
 
 @Module({
@@ -35,6 +43,10 @@ import { WorkshopsController } from './workshops.controller';
     CategoriesController,
     ClubsController,
     OrdersController,
+    WorkshopOrdersController,
+    WorkshopPanelController,
+    AdminChatController,
+    AdminDefectsController,
     InsightsController,
     InventoryController,
     PricingController,
@@ -49,6 +61,11 @@ import { WorkshopsController } from './workshops.controller';
     CategoriesService,
     ClubsService,
     OrdersService,
+    OrderHistoryService,
+    WorkshopOrdersService,
+    ChatService,
+    DefectsService,
+    WorkshopProfileService,
     InventoryService,
     PricingService,
     PromocodesService,

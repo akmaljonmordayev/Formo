@@ -16,7 +16,7 @@ import { DeliveryService } from './delivery.service';
 import { ChangePaymentMethodDto, CheckoutDto, DeliverySlotsQueryDto, MyOrdersQueryDto } from './dto/checkout.dto';
 import { ShopOrdersService } from './orders.service';
 
-@ApiTags('Rasmiylashtirish va buyurtmalar')
+@ApiTags('Mobil · Rasmiylashtirish va buyurtmalar')
 @ApiBearerAuth()
 @ApiForbiddenResponse({ description: 'Faqat mobil ilova foydalanuvchisi' })
 @Roles(Role.USER)
@@ -42,7 +42,7 @@ export class ShopOrdersController {
     summary: 'Savatdan buyurtma berish ("To‘lash")',
     description:
       'Narxlar serverda qayta hisoblanadi. CLICK/PAYME — buyurtma `PENDING_PAYMENT` holatida 30 daqiqa band turadi; ' +
-      'CASH — darhol `ACCEPTED`. Muvaffaqiyatli bo‘lsa savat tozalanadi.',
+      'CASH — darhol `NEW` (operatorga tushadi). Muvaffaqiyatli bo‘lsa savat tozalanadi.',
   })
   @ApiBadRequestResponse({ description: 'Savat bo‘sh, mahsulot sotuvda emas, promokod yoki sana noto‘g‘ri' })
   @ApiConflictResponse({ description: 'Tanlangan vaqt band yoki promokod limiti tugadi' })
@@ -81,6 +81,14 @@ export class ShopOrdersController {
   @ApiConflictResponse({ description: 'Buyurtma to‘lov kutmayapti yoki muddati tugagan' })
   confirmPayment(@CurrentUser() user: AuthUser, @Param('id', ParseIdPipe) id: number) {
     return this.orders.confirmPayment(user, id);
+  }
+
+  @Post('orders/:id/payment/balance')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'To‘lov kutayotgan buyurtmani ichki balansdan to‘lash (bir marta yechiladi)' })
+  @ApiConflictResponse({ description: 'Buyurtma to‘lov kutmayapti' })
+  payWithBalance(@CurrentUser() user: AuthUser, @Param('id', ParseIdPipe) id: number) {
+    return this.orders.payWithBalance(user, id);
   }
 
   @Patch('orders/:id/payment-method')

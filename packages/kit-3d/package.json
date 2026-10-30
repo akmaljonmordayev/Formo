@@ -1,0 +1,35 @@
+{
+  "name": "@formo/kit-3d",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Formo 3D forma: protsedural geometriya, canvas teksturalar va three.js sahna (admin va mobil WebView uchun umumiy)",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": {
+    ".": "./src/index.js",
+    "./design": "./src/design.js",
+    "./react": "./src/Kit3DViewer.jsx"
+  },
+  "files": [
+    "src"
+  ],
+  "scripts": {
+    "test": "node --test tests/design.test.js tests/kit.test.js && node scripts/build-viewer.mjs --check",
+    "build:viewer": "node scripts/build-viewer.mjs"
+  },
+  "dependencies": {
+    "@fontsource/big-shoulders-display": "^5.1.0",
+    "three": "^0.186.1"
+  },
+  "peerDependencies": {
+    "react": ">=18"
+  },
+  "peerDependenciesMeta": {
+    "react": {
+      "optional": true
+    }
+  },
+  "devDependencies": {
+    "esbuild": "0.25.10"
+  }
+}

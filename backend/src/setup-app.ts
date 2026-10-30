@@ -7,6 +7,7 @@ import { clientIpFromHeader } from './common/middleware/client-ip';
 import { buildCloudflareList, cloudflareOnly } from './common/middleware/cloudflare-only';
 import { PrismaExceptionFilter } from './common/filters/prisma-exception.filter';
 import { parseCorsOrigins, parseTrustProxy } from './config/http.config';
+import { LOCAL_UPLOADS_ROUTE, uploadDir } from './storage/storage.service';
 
 /** main.ts va e2e testlar bir xil konfiguratsiyani ishlatadi */
 export function setupApp(app: INestApplication) {
@@ -26,6 +27,20 @@ export function setupApp(app: INestApplication) {
 
   app.setGlobalPrefix('api');
   app.use(helmet());
+  // Yuklangan rasmlar (S3 sozlanmagan bo'lsa — lokal disk). Admin canvas'ga chizib PNG oladi, mobil WebView
+  // boshqa origin'dan yuklaydi — shuning uchun cross-origin ruxsat; fayl nomlari tasodifiy va o'zgarmaydi.
+  if (!process.env.S3_BUCKET) {
+    express.useStaticAssets(uploadDir(), {
+      prefix: LOCAL_UPLOADS_ROUTE,
+      index: false,
+      dotfiles: 'deny',
+      setHeaders: (res) => {
+        res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+        res.setHeader('Access-Control-Allow-Origin', '*');
+        res.setHeader('Cache-Control', 'public, max-age=31536000, immutable');
+      },
+    });
+  }
   app.enableCors({
     origin: parseCorsOrigins(process.env.FRONTEND_URL),
     credentials: true,

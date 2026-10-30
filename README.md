@@ -60,6 +60,15 @@ Kodda: `import { auth, api } from './services/api'` → `auth.register(...)`, `a
 
 Sozlamalarni o'zgartirish (ixtiyoriy): ildizda `.env` yarating, masalan `SUPERADMIN_PASSWORD=...` yoki port band bo'lsa `FORMO_WEB_PORT=5174`, `FORMO_API_PORT=3002`, `FORMO_DB_PORT=5436`.
 
+## SMS OTP production setup
+
+Formo mobile app currently contains a development-only fallback OTP flow. The backend does not expose real SMS endpoints yet. In production, replace it with a real SMS provider and keep server-side verification enabled:
+
+1. Add backend endpoints `POST /api/auth/otp/send` and `POST /api/auth/otp/verify`.
+2. Store an OTP secret per phone number, send one-time codes via Twilio/ClickSend/etc., and validate them server-side before allowing registration or login.
+3. Configure provider credentials in backend environment variables (for example `SMS_ACCOUNT_SID`, `SMS_AUTH_TOKEN`, `SMS_FROM` or provider-specific keys).
+4. Keep the mobile app in development mode only while the SMS provider is not configured; the current local fallback is intentionally labeled as `Development-only mock OTP` and never represents real SMS delivery.
+
 ## Testlar va CI
 
 | Buyruq | Nima tekshiradi |
@@ -104,6 +113,9 @@ Production'da uchta servis: **Postgres**, **backend** (NestJS, `backend/Dockerfi
    | backend | `CLIENT_IP_HEADER` | `x-real-ip` — Railway haqiqiy klient IP'sini shu headerda beradi (Cloudflare ortida ham); usiz rate-limit hamma foydalanuvchiga umumiy bo'lib qoladi |
    | backend | `REQUIRE_CLOUDFLARE` | `true` — Cloudflare'ni chetlab Railway'ga to'g'ridan-to'g'ri kelgan so'rovlar 403 oladi (`/api/health`dan tashqari) |
    | backend | `TRUST_PROXY` | `2` — zaxira: `CLIENT_IP_HEADER` bo'lmasa va Cloudflare'siz to'g'ri ishlaydi |
+   | backend | `TELEGRAM_BOT_USERNAME` | `formo_kit_bot` — mijozlar faqat shu bot orqali kiradi |
+   | backend | `TELEGRAM_INTERNAL_TOKEN` | `openssl rand -hex 32` (kamida 32 belgi) — **telegram-bot servisidagi bilan aynan bir xil** |
+   | backend | `TELEGRAM_BOT_TOKEN` | ixtiyoriy: admin bildirishnomalari uchun (BotFather tokeni) |
    | frontend | `RAILWAY_DOCKERFILE_PATH` | `frontend/Dockerfile` |
    | frontend | `PORT` | `8080` |
    | frontend | `VITE_API_URL` | `https://${{backend.RAILWAY_PUBLIC_DOMAIN}}` (oxirida `/api` **yo'q**) |
@@ -115,13 +127,37 @@ Shundan keyin `main`ga har bir merge: GitHub Actions testlari → yashil bo'lsa 
 
 > Qo'lda deploy (favqulodda): `railway up --service backend` (repo ildizidan).
 
+### Telegram bot servisi
+
+Mijozlar ilovaga faqat Telegram bot orqali kiradi, shuning uchun bot backend bilan **bir vaqtda** chiqishi kerak. Productionda demo SMS-login (`/auth/otp-login`, 12345) va parol bilan ro'yxatdan o'tish (`/auth/register`) o'chiq (403). Mavjud hisoblar uchun parol bilan kirish ishlayveradi.
+
+1. Yangi **Empty Service** `telegram-bot`. **Settings → Source**: Root Directory — `telegram-bot`, Dockerfile — `Dockerfile`. Healthcheck Path — `/health`, Restart Policy — On Failure.
+2. **Variables**:
+
+   | O'zgaruvchi | Qiymat |
+   |---|---|
+   | `TELEGRAM_BOT_TOKEN` | BotFather tokeni (`@formo_kit_bot`) |
+   | `TELEGRAM_INTERNAL_TOKEN` | backend'dagi bilan aynan bir xil (`${{backend.TELEGRAM_INTERNAL_TOKEN}}`) |
+   | `BACKEND_URL` | `https://api.formo.uz/api` — ochiq domen orqali. `REQUIRE_CLOUDFLARE=true` Cloudflare'siz kelgan so'rovni 403 qiladi, shuning uchun ichki tarmoq manzili ishlamaydi. Ichki endpointlar baribir token bilan himoyalangan. |
+   | `BOT_MODE` | `polling` (eng oddiy, ochiq domen shart emas) yoki `webhook` |
+   | `PORT` | `8080` |
+   | `TELEGRAM_WEBHOOK_URL`, `TELEGRAM_WEBHOOK_SECRET` | faqat `BOT_MODE=webhook` uchun: botga **Generate Domain**, URL `https://<bot-domeni>/telegram/webhook`, secret `openssl rand -hex 32` |
+
+3. Bitta bot uchun bir vaqtda faqat bitta nusxa va bitta rejim ishlasin: polling ishga tushganda webhook o'chiriladi, webhook rejimi esa o'rnatadi. Lokal `npm run dev` ni productiondagi bot bilan bir vaqtda ishlatmang (Telegram 409 qaytaradi).
+4. Tekshirish: servis logida `bot ishga tushdi` va `polling boshlandi`. Lokal kompyuterdan: production qiymatlarini `.env` ga yozmasdan, bot servisining **Shell**ida `node dist/check.js`.
+
+Batafsil: [`telegram-bot/README.md`](telegram-bot/README.md).
+
+**Chiqarish tartibi:** avval backend va bot o'zgaruvchilarini kiriting, keyin ikkalasini bir merge bilan chiqaring. Backend yangi versiyasi (demo-login o'chiq) bot ishlamay turib chiqsa, mijozlar parolsiz kira olmaydi.
+
 ### Deploy qanday ishlaydi
 
 - Backend konteyneri har ishga tushganda `prisma migrate deploy` qiladi, keyin serverni ko'taradi. Migratsiya yiqilsa yoki `/api/health` (bazani ham tekshiradi) 200 qaytarmasa, Railway eski deployni trafikda qoldiradi.
 - Frontend `VITE_API_URL` build paytida JS ichiga yoziladi — backend manzili o'zgarsa frontendni qayta deploy qiling.
 - Backend proxy ortida ishlaydi: rate-limit haqiqiy klient IP'siga qarab ishlashi uchun Railway'da `CLIENT_IP_HEADER=x-real-ip`. Railway bu headerni har doim o'zi yozadi (klient yuborgani o'chiriladi). `api.formo.uz` Cloudflare orqali o'tadi va u yerda `X-Forwarded-For`da faqat Cloudflare manzili qoladi, shuning uchun hop sanash (`TRUST_PROXY`) yetarli emas. Tekshirish: superadmin tokeni bilan `GET /api/admin/diagnostics/request` — `ip` sizning haqiqiy IP'ingiz bo'lishi kerak. Oldiga yana proxy (masalan Cloudflare) qo'yilsa, shu endpoint bilan qayta o'lchang.
 - Swagger (`/api/docs`) productionda faqat `SWAGGER_ENABLED=true` bilan yoqiladi va login/parol so'raydi: `SWAGGER_USER` (standart `formo`), `SWAGGER_PASSWORD` (majburiy, kamida 10 belgi).
-- Mobil ilova uchun: `EXPO_PUBLIC_API_URL=https://<backend-domeni>/api`.
+- Mobil ilova uchun: `EXPO_PUBLIC_API_URL=https://<backend-domeni>/api` — EAS profillarida `mobile/eas.json`. Lokal `mobile/.env` (Wi-Fi IP) release buildga tushmasligi kerak — qarang [`mobile/README.md`](mobile/README.md#production-build-api-manzili).
+- Lokal dev bazaga haqiqiy katalogni ko'chirish (faqat localhost, mavjud yozuvlarga tegmaydi): `cd backend && pnpm run catalog:import`.
 
 ## Architecture
 

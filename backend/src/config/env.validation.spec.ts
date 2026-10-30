@@ -59,6 +59,12 @@ describe('validateEnv', () => {
       expect(() => validateEnv(rest)).not.toThrow();
     });
 
+    it('TELEGRAM_INTERNAL_TOKEN: ixtiyoriy, lekin berilsa qisqa bo‘lmasin', () => {
+      expect(() => validateEnv(prod())).not.toThrow();
+      expect(() => validateEnv(prod({ TELEGRAM_INTERNAL_TOKEN: STRONG_SECRET }))).not.toThrow();
+      expect(() => validateEnv(prod({ TELEGRAM_INTERNAL_TOKEN: 'short-token' }))).toThrow(/TELEGRAM_INTERNAL_TOKEN/);
+    });
+
     it('DATABASE_URL bo‘lmasa — xato', () => {
       expect(() => validateEnv(prod({ DATABASE_URL: '' }))).toThrow(/DATABASE_URL berilmagan/);
     });

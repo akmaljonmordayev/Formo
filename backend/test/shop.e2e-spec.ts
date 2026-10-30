@@ -468,11 +468,12 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
       await as(other).post(`/api/orders/${orderId}/cancel`).expect(404);
     });
 
-    it('"To‘lovni tasdiqlash (demo)" → qabul qilindi, kuzatish', async () => {
+    it('"To‘lovni tasdiqlash (demo)" → operatorga tushadi (NEW), kuzatish', async () => {
       const res = await as(user).post(`/api/orders/${orderId}/payment/confirm`).expect(200);
-      expect(res.body).toMatchObject({ status: 'ACCEPTED', paymentStatus: 'PAID', payment: { required: false } });
-      expect(res.body.timeline[0]).toMatchObject({ status: 'ACCEPTED', done: true, current: true });
-      expect(res.body.timeline[1]).toMatchObject({ status: 'PRINTING', done: false });
+      expect(res.body).toMatchObject({ status: 'NEW', paymentStatus: 'PAID', payment: { required: false }, canCancel: true });
+      expect(res.body.timeline[0]).toMatchObject({ status: 'NEW', done: true, current: true });
+      expect(res.body.timeline[0].at).toBeTruthy();
+      expect(res.body.timeline[1]).toMatchObject({ status: 'SENT_TO_WORKSHOP', done: false, at: null });
 
       await as(user).post(`/api/orders/${orderId}/payment/confirm`).expect(409);
       await as(user).patch(`/api/orders/${orderId}/payment-method`, { paymentMethod: 'CASH' }).expect(409);
@@ -495,22 +496,29 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
     it('bosishga berilgan buyurtmani bekor qilib bo‘lmaydi', async () => {
       await as(user).post('/api/cart/items', { kitId: awayKit, shirtSize: 'S' }).expect(201);
       const res = await as(user).post('/api/orders/checkout', checkoutBody({ paymentMethod: 'CASH', promocode: undefined })).expect(201);
-      expect(res.body).toMatchObject({ status: 'ACCEPTED', paymentMethod: 'CASH', paymentStatus: 'PENDING', payment: { required: false } });
+      expect(res.body).toMatchObject({ status: 'NEW', paymentMethod: 'CASH', paymentStatus: 'PENDING', payment: { required: false } });
       expect(res.body.summary).toEqual({ subtotal: 159000, discount: 0, delivery: 15000, total: 174000 });
 
+      // Sexsiz bosish bosqichiga o'tkazib bo'lmaydi — avval sexga yuboriladi
+      await as(admin).patch(`/api/admin/orders/${res.body.id}/status`, { status: 'PRINTING' }).expect(400);
+      const workshop = await as(admin)
+        .post('/api/admin/workshops', { phone: '+998901112299', password: 'tailor123', fullName: 'Sex rahbari', workshopName: 'Sex-shop' })
+        .expect(201);
+      await as(admin).post(`/api/admin/orders/${res.body.id}/assign`, { workshopId: workshop.body.id }).expect(200);
       await as(admin).patch(`/api/admin/orders/${res.body.id}/status`, { status: 'PRINTING' }).expect(200);
       const order = await as(user).get(`/api/orders/${res.body.id}`).expect(200);
       expect(order.body).toMatchObject({ statusLabel: 'Bosilmoqda', canCancel: false });
-      expect(order.body.timeline.filter((s: { done: boolean }) => s.done)).toHaveLength(2);
+      // NEW → SENT_TO_WORKSHOP → ACCEPTED → PRINTING
+      expect(order.body.timeline.filter((s: { done: boolean }) => s.done)).toHaveLength(4);
       await as(user).post(`/api/orders/${res.body.id}/cancel`).expect(409);
     });
 
-    it("\"Boshqa usulni tanlash\": Click → Naqd darhol qabul qilinadi", async () => {
+    it("\"Boshqa usulni tanlash\": Click → Naqd darhol operatorga tushadi", async () => {
       await as(user).post('/api/cart/items', { kitId: awayKit, shirtSize: 'S' }).expect(201);
       const res = await as(user).post('/api/orders/checkout', checkoutBody({ paymentMethod: 'PAYME', promocode: undefined })).expect(201);
       expect(res.body.status).toBe('PENDING_PAYMENT');
       const changed = await as(user).patch(`/api/orders/${res.body.id}/payment-method`, { paymentMethod: 'CASH' }).expect(200);
-      expect(changed.body).toMatchObject({ status: 'ACCEPTED', paymentMethod: 'CASH', paymentExpiresAt: null });
+      expect(changed.body).toMatchObject({ status: 'NEW', paymentMethod: 'CASH', paymentExpiresAt: null });
     });
 
     it('30 daqiqada to‘lanmagan buyurtma avtomatik bekor bo‘ladi', async () => {
@@ -588,5 +596,91 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
         '/api/admin/categories',
       ]),
     );
+  });
+  // ---------------------------------------------------------------------------
+  describe('Superadmin sozlamalari mobil buyurtmaga qo‘llanadi', () => {
+    const setRules = (value: object) => as(admin).put('/api/admin/settings/order.rules', { value }).expect(200);
+    // Oldingi testlar slot sozlamasini o'zgartirgan va ertangi kunni to'ldirgan — band bo'lmagan 3-kun olinadi
+    const checkout = () =>
+      as(user).post('/api/orders/checkout', {
+        addressId,
+        deliveryDate: addDays(todayLocal(), 3),
+        deliverySlot: '10:00-14:00',
+        paymentMethod: 'CASH',
+      });
+
+    beforeEach(async () => {
+      await as(user).delete('/api/cart');
+    });
+
+    afterAll(async () => {
+      await setRules({});
+      await as(admin).put('/api/admin/settings/order.bannedWords', { value: [] }).expect(200);
+      await as(admin).put('/api/admin/settings/admin.general', { value: { maintenance: false } }).expect(200);
+      await as(user).delete('/api/cart');
+    });
+
+    it('GET /app/config ochiq; taqiqlangan so‘zlar ro‘yxatini oshkor qilmaydi', async () => {
+      await setRules({ minOrderSum: 123000, terms: 'Shartlar' });
+      await as(admin).put('/api/admin/settings/order.bannedWords', { value: ['yomon'] }).expect(200);
+      const res = await api(app).get('/api/app/config').expect(200);
+      expect(res.body.rules).toMatchObject({ acceptOrders: true, minOrderSum: 123000, terms: 'Shartlar', maxQtyPerItem: 10 });
+      expect(res.body.general).toMatchObject({ companyName: 'Formo', maintenance: false });
+      expect(JSON.stringify(res.body)).not.toContain('yomon');
+    });
+
+    it('ism uzunligi, raqam oralig‘i va taqiqlangan so‘z savatga qo‘shishda rad etiladi', async () => {
+      await setRules({ printNameMaxLength: 5, printNumberMax: 50 });
+      await as(user).post('/api/cart/items', { kitId: awayKit, shirtSize: 'S', printName: 'ALEKSANDR' }).expect(400);
+      await as(user).post('/api/cart/items', { kitId: awayKit, shirtSize: 'S', printNumber: '77' }).expect(400);
+      await as(user).post('/api/cart/items', { kitId: awayKit, shirtSize: 'S', printName: 'YOMON1' }).expect(400);
+      await setRules({});
+      await as(user).post('/api/cart/items', { kitId: awayKit, shirtSize: 'S', printName: 'YOMON1' }).expect(400);
+      await as(user).post('/api/cart/items', { kitId: awayKit, shirtSize: 'S', printName: 'ALI', printNumber: '10' }).expect(201);
+    });
+
+    it('bitta mahsulotdan maksimal dona va bolalar o‘lchamlari sozlamaga bo‘ysunadi', async () => {
+      await setRules({ maxQtyPerItem: 2, allowKidsSizes: false });
+      await as(user).post('/api/cart/items', { kitId: awayKit, shirtSize: 'S', quantity: 3 }).expect(400);
+      await as(user).post('/api/cart/items', { kitId: awayKit, shirtSize: 'S', quantity: 2 }).expect(201);
+      await as(user).post('/api/cart/items', { kitId: awayKit, shirtSize: '4-5' }).expect(400);
+    });
+
+    it('buyurtma qabul qilish to‘xtatilsa yoki texnik tanaffus bo‘lsa — 503 va sabab matni', async () => {
+      await as(user).post('/api/cart/items', { kitId: awayKit, shirtSize: 'S' }).expect(201);
+      await setRules({ acceptOrders: false, pausedMessage: 'Dam olish kunlari ishlamaymiz' });
+      const paused = await checkout().expect(503);
+      expect(paused.body.message).toContain('Dam olish');
+      await as(user).post('/api/cart/items', { kitId: awayKit, shirtSize: 'M' }).expect(503);
+      expect((await api(app).get('/api/app/config').expect(200)).body.rules.acceptOrders).toBe(false);
+
+      await setRules({});
+      await as(admin).put('/api/admin/settings/admin.general', { value: { maintenance: true } }).expect(200);
+      await checkout().expect(503);
+      await as(admin).put('/api/admin/settings/admin.general', { value: { maintenance: false } }).expect(200);
+    });
+
+    it('minimal summa va naqd to‘lov taqiqi rasmiylashtirishda tekshiriladi', async () => {
+      await as(user).post('/api/cart/items', { kitId: awayKit, shirtSize: 'S' }).expect(201);
+      await setRules({ minOrderSum: 10_000_000 });
+      await checkout().expect(400);
+      await setRules({ allowCash: false });
+      await checkout().expect(400);
+      await setRules({});
+      await checkout().expect(201);
+    });
+    it('faol Push kampaniya mijoz bildirishnomalarida ko‘rinadi; qoralama va SMS ko‘rinmaydi', async () => {
+      const mk = (body: object) => as(admin).post('/api/admin/campaigns', { audience: 'Barcha mijozlar', message: 'Xabar', ...body }).expect(201);
+      await mk({ name: 'Chegirma haftasi', channel: 'PUSH', status: 'ACTIVE' });
+      await mk({ name: 'Qoralama kampaniya', channel: 'PUSH' });
+      await mk({ name: 'Faqat SMS', channel: 'SMS', status: 'ACTIVE' });
+      const res = await as(user).get('/api/notifications').expect(200);
+      const titles = res.body.items.map((n: { title: string }) => n.title);
+      expect(titles).toContain('Chegirma haftasi');
+      expect(titles).not.toContain('Qoralama kampaniya');
+      expect(titles).not.toContain('Faqat SMS');
+      await api(app).get('/api/notifications').expect(401);
+      await as(admin).get('/api/notifications').expect(403);
+    });
   });
 });

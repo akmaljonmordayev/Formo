@@ -231,5 +231,11 @@ describe('AccountsService', () => {
       await expect(service.remove(Role.TAILOR, 3)).resolves.toEqual({ message: expect.any(String) });
       expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 3 } });
     });
+
+    it('hamyon tarixi bo‘lsa (FK) — 409', async () => {
+      prisma.user.findFirst.mockResolvedValue(tailor());
+      prisma.user.delete.mockRejectedValue(prismaError('P2003'));
+      await expect(service.remove(Role.TAILOR, 3)).rejects.toThrow(ConflictException);
+    });
   });
 });

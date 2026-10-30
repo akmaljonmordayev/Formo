@@ -5,16 +5,48 @@
     "version": "0.2.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
-    "splash": {
-      "backgroundColor": "#070A24"
-    },
+    "plugins": [
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#050818",
+          "image": "./assets/formologo.png",
+          "imageWidth": 200,
+          "resizeMode": "contain"
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Formo yetkazish manzilini xaritada aniqlash uchun joylashuvingizdan foydalanadi.",
+          "isAndroidBackgroundLocationEnabled": false,
+          "isIosBackgroundLocationEnabled": false
+        }
+      ]
+    ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.formo.app"
+      "bundleIdentifier": "com.formo.app",
+      "infoPlist": {
+        "LSApplicationQueriesSchemes": [
+          "tg"
+        ]
+      }
     },
     "android": {
       "package": "com.formo.app",
       "softwareKeyboardLayoutMode": "resize"
+    },
+    "updates": {
+      "enabled": false
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "extra": {
+      "eas": {
+        "projectId": ""
+      }
     }
   }
 }

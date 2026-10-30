@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import {
   AuditCategory,
+  BalanceTxType,
   OrderChannel,
   OrderProductType,
   OrderStatus,
@@ -16,35 +17,35 @@ import {
 } from '@prisma/client';
 import { randomUUID } from 'crypto';
 import { AuditService } from '../admin/audit.service';
+import { OrderHistoryService } from '../admin/order-history.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
+import { NotifyService } from '../notify/notify.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AddressesService, formatAddress } from './addresses.service';
 import { CartService, lineProblem, toCartItem } from './cart.service';
+import { STATUS_LABEL } from './order-status';
 import { dayLabel, DeliveryService, todayLocal } from './delivery.service';
 import { ChangePaymentMethodDto, CheckoutDto, MyOrdersQueryDto } from './dto/checkout.dto';
 import { summarize } from './pricing';
+import { RulesService } from './rules.service';
+import { CUSTOM_TITLE, designSummary } from './studio';
+import { KIT_DESIGN_TITLE } from '../kits/kit-design';
+import { StudioService } from './studio.service';
+import { WalletService } from '../wallet/wallet.service';
 
 /** Click/Payme: buyurtma to'lov uchun shuncha vaqt band turadi */
 export const PAYMENT_HOLD_MS = 30 * 60 * 1000;
 
 const ONLINE: PaymentMethod[] = [PaymentMethod.CLICK, PaymentMethod.PAYME];
 const FINAL: OrderStatus[] = [OrderStatus.DELIVERED, OrderStatus.CANCELLED, OrderStatus.RETURNED];
-// Bosishga berilgunga qadar mijoz o'zi bekor qila oladi
-const CANCELLABLE: OrderStatus[] = [OrderStatus.PENDING_PAYMENT, OrderStatus.ACCEPTED];
+// Sex qabul qilgunga qadar mijoz o'zi bekor qila oladi
+const CANCELLABLE: OrderStatus[] = [OrderStatus.PENDING_PAYMENT, OrderStatus.NEW, OrderStatus.SENT_TO_WORKSHOP];
 
-export const STATUS_LABEL: Record<OrderStatus, string> = {
-  PENDING_PAYMENT: "To'lov kutilmoqda",
-  ACCEPTED: 'Qabul qilindi',
-  PRINTING: 'Bosilmoqda',
-  QUALITY_CHECK: 'Sifat nazorati',
-  READY: 'Tayyor',
-  DELIVERING: 'Yetkazishga chiqdi',
-  DELIVERED: 'Yetkazildi',
-  CANCELLED: 'Bekor qilindi',
-  RETURNED: 'Qaytarildi',
-};
+export { STATUS_LABEL };
 
 const TIMELINE: OrderStatus[] = [
+  OrderStatus.NEW,
+  OrderStatus.SENT_TO_WORKSHOP,
   OrderStatus.ACCEPTED,
   OrderStatus.PRINTING,
   OrderStatus.QUALITY_CHECK,
@@ -56,6 +57,7 @@ const TIMELINE: OrderStatus[] = [
 const include = {
   items: { orderBy: { id: 'asc' }, include: { kit: { select: { bgColor: true, textColor: true } } } },
   promocode: { select: { code: true } },
+  statusLogs: { orderBy: { id: 'asc' }, select: { toStatus: true, createdAt: true } },
 } satisfies Prisma.OrderInclude;
 
 type OrderRow = Prisma.OrderGetPayload<{ include: typeof include }>;
@@ -69,6 +71,8 @@ export const demoPaymentEnabled = () =>
 export function toOrderView(o: OrderRow) {
   const date = o.deliveryDate?.toISOString().slice(0, 10) ?? null;
   const current = TIMELINE.indexOf(o.status);
+  // Tarix tartib bilan o'qiladi — keyingi yozuv oldingisini bosadi
+  const reached = new Map(o.statusLogs.map((l) => [l.toStatus, l.createdAt]));
   return {
     id: o.id,
     code: o.code,
@@ -94,6 +98,8 @@ export function toOrderView(o: OrderRow) {
       label: STATUS_LABEL[status],
       done: current >= 0 && i <= current,
       current: i === current,
+      // shu bosqichga oxirgi marta qachon o'tilgan (sex rad etib qayta yuborilsa ham to'g'ri chiqadi)
+      at: current >= 0 && i <= current ? (reached.get(status) ?? null) : null,
     })),
     canCancel: CANCELLABLE.includes(o.status),
     createdAt: o.createdAt,
@@ -108,6 +114,11 @@ export class ShopOrdersService {
     private readonly delivery: DeliveryService,
     private readonly addresses: AddressesService,
     private readonly audit: AuditService,
+    private readonly history: OrderHistoryService,
+    private readonly rules: RulesService,
+    private readonly notify: NotifyService,
+    private readonly studio: StudioService,
+    private readonly wallet: WalletService,
   ) {}
 
   /** Muddati o'tgan to'lanmagan buyurtmalarni bekor qiladi (slot va promokod bo'shaydi) */
@@ -118,22 +129,28 @@ export class ShopOrdersService {
         paymentExpiresAt: { lt: new Date() },
         ...(customerId && { customerId }),
       },
-      select: { id: true, promocodeId: true },
+      select: { id: true, code: true, promocodeId: true },
     });
-    for (const o of stale) await this.release(o.id, PaymentStatus.FAILED, OrderStatus.PENDING_PAYMENT);
+    for (const o of stale) {
+      await this.release(o.id, PaymentStatus.FAILED, OrderStatus.PENDING_PAYMENT, null, "To'lov muddati tugadi");
+      void this.notify.notify('paymentFailed', `❌ To'lov kutilib bekor qilindi: ${o.code}`);
+    }
   }
 
   /**
    * Buyurtmani bekor qiladi va ishlatilgan promokodni qaytaradi.
    * `from` — faqat shu holatdagi buyurtma o'zgaradi (parallel so'rovlardan himoya).
    */
-  private async release(id: number, paymentStatus: PaymentStatus, from: OrderStatus) {
+  private async release(id: number, paymentStatus: PaymentStatus, from: OrderStatus, actor: AuthUser | null, note?: string) {
     await this.prisma.$transaction(async (tx) => {
       const { count } = await tx.order.updateMany({
         where: { id, status: from },
         data: { status: OrderStatus.CANCELLED, paymentStatus },
       });
       if (!count) return;
+      await this.history.record({ orderId: id, from, to: OrderStatus.CANCELLED, actor, note }, tx);
+      // Balansdan to'langan bo'lsa — pul shu tranzaksiyada (bir marta) qaytadi
+      await this.wallet.refundOrder(tx, id, actor?.id ?? null);
       const order = await tx.order.findUniqueOrThrow({ where: { id }, select: { promocodeId: true } });
       if (order.promocodeId) {
         await tx.promocode.updateMany({
@@ -145,25 +162,37 @@ export class ShopOrdersService {
   }
 
   async checkout(user: AuthUser, dto: CheckoutDto) {
+    await this.rules.assertAccepting();
     await this.expireStale();
     const [customer, address] = await Promise.all([
       this.prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { fullName: true, phone: true } }),
       this.addresses.get(user.id, dto.addressId),
     ]);
     const online = ONLINE.includes(dto.paymentMethod);
+    const fromBalance = dto.paymentMethod === PaymentMethod.BALANCE;
 
     const orderId = await this.prisma.$transaction(
       async (tx) => {
         const lines = await this.cart.lines(user.id, tx);
         if (!lines.length) throw new BadRequestException("Savat bo'sh");
+        const prices = await this.cart.prices(tx);
         const problems = lines
           .map((l) => [l, lineProblem(l)] as const)
           .filter(([, p]) => p)
-          .map(([l, p]) => `${l.kit.club.name} · ${l.kit.label}: ${p}`);
+          .map(([l, p]) => `${l.kit ? `${l.kit.club.name} · ${l.kit.label}` : (l.kitDesign?.name ?? CUSTOM_TITLE)}: ${p}`);
         if (problems.length) throw new BadRequestException(`Savatni yangilang — ${problems.join('; ')}`);
 
-        const items = lines.map(toCartItem);
+        // Narxlar faqat server jadvallaridan (mijoz yuborgan summa yo'q)
+        const items = lines.map((l) => toCartItem(l, prices));
         const subtotal = items.reduce((s, i) => s + i.totalPrice, 0);
+        await this.rules.assertCheckout(
+          {
+            subtotal,
+            totalQty: items.reduce((s, i) => s + i.quantity, 0),
+            cash: dto.paymentMethod === PaymentMethod.CASH,
+          },
+          tx,
+        );
         const promo = dto.promocode ? await this.cart.resolvePromo(dto.promocode, subtotal, tx) : null;
         const summary = summarize(subtotal, await this.delivery.fee(tx), promo);
         await this.delivery.assertAvailable(dto.deliveryDate, dto.deliverySlot, tx);
@@ -185,9 +214,13 @@ export class ShopOrdersService {
             customerName: customer.fullName,
             customerPhone: customer.phone,
             // Admin paneldagi ro'yxat uchun qisqa ma'lumot — birinchi mahsulotdan
-            clubId: first.club.id,
-            kitLabel: first.kit.label,
-            productType: OrderProductType.CLUB_KIT,
+            clubId: first.club?.id ?? null,
+            kitLabel: first.kit?.label ?? (first.kitDesign ? KIT_DESIGN_TITLE : CUSTOM_TITLE),
+            productType: first.kit
+              ? OrderProductType.CLUB_KIT
+              : first.kitDesign
+                ? OrderProductType.KIT_DESIGN
+                : OrderProductType.CUSTOM_DESIGN,
             printName: first.printName,
             printNumber: first.printNumber,
             size: first.shirtSize,
@@ -198,8 +231,10 @@ export class ShopOrdersService {
             totalSum: summary.total,
             channel: OrderChannel.APP,
             paymentMethod: dto.paymentMethod,
-            status: online ? OrderStatus.PENDING_PAYMENT : OrderStatus.ACCEPTED,
+            // Naqd va balans — darhol operatorga tushadi; Click/Payme — to'lovdan keyin
+            status: online ? OrderStatus.PENDING_PAYMENT : OrderStatus.NEW,
             paymentExpiresAt: online ? new Date(Date.now() + PAYMENT_HOLD_MS) : null,
+            ...(fromBalance && { paymentStatus: PaymentStatus.PAID, paidAt: new Date() }),
             promocodeId: promo?.id,
             deliveryDate: new Date(`${dto.deliveryDate}T00:00:00Z`),
             deliverySlot: dto.deliverySlot,
@@ -208,11 +243,16 @@ export class ShopOrdersService {
             items: {
               create: items.map((i) => ({
                 kitId: i.kitId,
-                clubName: i.club.name,
-                kitLabel: i.kit.label,
+                clubName: i.club?.name ?? i.kitDesign?.name ?? CUSTOM_TITLE,
+                kitLabel: i.kit?.label ?? (i.kitDesign ? KIT_DESIGN_TITLE : i.design ? designSummary(i.design) : CUSTOM_TITLE),
+                design: (i.design ?? undefined) as unknown as Prisma.InputJsonObject | undefined,
+                // 3D dizayn: buyurtma paytidagi nusxa — keyin tahrirlansa/o'chirilsa ham sex aynan shuni tikadi
+                kitDesignId: i.kitDesignId,
+                designSnapshot: (i.kitDesign?.design ?? undefined) as unknown as Prisma.InputJsonObject | undefined,
                 printName: i.printName,
                 printNumber: i.printNumber,
                 numberOnShorts: i.numberOnShorts,
+                shortsNumber: i.shortsNumber,
                 withShorts: i.withShorts,
                 shirtSize: i.shirtSize,
                 shortsSize: i.shortsSize,
@@ -224,6 +264,17 @@ export class ShopOrdersService {
           },
         });
         await tx.order.update({ where: { id: order.id }, data: { code: orderCode(order.id) } });
+        // Balans yetmasa InsufficientBalanceError — butun buyurtma (slot, promokod, savat) qaytadi
+        if (fromBalance && summary.total > 0) {
+          await this.wallet.debit(tx, {
+            userId: user.id,
+            amount: summary.total,
+            type: BalanceTxType.ORDER_PAYMENT,
+            orderId: order.id,
+            note: orderCode(order.id),
+          });
+        }
+        await this.history.record({ orderId: order.id, from: null, to: order.status, actor: user }, tx);
         await tx.cartItem.deleteMany({ where: { userId: user.id } });
         return order.id;
       },
@@ -238,6 +289,8 @@ export class ShopOrdersService {
       category: AuditCategory.ORDER,
       context: order.code,
     });
+    // Naqd buyurtma darhol operatorga tushadi; onlayn to'lovlar to'lovdan keyin (confirmPayment)
+    if (order.status === OrderStatus.NEW) void this.announceNew(order.code, order.customerName, order.totalSum);
     return { ...toOrderView(order), payment: this.paymentInfo(order) };
   }
 
@@ -298,31 +351,85 @@ export class ShopOrdersService {
       );
     }
 
-    const { count } = await this.prisma.order.updateMany({
-      where: { id, status: OrderStatus.PENDING_PAYMENT },
-      data: { status: OrderStatus.ACCEPTED, paymentStatus: PaymentStatus.PAID, paidAt: new Date(), paymentExpiresAt: null },
+    await this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.order.updateMany({
+        where: { id, status: OrderStatus.PENDING_PAYMENT },
+        data: { status: OrderStatus.NEW, paymentStatus: PaymentStatus.PAID, paidAt: new Date(), paymentExpiresAt: null },
+      });
+      if (!count) throw new ConflictException("Buyurtma to'lov kutmayapti");
+      await this.history.record(
+        { orderId: id, from: OrderStatus.PENDING_PAYMENT, to: OrderStatus.NEW, actor: user, note: "To'lov qabul qilindi" },
+        tx,
+      );
     });
-    if (!count) throw new ConflictException("Buyurtma to'lov kutmayapti");
 
     await this.audit.log({ actor: user, action: "To'lov qabul qilindi", category: AuditCategory.PAYMENT, context: order.code });
+    void this.announceNew(order.code, order.customerName, order.totalSum);
+    return this.get(user.id, id);
+  }
+
+  private announceNew(code: string, customer: string, total: number) {
+    return this.notify.notify('newOrder', `🆕 Yangi buyurtma ${code} · ${customer} · ${total.toLocaleString('ru-RU')} so'm`);
+  }
+
+  /**
+   * To'lov kutayotgan buyurtmani balansdan to'lash. Holat sharti + balans sharti bitta tranzaksiyada:
+   * ikki marta bosilsa ham bir marta yechiladi (ORDER_PAYMENT har buyurtmaga bitta).
+   */
+  async payWithBalance(user: AuthUser, id: number) {
+    await this.expireStale(user.id);
+    const order = await this.own(user.id, id);
+    if (order.status !== OrderStatus.PENDING_PAYMENT) throw new ConflictException("Buyurtma to'lov kutmayapti");
+
+    await this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.order.updateMany({
+        where: { id, status: OrderStatus.PENDING_PAYMENT },
+        data: {
+          paymentMethod: PaymentMethod.BALANCE,
+          status: OrderStatus.NEW,
+          paymentStatus: PaymentStatus.PAID,
+          paidAt: new Date(),
+          paymentExpiresAt: null,
+        },
+      });
+      if (!count) throw new ConflictException("Buyurtma to'lov kutmayapti");
+      if (order.totalSum > 0) {
+        await this.wallet.debit(tx, { userId: user.id, amount: order.totalSum, type: BalanceTxType.ORDER_PAYMENT, orderId: id, note: order.code });
+      }
+      await this.history.record(
+        { orderId: id, from: OrderStatus.PENDING_PAYMENT, to: OrderStatus.NEW, actor: user, note: "Balansdan to'landi" },
+        tx,
+      );
+    });
+
+    await this.audit.log({ actor: user, action: "Buyurtma balansdan to'landi", category: AuditCategory.PAYMENT, context: order.code });
+    void this.announceNew(order.code, order.customerName, order.totalSum);
     return this.get(user.id, id);
   }
 
   /** "Boshqa usulni tanlash" */
   async changePaymentMethod(user: AuthUser, id: number, dto: ChangePaymentMethodDto) {
+    // Balansga o'tish — faqat haqiqiy yechish bilan (aks holda to'lanmagan buyurtma operatorga tushib qolardi)
+    if (dto.paymentMethod === PaymentMethod.BALANCE) return this.payWithBalance(user, id);
     await this.expireStale(user.id);
     const order = await this.own(user.id, id);
     if (order.status !== OrderStatus.PENDING_PAYMENT) throw new ConflictException("To'lov usulini endi o'zgartirib bo'lmaydi");
 
     const online = ONLINE.includes(dto.paymentMethod);
-    await this.prisma.order.updateMany({
-      where: { id, status: OrderStatus.PENDING_PAYMENT },
-      data: {
-        paymentMethod: dto.paymentMethod,
-        // Naqd — kuryerga to'lanadi, buyurtma darhol qabul qilinadi
-        status: online ? OrderStatus.PENDING_PAYMENT : OrderStatus.ACCEPTED,
-        paymentExpiresAt: online ? new Date(Date.now() + PAYMENT_HOLD_MS) : null,
-      },
+    if (!online) await this.rules.assertCheckout({ subtotal: Number.MAX_SAFE_INTEGER, totalQty: 0, cash: true });
+    await this.prisma.$transaction(async (tx) => {
+      const { count } = await tx.order.updateMany({
+        where: { id, status: OrderStatus.PENDING_PAYMENT },
+        data: {
+          paymentMethod: dto.paymentMethod,
+          // Naqd — kuryerga to'lanadi, buyurtma darhol operatorga tushadi
+          status: online ? OrderStatus.PENDING_PAYMENT : OrderStatus.NEW,
+          paymentExpiresAt: online ? new Date(Date.now() + PAYMENT_HOLD_MS) : null,
+        },
+      });
+      if (count && !online) {
+        await this.history.record({ orderId: id, from: OrderStatus.PENDING_PAYMENT, to: OrderStatus.NEW, actor: user }, tx);
+      }
     });
     return this.get(user.id, id);
   }
@@ -331,11 +438,11 @@ export class ShopOrdersService {
     await this.expireStale(user.id);
     const order = await this.own(user.id, id);
     if (!CANCELLABLE.includes(order.status)) {
-      throw new ConflictException('Buyurtma bosishga berilgan — bekor qilish uchun operatorga murojaat qiling');
+      throw new ConflictException('Buyurtma tikuv sexi tomonidan qabul qilingan — bekor qilish uchun operatorga murojaat qiling');
     }
     // To'langan bo'lsa pul qaytariladi (operator qo'lda qaytaradi)
     const paymentStatus = order.paymentStatus === PaymentStatus.PAID ? PaymentStatus.REFUNDED : order.paymentStatus;
-    await this.release(id, paymentStatus, order.status);
+    await this.release(id, paymentStatus, order.status, user, 'Mijoz bekor qildi');
 
     await this.audit.log({ actor: user, action: 'Buyurtma bekor qilindi', category: AuditCategory.ORDER, context: order.code });
     return this.get(user.id, id);

@@ -1,4 +1,4 @@
-import { api } from '../../services/api';
+import { api, apiBlobUrl } from '../../services/api';
 
 const qs = (params = {}) => {
   const q = new URLSearchParams(
@@ -40,6 +40,7 @@ export const categoriesApi = {
 
 export const ordersApi = {
   list: (params) => api(`/admin/orders${qs(params)}`),
+  assign: (id, body) => api(`/admin/orders/${id}/assign`, { method: 'POST', body }),
   updateStatus: (id, body) => api(`/admin/orders/${id}/status`, { method: 'PATCH', body }),
 };
 
@@ -69,9 +70,34 @@ export const auditLogApi = {
   list: (params) => api(`/admin/audit-log${qs(params)}`),
 };
 
+// Balansni qo'lda to'ldirish so'rovlari (faqat superadmin). Pul faqat approve() da qo'shiladi
+export const topupsApi = {
+  list: (params) => api(`/admin/topups${qs(params)}`),
+  receiptUrl: (id) => apiBlobUrl(`/admin/topups/${id}/receipt`),
+  // amount — chekdagi haqiqiy summa so'rovdan farq qilsa (ixtiyoriy)
+  approve: (id, amount) => api(`/admin/topups/${id}/approve`, { method: 'POST', body: amount ? { amount } : {} }),
+  reject: (id, reason) => api(`/admin/topups/${id}/reject`, { method: 'POST', body: { reason } }),
+};
+
 export const settingsApi = {
   all: () => api('/admin/settings'),
   update: (key, value) => api(`/admin/settings/${key}`, { method: 'PUT', body: { value } }),
+  // Telegram bildirishnomalari: { telegramConfigured } va sinov xabari { sent, reason? }
+  notificationsStatus: () => api('/admin/settings/notifications/status'),
+  notificationsTest: () => api('/admin/settings/notifications/test', { method: 'POST' }),
+};
+
+// Operator/Superadmin ↔ tikuv sexi yozishmasi
+export const chatApi = {
+  threads: () => api('/admin/chat/threads'), // [{ workshopId, name, unread, lastMessage }]
+  messages: (workshopId, after) => api(`/admin/chat/${workshopId}/messages${qs({ after })}`), // { items }
+  send: (workshopId, text) => api(`/admin/chat/${workshopId}/messages`, { method: 'POST', body: { text } }),
+};
+
+// Sexlar topgan nuqsonlar (brak)
+export const defectsApi = {
+  list: (params) => api(`/admin/defects${qs(params)}`), // { items, total, page, limit, openCount }
+  resolve: (id, note) => api(`/admin/defects/${id}/resolve`, { method: 'PATCH', body: { note } }),
 };
 
 export const diagnosticsApi = {
@@ -92,7 +118,9 @@ export const userDetailApi = {
 // --- Buyurtma holati: panel ko'rsatadigan label va badge rangi ---
 export const ORDER_STATUS = {
   PENDING_PAYMENT: { label: "To'lov kutilmoqda", color: 'orange' },
-  ACCEPTED: { label: 'Qabul qilindi', color: 'blue' },
+  NEW: { label: 'Yangi', color: 'orange' },
+  SENT_TO_WORKSHOP: { label: 'Sexga yuborildi', color: 'blue' },
+  ACCEPTED: { label: 'Sex qabul qildi', color: 'blue' },
   PRINTING: { label: 'Bosilmoqda', color: 'violet' },
   QUALITY_CHECK: { label: 'Sifat nazorati', color: 'violet' },
   READY: { label: 'Tayyor', color: 'blue' },

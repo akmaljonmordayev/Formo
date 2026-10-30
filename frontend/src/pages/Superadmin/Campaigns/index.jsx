@@ -11,6 +11,13 @@ const STATUS_LABEL = {
 };
 const CHANNEL_LABEL = { PUSH: 'Push', SMS: 'SMS', PUSH_SMS: 'Push + SMS' };
 
+const AUDIENCE_PRESETS = {
+  ALL: 'Barcha mijozlar',
+  ORDERED: 'Buyurtma bergan mijozlar',
+  NO_ORDERS: 'Hali buyurtma bermaganlar',
+  CART: 'Savatida mahsuloti borlar',
+};
+
 // ISO -> <input type="datetime-local"> qiymati (mahalliy vaqt)
 const toLocalInput = (iso) => {
   if (!iso) return '';
@@ -113,7 +120,7 @@ export default function SuperadminCampaigns() {
                     <span className={`sa-badge sa-badge--${st.color}`}>{t(st.label)}</span>
                   </div>
                   <div className="sa-table__sub" style={{ marginBottom: 6 }}>
-                    {t('Kimga')}: <b style={{ color: 'var(--sa-ink)' }}>{c.audience}</b> · {t('Kanal')}:{' '}
+                    {t('Kimga')}: <b style={{ color: 'var(--sa-ink)' }}>{AUDIENCE_PRESETS[c.audience] ? t(AUDIENCE_PRESETS[c.audience]) : c.audience}</b> · {t('Kanal')}:{' '}
                     <b style={{ color: 'var(--sa-ink)' }}>{CHANNEL_LABEL[c.channel]}</b>
                     {c.scheduledAt && (
                       <>
@@ -167,7 +174,7 @@ function CampaignForm({ campaign, onClose, onSaved }) {
   const isEdit = Boolean(campaign);
   const [form, setForm] = useState({
     name: campaign?.name ?? '',
-    audience: campaign?.audience ?? '',
+    audience: campaign?.audience ?? 'ALL',
     channel: campaign?.channel ?? 'PUSH',
     scheduledAt: toLocalInput(campaign?.scheduledAt),
     message: campaign?.message ?? '',
@@ -214,13 +221,15 @@ function CampaignForm({ campaign, onClose, onSaved }) {
           </label>
           <label className="field field--full">
             <span>{t("Auditoriya")}</span>
-            <input
-              value={form.audience}
-              onChange={set('audience')}
-              required
-              maxLength={200}
-              placeholder={t("Savatda qoldirganlar · 7 kun")}
-            />
+            <select value={form.audience} onChange={set('audience')} required>
+              {Object.entries(AUDIENCE_PRESETS).map(([value, label]) => (
+                <option key={value} value={value}>{t(label)}</option>
+              ))}
+              {form.audience && !AUDIENCE_PRESETS[form.audience] && (
+                <option value={form.audience}>{t('{text} (eski)', { text: form.audience })}</option>
+              )}
+            </select>
+            <small>{t("Mobil ilovadagi Push ro'yxati shu auditoriya bo'yicha mijozlarga ko'rsatiladi")}</small>
           </label>
           <label className="field">
             <span>{t("Kanal")}</span>

@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
+  BackHandler,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -7,401 +8,497 @@ import {
   StyleSheet,
   Text,
   TextInput,
-  useWindowDimensions,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import LanguageSwitch from './LanguageSwitch';
+import { AuthTitle, ErrorNote, InfoNote, OutlineButton, StepHeader, authColors } from '../../components/ui/AuthUi';
+import RangeSlider from '../../components/ui/RangeSlider';
+import { fonts } from '../../constants/theme';
+import { errorText as apiErrorText } from '../../utils/errors';
+import { isNameUnsupportedError, joinFullName, realFullName, splitFullName, validateName } from '../../utils/userName';
 
 /**
- * CompleteProfileScreen — login/parol bilan kirgan, lekin o'lchovlari
- * (gender/age/height/weight) bo'sh qolgan foydalanuvchilar uchun qisqa so'rovnoma.
- * RegisterScreen step 2 bilan bir xil uslubda. Saqlash auth.updateUser orqali;
- * backend endpointi hozircha yo'q bo'lsa, useAuth qiymatlarni qurilmada saqlaydi.
+ * Ro'yxatdan o'tish qadamlari (dizayn: Reg 1/3 → 2/3 → 3/3 → "Xush kelibsiz").
+ * Telegram orqali kirgan, ismi yoki o'lchovlari bo'sh foydalanuvchiga bir marta
+ * ko'rsatiladi. Saqlash — bitta PATCH /auth/me (auth.updateUser):
+ * fullName + gender/age/height/weight (UpdateProfileDto).
+ *
+ * Yangilanmagan server `fullName`ni rad etsa (400), o'lchamlar ismsiz qayta
+ * saqlanadi va yakuniy ekranda ism saqlanmagani ochiq aytiladi.
  *
  * Props:
- *   auth       — useAuth() object { user, updateUser }
- *   t          — translation function
- *   language   — current language code
- *   onLanguage — change language
- *   onSkip     — foydalanuvchi o'tkazib yubordi (boshqa so'ramaymiz)
+ *   auth     — useAuth() { user, updateUser }
+ *   t        — tarjima funksiyasi
+ *   onSkip   — 1–2 qadamda o'tkazib yuborildi (boshqa so'ramaymiz)
+ *   onFinish — "Asosiyga o'tish" bosildi
  */
 
-const palette = {
-  ink: '#080C24',
-  navy: '#0E1A3F',
-  paper: '#F3F5F9',
-  muted: '#A9B0D0',
-  orange: '#F2A33A',
-  red: '#B8323F',
-  line: '#D5DAE8',
-};
+// Chegaralar backend UpdateProfileDto bilan bir xil (bo'y/vazn — dizayn oralig'i, server oralig'ining ichida)
+const AGE = { min: 3, max: 100 };
+const HEIGHT = { min: 80, max: 210 };
+const WEIGHT = { min: 12, max: 150 };
+const KIDS_AGE = 14;
 
 const GENDERS = [
-  { key: 'MALE', icon: 'human-male', labelKey: 'male' },
-  { key: 'FEMALE', icon: 'human-female', labelKey: 'female' },
+  { key: 'MALE', icon: 'gender-male', labelKey: 'male' },
+  { key: 'FEMALE', icon: 'gender-female', labelKey: 'female' },
 ];
 
-function parseBoundedInt(raw, min, max) {
-  if (!String(raw).trim()) return null;
-  const value = Number(raw);
-  if (!Number.isInteger(value) || value < min || value > max) return NaN;
-  return value;
-}
+const STEP_ORDER = ['gender', 'age', 'body'];
 
-export default function CompleteProfileScreen({ auth, t, language, onLanguage, onSkip }) {
-  const { height } = useWindowDimensions();
-  const compact = height < 760;
-  const insets = useSafeAreaInsets();
+const kidRec = (a) => (a <= 3 ? '98' : a <= 5 ? '110' : a <= 7 ? '122' : a <= 9 ? '134' : a <= 11 ? '146' : '158');
+const adultRec = (w) => (w < 62 ? 'S' : w < 72 ? 'M' : w < 84 ? 'L' : w < 96 ? 'XL' : w < 108 ? 'XXL' : '3XL');
 
-  const [gender, setGender] = useState(auth.user?.gender || null);
-  const [age, setAge] = useState(auth.user?.age != null ? String(auth.user.age) : '');
-  const [heightValue, setHeightValue] = useState(auth.user?.height != null ? String(auth.user.height) : '');
-  const [weight, setWeight] = useState(auth.user?.weight != null ? String(auth.user.weight) : '');
-  const [validationError, setValidationError] = useState(null);
+const within = (value, range, fallback) =>
+  Number.isInteger(value) && value >= range.min && value <= range.max ? value : fallback;
+
+const fill = (template, values) =>
+  Object.entries(values).reduce((text, [key, value]) => text.replace(`{${key}}`, String(value)), template);
+
+export default function CompleteProfileScreen({ auth, t, onSkip, onFinish }) {
+  const user = auth.user || {};
+  const [step, setStep] = useState('gender');
+  const [firstName, setFirstName] = useState(() => splitFullName(realFullName(user)).first);
+  const [lastName, setLastName] = useState(() => splitFullName(realFullName(user)).last);
+  const [focusedField, setFocusedField] = useState(null);
+  const [nameSaved, setNameSaved] = useState(true);
+  const lastNameRef = useRef(null);
+  const [gender, setGender] = useState(user.gender || 'MALE');
+  const [age, setAge] = useState(within(user.age, AGE, 25));
+  const [height, setHeight] = useState(within(user.height, HEIGHT, 175));
+  const [weight, setWeight] = useState(within(user.weight, WEIGHT, 72));
+  const [saved, setSaved] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [error, setError] = useState(null);
 
-  const errorText = validationError;
+  const kids = age < KIDS_AGE;
+  const rec = kids ? kidRec(age) : adultRec(weight);
+  const stepIndex = STEP_ORDER.indexOf(step);
 
-  async function handleSave() {
-    setValidationError(null);
+  const goBack = () => {
+    setError(null);
+    setStep(STEP_ORDER[stepIndex - 1]);
+  };
 
-    const ageValue = parseBoundedInt(age, 3, 100);
-    const heightParsed = parseBoundedInt(heightValue, 50, 250);
-    const weightParsed = parseBoundedInt(weight, 10, 250);
-    if ([ageValue, heightParsed, weightParsed].some(Number.isNaN)) {
-      setValidationError(t('invalidValue'));
-      return;
+  // Android "orqaga": 2/3 → 1/3, 3/3 → 2/3 (1/3 va yakunda — tizim odatiy xatti-harakati)
+  useEffect(() => {
+    if (stepIndex <= 0) return undefined;
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      if (!saving) {
+        setError(null);
+        setStep(STEP_ORDER[stepIndex - 1]);
+      }
+      return true;
+    });
+    return () => subscription.remove();
+  }, [stepIndex, saving]);
+
+  function goNext() {
+    setError(null);
+    if (step === 'gender') {
+      const nameError = validateName(firstName, lastName, { requireLast: true });
+      if (nameError) {
+        setError(t(nameError));
+        return;
+      }
     }
+    setStep(STEP_ORDER[stepIndex + 1]);
+  }
 
-    const fields = {};
-    if (gender) fields.gender = gender;
-    if (ageValue != null) fields.age = ageValue;
-    if (heightParsed != null) fields.height = heightParsed;
-    if (weightParsed != null) fields.weight = weightParsed;
-
-    if (Object.keys(fields).length === 0) {
-      onSkip();
-      return;
+  async function save(withBody) {
+    if (saving) return;
+    const fields = { gender, age };
+    const fullName = joinFullName(firstName, lastName);
+    if (fullName && fullName !== realFullName(user)) fields.fullName = fullName;
+    if (withBody) {
+      fields.height = height;
+      fields.weight = weight;
     }
-
     setSaving(true);
+    setError(null);
     try {
-      await auth.updateUser(fields);
+      try {
+        await auth.updateUser(fields);
+        setNameSaved(true);
+      } catch (err) {
+        // Eski backend: ismsiz qayta saqlaymiz va buni yashirmaymiz
+        if (!fields.fullName || !isNameUnsupportedError(err)) throw err;
+        delete fields.fullName;
+        await auth.updateUser(fields);
+        setNameSaved(false);
+      }
+      setSaved(fields);
+      setStep('done');
     } catch (err) {
-      setValidationError(err?.message || t('authError'));
+      setError(apiErrorText(err, t));
     } finally {
       setSaving(false);
     }
   }
 
-  return (
-    <View style={styles.root}>
-      <LinearGradient colors={[palette.ink, palette.navy]} style={StyleSheet.absoluteFill} />
-      <View style={[styles.glow, { backgroundColor: palette.orange, top: -90, right: -70, opacity: 0.12 }]} />
-      <View style={[styles.glow, { backgroundColor: '#1D2F8C', bottom: -80, left: -70 }]} />
-
-      <View style={[styles.topBar, { paddingTop: insets.top + (compact ? 12 : 20) }]}>
-        <View style={styles.brand}>
-          <Text style={styles.logo}>FORMO</Text>
-          <View style={styles.badge}>
-            <Text style={styles.badgeText}>{t('loginBrandBadge')}</Text>
+  if (step === 'done') {
+    const chips = [
+      [t('chipAge'), saved?.age],
+      [t('chipHeight'), saved?.height],
+      [t('chipWeight'), saved?.weight],
+      [t('chipSize'), saved?.weight != null || kids ? rec : null],
+    ];
+    const savedName = realFullName(auth.user);
+    const greetName = savedName ? splitFullName(savedName).first : null;
+    const initial = (savedName || 'F').charAt(0).toUpperCase();
+    return (
+      <SafeAreaView style={styles.safe}>
+        <View style={styles.doneBody}>
+          <View style={styles.doneGlow} />
+          <View style={styles.ring}>
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initial}</Text>
+            </View>
+          </View>
+          <Text style={styles.doneTitle}>{greetName ? `${t('welcome')}, ${greetName}!` : `${t('welcome')}!`}</Text>
+          <Text style={styles.doneSub}>{t('regDoneSub')}</Text>
+          {!nameSaved && <ErrorNote>{t('nameNotSupported')}</ErrorNote>}
+          <View style={styles.chips}>
+            {chips.map(([label, value]) => (
+              <View key={label} style={styles.chip}>
+                <Text style={styles.chipValue}>{value ?? '—'}</Text>
+                <Text style={styles.chipLabel}>{label}</Text>
+              </View>
+            ))}
           </View>
         </View>
-        <LanguageSwitch language={language} onChange={onLanguage} />
-      </View>
+        <View style={styles.footer}>
+          <OutlineButton label={t('goHome')} onPress={onFinish} arrow glow />
+        </View>
+      </SafeAreaView>
+    );
+  }
 
-      <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <ScrollView
-          contentContainerStyle={[styles.scroll, compact && styles.scrollCompact]}
-          keyboardShouldPersistTaps="handled"
-          automaticallyAdjustKeyboardInsets
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={[styles.tagWrap, compact && styles.tagWrapCompact]}>
-            <View style={styles.string} />
-            <View style={styles.tag}>
-              <View style={styles.tagHole} />
-              <View style={styles.tagInner} pointerEvents="none" />
+  const header = (
+    <StepHeader
+      label={t('register')}
+      step={stepIndex + 1}
+      total={STEP_ORDER.length}
+      onBack={stepIndex > 0 && !saving ? goBack : null}
+      backLabel={t('back')}
+      // Yangi hisob (ism hali "Yangi mijoz"): ism, jins va yosh majburiy — faqat bo'y/vazn o'tkazib yuboriladi.
+      // Ismi bor (faqat o'lchovlari bo'sh) foydalanuvchi birinchi qadamdan ham chiqib keta oladi.
+      onSkip={step === 'body' ? () => save(false) : step === 'gender' && realFullName(user) && user.gender && user.age ? onSkip : null}
+      skipLabel={t('skip')}
+    />
+  );
 
-              <View style={styles.tagMeta}>
-                <Text style={styles.tagMetaText}>FORMO · PANEL</Text>
-                <Text style={styles.tagMetaText}>№ 0001</Text>
+  return (
+    <SafeAreaView style={styles.safe}>
+      {header}
+      {/* Android: app.json softwareKeyboardLayoutMode=resize oynani o'zi kichraytiradi */}
+      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
+      <ScrollView
+        contentContainerStyle={styles.scroll}
+        keyboardShouldPersistTaps="handled"
+        showsVerticalScrollIndicator={false}
+      >
+        {step === 'gender' && (
+          <>
+            <View style={styles.head}>
+              <AuthTitle title={t('regIntroTitle')} subtitle={t('regIntroSub')} size={26} />
+            </View>
+            <View style={styles.fields}>
+              <View>
+                <Text style={styles.label}>{t('firstName')}</Text>
+                <TextInput
+                  value={firstName}
+                  onChangeText={(text) => {
+                    setFirstName(text);
+                    setError(null);
+                  }}
+                  placeholder={t('firstNamePlaceholder')}
+                  placeholderTextColor={authColors.placeholder}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  autoComplete="given-name"
+                  textContentType="givenName"
+                  maxLength={50}
+                  returnKeyType="next"
+                  submitBehavior="submit"
+                  onSubmitEditing={() => lastNameRef.current?.focus()}
+                  onFocus={() => setFocusedField('first')}
+                  onBlur={() => setFocusedField((f) => (f === 'first' ? null : f))}
+                  selectionColor={authColors.accent}
+                  style={[styles.input, focusedField === 'first' && styles.inputFocused]}
+                />
               </View>
-
-              <Text style={styles.tagTitleLine}>{t('regAboutTitle')}</Text>
-              <Text style={styles.tagSubtitle}>{t('regAboutSub')}</Text>
-
-              <Text style={styles.fieldLabel}>{t('gender')}</Text>
-              <View style={styles.genderRow}>
+              <View>
+                <Text style={styles.label}>{t('lastName')}</Text>
+                <TextInput
+                  ref={lastNameRef}
+                  value={lastName}
+                  onChangeText={(text) => {
+                    setLastName(text);
+                    setError(null);
+                  }}
+                  placeholder={t('lastNamePlaceholder')}
+                  placeholderTextColor={authColors.placeholder}
+                  autoCapitalize="words"
+                  autoCorrect={false}
+                  autoComplete="family-name"
+                  textContentType="familyName"
+                  maxLength={50}
+                  returnKeyType="done"
+                  onFocus={() => setFocusedField('last')}
+                  onBlur={() => setFocusedField((f) => (f === 'last' ? null : f))}
+                  selectionColor={authColors.accent}
+                  style={[styles.input, focusedField === 'last' && styles.inputFocused]}
+                />
+              </View>
+              <View>
+              <Text style={styles.label}>{t('gender')}</Text>
+              <View style={styles.segment} accessibilityRole="radiogroup">
                 {GENDERS.map(({ key, icon, labelKey }) => {
                   const selected = gender === key;
                   return (
                     <Pressable
                       key={key}
-                      onPress={() => setGender(selected ? null : key)}
-                      style={[styles.genderCard, selected && styles.genderCardActive]}
+                      onPress={() => setGender(key)}
+                      accessibilityRole="radio"
+                      accessibilityState={{ selected }}
+                      style={[styles.option, selected && styles.optionOn]}
                     >
-                      <MaterialCommunityIcons
-                        name={icon}
-                        size={24}
-                        color={selected ? palette.orange : 'rgba(14,26,63,0.5)'}
-                      />
-                      <Text style={[styles.genderText, selected && styles.genderTextActive]}>
-                        {t(labelKey)}
-                      </Text>
+                      <MaterialCommunityIcons name={icon} size={18} color={selected ? authColors.accent : authColors.muted} />
+                      <Text style={[styles.optionText, selected && styles.optionTextOn]}>{t(labelKey)}</Text>
                     </Pressable>
                   );
                 })}
               </View>
-
-              <View style={styles.metricsRow}>
-                <View style={styles.metric}>
-                  <Text style={styles.fieldLabel}>{t('age')}</Text>
-                  <View style={styles.inputRow}>
-                    <TextInput
-                      value={age}
-                      onChangeText={setAge}
-                      placeholder="25"
-                      placeholderTextColor="rgba(14,26,63,0.28)"
-                      keyboardType="number-pad"
-                      maxLength={3}
-                      selectionColor={palette.orange}
-                      style={styles.input}
-                    />
-                  </View>
-                </View>
-                <View style={styles.metric}>
-                  <Text style={styles.fieldLabel}>{`${t('height')}, sm`}</Text>
-                  <View style={styles.inputRow}>
-                    <TextInput
-                      value={heightValue}
-                      onChangeText={setHeightValue}
-                      placeholder="178"
-                      placeholderTextColor="rgba(14,26,63,0.28)"
-                      keyboardType="number-pad"
-                      maxLength={3}
-                      selectionColor={palette.orange}
-                      style={styles.input}
-                    />
-                  </View>
-                </View>
-                <View style={styles.metric}>
-                  <Text style={styles.fieldLabel}>{`${t('weight')}, kg`}</Text>
-                  <View style={styles.inputRow}>
-                    <TextInput
-                      value={weight}
-                      onChangeText={setWeight}
-                      placeholder="76"
-                      placeholderTextColor="rgba(14,26,63,0.28)"
-                      keyboardType="number-pad"
-                      maxLength={3}
-                      selectionColor={palette.orange}
-                      style={styles.input}
-                    />
-                  </View>
-                </View>
-              </View>
-
-              <Text style={styles.optionalNote}>{t('optionalNote')}</Text>
-              <Text style={styles.error}>{errorText || ''}</Text>
-
-              <View style={styles.actions}>
-                <Pressable onPress={onSkip} style={styles.secondary}>
-                  <Text style={styles.secondaryText}>{t('skip')}</Text>
-                </Pressable>
-                <Pressable
-                  onPress={handleSave}
-                  disabled={saving}
-                  style={[styles.submit, styles.submitFlex, saving && styles.submitDisabled]}
-                >
-                  <Text style={styles.submitText}>{saving ? t('saving') : t('save')}</Text>
-                  <View style={styles.arrow}>
-                    <MaterialCommunityIcons name="arrow-right" size={20} color={palette.navy} />
-                  </View>
-                </Pressable>
               </View>
             </View>
-          </View>
-        </ScrollView>
+          </>
+        )}
+
+        {step === 'age' && (
+          <>
+            <View style={styles.head}>
+              <AuthTitle title={t('regAgeTitle')} subtitle={t('regAgeSub')} size={26} />
+            </View>
+            <View style={styles.ageCard}>
+              <View style={styles.ageRow}>
+                <Pressable
+                  onPress={() => setAge((a) => Math.max(AGE.min, a - 1))}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('decrease')}
+                  style={({ pressed }) => [styles.stepBtn, pressed && styles.pressed]}
+                >
+                  <MaterialCommunityIcons name="minus" size={22} color={authColors.text} />
+                </Pressable>
+                <View style={styles.ageValueBox}>
+                  <Text style={styles.ageValue}>{age}</Text>
+                  <Text style={styles.ageUnit}>{t('ageUnit')}</Text>
+                </View>
+                <Pressable
+                  onPress={() => setAge((a) => Math.min(AGE.max, a + 1))}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('increase')}
+                  style={({ pressed }) => [styles.stepBtn, pressed && styles.pressed]}
+                >
+                  <MaterialCommunityIcons name="plus" size={22} color={authColors.text} />
+                </Pressable>
+              </View>
+              <View style={styles.sliderWide}>
+                <RangeSlider value={age} min={AGE.min} max={AGE.max} onChange={setAge} accessibilityLabel={t('age')} />
+              </View>
+            </View>
+            <InfoNote icon={kids ? 'baby-face-outline' : 'tshirt-crew-outline'} style={styles.ageNote}>
+              {kids ? t('kidsSizesInfo') : t('adultSizesInfo')}
+            </InfoNote>
+          </>
+        )}
+
+        {step === 'body' && (
+          <>
+            <View style={styles.head}>
+              <AuthTitle title={t('regBodyTitle')} subtitle={t('regBodySub')} size={26} />
+            </View>
+            <View style={styles.bodyList}>
+              {[
+                [t('height'), height, HEIGHT, setHeight, t('cmUnit')],
+                [t('weight'), weight, WEIGHT, setWeight, t('kgUnit')],
+              ].map(([label, value, range, setter, unit]) => (
+                <View key={label} style={styles.metricCard}>
+                  <View style={styles.metricTop}>
+                    <Text style={styles.metricLabel}>{label}</Text>
+                    <Text>
+                      <Text style={styles.metricValue}>{value}</Text>
+                      <Text style={styles.metricUnit}>{` ${unit}`}</Text>
+                    </Text>
+                  </View>
+                  <RangeSlider value={value} min={range.min} max={range.max} onChange={setter} accessibilityLabel={label} />
+                </View>
+              ))}
+              <LinearGradient colors={['#1B2560', '#121A42']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.recCard}>
+                <View style={styles.recBadge}>
+                  <Text style={styles.recBadgeText}>{rec}</Text>
+                </View>
+                <View style={styles.flex}>
+                  <Text style={styles.recTitle}>{t('recommendedSize')}</Text>
+                  <Text style={styles.recNote}>
+                    {kids ? fill(t('recNoteKids'), { age, height }) : fill(t('recNoteAdult'), { weight, height })}
+                  </Text>
+                </View>
+              </LinearGradient>
+            </View>
+          </>
+        )}
+      </ScrollView>
+
+      <View style={styles.footer}>
+        {Boolean(error) && <ErrorNote>{error}</ErrorNote>}
+        {step === 'body' ? (
+          <OutlineButton label={t('save')} onPress={() => save(true)} loading={saving} />
+        ) : (
+          <OutlineButton
+            label={t('nextStep')}
+            onPress={goNext}
+            arrow
+            style={step === 'gender' && !firstName.trim() && styles.dimmed}
+          />
+        )}
+      </View>
       </KeyboardAvoidingView>
-    </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: palette.ink },
+  safe: { flex: 1, backgroundColor: authColors.bg },
   flex: { flex: 1 },
-  glow: { position: 'absolute', width: 380, height: 380, borderRadius: 190, opacity: 0.16 },
-  topBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingBottom: 6,
-  },
-  scroll: {
-    flexGrow: 1,
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 140,
-  },
-  scrollCompact: { paddingTop: 4, paddingBottom: 130 },
-
-  brand: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingLeft: 4 },
-  logo: { color: palette.paper, fontSize: 22, fontWeight: '800', letterSpacing: 1 },
-  badge: {
+  scroll: { flexGrow: 1, paddingBottom: 16 },
+  pressed: { opacity: 0.7 },
+  head: { paddingHorizontal: 24, paddingTop: 24 },
+  dimmed: { opacity: 0.45 },
+  // Dizayn Reg 1/3: padding 26 24 0, maydonlar orasida 16
+  fields: { paddingHorizontal: 24, paddingTop: 26, gap: 16 },
+  label: { color: authColors.muted, fontFamily: fonts.bodyMedium, fontSize: 13, marginBottom: 6 },
+  input: {
+    height: 56,
+    borderRadius: 16,
+    backgroundColor: authColors.field,
     borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(169,176,208,0.45)',
-    borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
+    borderColor: authColors.line,
+    paddingHorizontal: 16,
+    paddingVertical: 0,
+    color: authColors.text,
+    fontFamily: fonts.bodyMedium,
+    fontSize: 17,
   },
-  badgeText: { color: palette.muted, fontSize: 11, fontWeight: '600', letterSpacing: 1.5, textTransform: 'uppercase' },
-
-  tagWrap: { marginTop: 32, alignItems: 'center', alignSelf: 'stretch' },
-  tagWrapCompact: { marginTop: 18 },
-  string: {
-    position: 'absolute',
-    top: 0,
-    width: 2,
-    height: 46,
-    borderRadius: 2,
-    backgroundColor: palette.orange,
-  },
-  tag: {
-    width: '100%',
-    maxWidth: 420,
-    backgroundColor: palette.paper,
-    borderRadius: 26,
-    borderBottomLeftRadius: 18,
-    borderBottomRightRadius: 18,
-    paddingHorizontal: 22,
-    paddingTop: 42,
-    paddingBottom: 22,
-    transform: [{ rotate: '1.5deg' }],
-    shadowColor: '#000',
-    shadowOpacity: 0.5,
-    shadowRadius: 30,
-    shadowOffset: { width: 0, height: 24 },
-    elevation: 12,
-  },
-  tagHole: {
-    position: 'absolute',
-    top: 16,
-    left: '50%',
-    marginLeft: -9,
-    width: 18,
-    height: 18,
-    borderRadius: 9,
-    backgroundColor: palette.ink,
-    borderWidth: 3,
-    borderColor: '#E3E7F0',
-  },
-  tagInner: {
-    position: 'absolute',
-    top: 10,
-    left: 10,
-    right: 10,
-    bottom: 10,
-    borderWidth: 1.5,
-    borderStyle: 'dashed',
-    borderColor: 'rgba(14,26,63,0.22)',
-    borderRadius: 18,
-  },
-  tagMeta: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    borderBottomWidth: 1,
-    borderBottomColor: palette.line,
-    paddingBottom: 12,
-    marginBottom: 18,
-  },
-  tagMetaText: { color: 'rgba(14,26,63,0.5)', fontSize: 10.5, fontWeight: '700', letterSpacing: 1.8 },
-  tagTitleLine: { color: palette.navy, fontSize: 26, fontWeight: '700', lineHeight: 30 },
-  tagSubtitle: { color: 'rgba(14,26,63,0.6)', fontSize: 14, marginTop: 6, marginBottom: 18 },
-
-  fieldLabel: {
-    color: 'rgba(14,26,63,0.62)',
-    fontSize: 11,
-    fontWeight: '700',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
-    marginBottom: 7,
-  },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 52,
-    backgroundColor: '#fff',
-    borderWidth: 1.5,
-    borderColor: palette.line,
-    borderRadius: 14,
-    paddingHorizontal: 14,
-    marginBottom: 16,
-  },
-  input: { flex: 1, height: '100%', color: palette.navy, fontSize: 16, fontWeight: '600' },
-
-  genderRow: { flexDirection: 'row', gap: 10, marginBottom: 16 },
-  genderCard: {
+  // Fokusda faqat chegara rangi/qalinligi o'zgaradi (soya/elevation yo'q — Android fokusni yo'qotmaydi)
+  inputFocused: { borderWidth: 1.5, borderColor: authColors.accent, paddingHorizontal: 15.5 },
+  segment: { flexDirection: 'row', padding: 4, gap: 4, borderRadius: 14, backgroundColor: authColors.field },
+  option: {
     flex: 1,
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 14,
-    borderRadius: 14,
-    borderWidth: 1.5,
-    borderColor: palette.line,
-    backgroundColor: '#fff',
-  },
-  genderCardActive: { borderColor: palette.orange, backgroundColor: '#FFF3E0' },
-  genderText: { fontSize: 13, fontWeight: '600', color: 'rgba(14,26,63,0.6)' },
-  genderTextActive: { color: palette.navy },
-
-  metricsRow: { flexDirection: 'row', gap: 10 },
-  metric: { flex: 1 },
-  optionalNote: {
-    fontSize: 12,
-    color: 'rgba(14,26,63,0.5)',
-    textAlign: 'center',
-    marginTop: 2,
-    marginBottom: 4,
-  },
-
-  error: { minHeight: 20, color: palette.red, fontSize: 13.5, fontWeight: '500', marginTop: 8, marginBottom: 10 },
-
-  actions: { flexDirection: 'row', gap: 10 },
-  secondary: {
-    width: 104,
-    height: 56,
-    borderRadius: 16,
-    borderWidth: 1.5,
-    borderColor: palette.navy,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  secondaryText: { color: palette.navy, fontSize: 15, fontWeight: '700' },
-  submit: {
+    height: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: 'transparent',
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    height: 56,
-    borderRadius: 16,
-    backgroundColor: palette.navy,
-    paddingLeft: 22,
-    paddingRight: 10,
+    justifyContent: 'center',
+    gap: 8,
   },
-  submitFlex: { flex: 1 },
-  submitDisabled: { backgroundColor: '#8B93B3' },
-  submitText: { color: palette.paper, fontSize: 15, fontWeight: '700', letterSpacing: 0.5 },
-  arrow: {
-    width: 38,
-    height: 38,
-    borderRadius: 12,
-    backgroundColor: palette.orange,
+  optionOn: { backgroundColor: authColors.track, borderColor: authColors.accent },
+  optionText: { color: authColors.muted, fontFamily: fonts.bodySemi, fontSize: 14 },
+  optionTextOn: { color: authColors.accent },
+
+  ageCard: {
+    marginTop: 36,
+    marginHorizontal: 24,
+    padding: 24,
+    borderRadius: 24,
+    backgroundColor: authColors.field,
+    alignItems: 'center',
+    gap: 18,
+  },
+  ageRow: { flexDirection: 'row', alignItems: 'center', gap: 24 },
+  stepBtn: {
+    width: 52,
+    height: 52,
+    borderRadius: 16,
+    backgroundColor: authColors.track,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  ageValueBox: { minWidth: 110, alignItems: 'center' },
+  ageValue: { color: authColors.accent, fontFamily: fonts.numeric, fontSize: 76, lineHeight: 80 },
+  ageUnit: { color: authColors.muted, fontFamily: fonts.bodyMedium, fontSize: 14 },
+  sliderWide: { alignSelf: 'stretch' },
+  ageNote: { marginTop: 16, marginHorizontal: 24 },
+
+  bodyList: { paddingHorizontal: 20, paddingTop: 22, gap: 12 },
+  metricCard: { borderRadius: 20, backgroundColor: authColors.field, padding: 16, gap: 10 },
+  metricTop: { flexDirection: 'row', alignItems: 'flex-end', justifyContent: 'space-between' },
+  metricLabel: { color: authColors.muted, fontFamily: fonts.bodyMedium, fontSize: 14, paddingBottom: 4 },
+  metricValue: { color: authColors.text, fontFamily: fonts.numeric, fontSize: 40 },
+  metricUnit: { color: authColors.muted, fontFamily: fonts.bodyMedium, fontSize: 15 },
+  recCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: 'rgba(242,163,58,0.4)',
+  },
+  recBadge: {
+    minWidth: 56,
+    height: 56,
+    paddingHorizontal: 8,
+    borderRadius: 16,
+    borderWidth: 1.5,
+    borderColor: authColors.accent,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recBadgeText: { color: authColors.accent, fontFamily: fonts.numeric, fontSize: 28 },
+  recTitle: { color: authColors.text, fontFamily: fonts.bodySemi, fontSize: 15 },
+  recNote: { color: authColors.muted, fontFamily: fonts.body, fontSize: 13, marginTop: 2 },
+
+  footer: { paddingHorizontal: 24, paddingTop: 8, paddingBottom: 16, gap: 12 },
+
+  doneBody: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 24, gap: 18 },
+  doneGlow: {
+    position: 'absolute',
+    width: 320,
+    height: 320,
+    borderRadius: 160,
+    top: '22%',
+    backgroundColor: 'rgba(29,47,140,0.35)',
+  },
+  // Dizayndagi conic-gradient (70% to'q sariq / 30% firuza) halqasi taxminan
+  ring: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    borderWidth: 4,
+    borderColor: authColors.accent,
+    borderRightColor: authColors.teal,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatar: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
+    backgroundColor: authColors.track,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  avatarText: { color: authColors.accent, fontFamily: fonts.display, fontSize: 44 },
+  doneTitle: { color: authColors.text, fontFamily: fonts.display, fontSize: 26, lineHeight: 31, textAlign: 'center' },
+  doneSub: { color: authColors.muted, fontFamily: fonts.body, fontSize: 15, lineHeight: 22, textAlign: 'center' },
+  chips: { flexDirection: 'row', gap: 8, alignSelf: 'stretch' },
+  chip: { flex: 1, alignItems: 'center', gap: 2, paddingVertical: 12, paddingHorizontal: 4, borderRadius: 14, backgroundColor: authColors.field },
+  chipValue: { color: authColors.text, fontFamily: fonts.numeric, fontSize: 24 },
+  chipLabel: { color: '#8D95BD', fontFamily: fonts.bodyMedium, fontSize: 11, textAlign: 'center' },
 });

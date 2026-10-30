@@ -1,82 +1,39 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api, ApiError } from '../../services/api';
+import { api } from '../../services/api';
 import * as storage from '../../utils/storage';
+import { isValidChallenge } from './telegram';
 
-/**
- * Maps an API error to a display-ready error object.
- * `key` is an i18n fallback; `message` is the server's own text when it is
- * trustworthy (never for 401, where the localized key reads better).
- */
-function toAuthError(err, fallbackKey) {
-  if (err instanceof ApiError) {
-    if (err.status === 0) return { key: 'networkError', message: null };
-    if (err.status === 401) return { key: 'loginError', message: null };
-    return { key: fallbackKey, message: err.message || null };
-  }
-  if (err instanceof TypeError) return { key: 'networkError', message: null };
-  return { key: fallbackKey, message: null };
-}
+/** PATCH /auth/me qabul qiladigan maydonlar (UpdateProfileDto). address yuborilmaydi — server 400 qaytaradi */
+const PROFILE_KEYS = ['fullName', 'gender', 'age', 'height', 'weight'];
 
-/**
- * Backend hozircha profilni tahrirlash endpointini bermaydi (PATCH /auth/me → 404).
- * Shuning uchun o'lchov maydonlari (gender/age/height/weight) qurilmada lokal
- * saqlanadi va server javobiga "bo'shliqni to'ldiruvchi" qatlam sifatida qo'shiladi.
- */
-const PROFILE_KEYS = ['gender', 'age', 'height', 'weight', 'address'];
-const overlayStorageKey = (id) => `formo_profile_overlay_${id}`;
-
-function applyOverlay(base, overlay) {
-  if (!base || !overlay) return base;
-  const merged = { ...base };
+export function pickProfileFields(fields) {
+  const body = {};
   PROFILE_KEYS.forEach((key) => {
-    if (merged[key] == null && overlay[key] != null) merged[key] = overlay[key];
+    if (fields?.[key] !== undefined) body[key] = fields[key];
   });
-  return merged;
-}
-
-async function readOverlay(id) {
-  if (!id) return null;
-  const raw = await storage.getItem(overlayStorageKey(id));
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return null;
-  }
-}
-
-async function writeOverlay(id, fields) {
-  if (!id) return null;
-  const current = (await readOverlay(id)) || {};
-  const next = { ...current };
-  PROFILE_KEYS.forEach((key) => {
-    if (fields[key] != null) next[key] = fields[key];
-  });
-  await storage.setItem(overlayStorageKey(id), JSON.stringify(next));
-  return next;
-}
-
-async function mergeWithOverlay(me) {
-  const overlay = await readOverlay(me?.id);
-  return applyOverlay(me, overlay);
+  return body;
 }
 
 /**
  * useAuth — manages authentication state for the whole app.
  *
  * On mount: reads the stored token, validates it with GET /auth/me.
- * Exposes login(), register(), logout(), refreshUser() and updateUser().
+ * Mijozlar faqat Telegram bot orqali kiradi: startTelegram() → verifyTelegram().
+ * Xatolar chaqiruvchi ekranga uzatiladi (ekran o'zi lokalizatsiya qiladi).
  *
- * `error` shape: { key: string, message: string|null } — screens render
- * `error.message || t(error.key)`.
- *
- * Returns: { user, isLoading, isAuthenticated, error, login, register, logout, refreshUser, updateUser }
+ * Returns: { user, isLoading, isSubmitting, isAuthenticated, startTelegram, verifyTelegram, logout, refreshUser, updateUser }
+ *   isLoading    — initial session restore only (full-screen loader)
+ *   isSubmitting — verify request in flight (inline button state)
  */
 export default function useAuth() {
   const [user, setUser] = useState(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  // `isLoading` only covers the initial session restore (AppNavigator shows a
+  // full-screen loader for it). Submits use `isSubmitting` so the auth screen is
+  // not unmounted mid-request — remounting it dropped focus, closed the keyboard
+  // and wiped the typed code on a failed attempt.
   const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // ─── Session expiry: bounce back to the login screen ────────────────────────
   useEffect(() => {
@@ -101,7 +58,7 @@ export default function useAuth() {
         // Validate token against the server
         const me = await api.auth.me();
         if (!cancelled) {
-          setUser(await mergeWithOverlay(me));
+          setUser(me);
           setIsAuthenticated(true);
         }
       } catch {
@@ -117,42 +74,27 @@ export default function useAuth() {
     return () => { cancelled = true; };
   }, []);
 
-  // ─── Login ───────────────────────────────────────────────────────────────────
-  const login = useCallback(async (phone, password) => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const me = await api.auth.login(phone, password);
-      setUser(await mergeWithOverlay(me));
-      setIsAuthenticated(true);
-      return true;
-    } catch (err) {
-      setError(toAuthError(err, 'authError'));
-      return false;
-    } finally {
-      setIsLoading(false);
-    }
+  // ─── Telegram bot orqali kirish (mijozlar uchun yagona kirish usuli) ──────────────────────────────────────────────
+  /** So'rov ochadi: { challengeId, deepLink, expiresAt, ... }. Xato chaqiruvchiga uzatiladi. */
+  const startTelegram = useCallback(async (phone) => {
+    const challenge = await api.auth.telegramStart(phone);
+    if (!isValidChallenge(challenge)) throw new Error('Unexpected Telegram challenge response');
+    return challenge;
   }, []);
 
-  // ─── Register ────────────────────────────────────────────────────────────────
   /**
-   * @param {{fullName, phone, password, gender?, age?, height?, weight?}} payload
+   * Botdagi kodni tekshiradi. Muvaffaqiyatda sessiya saqlanadi va `isAuthenticated` o'zgaradi —
+   * yangi hisob uchun AppNavigator ism/jins/yosh qadamlarini o'zi ko'rsatadi (ism "Yangi mijoz").
    */
-  const register = useCallback(async (payload) => {
-    setIsLoading(true);
-    setError(null);
-
+  const verifyTelegram = useCallback(async (challengeId, code) => {
+    setIsSubmitting(true);
     try {
-      const me = await api.auth.register(payload);
-      setUser(await mergeWithOverlay(me));
+      const result = await api.auth.telegramVerify(challengeId, code);
+      setUser(result.user);
       setIsAuthenticated(true);
-      return true;
-    } catch (err) {
-      setError(toAuthError(err, 'authError'));
-      return false;
+      return result;
     } finally {
-      setIsLoading(false);
+      setIsSubmitting(false);
     }
   }, []);
 
@@ -171,41 +113,25 @@ export default function useAuth() {
   // ─── Refresh profile from the server ─────────────────────────────────────────
   const refreshUser = useCallback(async () => {
     const me = await api.auth.me();
-    const merged = await mergeWithOverlay(me);
-    setUser(merged);
-    return merged;
+    setUser(me);
+    return me;
   }, []);
 
-  // ─── Update profile via API; refreshes local user on success ─────────────────
-  // Endpoint mavjud bo'lmasa (404/405) o'lchovlar qurilmada saqlanadi — ekranlar
-  // baribir yangilangan userni ko'radi.
-  const updateUser = useCallback(
-    async (fields) => {
-      try {
-        const me = await api.auth.updateMe(fields);
-        const merged = await mergeWithOverlay(me);
-        setUser(merged);
-        return merged;
-      } catch (err) {
-        const endpointMissing = err instanceof ApiError && (err.status === 404 || err.status === 405);
-        if (!endpointMissing || !user?.id) throw err;
-
-        const overlay = await writeOverlay(user.id, fields);
-        const merged = applyOverlay(user, overlay);
-        setUser(merged);
-        return merged;
-      }
-    },
-    [user]
-  );
+  // ─── Update profile measurements (PATCH /auth/me — server is the source of truth) ─
+  /** Xatoni (ApiError) chaqiruvchiga uzatadi — ekran o'zi ko'rsatadi */
+  const updateUser = useCallback(async (fields) => {
+    const updated = await api.auth.updateMe(pickProfileFields(fields));
+    setUser(updated);
+    return updated;
+  }, []);
 
   return {
     user,
     isLoading,
+    isSubmitting,
     isAuthenticated,
-    error,
-    login,
-    register,
+    startTelegram,
+    verifyTelegram,
     logout,
     refreshUser,
     updateUser,

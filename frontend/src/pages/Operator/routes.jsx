@@ -1,4 +1,5 @@
 import {
+  AlertTriangle,
   Bell,
   ChartColumn,
   Factory,
@@ -11,6 +12,7 @@ import {
 } from 'lucide-react';
 import OperatorShell from './OperatorShell';
 import Dashboard from './Dashboard';
+import Defects from './Defects';
 import Factories from './Factories';
 import Messages from './Messages';
 import Notifications from './Notifications';
@@ -27,6 +29,7 @@ export const operatorLayout = OperatorShell;
 export const operatorRoutes = [
   { path: '', element: <Dashboard /> },
   { path: 'orders', element: <Orders /> },
+  { path: 'defects', element: <Defects /> },
   { path: 'factories', element: <Factories /> },
   { path: 'messages', element: <Messages /> },
   { path: 'notifications', element: <Notifications /> },
@@ -40,6 +43,7 @@ export const operatorRoutes = [
 export const operatorMenu = [
   { to: BASE, label: 'menu.dashboard', end: true, icon: LayoutDashboard },
   { to: `${BASE}/orders`, label: 'menu.orders', icon: ShoppingBag, group: 'group.ops' },
+  { to: `${BASE}/defects`, label: 'menu.defects', icon: AlertTriangle, group: 'group.ops' },
   { to: `${BASE}/factories`, label: 'menu.factories', icon: Factory, group: 'group.ops' },
   { to: `${BASE}/messages`, label: 'menu.messages', icon: MessagesSquare, group: 'group.comm' },
   { to: `${BASE}/notifications`, label: 'menu.notifications', icon: Bell, group: 'group.comm' },

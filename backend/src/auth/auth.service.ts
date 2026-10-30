@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   ConflictException,
   ForbiddenException,
   Injectable,
@@ -14,11 +15,42 @@ import { PrismaService } from '../prisma/prisma.service';
 import { toPublicUser } from '../common/utils/user.mapper';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
-import { RegisterDto } from './dto/register.dto';
+import { OtpLoginDto } from './dto/otp-login.dto';
+import { RegisterDto, UpdateProfileDto } from './dto/register.dto';
 
 export const BCRYPT_ROUNDS = 10;
-// Foydalanuvchi topilmaganda ham bcrypt ishlashi uchun (timing orqali raqam borligini bilib bo'lmasin)
-const DUMMY_HASH = bcrypt.hashSync('formo-dummy-password', BCRYPT_ROUNDS);
+// Haqiqiy SMS integratsiyasigacha: faqat shu kod to'g'ri deb hisoblanadi.
+const DEMO_OTP_CODE = '12345';
+/** Parolsiz ochilgan hisobning vaqtinchalik ismi — ilova shunda profil to'ldirishni so'raydi */
+export const NEW_CUSTOMER_NAME = 'Yangi mijoz';
+
+// Foydalanuvchi topilmaganda ham bcrypt ishlashi uchun (timing orqali raqam borligini bilib bo'lmasin).
+// Parol tasodifiy va hech qayerda saqlanmaydi — bu xesh hech qachon "to'g'ri" bo'lmaydi.
+const DUMMY_HASH = bcrypt.hashSync(randomBytes(32).toString('hex'), BCRYPT_ROUNDS);
+
+/**
+ * Eski versiyada demo OTP orqali ochilgan hisoblar shu (repoda ochiq yozilgan) parolning xeshi bilan
+ * saqlangan. Bunday hisobga parol bilan kirib bo'lmasligi uchun bu parol har doim rad etiladi.
+ */
+export const LEGACY_DUMMY_PASSWORD = 'formo-dummy-password';
+
+/**
+ * Demo SMS-login (kod 12345) faqat ishlab chiqish/test muhitida. Productionda hech qanday
+ * sozlama bilan yoqilmaydi — aks holda istalgan mijoz hisobiga 12345 bilan kirish mumkin bo'ladi.
+ * Ishlab chiqishda o'chirish: OTP_LOGIN_DEMO=false.
+ */
+export const otpLoginEnabled = () => process.env.NODE_ENV !== 'production' && process.env.OTP_LOGIN_DEMO !== 'false';
+
+/**
+ * Parol bilan ro'yxatdan o'tish raqam egaligini tekshirmaydi: begona raqamga oldindan parolli hisob
+ * ochib, egasi keyin Telegram orqali kirganda o'sha hisobni kuzatish mumkin bo'lardi. Shuning uchun
+ * productionda mijozlar faqat Telegram bot orqali hisob ochadi (POST /auth/telegram/*). Ishlab
+ * chiqish/testda ochiq. Mavjud hisoblar uchun parol bilan kirish (/auth/login) o'zgarmaydi.
+ */
+export const passwordRegistrationEnabled = () => process.env.NODE_ENV !== 'production';
+
+/** Parolsiz hisob: hech kim bilmaydigan tasodifiy parol xeshi (parol bilan kirib bo'lmaydi) */
+export const unusablePasswordHash = () => bcrypt.hash(randomBytes(32).toString('hex'), BCRYPT_ROUNDS);
 
 export interface ClientInfo {
   userAgent?: string;
@@ -41,8 +73,12 @@ export class AuthService {
 
   /** Faqat mobil ilova foydalanuvchilari o'zi ro'yxatdan o'tadi (role = USER) */
   async register(dto: RegisterDto, client: ClientInfo) {
+    if (!passwordRegistrationEnabled()) {
+      throw new ForbiddenException("Ro'yxatdan o'tish Telegram bot orqali amalga oshiriladi");
+    }
     const exists = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
     if (exists) throw new ConflictException("Bu telefon raqam allaqachon ro'yxatdan o'tgan");
+    this.assertUsablePassword(dto.password);
 
     const { password, ...profile } = dto;
     const user = await this.prisma.user.create({
@@ -61,7 +97,41 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
     const valid = await bcrypt.compare(dto.password, user?.passwordHash ?? DUMMY_HASH);
 
-    if (!user || !valid) throw new UnauthorizedException("Telefon raqam yoki parol noto'g'ri");
+    // Eski demo-OTP hisoblarining ochiq paroli — mos kelsa ham rad etiladi
+    if (!user || !valid || dto.password === LEGACY_DUMMY_PASSWORD) throw new UnauthorizedException("Telefon raqam yoki parol noto'g'ri");
+    if (!user.isActive) throw new ForbiddenException('Akkauntingiz bloklangan. Administratorga murojaat qiling');
+
+    return this.issueTokens(user, client);
+  }
+
+  /**
+   * Dev-only: SMS/OTP orqali parolsiz kirish. Haqiqiy SMS integratsiyasigacha
+   * faqat demo kod (12345) qabul qilinadi. Hisob topilmasa avtomatik
+   * ochiladi. Productionda o'chiq — u yerda Telegram bot orqali kirish ishlatiladi.
+   */
+  async otpLogin(dto: OtpLoginDto, client: ClientInfo) {
+    if (!otpLoginEnabled()) {
+      throw new ForbiddenException('SMS orqali kirish mavjud emas. Telegram orqali kiring');
+    }
+    if (dto.code !== DEMO_OTP_CODE) {
+      throw new UnauthorizedException("Tasdiqlash kodi noto'g'ri");
+    }
+
+    let user = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
+    if (!user) {
+      user = await this.prisma.user.create({
+        data: {
+          phone: dto.phone,
+          fullName: NEW_CUSTOMER_NAME,
+          role: Role.USER,
+          passwordHash: await unusablePasswordHash(),
+        },
+      });
+    }
+    // Faqat mobil mijozlar uchun — xodim hisoblari (admin/operator/tikuv sexi) parol bilan kiradi
+    if (user.role !== Role.USER) {
+      throw new ForbiddenException('Bu hisob uchun parol bilan kiring');
+    }
     if (!user.isActive) throw new ForbiddenException('Akkauntingiz bloklangan. Administratorga murojaat qiling');
 
     return this.issueTokens(user, client);
@@ -118,12 +188,17 @@ export class AuthService {
     return toPublicUser(user);
   }
 
+  async updateProfile(userId: number, dto: UpdateProfileDto) {
+    const user = await this.prisma.user.update({ where: { id: userId }, data: dto });
+    return toPublicUser(user);
+  }
+
   /** Parol almashtirilganda joriy sessiyadan boshqa hammasi yopiladi */
   async changePassword(userId: number, sessionId: string, dto: ChangePasswordDto) {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user || !(await bcrypt.compare(dto.currentPassword, user.passwordHash))) {
-      throw new UnauthorizedException("Joriy parol noto'g'ri");
-    }
+    const valid = user && dto.currentPassword !== LEGACY_DUMMY_PASSWORD && (await bcrypt.compare(dto.currentPassword, user.passwordHash));
+    if (!valid) throw new UnauthorizedException("Joriy parol noto'g'ri");
+    this.assertUsablePassword(dto.newPassword);
 
     await this.prisma.$transaction([
       this.prisma.user.update({
@@ -145,6 +220,10 @@ export class AuthService {
     });
   }
 
+  private assertUsablePassword(password: string) {
+    if (password === LEGACY_DUMMY_PASSWORD) throw new BadRequestException('Bu paroldan foydalanib bo‘lmaydi');
+  }
+
   private revokeSession(sessionId: string) {
     return this.prisma.session.updateMany({
       where: { id: sessionId, revokedAt: null },
@@ -152,7 +231,8 @@ export class AuthService {
     });
   }
 
-  private async issueTokens(user: User, client: ClientInfo) {
+  /** Yangi sessiya + token juftligi (Telegram orqali kirish ham shuni ishlatadi) */
+  async issueTokens(user: User, client: ClientInfo) {
     const secret = randomBytes(32).toString('hex');
     const session = await this.prisma.session.create({
       data: {
