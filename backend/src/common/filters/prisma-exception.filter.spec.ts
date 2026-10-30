@@ -42,3 +42,24 @@ describe('PrismaExceptionFilter', () => {
     expect(logError).toHaveBeenCalled();
   });
 });
+
+describe('PrismaExceptionFilter — Forma 360° id takrorlansa', () => {
+  it("kit360Id unikal indeksi buzilsa — 409 va tushunarli matn", () => {
+    const json = jest.fn();
+    const status = jest.fn(() => ({ json }));
+    const host = { switchToHttp: () => ({ getResponse: () => ({ status }) }) } as unknown as ArgumentsHost;
+    const err = new Prisma.PrismaClientKnownRequestError('unique', { code: 'P2002', clientVersion: 'test', meta: { target: ['kit360Id'] } });
+    new PrismaExceptionFilter().catch(err, host);
+    expect(status).toHaveBeenCalledWith(409);
+    expect(json).toHaveBeenCalledWith({ statusCode: 409, message: expect.stringContaining('Forma 360°') });
+  });
+
+  it("boshqa unikal maydon — umumiy matn (o'zgarmagan)", () => {
+    const json = jest.fn();
+    const status = jest.fn(() => ({ json }));
+    const host = { switchToHttp: () => ({ getResponse: () => ({ status }) }) } as unknown as ArgumentsHost;
+    const err = new Prisma.PrismaClientKnownRequestError('unique', { code: 'P2002', clientVersion: 'test', meta: { target: ['phone'] } });
+    new PrismaExceptionFilter().catch(err, host);
+    expect(json).toHaveBeenCalledWith({ statusCode: 409, message: "Bu ma'lumot allaqachon mavjud" });
+  });
+});

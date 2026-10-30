@@ -31,7 +31,7 @@ export class CatalogController {
   @Public()
   @Get('clubs')
   @ApiOperation({ summary: 'Klublar ro‘yxati: kategoriya bo‘yicha filtr va nom bo‘yicha qidiruv' })
-  @ApiOkResponse({ description: '{ items: [{ id, name, league, season, code, markColor, category, kitsCount }], total, page, limit }' })
+  @ApiOkResponse({ description: '{ items: [{ id, name, league, season, code, markColor, kit360Id, category, kitsCount }], total, page, limit } — kit360Id: Forma 360° suratlari (es|ar|fr|en|pt|rm|fcb|mu|psg|mci) yoki null' })
   clubs(@Query() query: ListCatalogClubsQueryDto) {
     return this.catalog.clubs(query);
   }

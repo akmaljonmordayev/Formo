@@ -249,6 +249,8 @@ export class ShopOrdersService {
                 // 3D dizayn: buyurtma paytidagi nusxa — keyin tahrirlansa/o'chirilsa ham sex aynan shuni tikadi
                 kitDesignId: i.kitDesignId,
                 designSnapshot: (i.kitDesign?.design ?? undefined) as unknown as Prisma.InputJsonObject | undefined,
+                // Klub formasi: Forma 360° suratlari to'plami (admin/sex foto-360° ko'rsatadi)
+                kit360Id: i.club?.kit360Id ?? null,
                 printName: i.printName,
                 printNumber: i.printNumber,
                 numberOnShorts: i.numberOnShorts,

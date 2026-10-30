@@ -17,6 +17,8 @@ const clubCard = {
   season: true,
   code: true,
   markColor: true,
+  // Forma 360° suratlari to'plami (es, rm, mu ...) — mobil "Klub formasi" 3D o'rniga foto-360° ko'rsatadi
+  kit360Id: true,
   category: { select: { id: true, name: true, slug: true } },
   _count: { select: { kits: { where: { isActive: true } } } },
 } satisfies Prisma.ClubSelect;
@@ -131,6 +133,7 @@ export class CatalogService {
             season: true,
             code: true,
             markColor: true,
+            kit360Id: true,
             kits: {
               where: { isActive: true },
               orderBy: { sortOrder: 'asc' },

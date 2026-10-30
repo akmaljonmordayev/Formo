@@ -8,25 +8,37 @@ export const MAX_ITEM_QTY = 20;
 const upper = () => Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value));
 const emptyToNull = () => Transform(({ value }) => (typeof value === 'string' && value.trim() === '' ? null : value));
 
-/** Orqadagi ism: 1-12 belgi — lotin (o'zbekcha o'/g' bilan) yoki kirill harflari, bo'shliq, nuqta, defis, apostrof */
-export const PRINT_NAME = /^[A-Za-zÀ-ɏЀ-ӿ .'’‘ʻʼ-]{1,12}$/u;
+/** Klaviaturadagi apostrof turlari (` ’ ‘ ʻ ʼ ´) bitta ' ga — O'KTAM / G'OFUR bazada va taqiqlangan so'zlar
+ * tekshiruvida doim bir xil (admin Forma 360° dagi cleanName bilan bir xil qoida) */
+export const normalizeApostrophes = (s: string) => s.replace(/[`’‘ʻʼ´]/g, "'");
+const apostrophes = () => Transform(({ value }) => (typeof value === 'string' ? normalizeApostrophes(value) : value));
+
+/**
+ * Orqadagi ism: lotin (o'zbekcha o'/g' bilan) yoki kirill (o'zbek Ў Қ Ғ Ҳ ham) harflari, bo'shliq, nuqta, defis, apostrof.
+ * Uzunlik chegarasi bu yerda faqat himoya uchun (30 — Sozlamalardagi maksimum); haqiqiy chegara
+ * `order.rules.printNameMaxLength` — RulesService.assertLine tekshiradi.
+ */
+export const PRINT_NAME = /^[A-Za-zÀ-ɏЀ-ӿ .'-]{1,30}$/u;
+/** Raqam: 0-999 gacha raqamlar; diapazon `order.rules.printNumberMin/Max` — RulesService.assertLine */
+export const PRINT_NUMBER = /^\d{1,3}$/;
 
 export class CartItemOptionsDto {
   @ApiPropertyOptional({ example: 'AZIZ', description: "Orqadagi ism (bo'sh qoldirilsa bosma narxi qo'shilmaydi)" })
   @IsOptional()
   @emptyToNull()
   @CleanText()
+  @apostrophes()
   @upper()
   @IsString()
   @NoHtml()
-  @Matches(PRINT_NAME, { message: "Ism 1-12 ta lotin yoki kirill harfidan iborat bo'lishi kerak" })
+  @Matches(PRINT_NAME, { message: "Ism lotin yoki kirill harflaridan iborat bo'lishi kerak" })
   printName?: string | null;
 
-  @ApiPropertyOptional({ example: '10', description: 'Raqam: 0-99' })
+  @ApiPropertyOptional({ example: '10', description: 'Raqam: diapazon Sozlamalardagi printNumberMin..printNumberMax (standart 0-99)' })
   @IsOptional()
   @emptyToNull()
   @IsString()
-  @Matches(/^\d{1,2}$/, { message: "Raqam 0 dan 99 gacha bo'lishi kerak" })
+  @Matches(PRINT_NUMBER, { message: "Raqam faqat raqamlardan iborat bo'lishi kerak" })
   printNumber?: string | null;
 
   @ApiPropertyOptional({ default: false, description: 'Shortikka ham raqam (chap oyoq, old tomonda)' })
@@ -38,7 +50,7 @@ export class CartItemOptionsDto {
   @IsOptional()
   @emptyToNull()
   @IsString()
-  @Matches(/^\d{1,2}$/, { message: "Shortik raqami 0 dan 99 gacha bo'lishi kerak" })
+  @Matches(PRINT_NUMBER, { message: "Shortik raqami faqat raqamlardan iborat bo'lishi kerak" })
   shortsNumber?: string | null;
 
   @ApiPropertyOptional({ description: "To'plamga shortik qo'shilsinmi (klub formasi: standart true, maxsus dizayn: false)" })

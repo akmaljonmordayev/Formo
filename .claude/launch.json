@@ -13,6 +13,17 @@
         "--strictPort"
       ],
       "port": 5173
+    },
+    {
+      "name": "backend",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": [
+        "--prefix",
+        "backend",
+        "run",
+        "start"
+      ],
+      "port": 3001
     }
   ]
 }

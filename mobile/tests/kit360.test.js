@@ -21,6 +21,16 @@ test("kit360Team: suratlari yo'q klub — null (3D ko'rinish qoladi)", () => {
   assert.equal(kit360Team(null), null);
 });
 
+test("kit360Team: backend kit360Id ustun — nom boshqacha bo'lsa ham; null — admin bog'lamagan, nom bo'yicha moslanmaydi", () => {
+  const { toProduct } = require(src('features/products/index.js'));
+  const kit = { id: 5, label: 'Uy', bgColor: '#fff', textColor: '#000' };
+  assert.equal(kit360Team(toProduct(kit, { id: 1, name: 'Los Blancos', kit360Id: 'rm' })), 'rm');
+  assert.equal(kit360Team(toProduct(kit, { id: 1, name: 'Real Madrid', kit360Id: null })), null);
+  // Eski API (maydon yo'q) — nom bo'yicha zaxira
+  assert.equal(kit360Team(toProduct(kit, { id: 1, name: 'Real Madrid' })), 'rm');
+  assert.equal(kit360Team({ kit360Id: 'xx', clubName: 'Real Madrid' }), null);
+});
+
 test('xabarlar: update va javoblar formo-kit360 belgisi bilan, boshqa postMessage tashlanadi', () => {
   const msg = JSON.parse(kit360Message({ team: 'rm', name: 'ISROIL', number: 10, side: 'front' }));
   assert.deepEqual(msg, { source: KIT360_SOURCE, type: 'update', team: 'rm', name: 'ISROIL', number: '10', side: 'front' });

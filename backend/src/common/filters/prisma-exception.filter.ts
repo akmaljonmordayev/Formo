@@ -18,6 +18,11 @@ export class PrismaExceptionFilter implements ExceptionFilter {
       P2034: [HttpStatus.CONFLICT, "Bir vaqtda o'zgartirish, qayta urinib ko'ring"],
       VALIDATION: [HttpStatus.BAD_REQUEST, "So'rov noto'g'ri"],
     };
+    // Unikal maydonlar uchun aniqroq matn (meta.target — buzilgan unikal indeks ustunlari)
+    const target = exception instanceof Prisma.PrismaClientKnownRequestError ? String(exception.meta?.target ?? '') : '';
+    if (code === 'P2002' && target.includes('kit360Id')) {
+      map.P2002 = [HttpStatus.CONFLICT, "Bu Forma 360° to'plami boshqa klubga bog'langan — avval o'sha klubdan olib tashlang"];
+    }
     const [status, message] = map[code] ?? [HttpStatus.INTERNAL_SERVER_ERROR, 'Serverda xatolik yuz berdi'];
     if (status === HttpStatus.INTERNAL_SERVER_ERROR) this.logger.error(exception.message);
 
