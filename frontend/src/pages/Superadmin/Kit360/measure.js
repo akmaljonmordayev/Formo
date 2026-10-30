@@ -20,11 +20,11 @@ function pixel(img, x, y) {
 
 const median = (xs) => [...xs].sort((p, q) => p - q)[xs.length >> 1];
 
-/* Studiya foni — chapdan o'ngga silliq: qatorning ikki chetidan (tekislash hoshiyasidan ichkarida) va manekenga yaqinroq
-   ikki nuqtadan (x ≈ 130 va 470) o'lchab, bo'laklab chiziqli to'ldiramiz. Ichki nuqtalar maneken ortidagi yorug' dog'ni
-   ham ushlaydi (pt 45°: chetda 195, o'rtada 220). Ichki nuqta neytral bo'lmasa yoki chetdan 30 dan ko'p farq qilsa
-   (qo'l tushib qolgan) — tashlanadi. */
-const BG_INNER = [130, 470];
+/* Studiya foni — chapdan o'ngga silliq: qatorning ikki chetidan (tekislash hoshiyasidan ichkarida) va formaga yaqinroq
+   to'rt nuqtadan (x ≈ 130, 168, 432, 470) o'lchab, bo'laklab chiziqli to'ldiramiz. Ichki nuqtalar o'rtadagi yorug'
+   prozhektor dog'ini ham ushlaydi (pt 45°: chetda 175, o'rtada 212 — chetdan 35–42 yorug'). Ichki nuqta neytral va
+   yorug' (s ≤ 6, l ≥ 155) bo'lmasa yoki chetdan 48 dan ko'p farq qilsa (mato tushib qolgan) — tashlanadi. */
+const BG_INNER = [130, 168, 432, 470];
 function backgroundRow(img, y) {
   const side = (xs) => median(xs.map((x) => pixel(img, x, y).l));
   const left = side([CROP.x + 4, CROP.x + 10, CROP.x + 16]);
@@ -32,14 +32,14 @@ function backgroundRow(img, y) {
   const inner = (x, edge) => {
     const ps = [x - 6, x, x + 6].map((xx) => pixel(img, xx, y));
     const l = median(ps.map((p) => p.l));
-    return ps.every((p) => p.s <= 10) && Math.abs(l - edge) <= 30 ? l : null;
+    return ps.every((p) => p.s <= 6 && p.l >= 155) && Math.abs(l - edge) <= 48 ? l : null;
   };
   const xs = [0];
   const ls = [left];
-  const il = inner(BG_INNER[0], left);
-  const ir = inner(BG_INNER[1], right);
-  if (il !== null) { xs.push(BG_INNER[0]); ls.push(il); }
-  if (ir !== null) { xs.push(BG_INNER[1]); ls.push(ir); }
+  for (const x of BG_INNER) {
+    const l = inner(x, x < img.width / 2 ? left : right);
+    if (l !== null) { xs.push(x); ls.push(l); }
+  }
   xs.push(img.width);
   ls.push(right);
   return (x) => {
@@ -58,6 +58,8 @@ const MANNEQUIN_L = 150;
 function pixelKind(img, x, y, bg = backgroundRow(img, y)) {
   const { l, s } = pixel(img, x, y);
   if (l < 55 || s > 30) return FABRIC;
+  // s ≤ 10 (BG_SAT = 4 emas): ghost kadrlarda shortik ostidagi yorug' fon JPEG'da s = 5 gacha (mci 315°) — qat'iy
+  // chegarada u "oq mato" bo'lib, pastki chet 20 px pastga tushadi
   if (s <= 10 && Math.abs(l - bg(x)) <= 10) return BG;
   if (l >= WHITE_L) return FABRIC;
   if (s >= 5) return l >= 196 ? FABRIC : TINTED;
@@ -158,7 +160,8 @@ export function fitTorso(img, R) {
 // Kulrang maneken tanasi yoki fon (rangsiz, o'rtacha yorqin)
 function isGrey(img, x, y, maxSat = 4) {
   const { l, s } = pixel(img, x, y);
-  return s <= maxSat && l > 70 && l < WHITE_L;
+  // Ghost kadrda yoqa tepasida bo'yin emas, yorug' studiya foni (l ≥ 205 ham bo'lishi mumkin) — u ham "yoqadan tashqari"
+  return s <= maxSat && l > 70 && (l < WHITE_L || Math.abs(l - backgroundRow(img, y)(x)) <= 10);
 }
 
 /* Yoqa: futbolkadan (y = 260) yuqoriga — kulrang bo'yin boshlanguncha; boshdagi yaltirash xato bermaydi.

@@ -23,3 +23,29 @@ export function ConfirmModal({ title, text, confirmLabel, danger = true, onConfi
     </Modal>
   );
 }
+
+/** Yoqish/o'chirish tugmasi (role=switch) — sozlamalar sahifasida ishlatiladi */
+export function Switch({ checked, onChange, label, disabled }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      aria-label={label}
+      disabled={disabled}
+      onClick={onChange}
+      style={{
+        position: 'relative', width: 36, height: 20, borderRadius: 999, border: 'none', padding: 0,
+        cursor: disabled ? 'wait' : 'pointer', background: checked ? 'var(--sa-teal)' : 'rgba(255,255,255,0.12)',
+        flexShrink: 0,
+      }}
+    >
+      <span
+        style={{
+          position: 'absolute', top: 2, left: checked ? 18 : 2, width: 16, height: 16, borderRadius: '50%',
+          background: '#fff', transition: 'left .15s ease',
+        }}
+      />
+    </button>
+  );
+}

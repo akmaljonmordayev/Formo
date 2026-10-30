@@ -1,21 +1,10 @@
 import { useEffect, useState } from 'react';
-import { clubsApi, pricingApi, settingsApi } from '../../../features/platform/platformApi';
-import { ConfirmModal } from '../ui';
-import { DEFAULT_PRICING, FALLBACK_PRICES, PRICE_KEYS, SETTING_KEYS, priceOf } from '../adminApi';
+import { pricingApi, settingsApi } from '../../../features/platform/platformApi';
+import { DEFAULT_PRICING, PRICE_KEYS, SETTING_KEYS } from '../adminApi';
 import { useT, useMoney } from '../i18n';
 
 // PUT /admin/pricing faqat shu maydonlarni qabul qiladi (id, sortOrder, updatedAt yuborilsa 400 qaytadi)
 const toInput = ({ key, section, step, label, sub, price }) => ({ key, section, step, label, sub, price: Number(price) || 0 });
-
-async function fetchAllClubs() {
-  const out = [];
-  for (let page = 1; page <= 20; page += 1) {
-    const d = await clubsApi.list({ page, limit: 100 });
-    out.push(...(d.items ?? []));
-    if (out.length >= (d.total ?? 0) || (d.items ?? []).length < 100) break;
-  }
-  return out;
-}
 
 export default function SuperadminPricing() {
   const money = useMoney();
@@ -24,13 +13,10 @@ export default function SuperadminPricing() {
   const [saved, setSaved] = useState([]);
   const [fee, setFee] = useState('');
   const [savedFee, setSavedFee] = useState('');
-  const [clubs, setClubs] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const [confirmApply, setConfirmApply] = useState(false);
-  const [applying, setApplying] = useState(null); // { done, total }
 
   useEffect(() => {
     let active = true;
@@ -45,9 +31,6 @@ export default function SuperadminPricing() {
       })
       .catch((e) => active && setError(e.message))
       .finally(() => active && setLoading(false));
-    fetchAllClubs()
-      .then((c) => active && setClubs(c))
-      .catch(() => active && setClubs([]));
     return () => {
       active = false;
     };
@@ -95,12 +78,6 @@ export default function SuperadminPricing() {
     items: items.filter((i) => i.section === title),
   }));
 
-  // Saqlangan (API'dagi) narxlar — klub formalari shu bilan solishtiriladi
-  const base = {
-    shirtPrice: priceOf(saved, PRICE_KEYS.shirt, FALLBACK_PRICES.shirt),
-    shortsPrice: priceOf(saved, PRICE_KEYS.shorts, FALLBACK_PRICES.shorts),
-    printPrice: priceOf(saved, PRICE_KEYS.print, FALLBACK_PRICES.print),
-  };
   const priced = (key, fallback = 0) => {
     const v = Number(items.find((i) => i.key === key)?.price);
     return Number.isFinite(v) ? v : fallback;
@@ -110,32 +87,6 @@ export default function SuperadminPricing() {
   const print = priced(PRICE_KEYS.print);
   const delivery = Number(fee) || 0;
   const studioBase = priced(PRICE_KEYS.studio);
-
-  const allKits = (clubs ?? []).flatMap((c) => c.kits.map((k) => ({ ...k, clubName: c.name })));
-  const mismatched = allKits.filter(
-    (k) => k.shirtPrice !== base.shirtPrice || k.shortsPrice !== base.shortsPrice || k.printPrice !== base.printPrice,
-  );
-
-  const applyToKits = async () => {
-    setConfirmApply(false);
-    setError('');
-    setNotice('');
-    setApplying({ done: 0, total: mismatched.length });
-    const failed = [];
-    for (let i = 0; i < mismatched.length; i += 1) {
-      const k = mismatched[i];
-      try {
-        await clubsApi.updateKit(k.id, base);
-      } catch {
-        failed.push(`${k.clubName} · ${k.label}`);
-      }
-      setApplying({ done: i + 1, total: mismatched.length });
-    }
-    setApplying(null);
-    setClubs(await fetchAllClubs().catch(() => clubs));
-    if (failed.length) setError(t('{n} ta formani yangilab bo‘lmadi: {list}', { n: failed.length, list: failed.join(', ') }));
-    else setNotice(t('{n} ta forma narxi yangilandi', { n: mismatched.length }));
-  };
 
   const row = (key, label, sub, value, onChange) => (
     <div
@@ -279,66 +230,8 @@ export default function SuperadminPricing() {
                 </div>
               )}
             </div>
-
-            <div className="sa-panel">
-              <div className="sa-panel__title" style={{ marginBottom: 6 }}>{t('Klub formalari narxi')}</div>
-              <p className="sa-table__sub" style={{ marginBottom: 12 }}>
-                {t('Ilova har bir formaning o‘z narxini ko‘rsatadi. Jadvaldagi narxdan farq qiladigan formalarni bir tugma bilan to‘g‘rilash mumkin.')}
-              </p>
-              {clubs === null ? (
-                <div className="sa-table__sub">{t('Yuklanmoqda...')}</div>
-              ) : (
-                <>
-                  <div style={{ display: 'flex', gap: 18, marginBottom: 12, fontSize: 13.5 }}>
-                    <span>{t('Jami formalar')}: <b>{allKits.length}</b></span>
-                    <span>
-                      {t('Narxi farq qiladi')}:{' '}
-                      <b style={{ color: mismatched.length ? 'var(--sa-accent)' : 'var(--sa-teal)' }}>{mismatched.length}</b>
-                    </span>
-                  </div>
-                  {mismatched.length > 0 && (
-                    <div className="sa-table__sub" style={{ marginBottom: 12, maxHeight: 120, overflow: 'auto' }}>
-                      {mismatched.slice(0, 30).map((k) => (
-                        <div key={k.id}>
-                          {k.clubName} · {k.label}: {money(k.shirtPrice)} / {money(k.shortsPrice)} / {money(k.printPrice)}
-                        </div>
-                      ))}
-                      {mismatched.length > 30 && <div>… +{mismatched.length - 30}</div>}
-                    </div>
-                  )}
-                  <button
-                    type="button"
-                    className="sa-btn sa-btn--ghost"
-                    disabled={!mismatched.length || Boolean(applying) || itemsDirty}
-                    title={itemsDirty ? t('Avval jadvalni saqlang') : undefined}
-                    onClick={() => setConfirmApply(true)}
-                  >
-                    {applying
-                      ? t('Yangilanmoqda: {done} / {total}', applying)
-                      : t('Barcha formalarga qo‘llash')}
-                  </button>
-                </>
-              )}
-            </div>
           </div>
         </div>
-      )}
-
-      {confirmApply && (
-        <ConfirmModal
-          title={t('Narxlarni formalarga qo‘llash')}
-          text={t('{n} ta formaning narxi {shirt} / {shorts} / {print} ga o‘zgartiriladi. Ilovada darhol yangi narx ko‘rinadi.', {
-            n: mismatched.length,
-            shirt: money(base.shirtPrice),
-            shorts: money(base.shortsPrice),
-            print: money(base.printPrice),
-          })}
-          confirmLabel={t('Qo‘llash')}
-          danger={false}
-          busy={Boolean(applying)}
-          onConfirm={applyToKits}
-          onClose={() => setConfirmApply(false)}
-        />
       )}
     </>
   );

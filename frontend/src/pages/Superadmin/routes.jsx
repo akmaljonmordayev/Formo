@@ -3,13 +3,11 @@ import {
   Factory,
   History,
   LayoutDashboard,
-  Layers,
   Megaphone,
   Package,
   Palette,
   Rotate3d,
   Settings,
-  Shirt,
   ShieldCheck,
   ShoppingBag,
   Tag,
@@ -17,6 +15,7 @@ import {
   Users,
   Wallet,
 } from 'lucide-react';
+import { Navigate } from 'react-router-dom';
 import AdminLayout from './AdminLayout';
 import Dashboard from './Dashboard';
 import CustomersUsers from './Users';
@@ -25,9 +24,7 @@ import Operator from './Operator';
 import Orders from './Orders';
 import DesignStudio from './Dashboard/DesignStudio';
 import Production from './Production';
-import Clubs from './Clubs';
 import Kit360 from './Kit360';
-import Categories from './Categories';
 import Inventory from './Inventory';
 import Pricing from './Pricing';
 import Promocodes from './Promocodes';
@@ -56,9 +53,10 @@ export const superadminRoutes = [
   { path: '', element: <Dashboard /> },
   { path: 'orders', element: <Orders /> },
   { path: 'production', element: <Production /> },
-  { path: 'clubs', element: <Clubs /> },
   { path: 'kit-360', element: <Kit360 /> },
-  { path: 'categories', element: <Categories /> },
+  // Eski katalog (har klubda 3 forma) olib tashlandi — eski havolalar Forma 360° ga olib boradi
+  { path: 'clubs', element: <Navigate to={`${BASE}/kit-360`} replace /> },
+  { path: 'categories', element: <Navigate to={`${BASE}/kit-360`} replace /> },
   { path: 'design-studio', element: <DesignStudio /> },
   { path: 'inventory', element: <Inventory /> },
   { path: 'pricing', element: <Pricing /> },
@@ -79,12 +77,10 @@ export const superadminMenu = [
   { to: `${BASE}/orders`, label: 'Buyurtmalar', icon: ShoppingBag, group: 'Asosiy', badge: 2 },
   { to: `${BASE}/production`, label: 'Ishlab chiqarish', icon: Factory, group: 'Asosiy', badge: 2 },
 
-  { to: `${BASE}/clubs`, label: 'Klublar va formalar', icon: Shirt, group: 'Katalog' },
-  { to: `${BASE}/kit-360`, label: 'Forma 360°', icon: Rotate3d, group: 'Katalog' },
-  { to: `${BASE}/categories`, label: 'Kategoriyalar', icon: Layers, group: 'Katalog' },
-  { to: `${BASE}/design-studio`, label: 'Dizayn studiyasi', icon: Palette, group: 'Katalog' },
-  { to: `${BASE}/inventory`, label: 'Zaxira', icon: Package, group: 'Katalog' },
-  { to: `${BASE}/pricing`, label: 'Narxlar', icon: Tag, group: 'Katalog' },
+  { to: `${BASE}/kit-360`, label: 'Forma 360°', icon: Rotate3d, group: 'Formalar' },
+  { to: `${BASE}/design-studio`, label: 'Dizayn studiyasi', icon: Palette, group: 'Formalar' },
+  { to: `${BASE}/inventory`, label: 'Zaxira', icon: Package, group: 'Formalar' },
+  { to: `${BASE}/pricing`, label: 'Narxlar', icon: Tag, group: 'Formalar' },
 
   { to: `${BASE}/users`, label: 'Mijozlar', icon: Users, group: 'Mijozlar' },
   { to: `${BASE}/promocodes`, label: 'Promokodlar', icon: Ticket, group: 'Mijozlar' },

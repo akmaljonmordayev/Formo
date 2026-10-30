@@ -10,7 +10,7 @@ import {
   saveSetting,
 } from '../adminApi';
 import { LANGS, useLang } from '../i18n';
-import { Switch } from '../Clubs/ClubCard';
+import { Switch } from '../ui';
 import { loadAdminPrefs, storeAdminPrefs } from '../prefs';
 
 const GROUPS = [

@@ -12,18 +12,19 @@ const N = 8;
 const W = 600;
 const H = 800;
 
-// ink — yozuv rangi, shortsInk — shortikdagi (shortik rangi boshqa bo'lsa), outline — klub uslubidagi kontur
+// Har klub/terma jamoaga bitta forma. kind — tanlash tugmalari guruhi; ink — yozuv rangi, shortsInk — shortikdagi
+// (shortik rangi boshqa bo'lsa), outline — klub uslubidagi kontur
 export const TEAMS = [
-  { id: 'es', name: 'Ispaniya', ink: '#f6c23e' },
-  { id: 'ar', name: 'Argentina', ink: '#111318', shortsInk: '#ffffff' },
-  { id: 'fr', name: 'Fransiya', ink: '#ffffff', shortsInk: '#1f2a5c' },
-  { id: 'en', name: 'Angliya', ink: '#1b2450', shortsInk: '#ffffff' },
-  { id: 'pt', name: 'Portugaliya', ink: '#f3c74a' },
-  { id: 'rm', name: 'Real Madrid', ink: '#1b2450', outline: '#c9a13b' },
-  { id: 'fcb', name: 'Barselona', ink: '#f2c12e' },
-  { id: 'mu', name: 'Manchester Yunayted', ink: '#ffffff', shortsInk: '#111318' },
-  { id: 'psg', name: 'PSJ', ink: '#ffffff', outline: '#d6202f' },
-  { id: 'mci', name: 'Manchester Siti', ink: '#1b2450' },
+  { id: 'es', kind: 'national', name: 'Ispaniya', ink: '#f6c23e' },
+  { id: 'ar', kind: 'national', name: 'Argentina', ink: '#111318', shortsInk: '#ffffff' },
+  { id: 'fr', kind: 'national', name: 'Fransiya', ink: '#ffffff', shortsInk: '#1f2a5c' },
+  { id: 'en', kind: 'national', name: 'Angliya', ink: '#1b2450', shortsInk: '#ffffff' },
+  { id: 'pt', kind: 'national', name: 'Portugaliya', ink: '#f3c74a' },
+  { id: 'rm', kind: 'club', name: 'Real Madrid', ink: '#1b2450', outline: '#c9a13b' },
+  { id: 'fcb', kind: 'club', name: 'Barselona', ink: '#f2c12e' },
+  { id: 'mu', kind: 'club', name: 'Manchester Yunayted', ink: '#ffffff', shortsInk: '#111318' },
+  { id: 'psg', kind: 'club', name: 'PSJ', ink: '#ffffff', outline: '#d6202f' },
+  { id: 'mci', kind: 'club', name: 'Manchester Siti', ink: '#1b2450' },
 ];
 
 /* Bosma shriftlari — har biri lotin, kirill va o'zbek kirill (Ў Қ Ғ Ҳ) harflariga ega (Google Fonts: cyrillic-ext).
@@ -627,19 +628,24 @@ export default function Kit360() {
         <div style={{ flex: '1 1 260px', minWidth: 0, display: 'flex', flexDirection: 'column', gap: 16 }}>
           <div>
             <div className="sa-table__sub" style={{ marginBottom: 8 }}>{t('Jamoa')}</div>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-              {TEAMS.map((tm) => (
-                <button
-                  key={tm.id}
-                  type="button"
-                  className={tm.id === team.id ? 'sa-btn' : 'sa-btn sa-btn--ghost'}
-                  aria-pressed={tm.id === team.id}
-                  onClick={() => pickTeam(tm)}
-                >
-                  {t(tm.name)}
-                </button>
-              ))}
-            </div>
+            {[['national', 'Terma jamoalar'], ['club', 'Klublar']].map(([kind, title]) => (
+              <div key={kind} role="group" aria-label={t(title)} style={{ marginBottom: 10 }}>
+                <div className="sa-table__sub" style={{ marginBottom: 6, fontSize: 11.5, opacity: 0.8 }}>{t(title)}</div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {TEAMS.filter((tm) => tm.kind === kind).map((tm) => (
+                    <button
+                      key={tm.id}
+                      type="button"
+                      className={tm.id === team.id ? 'sa-btn' : 'sa-btn sa-btn--ghost'}
+                      aria-pressed={tm.id === team.id}
+                      onClick={() => pickTeam(tm)}
+                    >
+                      {t(tm.name)}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
 
           <label style={field}>

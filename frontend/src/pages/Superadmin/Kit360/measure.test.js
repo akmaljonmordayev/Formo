@@ -9,6 +9,7 @@ const GREY_ARM = [120, 120, 120];
    shortik ustiga osilgan kulrang qo'l (x 360–385, y 415–480), pastki chetda qora logotip (x 330–350, y 490–497). */
 function frame({
   arm = false, white = WHITE, badge = false, hand: overHand = false, logo = false, shade = null, thigh = null, neck = null,
+  spot = null,
 } = {}) {
   const width = 600;
   const height = 800;
@@ -30,7 +31,11 @@ function frame({
       const headAt = neck && x >= 280 && x <= 320 && y >= 104 && y < 125;
       const [r, g, b] = crest ? (x < 347 ? [200, 30, 40] : [30, 60, 190]) : finger ? GREY_ARM : mark ? [20, 20, 22]
         : lowShorts ? shade : shirt || shorts ? white : leg ? thigh : neckAt ? neck : headAt ? [140, 140, 140]
-          : hand ? GREY_ARM : [178, 178, 178];
+          : hand ? GREY_ARM
+            // spot — ghost kadrdagi o'rtadagi yorug' prozhektor: chetlarda 178, x 140–460 da shu yorqinlik (neytral),
+            // chetga qarab silliq pasayadi
+            : spot ? Array(3).fill(Math.round(178 + (spot - 178) * Math.max(0, Math.min(1, (x - 60) / 80, (540 - x) / 80))))
+              : [178, 178, 178];
       data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255;
     }
   }
@@ -38,6 +43,17 @@ function frame({
 }
 
 describe('Forma 360° — suratdan bosma joyini o\'lchash', () => {
+  it("ghost kadr: o'rtadagi yorug' fon (220, chetdan 42 yorug') oq mato emas — tana va shortik o'lchanadi", () => {
+    const img = frame({ spot: 220 });
+    expect(measureTorso(img)).toEqual({ mid: 300, half: 70 });
+    expect(measureShorts(img)).toMatchObject({ hem: 505 });
+  });
+
+  it("ghost kadr: yoqa tepasida bo'yin o'rniga yorug' fon — yoqa futbolka tepasida topiladi", () => {
+    const [name] = printLayout(4, frame({ spot: 220 }));
+    expect(name.y).toBe(150 + Math.round(70 * 0.8));
+  });
+
   it('studiya oqi (butunlay neytral [235, 235, 236]) ham mato: tana, shortik, maska', () => {
     const img = frame({ white: [235, 235, 236] });
     expect(measureTorso(img)).toEqual({ mid: 300, half: 70 });
