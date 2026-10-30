@@ -22,6 +22,7 @@ import {
 } from 'class-validator';
 import { CleanText, NoHtml } from '../../common/utils/no-html';
 import { ALL_SIZES } from '../../shop/pricing';
+import { KIT360_IDS, Kit360Id } from '../../kits/kit360';
 
 const MAX_PRICE = 10_000_000;
 
@@ -160,6 +161,15 @@ export class CreateClubDto {
   @ValidateIf((o) => (o.type ?? ClubType.CLUB) === ClubType.NATIONAL)
   @IsEnum(Continent)
   continent?: Continent;
+
+  @ApiPropertyOptional({
+    enum: KIT360_IDS,
+    nullable: true,
+    description: "Forma 360° suratlari to'plami (mobil ilovada 3D o'rniga foto-360°). null — bog'lanishni olib tashlash",
+  })
+  @IsOptional()
+  @IsIn(KIT360_IDS, { message: `Forma 360° id ${KIT360_IDS.join(', ')} dan biri bo'lishi kerak` })
+  kit360Id?: Kit360Id | null;
 
   @ApiProperty({ type: [ClubKitDto], minItems: 1, maxItems: 3 })
   @IsArray()

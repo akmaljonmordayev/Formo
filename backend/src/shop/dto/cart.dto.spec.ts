@@ -13,7 +13,7 @@ describe('AddCartItemDto — 3D dizayn buyurtmasi (ism, raqam, o\'lcham)', () =>
     expect(dto).toMatchObject({ kitDesignId: 3, shirtSize: 'L', printName: 'RAHIMOV', printNumber: '10' });
   });
 
-  it.each(['RAHIMOV', "O'G'ILOV", 'O‘RINOV', 'ALI-VALI', 'АЛИЕВ', 'ҚОДИРОВ', 'ŞAHIN', 'ABCDEFGHIJKL'])(
+  it.each(['RAHIMOV', "O'G'ILOV", 'ALI-VALI', 'АЛИЕВ', 'ҚОДИРОВ', 'ŞAHIN', 'ABCDEFGHIJKL', 'ЙЎЛДОШЕВ', 'ҒОФУР', 'ҲАМИД'])(
     'lotin/kirill ism qabul qilinadi: %s',
     async (printName) => {
       await expect(add({ ...base, printName })).resolves.toMatchObject({ printName });
@@ -21,7 +21,21 @@ describe('AddCartItemDto — 3D dizayn buyurtmasi (ism, raqam, o\'lcham)', () =>
   );
 
   it.each([
-    ['13 ta harf', 'ABCDEFGHIJKLM'],
+    ['o`ktam', "O'KTAM"],
+    ['O‘RINOV', "O'RINOV"],
+    ['gʼofur', "G'OFUR"],
+    ['Gʻofur', "G'OFUR"],
+    ['o´ktam', "O'KTAM"],
+  ])("apostrof turlari bitta ' ga (Forma 360° cleanName bilan bir xil): %s", async (printName, expected) => {
+    await expect(add({ ...base, printName })).resolves.toMatchObject({ printName: expected });
+  });
+
+  it("13+ harfli ism DTO'dan o'tadi — uzunlik chegarasi order.rules.printNameMaxLength (RulesService)", async () => {
+    await expect(add({ ...base, printName: 'ABCDEFGHIJKLM' })).resolves.toMatchObject({ printName: 'ABCDEFGHIJKLM' });
+  });
+
+  it.each([
+    ['31 ta harf (himoya chegarasi)', 'A'.repeat(31)],
     ['raqamli', 'ALI7'],
     ['arab yozuvi', 'علي'],
     ['emoji', 'ALI😀'],
@@ -31,11 +45,12 @@ describe('AddCartItemDto — 3D dizayn buyurtmasi (ism, raqam, o\'lcham)', () =>
     await expect(add({ ...base, printName })).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it.each(['0', '7', '99'])('raqam qabul qilinadi: %s', async (printNumber) => {
+  // Diapazon (standart 0-99) — order.rules.printNumberMin/Max, RulesService.assertLine; DTO faqat 1-3 raqam
+  it.each(['0', '7', '99', '100', '07'])('raqam DTO dan o\'tadi: %s', async (printNumber) => {
     await expect(add({ ...base, printNumber })).resolves.toMatchObject({ printNumber });
   });
 
-  it.each(['100', '-1', '1.5', 'ab', '007'])('raqam rad etiladi: %s', async (printNumber) => {
+  it.each(['1000', '-1', '1.5', 'ab', '0007'])('raqam rad etiladi: %s', async (printNumber) => {
     await expect(add({ ...base, printNumber })).rejects.toBeInstanceOf(BadRequestException);
   });
 
@@ -55,5 +70,14 @@ describe('AddCartItemDto — 3D dizayn buyurtmasi (ism, raqam, o\'lcham)', () =>
   it("kitDesignId musbat butun son bo'lishi kerak", async () => {
     await expect(add({ ...base, kitDesignId: 0 })).rejects.toBeInstanceOf(BadRequestException);
     await expect(add({ ...base, kitDesignId: 'abc' })).rejects.toBeInstanceOf(BadRequestException);
+  });
+});
+
+describe('AddCartItemDto — klub formasi shortiksiz', () => {
+  it("withShorts=false + numberOnShorts=true — DTO qabul qiladi, CartService.normalize shortik raqamini tozalaydi", async () => {
+    await expect(add({ kitId: 1, shirtSize: 'L', withShorts: false, numberOnShorts: true, shortsNumber: '7' })).resolves.toMatchObject({
+      withShorts: false,
+      numberOnShorts: true,
+    });
   });
 });

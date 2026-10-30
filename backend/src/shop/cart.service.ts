@@ -24,6 +24,7 @@ const lineInclude = {
           code: true,
           markColor: true,
           isActive: true,
+          kit360Id: true,
           category: { select: { isActive: true } },
         },
       },
@@ -94,7 +95,9 @@ export function toCartItem(line: CartLine, prices: CartPrices) {
   return {
     id: line.id,
     kitId: kit?.id ?? null,
-    club: kit ? { id: kit.club.id, name: kit.club.name, code: kit.club.code, markColor: kit.club.markColor } : null,
+    club: kit
+      ? { id: kit.club.id, name: kit.club.name, code: kit.club.code, markColor: kit.club.markColor, kit360Id: kit.club.kit360Id }
+      : null,
     kit: kit ? { label: kit.label, bgColor: kit.bgColor, textColor: kit.textColor } : null,
     kitDesignId: line.kitDesignId,
     kitDesign: kitDesign ? { id: kitDesign.id, name: kitDesign.name, thumbnailUrl: kitDesign.thumbnailUrl, design: toDesignV1(kitDesign) } : null,

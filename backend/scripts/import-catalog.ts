@@ -9,6 +9,7 @@
  * Xavfsizlik: NODE_ENV=production yoki localhost bo'lmagan DATABASE_URL bilan ishlamaydi (--allow-remote).
  */
 import { ClubType, Continent, PrismaClient } from '@prisma/client';
+import { kit360IdFor } from '../src/kits/kit360';
 
 interface SourceCategory {
   id: number;
@@ -55,6 +56,11 @@ function assertSafeTarget() {
   }
 }
 
+async function freeKit360(prisma: PrismaClient, id: string | null) {
+  if (!id) return null;
+  return (await prisma.club.findUnique({ where: { kit360Id: id }, select: { id: true } })) ? null : id;
+}
+
 async function main() {
   assertSafeTarget();
   const prisma = new PrismaClient();
@@ -94,6 +100,8 @@ async function main() {
             categoryId,
             type: club.type ?? ClubType.CLUB,
             continent: club.continent ?? null,
+            // Forma 360° suratlari bor bo'lsa — darhol bog'lanadi (id band bo'lsa — keyin kit360:backfill hal qiladi)
+            kit360Id: await freeKit360(prisma, kit360IdFor(club.name, club.code)),
           },
         });
         stats.clubs++;

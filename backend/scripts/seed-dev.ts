@@ -8,7 +8,18 @@
  * mavjud yozuvlar o'zgartirilmaydi. NODE_ENV=production yoki localhost bo'lmagan DATABASE_URL bilan ishlamaydi.
  * Parollar faqat dev uchun — productionda bu skript ishlamaydi.
  */
-import { Gender, OrderStatus, PaymentMethod, PaymentStatus, Prisma, PrismaClient, Role, TopUpMethod } from '@prisma/client';
+import {
+  ClubType,
+  Continent,
+  Gender,
+  OrderStatus,
+  PaymentMethod,
+  PaymentStatus,
+  Prisma,
+  PrismaClient,
+  Role,
+  TopUpMethod,
+} from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
 const DEV_PASSWORD = { operator: 'operator123', tailor: 'tailor123', customer: 'mijoz123' };
@@ -65,6 +76,42 @@ const ORDERS: [number, OrderStatus, string, string, string, boolean, number][] =
   [1, OrderStatus.CANCELLED, 'DILNOZA', '1', 'S', true, 0],
 ];
 
+// Forma 360° suratlari bor 10 jamoadan katalogda bo'lmasligi mumkin bo'lganlari (Argentina — katalog importidan)
+const SEASON = '2026/27';
+const NATIONAL = { name: 'Yevropa terma jamoalari', slug: 'yevropa-terma-jamoalari' };
+const LALIGA = { name: 'LaLiga', slug: 'laliga' };
+const EPL = { name: 'Premier League', slug: 'premier-league' };
+const LIGUE1 = { name: 'Ligue 1', slug: 'ligue-1' };
+type Kit360Club = {
+  kit360Id: string;
+  name: string;
+  code: string;
+  markColor: string;
+  bgColor: string;
+  textColor: string;
+  colorsLabel: string;
+  type: ClubType;
+  continent?: Continent;
+  category: { name: string; slug: string };
+};
+const nat = (c: Omit<Kit360Club, 'type' | 'continent' | 'category'>): Kit360Club => ({
+  ...c,
+  type: ClubType.NATIONAL,
+  continent: Continent.EUROPE,
+  category: NATIONAL,
+});
+const KIT360_CLUBS: Kit360Club[] = [
+  nat({ kit360Id: 'es', name: 'Ispaniya', code: 'ES', markColor: '#c60b1e', bgColor: '#c60b1e', textColor: '#f6c23e', colorsLabel: 'Qizil / sariq' }),
+  nat({ kit360Id: 'fr', name: 'Fransiya', code: 'FR', markColor: '#1f2a5c', bgColor: '#1f2a5c', textColor: '#ffffff', colorsLabel: "To'q ko'k / oq" }),
+  nat({ kit360Id: 'en', name: 'Angliya', code: 'EN', markColor: '#1b2450', bgColor: '#ffffff', textColor: '#1b2450', colorsLabel: "Oq / to'q ko'k" }),
+  nat({ kit360Id: 'pt', name: 'Portugaliya', code: 'PT', markColor: '#a6192e', bgColor: '#a6192e', textColor: '#f3c74a', colorsLabel: 'Qizil / yashil' }),
+  { kit360Id: 'rm', name: 'Real Madrid', code: 'RM', markColor: '#1b2450', bgColor: '#ffffff', textColor: '#1b2450', colorsLabel: "Oq / to'q ko'k", type: ClubType.CLUB, category: LALIGA },
+  { kit360Id: 'fcb', name: 'Barselona', code: 'FCB', markColor: '#a50044', bgColor: '#1d3f8f', textColor: '#f2c12e', colorsLabel: "Ko'k / to'q qizil", type: ClubType.CLUB, category: LALIGA },
+  { kit360Id: 'mu', name: 'Manchester Yunayted', code: 'MU', markColor: '#da291c', bgColor: '#da291c', textColor: '#ffffff', colorsLabel: 'Qizil / oq', type: ClubType.CLUB, category: EPL },
+  { kit360Id: 'psg', name: 'PSJ', code: 'PSG', markColor: '#004170', bgColor: '#1b2450', textColor: '#ffffff', colorsLabel: "To'q ko'k / qizil", type: ClubType.CLUB, category: LIGUE1 },
+  { kit360Id: 'mci', name: 'Manchester Siti', code: 'MCI', markColor: '#6cabdd', bgColor: '#6cabdd', textColor: '#1b2450', colorsLabel: "Havorang / oq", type: ClubType.CLUB, category: EPL },
+];
+
 async function upsertUser(prisma: PrismaClient, data: Prisma.UserCreateInput, password: string, created: string[]) {
   const existing = await prisma.user.findUnique({ where: { phone: data.phone } });
   if (existing) return existing;
@@ -78,6 +125,45 @@ async function main() {
   const prisma = new PrismaClient();
   const created: string[] = [];
   try {
+    // ---- Forma 360° klublari: katalogda yo'qlari qo'shiladi (nom+mavsum bo'yicha), kit360Id bilan ----
+    for (const c of KIT360_CLUBS) {
+      const category =
+        (await prisma.category.findFirst({ where: { slug: c.category.slug } })) ??
+        (await prisma.category.create({ data: { name: c.category.name, slug: c.category.slug, sortOrder: 50 } }));
+      const existing = await prisma.club.findUnique({ where: { name_season: { name: c.name, season: SEASON } } });
+      if (existing) continue;
+      // id boshqa klubga bog'langan bo'lsa (masalan, katalog importi) — bu klub 3D'da qoladi
+      const taken = await prisma.club.findUnique({ where: { kit360Id: c.kit360Id }, select: { id: true } });
+      await prisma.club.create({
+        data: {
+          name: c.name,
+          league: category.name,
+          categoryId: category.id,
+          season: SEASON,
+          code: c.code,
+          markColor: c.markColor,
+          type: c.type,
+          continent: c.continent ?? null,
+          kit360Id: taken ? null : c.kit360Id,
+          kits: {
+            create: {
+              label: 'Uy',
+              bgColor: c.bgColor,
+              textColor: c.textColor,
+              colorsLabel: c.colorsLabel,
+              description: 'Dry-fit polyester · DTF bosma',
+              shirtPrice: 99000,
+              shortsPrice: 60000,
+              printPrice: 30000,
+              sizes: ['S', 'M', 'L', 'XL', 'XXL', '3XL'],
+              sortOrder: 0,
+            },
+          },
+        },
+      });
+      created.push(`CLUB ${c.name} (${c.kit360Id})`);
+    }
+
     // ---- Hisoblar (operator — yagona; bor bo'lsa tegilmaydi) ----
     const operator =
       (await prisma.user.findFirst({ where: { role: Role.OPERATOR } })) ??

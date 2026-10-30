@@ -162,6 +162,32 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
       expect(search.body.items[0]).toMatchObject({ name: 'Real Madrid', code: 'RM', kitsCount: 3, category: { name: 'LaLiga' } });
     });
 
+    it("Forma 360°: admin kit360Id bog'laydi — katalog javoblarida ko'rinadi, null bilan uziladi, takror — 409", async () => {
+      await as(admin).patch(`/api/admin/clubs/${real.id}`, { kit360Id: 'xx' }).expect(400);
+      await as(admin).patch(`/api/admin/clubs/${real.id}`, { kit360Id: 'rm' }).expect(200);
+      expect((await api(app).get(`/api/catalog/clubs/${real.id}`).expect(200)).body.kit360Id).toBe('rm');
+      expect((await api(app).get(`/api/catalog/kits/${homeKit}`).expect(200)).body.club.kit360Id).toBe('rm');
+      const list = await api(app).get('/api/catalog/clubs?search=REAL').expect(200);
+      expect(list.body.items[0].kit360Id).toBe('rm');
+
+      const other = await as(admin)
+        .post('/api/admin/clubs', {
+          name: 'Real Madrid B',
+          categoryId: laliga.id,
+          season: '2026/27',
+          code: 'RMB',
+          markColor: '#ffffff',
+          kit360Id: 'rm',
+          kits: [{ label: 'Uy', bgColor: '#ffffff', textColor: '#000000', shirtPrice: 1, shortsPrice: 1, printPrice: 1, sizes: ['L'] }],
+        })
+        .expect(409);
+      expect(other.body.message).toContain('Forma 360°');
+
+      await as(admin).patch(`/api/admin/clubs/${real.id}`, { kit360Id: null }).expect(200);
+      expect((await api(app).get(`/api/catalog/clubs/${real.id}`).expect(200)).body.kit360Id).toBeNull();
+      await as(admin).patch(`/api/admin/clubs/${real.id}`, { kit360Id: 'rm' }).expect(200);
+    });
+
     it('klub sahifasi: Uy/Mehmon/Uchinchi formalari to‘plam narxi bilan', async () => {
       const res = await api(app).get(`/api/catalog/clubs/${real.id}`).expect(200);
       expect(res.body.kits.map((k: { title: string }) => k.title)).toEqual(['Uy formasi', 'Mehmon formasi', 'Uchinchi formasi']);

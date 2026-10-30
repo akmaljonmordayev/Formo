@@ -67,6 +67,7 @@ export class ClubsService {
           markColor: dto.markColor,
           type: dto.type,
           continent: dto.continent,
+          kit360Id: dto.kit360Id ?? null,
           kits: { create: dto.kits.map(({ id: _id, ...k }, i) => ({ ...k, sortOrder: i })) },
         },
         include: clubInclude,
@@ -105,7 +106,10 @@ export class ClubsService {
 
     await this.audit.log({
       actor,
-      action: "Klub tahrirlandi",
+      action:
+        dto.kit360Id !== undefined && dto.kit360Id !== current.kit360Id
+          ? `Klub tahrirlandi (Forma 360°: ${current.kit360Id ?? '—'} → ${dto.kit360Id ?? '—'})`
+          : "Klub tahrirlandi",
       category: AuditCategory.CATALOG,
       context: `club · ${club.name}`,
       ip,

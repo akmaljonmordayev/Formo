@@ -20,8 +20,15 @@ const ALIASES = {
 
 const norm = (s) => String(s ?? '').toLowerCase().replace(/[‘’ʻʼ`]/g, "'").replace(/\s+/g, ' ').trim();
 
-/** Mahsulot (klub formasi) → viewer jamoa id'si yoki null (foto-360° yo'q — 3D ko'rinish qoladi) */
+export const KIT360_IDS = Object.keys(ALIASES);
+
+/**
+ * Mahsulot (klub formasi) → viewer jamoa id'si yoki null (foto-360° yo'q — 3D ko'rinish qoladi).
+ * Avval backend'dagi aniq bog'lanish (product.kit360Id): id — shu suratlar, null — admin bog'lamagan (3D).
+ * Maydon umuman yo'q bo'lsa (eski API) — nom/kod bo'yicha moslash zaxira sifatida.
+ */
 export function kit360Team(product) {
+  if (product?.kit360Id !== undefined) return KIT360_IDS.includes(product.kit360Id) ? product.kit360Id : null;
   const keys = [product?.clubName, product?.code, product?.name?.split(' · ')[0]].map(norm).filter(Boolean);
   for (const [id, names] of Object.entries(ALIASES)) {
     if (keys.some((k) => names.includes(k))) return id;

@@ -22,6 +22,9 @@ export function toProduct(kit, club) {
     kitId: kit.id,
     clubId: club?.id ?? kit.clubId,
     clubName: club?.name ?? '',
+    // Forma 360° suratlari to'plami (backend Club.kit360Id) — studiyada 3D o'rniga foto-360°;
+    // eski API'da maydon yo'q (undefined) — unda kit360Team nom bo'yicha moslaydi
+    kit360Id: club?.kit360Id,
     name: club?.name ? `${club.name} · ${kit.label}` : kit.title,
     color: kit.bgColor,
     accent: kit.textColor,

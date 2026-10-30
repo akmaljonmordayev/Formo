@@ -281,6 +281,8 @@ model Club {
   type       ClubType   @default(CLUB)
   continent  Continent? // type=NATIONAL bo'lsa majburiy (DTO darajasida tekshiriladi)
   isActive   Boolean    @default(true)
+  // Forma 360° suratlari to'plami (src/kits/kit360.ts: es|ar|fr|en|pt|rm|fcb|mu|psg|mci); null — 3D ko'rinish
+  kit360Id   String?    @unique
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
 
@@ -525,6 +527,9 @@ model OrderItem {
   kitDesignId    Int?
   kitDesign      KitDesign? @relation(fields: [kitDesignId], references: [id], onDelete: SetNull)
   designSnapshot Json? // buyurtma paytidagi dizayn (v1) — keyin tahrirlansa ham sex aynan shuni tikadi
+  // Klub formasi: buyurtma paytidagi Forma 360° to'plami (admin/sex foto-360° ko'rsatishi uchun). `design` emas —
+  // u "maxsus dizayn" belgisi (design bo'lsa admin va ilova qatorni "o'z dizayni" deb ko'rsatadi)
+  kit360Id       String?
 
   @@index([orderId])
   @@index([kitDesignId])
