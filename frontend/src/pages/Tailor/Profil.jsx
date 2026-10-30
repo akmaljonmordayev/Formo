@@ -1,15 +1,14 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
-  BellRing, Briefcase, Check, Clock, Edit3, Factory, Gauge, Globe, MapPin, Phone, ShieldCheck, Trash2, User, Users,
+  BellRing, Check, Clock, Edit3, Factory, Gauge, Globe, MapPin, Phone, User,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { Toggle } from './ui';
-import EmployeeModal from './EmployeeModal';
 import ProfileModal from './ProfileModal';
 import { useTailor } from './prefs';
 import { LANGS, translate, useT } from './i18n';
 import { cx, initialsOf, prettyPhone } from './utils';
-import { deleteEmployee, getWorkshopProfile, listEmployees } from './tailorApi';
+import { getWorkshopProfile } from './tailorApi';
 
 const NOTIFICATIONS = [
   ['newOrders', 'profile.n.newOrders', 'profile.n.newOrdersHint'],
@@ -75,30 +74,12 @@ export default function Profile() {
   const [profile, setProfile] = useState(null);
   const [profileError, setProfileError] = useState('');
   const [modalOpen, setModalOpen] = useState(false);
-  const [employees, setEmployees] = useState([]);
-  const [employeesError, setEmployeesError] = useState('');
-  const [employeesLoading, setEmployeesLoading] = useState(true);
-  const [employeeModal, setEmployeeModal] = useState({ open: false, employee: null });
-  const [deleting, setDeleting] = useState(null);
-  const [deleteBusy, setDeleteBusy] = useState(false);
 
   const name = profile?.fullName || user?.fullName || '';
   const workshop = profile?.workshopName || user?.workshopName || '';
   const phone = prettyPhone(profile?.phone || user?.phone || '');
   const shift = profile?.shiftStart || profile?.shiftEnd ? `${profile.shiftStart || '—'} — ${profile.shiftEnd || '—'}` : '—';
   const capacity = profile?.dailyCapacity != null ? t('profile.capacityUnit', { n: profile.dailyCapacity }) : '—';
-
-  const loadEmployees = useCallback(async () => {
-    try {
-      const data = await listEmployees();
-      setEmployees(Array.isArray(data) ? data : data?.items ?? []);
-      setEmployeesError('');
-    } catch (err) {
-      setEmployeesError(err?.message || t('profile.employeesError'));
-    } finally {
-      setEmployeesLoading(false);
-    }
-  }, [t]);
 
   useEffect(() => {
     let cancelled = false;
@@ -118,10 +99,6 @@ export default function Profile() {
   }, [t]);
 
   useEffect(() => {
-    loadEmployees();
-  }, [loadEmployees]);
-
-  useEffect(() => {
     if (!notice) return undefined;
     const timer = window.setTimeout(() => setNotice(null), 4000);
     return () => window.clearTimeout(timer);
@@ -136,28 +113,6 @@ export default function Profile() {
     );
     setModalOpen(false);
     setNotice({ text: t('profile.savedToast'), error: false });
-  };
-
-  const onEmployeeSaved = async () => {
-    setEmployeeModal({ open: false, employee: null });
-    await loadEmployees();
-    setNotice({ text: t('profile.employeeSaved'), error: false });
-  };
-
-  const confirmDelete = async () => {
-    if (!deleting || deleteBusy) return;
-    setDeleteBusy(true);
-    try {
-      await deleteEmployee(deleting.id);
-      setDeleting(null);
-      await loadEmployees();
-      setNotice({ text: t('profile.employeeDeleted'), error: false });
-    } catch (err) {
-      setDeleting(null);
-      setNotice({ text: err?.message || t('profile.employeesError'), error: true });
-    } finally {
-      setDeleteBusy(false);
-    }
   };
 
   const changeLanguage = async (lang) => {
@@ -249,10 +204,9 @@ export default function Profile() {
       )}
 
       {/* Stats */}
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid gap-3 sm:grid-cols-2">
         <StatTile icon={Gauge} label={t('profile.capacityLabel')} value={capacity} delay={60} />
         <StatTile icon={Clock} label={t('profile.shiftLabel')} value={shift} delay={110} />
-        <StatTile icon={Users} label={t('profile.employees')} value={employeesLoading ? '…' : employees.length} delay={160} />
       </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
@@ -319,106 +273,7 @@ export default function Profile() {
           <p className="mt-3 text-[11px] text-slate-500">{t('profile.localNotifications')}</p>
         </Panel>
       </div>
-
-      {/* Xodimlar */}
-      <Panel icon={Users} title={t('profile.employees')} delay={220}>
-        {employeesLoading && <p className="text-xs text-slate-400">{t('api.loading')}</p>}
-        {employeesError && <p role="alert" className="text-xs text-rose-300">{employeesError}</p>}
-        {!employeesLoading && !employeesError && employees.length === 0 && (
-          <p className="rounded-2xl border border-dashed border-white/10 px-4 py-6 text-center text-xs text-slate-400">
-            {t('profile.employeesEmpty')}
-          </p>
-        )}
-        <ul className="grid gap-2.5 sm:grid-cols-2">
-          {employees.map((emp, index) => (
-            <li
-              key={emp.id}
-              style={{ '--tl-delay': `${index * 50}ms` }}
-              className="tl-pop group flex items-center justify-between gap-3 rounded-2xl border border-white/5 bg-[#0e1424] px-3.5 py-3 transition duration-200 hover:-translate-y-0.5 hover:border-teal-400/30 hover:bg-[#111a30] hover:shadow-lg"
-            >
-              <div className="flex min-w-0 items-center gap-3">
-                <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400/25 to-indigo-500/20 text-xs font-black text-teal-200 ring-1 ring-inset ring-teal-400/30">
-                  {initialsOf(emp.fullName)}
-                </span>
-                <div className="min-w-0">
-                  <p className="truncate text-xs font-extrabold text-white">{emp.fullName}</p>
-                  <p className="flex items-center gap-1 truncate text-[10px] text-slate-400">
-                    <Briefcase className="h-3 w-3 shrink-0" aria-hidden="true" />
-                    <span className="truncate">{emp.role}{emp.phone ? ` · ${prettyPhone(emp.phone)}` : ''}</span>
-                  </p>
-                </div>
-              </div>
-              <div className="flex shrink-0 gap-1 opacity-70 transition group-hover:opacity-100">
-                <button
-                  type="button"
-                  onClick={() => setEmployeeModal({ open: true, employee: emp })}
-                  aria-label={t('profile.edit')}
-                  className="rounded-lg p-1.5 text-slate-400 transition hover:bg-teal-400/10 hover:text-teal-300"
-                >
-                  <Edit3 className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setDeleting(emp)}
-                  aria-label={t('profile.employeeDelete')}
-                  className="rounded-lg p-1.5 text-rose-300 transition hover:bg-rose-500/10"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      </Panel>
-
-      <div
-        className="tl-pop flex items-start gap-3 rounded-2xl border border-teal-500/30 bg-[#0e1d24] p-4 text-teal-200"
-        style={{ '--tl-delay': '270ms' }}
-      >
-        <ShieldCheck className="h-5 w-5 shrink-0 text-teal-400" aria-hidden="true" />
-        <p className="text-xs font-medium leading-relaxed">{t('profile.backendNote')}</p>
-      </div>
-
       <ProfileModal open={modalOpen} profile={profile} onClose={() => setModalOpen(false)} onSaved={onProfileSaved} />
-      <EmployeeModal
-        open={employeeModal.open}
-        employee={employeeModal.employee}
-        onClose={() => setEmployeeModal({ open: false, employee: null })}
-        onSaved={onEmployeeSaved}
-      />
-
-      {deleting && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 p-4 backdrop-blur-sm"
-          style={{ animation: 'tl-fade 0.2s ease-out both' }}
-        >
-          <div role="dialog" aria-modal="true" className="tl-pop w-full max-w-sm rounded-3xl border border-white/10 bg-[#121829] p-6">
-            <span className="flex h-11 w-11 items-center justify-center rounded-2xl bg-rose-500/15 text-rose-300">
-              <Trash2 className="h-5 w-5" aria-hidden="true" />
-            </span>
-            <h3 className="mt-3 text-base font-black text-white">{t('profile.employeeDelete')}</h3>
-            <p className="mt-2 text-xs text-slate-400">{t('profile.employeeDeleteConfirm', { name: deleting.fullName })}</p>
-            <div className="mt-5 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setDeleting(null)}
-                disabled={deleteBusy}
-                className="rounded-xl border border-white/10 px-4 py-2 text-xs font-bold text-slate-300 transition hover:bg-white/10 disabled:opacity-50"
-              >
-                {t('emp.cancel')}
-              </button>
-              <button
-                type="button"
-                onClick={confirmDelete}
-                disabled={deleteBusy}
-                className="rounded-xl bg-rose-500 px-4 py-2 text-xs font-extrabold text-white transition hover:bg-rose-400 active:scale-95 disabled:opacity-60"
-              >
-                {t('profile.employeeDelete')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
