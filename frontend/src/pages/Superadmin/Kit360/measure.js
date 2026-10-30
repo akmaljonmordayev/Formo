@@ -53,6 +53,8 @@ function backgroundRow(img, y) {
    mato odatda ozgina rang tusiga ega. Studiya oqidagi forma (rm, en, fr, mu, mci) esa butunlay neytral — lekin juda yorug'
    (l ≥ 205, fon emas): bu ham mato. Maneken plastigi shu chegaradan qorong'i (isGrey bilan bir xil chegara). */
 const WHITE_L = 205;
+// Maneken plastigi bundan qorong'i; yorug'roq neytral kulrang soyadagi oq mato ham bo'lishi mumkin
+const MANNEQUIN_L = 150;
 function pixelKind(img, x, y, bg = backgroundRow(img, y)) {
   const { l, s } = pixel(img, x, y);
   if (l < 55 || s > 30) return FABRIC;
@@ -154,20 +156,28 @@ export function fitTorso(img, R) {
 }
 
 // Kulrang maneken tanasi yoki fon (rangsiz, o'rtacha yorqin)
-function isGrey(img, x, y) {
+function isGrey(img, x, y, maxSat = 4) {
   const { l, s } = pixel(img, x, y);
-  return s <= 4 && l > 70 && l < WHITE_L;
+  return s <= maxSat && l > 70 && l < WHITE_L;
 }
 
-// Yoqa: futbolkadan (y = 260) yuqoriga — kulrang bo'yin boshlanguncha; boshdagi yaltirash xato bermaydi
+/* Yoqa: futbolkadan (y = 260) yuqoriga — kulrang bo'yin boshlanguncha; boshdagi yaltirash xato bermaydi.
+   Bo'yindagi yaltirash biroz tusli bo'lishi mumkin (en 180°: s = 5) — qat'iy (s ≤ 4) qidiruv bo'yinni o'tkazib ensani
+   topadi (y < 135, boshqa formalarda 140–150). Faqat shunda s ≤ 6 bilan qayta qidiriladi: oq yoqa soyasi ham s 5–6,
+   uni hamma formalarga yoyib bo'lmaydi (rm 135°, es 180° da ism 8–16 px pastga tushardi). */
+const COLLAR_MIN = 135;
 function collarAt(img, x) {
   const cx = Math.round(x);
-  let grey = 0;
-  for (let y = 260; y > 100; y -= 1) {
-    grey = isGrey(img, cx, y) ? grey + 1 : 0;
-    if (grey === 4) return y + 4;
-  }
-  return null;
+  const scan = (maxSat) => {
+    let grey = 0;
+    for (let y = 260; y > 100; y -= 1) {
+      grey = isGrey(img, cx, y, maxSat) ? grey + 1 : 0;
+      if (grey === 4) return y + 4;
+    }
+    return null;
+  };
+  const strict = scan(4);
+  return strict !== null && strict >= COLLAR_MIN ? strict : (scan(6) ?? strict);
 }
 
 /* Shortikning raqamli oyog'i — manekenning chap oyog'i, rasmda doim o'ngdagi oyoq (0°, 45°, 315°); oyoq hech qachon
@@ -179,6 +189,10 @@ function collarAt(img, x) {
    - rangli/qora shortik ostidagi son rang aks ettiradi (xira rangli) — u holda faqat aniq mato hisoblanadi.
    legA — oyoq silindri radiusi (180° kadridagi tanadan), berilsa proyeksiya kengligi shundan. */
 const WAIST_Y = 420;
+// To'q kulrang son (oq shortik ostida) va uni qidirish oralig'i: chot soyasi < 465, tizza > 535
+const THIGH_L = 158;
+const THIGH_FROM = 465;
+const THIGH_TO = 535;
 /* Qatordagi shortikning o'ng cheti: asosiy bo'lak (≥ 12 px), so'ng o'ngdagi ingichka mato bo'laklari (≥ 3 px — barmoqlar
    yoki rangli lampas ortidagi 6–10 px mato) orqali kengaytiriladi, agar oralig'ida 2 px studiya foni bo'lmasa (kulrang
    qo'l yoki rangli chiziq — fon emas). clean — chetning tashqarisida fon (qo'l bilan to'silmagan). */
@@ -240,7 +254,22 @@ export function measureShorts(img, legA = null, theta = 0) {
     }
   }
   if (hems.length < 3) return null;
-  const hem = median(hems);
+  let hem = median(hems);
+  // Oq shortik: soyadagi oq mato (l 180–204, deyarli neytral) fon/kulrangga o'xshab skanni erta to'xtatadi (rm 45°: qo'l
+  // va chot soyasi). Shortik ostida doim to'q kulrang maneken soni — y 465..535 oralig'ida matodan songa oxirgi o'tishni olamiz.
+  if (minKind === TINTED) {
+    const thigh = (x, y) => { const { l, s } = pixel(img, x, y); return l < THIGH_L && s <= 12; };
+    const ends = [];
+    for (let k = -2; k <= 2; k += 1) {
+      const cx = Math.round(c0 + k * half0 * 0.3);
+      let last = null;
+      for (let y = THIGH_FROM; y <= THIGH_TO; y += 1) {
+        if (!thigh(cx, y - 1) && [0, 1, 2, 3].every((d) => thigh(cx, y + d))) last = y;
+      }
+      if (last !== null) ends.push(last - 1);
+    }
+    if (ends.length >= 3) hem = median(ends);
+  }
 
   // O'ng chet chizig'i: toza (fon bilan chegaradosh) qatorlar bo'yicha eng kichik kvadratlar
   const pts = [];
@@ -585,7 +614,6 @@ export function healedPixels(frame, img, backImg) {
      (yorqinlik < 150) bo'laklar;
    - chegarada 1 px [1, 2, 1]/4 yumshatish — kesilgan harf cheti ham silliq qoladi. */
 const MANNEQUIN_RUN = 10;
-const MANNEQUIN_L = 150;
 const BG_TOL = 12;
 const BG_STEP = 4;
 const BG_SAT = 4;

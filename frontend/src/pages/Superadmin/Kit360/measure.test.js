@@ -7,7 +7,9 @@ const GREY_ARM = [120, 120, 120];
 /* Sun'iy kadr: kulrang fon (178), oq futbolka (x 230–370, y 150–400), oq shortik (x 225–375, y 400–505),
    ixtiyoriy kulrang maneken qo'li (x 380–400, y 200–420), o'ng oyoqda ikki rangli gerb (x 335–360, y 440–465),
    shortik ustiga osilgan kulrang qo'l (x 360–385, y 415–480), pastki chetda qora logotip (x 330–350, y 490–497). */
-function frame({ arm = false, white = WHITE, badge = false, hand: overHand = false, logo = false } = {}) {
+function frame({
+  arm = false, white = WHITE, badge = false, hand: overHand = false, logo = false, shade = null, thigh = null, neck = null,
+} = {}) {
   const width = 600;
   const height = 800;
   const data = new Uint8ClampedArray(width * height * 4);
@@ -20,8 +22,15 @@ function frame({ arm = false, white = WHITE, badge = false, hand: overHand = fal
       const crest = badge && x >= 335 && x < 360 && y >= 440 && y < 465;
       const finger = overHand && x >= 360 && x < 385 && y >= 415 && y < 480;
       const mark = logo && x >= 330 && x < 350 && y >= 490 && y < 498;
+      // shade — shortikning pastki qismi (y 470–505) soyada; thigh — shortik ostidagi son; neck — bo'yin (y 125–149),
+      // uning tepasida ensa (y 104–124, toza kulrang — yoqa qidiruvi yetib boradi)
+      const lowShorts = shade && shorts && y >= 470;
+      const leg = thigh && x >= 240 && x <= 360 && y > 505 && y < 600;
+      const neckAt = neck && x >= 285 && x <= 315 && y >= 125 && y < 150;
+      const headAt = neck && x >= 280 && x <= 320 && y >= 104 && y < 125;
       const [r, g, b] = crest ? (x < 347 ? [200, 30, 40] : [30, 60, 190]) : finger ? GREY_ARM : mark ? [20, 20, 22]
-        : shirt || shorts ? white : hand ? GREY_ARM : [178, 178, 178];
+        : lowShorts ? shade : shirt || shorts ? white : leg ? thigh : neckAt ? neck : headAt ? [140, 140, 140]
+          : hand ? GREY_ARM : [178, 178, 178];
       data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255;
     }
   }
@@ -74,6 +83,19 @@ describe('Forma 360° — suratdan bosma joyini o\'lchash', () => {
     expect(leg.hem).toBe(505);
     expect(Math.abs(leg.edge(470) - 375)).toBeLessThanOrEqual(2);
     expect(Math.abs(leg.cx - 329.5)).toBeLessThanOrEqual(2);
+  });
+
+  it("oq shortikning soyadagi pastki qismi (neytral [192, 192, 194]) chet emas — chet to'q kulrang son boshlangan joyda", () => {
+    const img = frame({ white: [235, 235, 236], shade: [192, 192, 194], thigh: [115, 115, 115] });
+    expect(measureShorts(img).hem).toBe(505);
+  });
+
+  it("bo'yindagi yaltirash (s = 5..6) — yoqa bo'yin ostidan topiladi, ensadan emas", () => {
+    const plain = printLayout(4, frame({ neck: [150, 150, 150] }))[0];
+    for (const neck of [[150, 150, 155], [148, 150, 154]]) {
+      expect(printLayout(4, frame({ neck }))[0].y).toBe(plain.y);
+    }
+    expect(plain.y).toBe(150 + Math.round(70 * 0.8));
   });
 
   it('tana kengligi va markazi', () => {
