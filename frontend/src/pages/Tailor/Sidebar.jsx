@@ -75,13 +75,13 @@ function SidebarContent({ onNavigate }) {
   const roleName = profile?.factory || user?.workshopName || t('nav.roleFallback');
 
   return (
-    <div className="flex h-full flex-col gap-4 border-r border-white/10 bg-[#0b0f19] p-4 text-slate-200">
+    <div className="flex h-full flex-col gap-4 border-r border-white/10 bg-gradient-to-b from-[#0d1322] to-[#0b0f19] p-4 text-slate-200">
       <div className="px-1 pt-1">
         <FormoLogo />
       </div>
 
       <nav className="mt-2 flex flex-col gap-1">
-        {NAV_ITEMS.map(({ to, key, icon: Icon, queueBadge, chatBadge, end }) => {
+        {NAV_ITEMS.map(({ to, key, icon: Icon, queueBadge, chatBadge, end }, index) => {
           const badge = queueBadge ? queueCount : chatBadge ? unread : undefined;
           return (
             <NavLink
@@ -89,23 +89,31 @@ function SidebarContent({ onNavigate }) {
               to={to}
               end={end}
               onClick={onNavigate}
+              style={{ '--tl-delay': `${index * 45}ms` }}
               className={({ isActive }) =>
                 cx(
-                  'flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-bold transition',
+                  'tl-pop group relative flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-bold transition-all duration-200',
                   isActive
-                    ? 'bg-[#1e2b4d] text-white shadow-md'
-                    : 'text-slate-400 hover:bg-white/5 hover:text-white'
+                    ? 'bg-gradient-to-r from-teal-500/20 to-indigo-500/10 text-white shadow-md ring-1 ring-inset ring-teal-400/20'
+                    : 'text-slate-400 hover:translate-x-0.5 hover:bg-white/5 hover:text-white'
                 )
               }
             >
+              {({ isActive }) => (
+                <>
+              {isActive && (
+                <span className="absolute -left-4 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-teal-400 shadow-[0_0_12px_rgba(45,212,191,0.8)]" />
+              )}
               <div className="flex min-w-0 items-center gap-2.5">
-                <Icon className="h-4 w-4 shrink-0 text-teal-400" />
+                <Icon className="h-4 w-4 shrink-0 text-teal-400 transition-transform duration-200 group-hover:scale-110" />
                 <span className="truncate">{t(key)}</span>
               </div>
               {badge !== undefined && badge > 0 && (
                 <span className="flex h-4 min-w-[18px] items-center justify-center rounded-full bg-teal-400 px-1 text-[10px] font-black text-slate-950">
                   {badge}
                 </span>
+              )}
+                </>
               )}
             </NavLink>
           );
