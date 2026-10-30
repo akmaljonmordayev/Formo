@@ -32,3 +32,44 @@ describe('CatalogService — kit360Id javobda', () => {
     expect(select.include.club.select.kit360Id).toBe(true);
   });
 });
+
+// Mobil katalog faqat Forma 360° suratlari bor klublarni ko'rsatadi (?kit360=true)
+describe('CatalogService — kit360 filtri', () => {
+  const prisma = {
+    club: { findMany: jest.fn(async () => []), count: jest.fn(async () => 0) },
+    category: { findMany: jest.fn(async () => [{ id: 1, name: 'LaLiga', slug: 'laliga', _count: { clubs: 2 } }]) },
+    $transaction: jest.fn(async (ops: Promise<unknown>[]) => Promise.all(ops)),
+  };
+  const catalog = new CatalogService(prisma as never);
+  const lastWhere = (fn: jest.Mock) => JSON.stringify((fn.mock.calls.at(-1) as unknown as [{ where: unknown }])[0].where);
+
+  beforeEach(() => jest.clearAllMocks());
+
+  it("kit360=true — ro'yxat va sanoqda kit360Id: { not: null }", async () => {
+    await catalog.clubs({ kit360: true });
+    expect(lastWhere(prisma.club.findMany)).toContain('"kit360Id":{"not":null}');
+    expect(JSON.stringify((prisma.club.count.mock.calls.at(-1) as unknown as [unknown])[0])).toContain('"kit360Id":{"not":null}');
+  });
+
+  it("filtrsiz — barcha ko'rinadigan klublar (admin/eski ilova)", async () => {
+    await catalog.clubs({});
+    expect(lastWhere(prisma.club.findMany)).not.toContain('kit360Id');
+  });
+
+  it('mashhur klublar ham filtrlanadi', async () => {
+    await catalog.popular(8, true);
+    expect(lastWhere(prisma.club.findMany)).toContain('"kit360Id":{"not":null}');
+    await catalog.popular(8);
+    expect(lastWhere(prisma.club.findMany)).not.toContain('kit360Id');
+  });
+
+  it("kategoriyalar: kit360 — faqat 360° klubi bor ligalar, sanoq ham shular bo'yicha", async () => {
+    const rows = await catalog.categories(true);
+    const args = (prisma.category.findMany.mock.calls.at(-1) as unknown as [Record<string, unknown>])[0];
+    expect(JSON.stringify(args.where)).toContain('"some":{"isActive":true,"kit360Id":{"not":null}}');
+    expect(JSON.stringify(args.select)).toContain('"kit360Id":{"not":null}');
+    expect(rows[0].clubsCount).toBe(2);
+    await catalog.categories();
+    expect(JSON.stringify(prisma.category.findMany.mock.calls.at(-1))).not.toContain('kit360Id');
+  });
+});

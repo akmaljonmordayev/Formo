@@ -4,7 +4,7 @@ import { colors, radii } from '../../constants/theme';
 import viewerHtml from './kit360/viewerHtml';
 import useKit360Bridge from './kit360/useKit360Bridge';
 
-// Eski dev-build'da native modul bo'lmasa import xato beradi — unda `fallback` (3D ko'rinish)
+// Eski dev-build'da native modul bo'lmasa import xato beradi — unda `fallback` (old tomon surati)
 let WebView = null;
 try {
   ({ WebView } = require('react-native-webview')); // eslint-disable-line global-require
@@ -68,7 +68,7 @@ export default function Kit360Viewer({ height = 360, fallback = null, t = (k) =>
       ) : null}
       {failed ? (
         <Pressable style={styles.retry} onPress={retry}>
-          <Text style={styles.retryText}>{t('kit3dRetry')}</Text>
+          <Text style={styles.retryText}>{t('kit360Retry')}</Text>
         </Pressable>
       ) : null}
     </View>

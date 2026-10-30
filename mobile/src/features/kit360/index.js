@@ -36,6 +36,15 @@ export function kit360Team(product) {
   return null;
 }
 
+/**
+ * Savat/buyurtma qatori → jamoa id (karta surati uchun) yoki null.
+ * Savat: item.club.kit360Id; buyurtma: item.kit360Id (buyurtma paytidagi bog'lanish).
+ */
+export function itemKit360(item) {
+  const id = item?.club?.kit360Id ?? item?.kit360Id ?? null;
+  return KIT360_IDS.includes(id) ? id : null;
+}
+
 /** Ilova → viewer xabari (WebView.postMessage va iframe uchun matn) */
 export function kit360Message({ team, name, number, side }) {
   return JSON.stringify({

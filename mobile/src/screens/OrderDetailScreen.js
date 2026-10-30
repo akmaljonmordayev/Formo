@@ -4,8 +4,9 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
 import { Button, Card, Header, Overline, Screen, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
-import { JerseyPreview } from '../components/ui/JerseyPreview';
-import { designText, itemPreview } from '../features/studio';
+import Kit360Thumb from '../components/ui/Kit360Thumb';
+import { itemKit360 } from '../features/kit360';
+import { designText } from '../features/studio';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import {
   CHECKOUT_METHODS,
@@ -154,7 +155,7 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
           {order.items.map((item) => (
             <View key={item.id} style={styles.item}>
               <View style={styles.thumb}>
-                <JerseyPreview product={itemPreview(item)} number={item.printNumber || ''} tiny />
+                <Kit360Thumb team={itemKit360(item)} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.itemTitle} numberOfLines={1}>

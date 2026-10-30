@@ -99,7 +99,7 @@ export default function AppNavigator({ store, t, auth }) {
   }, [route, refreshConfig]);
 
   const navigate = (next) => setRoute(next);
-  // Tab/bosh sahifadan studiyaga kirilsa — maxsus dizayn rejimi (klub formasi faqat klub sahifasidan)
+  // Tab/bosh sahifadan studiyaga kirilsa — Forma 360° jamoalari ro'yxati (forma klub sahifasidan tanlanadi)
   const navigateTab = (next) => {
     if (next === 'studio') setStudioKit(null);
     if (next === 'catalog') setCatalogIntent({ categoryId: null, search: false });
@@ -194,10 +194,8 @@ export default function AppNavigator({ store, t, auth }) {
         kit={studioKit}
         cart={cart}
         rules={config.rules}
-        studio={config.studio}
-        studioError={config.error}
-        onRetryConfig={refreshConfig}
         onOpenCart={() => openCart('studio')}
+        onClub={openClub}
         onPickKit={() => navigate('catalog')}
         onBack={() => navigate('home')}
       />

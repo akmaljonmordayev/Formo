@@ -22,7 +22,7 @@ export function toProduct(kit, club) {
     kitId: kit.id,
     clubId: club?.id ?? kit.clubId,
     clubName: club?.name ?? '',
-    // Forma 360° suratlari to'plami (backend Club.kit360Id) — studiyada 3D o'rniga foto-360°;
+    // Forma 360° suratlari to'plami (backend Club.kit360Id) — karta surati va studiyadagi foto-360°;
     // eski API'da maydon yo'q (undefined) — unda kit360Team nom bo'yicha moslaydi
     kit360Id: club?.kit360Id,
     name: club?.name ? `${club.name} · ${kit.label}` : kit.title,
@@ -141,5 +141,6 @@ export function useFavorites() {
     [ids, refetch],
   );
 
-  return { favorites: (data || []).map(toClub), ids, toggle, refetch, ...rest };
+  // Katalog kabi — faqat Forma 360° suratlari bor klublar (admin bog'lanishni uzsa, sevimlilarda ham ko'rinmaydi)
+  return { favorites: (data || []).filter((club) => club.kit360Id).map(toClub), ids, toggle, refetch, ...rest };
 }

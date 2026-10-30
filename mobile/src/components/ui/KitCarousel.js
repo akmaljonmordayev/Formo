@@ -3,10 +3,11 @@ import { Animated, Pressable, StyleSheet, Text, View, useWindowDimensions } from
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../../constants/theme';
 import { Badge, formatMoney } from './Common';
-import { JerseyPreview } from './JerseyPreview';
+import Kit360Thumb from './Kit360Thumb';
 
 const AUTOPLAY_MS = 4500;
 const GAP = 12;
+const STAGE_HEIGHT = 230;
 
 /**
  * Formalar karuseli (Swiper uslubida): kartaga "yopishadi", markaziy karta kattalashadi,
@@ -68,18 +69,14 @@ export default function KitCarousel({ items, onPress, t }) {
           const range = [(i - 1) * step, i * step, (i + 1) * step];
           const scale = scrollX.interpolate({ inputRange: range, outputRange: [0.9, 1, 0.9], extrapolate: 'clamp' });
           const opacity = scrollX.interpolate({ inputRange: range, outputRange: [0.55, 1, 0.55], extrapolate: 'clamp' });
-          const lift = scrollX.interpolate({ inputRange: range, outputRange: [10, -6, 10], extrapolate: 'clamp' });
           return (
             <Animated.View style={{ width: cardWidth, opacity, transform: [{ scale }] }}>
               <Pressable onPress={() => onPress(item)} style={({ pressed }) => [styles.card, pressed && styles.pressed]} accessibilityRole="button">
-                <View style={[styles.stage, { backgroundColor: item.color || colors.surfaceRaised }]}>
-                  <View style={styles.stageShade} />
+                <View style={styles.stage}>
+                  <Kit360Thumb team={item.kit360Id} width={cardWidth} height={STAGE_HEIGHT} zoom={1.15} />
                   <View style={styles.badge}>
                     <Badge label={item.badge || t('featured')} variant="teal" />
                   </View>
-                  <Animated.View style={{ transform: [{ translateY: lift }] }}>
-                    <JerseyPreview product={item} number="10" side="front" large />
-                  </Animated.View>
                 </View>
                 <View style={styles.info}>
                   <Text style={styles.category} numberOfLines={1}>{item.category || ' '}</Text>
@@ -117,9 +114,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   pressed: { opacity: 0.85 },
-  stage: { height: 230, alignItems: 'center', justifyContent: 'center' },
-  // Fon rangining ustiga yumshoq qoraytirish — oq formalar ham ajralib tursin
-  stageShade: { ...StyleSheet.absoluteFillObject, backgroundColor: 'rgba(8,12,36,0.35)' },
+  stage: { height: STAGE_HEIGHT },
   badge: { position: 'absolute', top: 12, left: 12 },
   info: { padding: spacing.md, gap: 2 },
   category: { color: colors.muted, fontSize: 10, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase' },

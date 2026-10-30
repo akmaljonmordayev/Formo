@@ -5,8 +5,9 @@ import { colors, radii, spacing } from '../constants/theme';
 import useOrders, { isFinal, progressOf, statusText } from '../features/orders';
 import { Card, EmptyState, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
-import { JerseyPreview } from '../components/ui/JerseyPreview';
-import { designText, itemPreview } from '../features/studio';
+import Kit360Thumb from '../components/ui/Kit360Thumb';
+import { itemKit360 } from '../features/kit360';
+import { designText } from '../features/studio';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { errorText } from '../utils/errors';
 import { formatDate } from '../utils/formatters';
@@ -131,11 +132,7 @@ export default function OrdersScreen({ t, onOrder }) {
 
                       <View style={styles.orderBody}>
                         <View style={styles.thumb}>
-                          <JerseyPreview
-                            product={itemPreview(first)}
-                            number={first.printNumber || ''}
-                            tiny
-                          />
+                          <Kit360Thumb team={itemKit360(first)} />
                         </View>
                         <View style={styles.orderCopy}>
                           <Text style={styles.product} numberOfLines={1}>

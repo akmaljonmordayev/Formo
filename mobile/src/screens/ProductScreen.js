@@ -1,17 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
-import { Badge, Button, Card, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
+import { Badge, Button, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
-import Jersey3D from '../components/ui/Jersey3D';
-import { Shirt } from '../components/ui/Shirt';
+import Kit360Thumb from '../components/ui/Kit360Thumb';
+import Kit360Viewer from '../components/ui/Kit360Viewer';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { visibleSizes } from '../features/config';
+import { kit360Team } from '../features/kit360';
 import { useClub } from '../features/products';
 
 export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCustomize }) {
   const [side, setSide] = useState('front');
+  const { width: screenW, height: screenH } = useWindowDimensions();
+  const previewWidth = screenW - spacing.lg * 2;
+  const previewHeight = Math.max(320, Math.min(480, Math.round(screenH * 0.5)));
   const [selectedId, setSelectedId] = useState(kitId || null);
   const { club, products, isLoading, error, refetch } = useClub(clubId);
 
@@ -54,7 +58,7 @@ export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCusto
     [t('printPrice'), formatMoney(breakdown.print)],
     [t('sizes'), available.length ? `${available[0]}–${available[available.length - 1]}` : '—'],
   ].filter(Boolean);
-  const kitColors = { color: product.color || '#1A3582', ink: product.accent || '#FFFFFF' };
+  const team = kit360Team(product);
 
   return (
     <Screen
@@ -83,55 +87,58 @@ export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCusto
         onBack={onBack}
       />
 
-      {/* Mahsulot sahnasi: futbolka + shortik (dizayn: Shirt/Shorts), old/orqa */}
+      {/* Forma 360° (admin paneldagi suratlar): barmoq bilan aylantiriladi, old/orqa */}
       <View style={styles.previewBox}>
-        <View style={styles.glow} />
+        {/* Surati yo'q klub (admin bog'lamagan, eski havola) — faqat joy egasi; viewer boshqa jamoani ko'rsatmasin */}
+        {team ? (
+          <Kit360Viewer
+            t={t}
+            height={previewHeight}
+            team={team}
+            view={side}
+            onViewChange={setSide}
+            fallback={<Kit360Thumb team={team} width={previewWidth} height={previewHeight} zoom={1.2} />}
+          />
+        ) : (
+          <Kit360Thumb team={null} width={previewWidth} height={previewHeight} />
+        )}
         {product.badge ? (
           <View style={styles.badgeWrap}>
             <Badge label={product.badge} variant="teal" />
           </View>
         ) : null}
-        {/* key — forma almashganda aylanish holati qaytadan boshlanadi */}
-        <Jersey3D
-          key={product.kitId}
-          kit={{ color: kitColors.color, ink: kitColors.ink, crest: club?.code || '' }}
-          name="FORMO"
-          number="10"
-          shorts={{ number: '10' }}
-          side={side}
-          onSideChange={setSide}
-          width={200}
-        />
-        <Text style={styles.rotateHint}>{t('rotateHint')}</Text>
-        <Segment
-          style={styles.segment}
-          options={[t('front'), t('rear')]}
-          value={side === 'front' ? t('front') : t('rear')}
-          onChange={(value) => setSide(value === t('front') ? 'front' : 'back')}
-        />
+        <View style={styles.previewControls}>
+          <Text style={styles.rotateHint}>{t('rotateHint')}</Text>
+          <Segment
+            style={styles.segment}
+            options={[t('front'), t('rear')]}
+            value={side === 'front' ? t('front') : t('rear')}
+            onChange={(value) => setSide(value === t('front') ? 'front' : 'back')}
+          />
+        </View>
       </View>
 
-      {/* Sibling Kits Selector (Home, Away, 3rd) */}
-      <Text style={styles.sectionHeader}>{t('clubKitTitle')}</Text>
-      <View style={styles.previewRow}>
-        {products.map((item) => {
-          const isSelected = product.kitId === item.kitId;
-          return (
-            <Pressable
-              key={item.kitId}
-              onPress={() => setSelectedId(item.kitId)}
-              style={[styles.thumb, isSelected && styles.thumbActive]}
-            >
-              <View style={styles.thumbJersey}>
-                <Shirt width={58} color={item.color || '#1A3582'} ink={item.accent || '#FFFFFF'} side="front" crest={club?.code || ''} />
-              </View>
-              <Text style={[styles.thumbLabel, isSelected && styles.thumbLabelActive]}>
-                {item.label}
-              </Text>
-            </Pressable>
-          );
-        })}
-      </View>
+      {/* Klubning formalari (Uy / Mehmon / Uchinchi) — bittadan ko'p bo'lsa */}
+      {products.length > 1 ? (
+        <>
+          <Text style={styles.sectionHeader}>{t('clubKitTitle')}</Text>
+          <View style={styles.previewRow}>
+            {products.map((item) => {
+              const isSelected = product.kitId === item.kitId;
+              return (
+                <Pressable
+                  key={item.kitId}
+                  onPress={() => setSelectedId(item.kitId)}
+                  style={[styles.thumb, isSelected && styles.thumbActive]}
+                >
+                  <View style={[styles.kitDot, { backgroundColor: item.color || '#1A3582', borderColor: item.accent || '#FFFFFF' }]} />
+                  <Text style={[styles.thumbLabel, isSelected && styles.thumbLabelActive]}>{item.label}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </>
+      ) : null}
 
       {/* Available Sizes Strip */}
       <Text style={styles.sectionHeader}>{t('sizes').toUpperCase()}</Text>
@@ -175,30 +182,17 @@ export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCusto
 const styles = StyleSheet.create({
   segment: {
     alignSelf: 'center',
-    marginTop: spacing.md,
+    marginTop: 4,
   },
-  // Dizayn: futbolka shortik ustida (z-index), shortik 12–14px ostiga kiradi
-  rotateHint: { color: colors.muted, fontSize: 10, fontWeight: '700', marginTop: 2 },
+  rotateHint: { color: '#3a3b40', fontSize: 10, fontWeight: '700' },
+  // 360° sahna butun qutini egallaydi; "Old/Orqa" — ustida, pastda
   previewBox: {
-    paddingTop: spacing.xl,
-    paddingBottom: spacing.lg,
     borderRadius: radii.xl,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
     overflow: 'hidden',
     marginBottom: spacing.lg,
     position: 'relative',
   },
-  glow: {
-    position: 'absolute',
-    width: 240,
-    height: 240,
-    borderRadius: 120,
-    backgroundColor: 'rgba(242, 163, 58, 0.08)',
-  },
+  previewControls: { position: 'absolute', bottom: 12, alignSelf: 'center', alignItems: 'center' },
   badgeWrap: {
     position: 'absolute',
     top: spacing.md,
@@ -221,32 +215,25 @@ const styles = StyleSheet.create({
   },
   thumb: {
     flex: 1,
-    height: 100,
+    height: 48,
+    flexDirection: 'row',
+    gap: 8,
     borderRadius: radii.md,
     backgroundColor: colors.surface,
     borderWidth: 1.5,
     borderColor: colors.border,
-    paddingTop: 8,
     alignItems: 'center',
     justifyContent: 'center',
-    overflow: 'hidden',
   },
   thumbActive: {
     borderColor: colors.accent,
     backgroundColor: colors.surfaceRaised,
   },
-  thumbJersey: {
-    width: '100%',
-    height: 64,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
+  kitDot: { width: 16, height: 16, borderRadius: 8, borderWidth: 2 },
   thumbLabel: {
     color: colors.muted,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '700',
-    marginTop: 4,
   },
   thumbLabelActive: {
     color: colors.accent,

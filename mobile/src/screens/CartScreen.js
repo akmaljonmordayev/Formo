@@ -4,9 +4,10 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
 import { Badge, Button, Card, EmptyState, Header, Screen, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
-import { JerseyPreview } from '../components/ui/JerseyPreview';
+import Kit360Thumb from '../components/ui/Kit360Thumb';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
-import { designText, itemPreview } from '../features/studio';
+import { itemKit360 } from '../features/kit360';
+import { designText } from '../features/studio';
 import { errorText } from '../utils/errors';
 
 export default function CartScreen({ t, cart, rules, onBack, onCheckout }) {
@@ -107,18 +108,13 @@ export default function CartScreen({ t, cart, rules, onBack, onCheckout }) {
           {/* Cart Items List */}
           <View style={styles.itemsList}>
             {items.map((item) => {
-              const preview = itemPreview(item);
               return (
                 <View
                   key={item.id}
                   style={[styles.itemCard, !item.available && styles.itemUnavailable]}
                 >
                   <View style={styles.itemThumb}>
-                    <JerseyPreview
-                      product={preview}
-                      number={item.printNumber || '10'}
-                      tiny
-                    />
+                    <Kit360Thumb team={itemKit360(item)} />
                   </View>
 
                   <View style={styles.itemInfo}>

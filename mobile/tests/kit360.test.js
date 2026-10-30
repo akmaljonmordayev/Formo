@@ -53,3 +53,38 @@ test("viewer.html: 10 jamoaning 8 tadan kadri ichida (data: URL), tashqi skript 
   }
   assert.ok(!/<script[^>]+src=/i.test(viewerHtml));
 });
+
+test("savat/buyurtma qatori → karta surati: savatda club.kit360Id, buyurtmada kit360Id; noma'lum — null", () => {
+  const { itemKit360 } = require(src('features/kit360/index.js'));
+  assert.equal(itemKit360({ club: { kit360Id: 'psg' } }), 'psg');
+  assert.equal(itemKit360({ kit360Id: 'mu' }), 'mu');
+  // Eski maxsus dizayn / bog'lanmagan klub / noma'lum id — joy egasi ko'rsatiladi
+  assert.equal(itemKit360({ design: { color: {} }, club: null }), null);
+  assert.equal(itemKit360({ kit360Id: 'xx' }), null);
+  assert.equal(itemKit360(null), null);
+});
+
+test("karta suratlari: har jamoaga old tomon (f0) fayli bor va thumbs.js ularning hammasini require qiladi", () => {
+  const fs = require('fs');
+  const { KIT360_IDS } = require(src('features/kit360/index.js'));
+  const thumbs = fs.readFileSync(src('components/ui/kit360/thumbs.js'), 'utf8');
+  for (const id of KIT360_IDS) {
+    assert.ok(thumbs.includes(`require('../../../../assets/kit360/${id}.jpg')`), id);
+    assert.ok(fs.statSync(path.join(__dirname, '..', 'assets', 'kit360', `${id}.jpg`)).size > 1000, `${id}.jpg`);
+  }
+});
+
+test('katalog API: klublar, mashhurlar va ligalar faqat Forma 360° klublari bilan so‘raladi (kit360=true)', async () => {
+  const { catalog } = require(src('services/api.js'));
+  const urls = [];
+  global.fetch = async (url) => {
+    urls.push(url);
+    return { ok: true, status: 200, json: async () => ({ items: [] }) };
+  };
+  await catalog.clubs({ categoryId: 3, search: 'real' });
+  await catalog.popular(8);
+  await catalog.categories();
+  assert.match(urls[0], /\/catalog\/clubs\?categoryId=3&search=real&kit360=true$/);
+  assert.match(urls[1], /\/catalog\/clubs\/popular\?limit=8&kit360=true$/);
+  assert.match(urls[2], /\/catalog\/categories\?kit360=true$/);
+});

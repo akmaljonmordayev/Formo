@@ -202,15 +202,17 @@ function query(params = {}) {
 
 /** Katalog: GET'lar ochiq (public), sevimlilar — faqat USER */
 export const catalog = {
-  /** [{ id, name, slug, clubsCount }] */
-  categories: () => request('/catalog/categories'),
+  // Ilova faqat Forma 360° suratlari bor klublarni ko'rsatadi — kit360=true (backend Club.kit360Id bog'langanlar)
 
-  /** { items: [club card], total, page, limit } — club card: { id, name, league, season, code, markColor, category, kitsCount } */
+  /** [{ id, name, slug, clubsCount }] — faqat 360° klubi bor ligalar */
+  categories: () => request(`/catalog/categories${query({ kit360: true })}`),
+
+  /** { items: [club card], total, page, limit } — club card: { id, name, league, season, code, markColor, kit360Id, category, kitsCount } */
   clubs: ({ categoryId, category, search, page, limit } = {}) =>
-    request(`/catalog/clubs${query({ categoryId, category, search, page, limit })}`),
+    request(`/catalog/clubs${query({ categoryId, category, search, page, limit, kit360: true })}`),
 
   /** [club card + ordersCount] */
-  popular: (limit) => request(`/catalog/clubs/popular${query({ limit })}`),
+  popular: (limit) => request(`/catalog/clubs/popular${query({ limit, kit360: true })}`),
 
   /** Club + kits: [{ id, label, title, bgColor, textColor, price, priceBreakdown, sizes, ... }] */
   club: (id) => request(`/catalog/clubs/${id}`),
