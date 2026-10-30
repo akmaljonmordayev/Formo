@@ -120,7 +120,17 @@ export class AccountsService {
 
   async remove(role: Role, id: number) {
     await this.findOne(role, id);
-    await this.prisma.user.delete({ where: { id } }); // sessiyalar cascade bilan o'chadi
+    try {
+      await this.prisma.user.delete({ where: { id } }); // sessiyalar cascade bilan o'chadi
+    } catch (e) {
+      // Hamyon tarixi (BalanceTransaction, TopUp) moliyaviy jurnal — Restrict bilan himoyalangan
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2003') {
+        throw new ConflictException(
+          "Akkauntda hamyon tarixi bor, uni o'chirib bo'lmaydi. O'rniga akkauntni bloklang",
+        );
+      }
+      throw e;
+    }
     return { message: "Akkaunt o'chirildi" };
   }
 

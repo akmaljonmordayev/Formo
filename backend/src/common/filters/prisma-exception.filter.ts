@@ -13,6 +13,7 @@ export class PrismaExceptionFilter implements ExceptionFilter {
 
     const map: Record<string, [number, string]> = {
       P2002: [HttpStatus.CONFLICT, "Bu ma'lumot allaqachon mavjud"],
+      P2003: [HttpStatus.CONFLICT, "Bog'liq ma'lumotlar borligi sababli amalni bajarib bo'lmaydi"],
       P2025: [HttpStatus.NOT_FOUND, 'Topilmadi'],
       P2034: [HttpStatus.CONFLICT, "Bir vaqtda o'zgartirish, qayta urinib ko'ring"],
       VALIDATION: [HttpStatus.BAD_REQUEST, "So'rov noto'g'ri"],
