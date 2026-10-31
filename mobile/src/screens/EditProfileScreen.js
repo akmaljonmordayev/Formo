@@ -1,15 +1,13 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAvoider, KeyboardAwareScrollView } from '../components/ui/KeyboardAware';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { useToast } from '../components/ui/Toast';
@@ -65,10 +63,7 @@ export default function EditProfileScreen({
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
-      <KeyboardAvoidingView
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        style={{ flex: 1 }}
-      >
+      <KeyboardAvoider style={{ flex: 1 }}>
         <View style={styles.topBar}>
           <Pressable onPress={onBack} hitSlop={10} style={styles.iconBtn}>
             <MaterialCommunityIcons name="arrow-left" size={24} color="#F3F5F9" />
@@ -80,7 +75,7 @@ export default function EditProfileScreen({
           <View style={{ width: 40 }} />
         </View>
 
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
+        <KeyboardAwareScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled">
           {/* Full Name */}
           <View style={styles.card}>
             <Text style={styles.fieldLabel}>To‘liq ism sharifingiz</Text>
@@ -217,8 +212,8 @@ export default function EditProfileScreen({
               </>
             )}
           </Pressable>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }

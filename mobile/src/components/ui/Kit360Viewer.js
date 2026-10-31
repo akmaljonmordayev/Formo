@@ -1,10 +1,16 @@
-import React, { useCallback, useRef, useState } from 'react';
+import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors, radii } from '../../constants/theme';
-import viewerHtml from './kit360/viewerHtml';
 import useKit360Bridge from './kit360/useKit360Bridge';
 
 // Eski dev-build'da native modul bo'lmasa import xato beradi — unda `fallback` (old tomon surati)
+// 3.2 MB'lik viewer HTML (kadrlar ichida) — ilova ishga tushishida emas, birinchi 360° ko'rinishda yuklanadi
+let viewerHtml = null;
+const getViewerHtml = () => {
+  if (viewerHtml == null) viewerHtml = require('./kit360/viewerHtml').default; // eslint-disable-line global-require
+  return viewerHtml;
+};
+
 let WebView = null;
 try {
   ({ WebView } = require('react-native-webview')); // eslint-disable-line global-require
@@ -24,6 +30,7 @@ export default function Kit360Viewer({ height = 360, fallback = null, t = (k) =>
   const [crashed, setCrashed] = useState(false);
   const post = useCallback((msg) => ref.current?.postMessage(msg), []);
   const { ready, error, onMessage, reset } = useKit360Bridge(props, post);
+  const html = useMemo(() => ({ html: getViewerHtml() }), []);
 
   if (!WebView) return fallback;
 
@@ -42,7 +49,7 @@ export default function Kit360Viewer({ height = 360, fallback = null, t = (k) =>
         <WebView
           key={key}
           ref={ref}
-          source={{ html: viewerHtml }}
+          source={html}
           originWhitelist={['*']}
           // Faqat shu ichki sahifa va Google Fonts uslublari (havola/yo'naltirish ochilmaydi)
           onShouldStartLoadWithRequest={(req) => req.url.startsWith('about:') || req.url.startsWith('data:')}

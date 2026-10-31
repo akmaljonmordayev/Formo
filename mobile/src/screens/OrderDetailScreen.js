@@ -8,6 +8,7 @@ import Kit360Thumb from '../components/ui/Kit360Thumb';
 import { itemKit360 } from '../features/kit360';
 import { designText } from '../features/studio';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import StatusPill, { OrderStepper, statusTone } from '../components/ui/StatusPill';
 import {
   CHECKOUT_METHODS,
   paymentText,
@@ -73,6 +74,7 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
   );
   const stopped = ['CANCELLED', 'RETURNED'].includes(order.status);
   const payment = order.payment || {};
+  const tone = statusTone(order.status);
 
   return (
     <Screen scroll={false}>
@@ -88,7 +90,25 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
           />
         }
       >
-        <Header title={order.code} subtitle={statusText(t, order.status, order.statusLabel)} onBack={onBack} />
+        <Header title={order.code} subtitle={formatDate(order.createdAt)} onBack={onBack} />
+
+        {/* Holat kartasi: rangli belgi + 4 bosqichli kuzatish */}
+        <Card style={[styles.statusCard, { borderColor: tone.border }]}>
+          <View style={styles.statusHead}>
+            <View style={[styles.statusIcon, { backgroundColor: tone.bg, borderColor: tone.border }]}>
+              <MaterialCommunityIcons name={tone.icon} size={26} color={tone.color} />
+            </View>
+            <View style={{ flex: 1 }}>
+              <Overline style={styles.statusOverline}>{t('orderStatus')}</Overline>
+              <StatusPill size="large" status={order.status} label={statusText(t, order.status, order.statusLabel)} />
+            </View>
+          </View>
+          {stopped ? null : (
+            <View style={styles.statusStepper}>
+              <OrderStepper t={t} status={order.status} />
+            </View>
+          )}
+        </Card>
 
         {pending ? (
           <Card style={styles.payCard}>
@@ -135,7 +155,14 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
             order.timeline.map((step, index) => (
               <View key={step.status} style={styles.step}>
                 <View style={styles.stepRail}>
-                  <View style={[styles.dot, step.done && styles.dotDone, step.current && styles.dotCurrent]} />
+                  <View
+                    style={[
+                      styles.dot,
+                      step.done && styles.dotDone,
+                      step.current && { borderColor: tone.color, backgroundColor: tone.color, shadowColor: tone.color },
+                      step.current && styles.dotCurrent,
+                    ]}
+                  />
                   {index < order.timeline.length - 1 ? (
                     <View style={[styles.line, step.done && !step.current && styles.lineDone]} />
                   ) : null}
@@ -159,7 +186,7 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.itemTitle} numberOfLines={1}>
-                  {item.design ? t('customJersey') : `${item.clubName} · ${item.kitLabel}`}
+                  {item.design ? t('customJersey') : item.clubName}
                 </Text>
                 {item.design ? (
                   <Text style={styles.itemSub} numberOfLines={1}>{designText(t, item.design)}</Text>
@@ -200,6 +227,17 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
           <Button variant="danger" disabled={busy != null} onPress={askCancel}>
             {busy === 'cancel' ? t('checkingOut') : t('cancelOrder')}
           </Button>
+        ) : !stopped && order.status !== 'DELIVERED' ? (
+          // Sex qabul qildi — tikish boshlangan: bekor qilib bo'lmaydi (server ham rad etadi)
+          <View>
+            <Button variant="danger" disabled onPress={() => {}}>
+              {t('cancelOrder')}
+            </Button>
+            <View style={styles.lockNote}>
+              <MaterialCommunityIcons name="lock-outline" size={16} color={colors.muted} />
+              <Text style={styles.lockText}>{t('cancelLocked')}</Text>
+            </View>
+          </View>
         ) : null}
 
         <Pressable onPress={onBack} style={styles.backLink}>
@@ -229,13 +267,20 @@ const styles = StyleSheet.create({
   payOverline: { marginTop: spacing.lg },
   methods: { flexDirection: 'row', gap: spacing.sm },
   block: { marginBottom: spacing.lg, gap: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+  lockNote: { flexDirection: 'row', alignItems: 'flex-start', gap: 8, marginTop: spacing.sm, paddingHorizontal: 4 },
+  lockText: { flex: 1, color: colors.muted, fontSize: 12, lineHeight: 17 },
   stopped: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   stoppedText: { color: colors.danger, fontSize: 14, fontWeight: '800' },
   step: { flexDirection: 'row', gap: spacing.md, minHeight: 44 },
   stepRail: { width: 14, alignItems: 'center' },
   dot: { width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: colors.border, backgroundColor: colors.surface, marginTop: 3 },
   dotDone: { borderColor: colors.teal, backgroundColor: colors.teal },
-  dotCurrent: { borderColor: colors.accent, backgroundColor: colors.accent },
+  dotCurrent: { width: 14, height: 14, borderRadius: 7, marginTop: 2, shadowOpacity: 0.6, shadowRadius: 6, shadowOffset: { width: 0, height: 0 }, elevation: 3 },
+  statusCard: { marginBottom: spacing.lg, backgroundColor: colors.surfaceRaised, borderWidth: 1 },
+  statusHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  statusIcon: { width: 52, height: 52, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
+  statusOverline: { marginBottom: 6 },
+  statusStepper: { marginTop: spacing.lg, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderLight },
   line: { flex: 1, width: 2, backgroundColor: colors.border, marginVertical: 2 },
   lineDone: { backgroundColor: colors.teal },
   stepCopy: { flex: 1, paddingBottom: spacing.sm },

@@ -14,6 +14,7 @@ const {
   isValidChallenge,
   secondsUntil,
   telegramErrorText,
+  telegramAppLink,
 } = require(src('features/auth/telegram.js'));
 
 const CHALLENGE = {
@@ -132,7 +133,9 @@ test('xato matnlari: muddati o‘tgan va noto‘g‘ri kod ajratiladi', () => {
   assert.equal(telegramErrorText(new ApiError('x', 429), t), 't:tooManyAttempts');
   assert.equal(telegramErrorText(new ApiError('x', 503), t), 't:tgUnavailable');
   assert.equal(telegramErrorText(new ApiError('Akkauntingiz bloklangan', 403), t), 'Akkauntingiz bloklangan');
-  assert.equal(telegramErrorText(new TypeError('Network request failed'), t), 't:networkError');
+  // Dev'da xabarga sabab va server manzili qo'shiladi
+  assert.match(telegramErrorText(new TypeError('Network request failed'), t), /^t:networkError/);
+  assert.match(telegramErrorText(new Error('fetch failed'), t), /^t:networkError/);
 });
 
 test('yordamchilar: muddat, kod tozalash, deep-link tekshiruvi', () => {
@@ -150,4 +153,13 @@ test('yordamchilar: muddat, kod tozalash, deep-link tekshiruvi', () => {
   assert.equal(isValidChallenge({ ...CHALLENGE, deepLink: 'https://evil.example/formo_kit_bot?start=x' }), false);
   assert.equal(isValidChallenge({ ...CHALLENGE, deepLink: 'tg://resolve?domain=formo_kit_bot' }), false);
   assert.equal(isValidChallenge(null), false);
+});
+
+test('telegramAppLink: t.me havolasi tg:// ga aylanadi, noto‘g‘risi — null', () => {
+  assert.equal(
+    telegramAppLink('https://t.me/formo_bot?start=abcdefghijklmnopqrstuv'),
+    'tg://resolve?domain=formo_bot&start=abcdefghijklmnopqrstuv',
+  );
+  assert.equal(telegramAppLink('https://evil.com/formo_bot?start=x'), null);
+  assert.equal(telegramAppLink(undefined), null);
 });

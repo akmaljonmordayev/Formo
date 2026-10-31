@@ -119,7 +119,7 @@ export default function CartScreen({ t, cart, rules, onBack, onCheckout }) {
 
                   <View style={styles.itemInfo}>
                     <Text style={styles.itemName} numberOfLines={1}>
-                      {item.design ? t('customJersey') : item.title}
+                      {item.design ? t('customJersey') : item.club?.name || item.title}
                     </Text>
 
                     {item.design ? (

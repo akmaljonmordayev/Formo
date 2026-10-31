@@ -28,11 +28,15 @@ async function main() {
   const abort = new AbortController();
   const stopOutbox = startOutboxLoop(backend, tg, log, config.outboxIntervalMs);
 
+  // Kutilmagan xato bot jarayonini jim o'ldirmasin — logga yozamiz va ishlashda davom etamiz
+  process.on('unhandledRejection', (err) => log.error('ushlanmagan promise xatosi', { error: errorMessage(err) }));
+  process.on('uncaughtException', (err) => log.error('ushlanmagan xato', { error: errorMessage(err) }));
+
   if (config.mode === 'webhook') {
     await tg.setWebhook(config.webhookUrl, config.webhookSecret);
     log.info('webhook o‘rnatildi');
   } else {
-    void runPolling(tg, process_, log, abort.signal);
+    runPolling(tg, process_, log, abort.signal).catch((err) => log.error('polling to‘xtadi', { error: errorMessage(err) }));
   }
 
   const shutdown = (signal: string) => {

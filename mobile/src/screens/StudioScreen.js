@@ -1,7 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import {
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,7 +10,8 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, spacing, TAB_BAR_HEIGHT } from '../constants/theme';
+import { colors, radii, spacing } from '../constants/theme';
+import { useTabBarSpace } from '../components/ui/BottomTabs';
 import { Button, EmptyState, Header, Overline, Screen, Segment, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
 import Kit360ClubGrid from '../components/ui/Kit360ClubGrid';
@@ -269,17 +268,8 @@ function Preview360({ t, side, setSide, team, name, number }) {
   );
 }
 
-/** iOS'da klaviatura pastki tugmani yopmasin (Android — app.json: softwareKeyboardLayoutMode=resize) */
-function KeyboardSafe({ children }) {
-  return (
-    <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      {children}
-    </KeyboardAvoidingView>
-  );
-}
-
-/** Savatga qo'shish: muvaffaqiyat/xato matni footer'da */
-function useAddToCart(t, cart) {
+/** Savatga qo'shish: muvaffaqiyatda savat sahifasiga o'tamiz, xato matni footer'da */
+function useAddToCart(t, cart, onAdded) {
   const [adding, setAdding] = useState(false);
   const [feedback, setFeedback] = useState(null);
 
@@ -288,6 +278,10 @@ function useAddToCart(t, cart) {
     setFeedback(null);
     try {
       await cart.addItem(item);
+      if (onAdded) {
+        onAdded();
+        return;
+      }
       setFeedback({ ok: true, text: t('added') });
       setTimeout(() => setFeedback(null), 2000);
     } catch (err) {
@@ -304,7 +298,7 @@ function useAddToCart(t, cart) {
 
 // Backend savat qatori: forma (kitId), futbolka o'lchami, ism/raqam bosmasi,
 // shortik (+ o'lchami, raqami).
-function KitStudio({ t, product, cart, rules, onBack, onPickKit }) {
+function KitStudio({ t, product, cart, rules, onBack, onPickKit, onOpenCart }) {
   const [side, setSide] = useState('back');
   const [tab, setTab] = useState('size');
   const [name, setName] = useState('');
@@ -312,7 +306,8 @@ function KitStudio({ t, product, cart, rules, onBack, onPickKit }) {
   const [shirtSize, setShirtSize] = useState(null);
   const shorts = useShorts(true);
   const { withShorts } = shorts;
-  const { adding, feedback, setFeedback, add } = useAddToCart(t, cart);
+  const { adding, feedback, setFeedback, add } = useAddToCart(t, cart, onOpenCart);
+  const tabSpace = useTabBarSpace();
 
   // Forma almashganda mavjud o'lchamni qayta tanlaymiz
   // (bolalar o'lchamlari Superadmin sozlamasida o'chirilishi mumkin)
@@ -380,10 +375,10 @@ function KitStudio({ t, product, cart, rules, onBack, onPickKit }) {
   };
 
   return (
-    <KeyboardSafe>
+    <>
       <Screen
-        contentStyle={{ paddingBottom: 170 }}
-        footerStyle={{ bottom: TAB_BAR_HEIGHT }}
+        contentStyle={{ paddingBottom: tabSpace + 110 }}
+        footerStyle={[styles.footerFloating, { bottom: tabSpace }]}
         footer={
           <StudioFooter
             t={t}
@@ -406,7 +401,7 @@ function KitStudio({ t, product, cart, rules, onBack, onPickKit }) {
 
         <Pressable style={styles.kitRow} onPress={onPickKit}>
           <View style={{ flex: 1 }}>
-            <Text style={styles.rowTitle} numberOfLines={1}>{product.name}</Text>
+            <Text style={styles.rowTitle} numberOfLines={1}>{product.clubName || product.name}</Text>
             <Text style={styles.rowSub}>{t('chooseOtherKit')}</Text>
           </View>
           <MaterialCommunityIcons name="chevron-right" size={20} color={colors.accent} />
@@ -415,7 +410,7 @@ function KitStudio({ t, product, cart, rules, onBack, onPickKit }) {
         <Tabs tabs={tabs} value={tab} onChange={setTab} />
         <View style={styles.panel}>{renderPanel()}</View>
       </Screen>
-    </KeyboardSafe>
+    </>
   );
 }
 
@@ -465,6 +460,18 @@ const styles = StyleSheet.create({
   rowTitle: { color: colors.text, fontSize: 14, fontWeight: '800' },
   rowSub: { color: colors.muted, fontSize: 11, marginTop: 3 },
   overlineGap: { marginTop: spacing.lg },
+  // Suzuvchi panel ustida — yumaloq karta ko'rinishida
+  footerFloating: {
+    left: 14,
+    right: 14,
+    paddingBottom: 12,
+    paddingTop: 12,
+    borderRadius: 22,
+    borderTopWidth: 1,
+    borderWidth: 1,
+    borderColor: colors.borderLight,
+    backgroundColor: colors.surfaceRaised,
+  },
   footerBar: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   footerLabel: { color: colors.muted, fontSize: 11, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase' },
   footerPrice: { color: colors.accent, fontSize: 18, fontWeight: '900', marginTop: 2 },

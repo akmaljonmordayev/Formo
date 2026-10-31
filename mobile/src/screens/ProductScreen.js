@@ -1,8 +1,8 @@
 import React, { useEffect, useState } from 'react';
-import { Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
-import { Badge, Button, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
+import { Button, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
 import Kit360Thumb from '../components/ui/Kit360Thumb';
 import Kit360Viewer from '../components/ui/Kit360Viewer';
@@ -16,6 +16,7 @@ export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCusto
   const { width: screenW, height: screenH } = useWindowDimensions();
   const previewWidth = screenW - spacing.lg * 2;
   const previewHeight = Math.max(320, Math.min(480, Math.round(screenH * 0.5)));
+  // Uy/Mehmon tanlovi yo'q: 360° suratlar klub bo'yicha bitta — ochilgan (yoki birinchi) forma
   const [selectedId, setSelectedId] = useState(kitId || null);
   const { club, products, isLoading, error, refetch } = useClub(clubId);
 
@@ -83,7 +84,7 @@ export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCusto
       <Header
         cart
         title={club?.name || product.name}
-        subtitle={club?.season || t('baseKit')}
+        subtitle={club?.season || club?.league || t('baseKit')}
         onBack={onBack}
       />
 
@@ -102,11 +103,6 @@ export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCusto
         ) : (
           <Kit360Thumb team={null} width={previewWidth} height={previewHeight} />
         )}
-        {product.badge ? (
-          <View style={styles.badgeWrap}>
-            <Badge label={product.badge} variant="teal" />
-          </View>
-        ) : null}
         <View style={styles.previewControls}>
           <Text style={styles.rotateHint}>{t('rotateHint')}</Text>
           <Segment
@@ -117,28 +113,6 @@ export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCusto
           />
         </View>
       </View>
-
-      {/* Klubning formalari (Uy / Mehmon / Uchinchi) — bittadan ko'p bo'lsa */}
-      {products.length > 1 ? (
-        <>
-          <Text style={styles.sectionHeader}>{t('clubKitTitle')}</Text>
-          <View style={styles.previewRow}>
-            {products.map((item) => {
-              const isSelected = product.kitId === item.kitId;
-              return (
-                <Pressable
-                  key={item.kitId}
-                  onPress={() => setSelectedId(item.kitId)}
-                  style={[styles.thumb, isSelected && styles.thumbActive]}
-                >
-                  <View style={[styles.kitDot, { backgroundColor: item.color || '#1A3582', borderColor: item.accent || '#FFFFFF' }]} />
-                  <Text style={[styles.thumbLabel, isSelected && styles.thumbLabelActive]}>{item.label}</Text>
-                </Pressable>
-              );
-            })}
-          </View>
-        </>
-      ) : null}
 
       {/* Available Sizes Strip */}
       <Text style={styles.sectionHeader}>{t('sizes').toUpperCase()}</Text>
@@ -193,12 +167,6 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   previewControls: { position: 'absolute', bottom: 12, alignSelf: 'center', alignItems: 'center' },
-  badgeWrap: {
-    position: 'absolute',
-    top: spacing.md,
-    left: spacing.md,
-    zIndex: 2,
-  },
   sectionHeader: {
     color: colors.muted,
     fontSize: 11,
@@ -207,37 +175,6 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     marginBottom: spacing.sm,
     marginTop: spacing.md,
-  },
-  previewRow: {
-    flexDirection: 'row',
-    gap: spacing.md,
-    marginBottom: spacing.sm,
-  },
-  thumb: {
-    flex: 1,
-    height: 48,
-    flexDirection: 'row',
-    gap: 8,
-    borderRadius: radii.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  thumbActive: {
-    borderColor: colors.accent,
-    backgroundColor: colors.surfaceRaised,
-  },
-  kitDot: { width: 16, height: 16, borderRadius: 8, borderWidth: 2 },
-  thumbLabel: {
-    color: colors.muted,
-    fontSize: 12,
-    fontWeight: '700',
-  },
-  thumbLabelActive: {
-    color: colors.accent,
-    fontWeight: '900',
   },
   sizesRow: {
     flexDirection: 'row',

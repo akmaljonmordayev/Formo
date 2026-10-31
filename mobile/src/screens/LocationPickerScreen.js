@@ -2,16 +2,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   ActivityIndicator,
   BackHandler,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Switch,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAvoider, KeyboardAwareScrollView } from '../components/ui/KeyboardAware';
 import MapView from 'react-native-maps';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -166,7 +164,7 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved }) 
       : t('locationPickPoint');
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.root}>
+    <KeyboardAvoider style={styles.root}>
       {/* Xarita yuqori qismni egallaydi; pin aynan xarita markazida (region markazi) */}
       <View style={styles.mapArea}>
       <MapView
@@ -243,7 +241,7 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved }) 
 
         <View style={[styles.sheet, { paddingBottom: insets.bottom + 16 }]}>
           <View style={styles.handle} />
-          <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={styles.sheetScroll}>
+          <KeyboardAwareScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false} style={styles.sheetScroll}>
             <Text style={styles.sheetTitle}>{isEdit ? t('addressEdit') : t('addressPick')}</Text>
 
             {/* Tanlangan nuqta xulosasi */}
@@ -327,7 +325,7 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved }) 
 
             {errors.coords && <Text style={styles.fieldError}>{t(errors.coords)}</Text>}
             {Boolean(saveError) && <ErrorNote>{saveError}</ErrorNote>}
-          </ScrollView>
+          </KeyboardAwareScrollView>
 
           <View style={styles.actions}>
             <Pressable onPress={onCancel} disabled={saving} style={({ pressed }) => [styles.cancel, pressed && styles.pressed]}>
@@ -336,7 +334,7 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved }) 
             <OutlineButton label={t('addressConfirm')} onPress={confirm} loading={saving} style={styles.flex} />
           </View>
         </View>
-    </KeyboardAvoidingView>
+    </KeyboardAvoider>
   );
 }
 

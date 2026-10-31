@@ -8,6 +8,7 @@ import KitCarousel from '../components/ui/KitCarousel';
 import { ProductCard } from '../components/ui/ProductCard';
 import PromoCarousel from '../components/ui/PromoCarousel';
 import Skeleton from '../components/ui/Skeleton';
+import StatusPill, { statusTone } from '../components/ui/StatusPill';
 import { statusText, useActiveOrder } from '../features/orders';
 import { useCategories, usePopularClubs, usePopularProducts } from '../features/products';
 import { displayName, nameInitial } from '../utils/userName';
@@ -108,15 +109,19 @@ export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotificat
       <PromoCarousel slides={slides} />
 
       {order ? (
-        <Pressable style={[styles.trackerCard, styles.padded]} onPress={() => onOrder(order.id)} accessibilityRole="button">
-          <View style={styles.trackerIconBox}>
-            <MaterialCommunityIcons name="truck-fast-outline" size={22} color={colors.accent} />
+        <Pressable
+          style={[styles.trackerCard, styles.padded, { borderColor: statusTone(order.status).border }]}
+          onPress={() => onOrder(order.id)}
+          accessibilityRole="button"
+        >
+          <View style={[styles.trackerIconBox, { backgroundColor: statusTone(order.status).bg }]}>
+            <MaterialCommunityIcons name={statusTone(order.status).icon} size={22} color={statusTone(order.status).color} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.trackerOverline}>
               {t('activeOrder')} · {order.code}
             </Text>
-            <Text style={styles.trackerStatus}>{statusText(t, order.status, order.statusLabel)}</Text>
+            <StatusPill status={order.status} label={statusText(t, order.status, order.statusLabel)} style={styles.trackerPill} />
           </View>
           <Text style={styles.trackerAction}>{t('track')}</Text>
           <MaterialCommunityIcons name="chevron-right" size={18} color={colors.accent} />
@@ -297,6 +302,7 @@ const styles = StyleSheet.create({
   trackerIconBox: { width: 42, height: 42, borderRadius: 12, backgroundColor: colors.accentGlow, alignItems: 'center', justifyContent: 'center' },
   trackerOverline: { color: colors.accent, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
   trackerStatus: { color: colors.text, fontSize: 14, fontWeight: '800', marginTop: 2 },
+  trackerPill: { marginTop: 6 },
   trackerAction: { color: colors.accent, fontSize: 12, fontWeight: '800' },
   rail: { paddingHorizontal: spacing.lg, gap: 10, flexDirection: 'row' },
   catTile: {

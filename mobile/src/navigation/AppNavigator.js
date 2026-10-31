@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { BottomTabs } from '../components/ui/BottomTabs';
 import { CartContext } from '../components/ui/CartButton';
@@ -21,6 +21,7 @@ import StudioScreen from '../screens/StudioScreen';
 import WalletScreen from '../screens/WalletScreen';
 import useAppConfig from '../features/config';
 import useCart from '../features/cart';
+import { clearCache } from '../utils/memCache';
 import * as storage from '../utils/storage';
 import { profileGaps } from '../utils/userName';
 
@@ -80,6 +81,13 @@ export default function AppNavigator({ store, t, auth }) {
   useEffect(() => {
     if (needsSurvey) setSurveyOpen(true);
   }, [needsSurvey]);
+
+  // Boshqa hisobga o'tilsa (yoki chiqilsa) — oldingi foydalanuvchining keshlangan ma'lumoti ko'rinmasin
+  const cacheOwner = useRef(userId);
+  if (cacheOwner.current !== userId) {
+    cacheOwner.current = userId;
+    clearCache();
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -147,7 +155,7 @@ export default function AppNavigator({ store, t, auth }) {
   // ─── 2. Auth wall — faqat telefon + Telegram bot kodi (parol/SMS yo'q) ────────
   if (!auth.isAuthenticated) {
     // Successful login/register: auth.isAuthenticated flips → navigator re-renders
-    return <OtpLoginScreen auth={auth} t={t} />;
+    return <OtpLoginScreen auth={auth} t={t} language={store.language} />;
   }
 
   // ─── 2b. Ro'yxatdan o'tish qadamlari (o'lchovlari bo'sh foydalanuvchiga bir marta) ─
