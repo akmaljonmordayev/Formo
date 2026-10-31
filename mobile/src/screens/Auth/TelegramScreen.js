@@ -1,16 +1,14 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AppState,
-  KeyboardAvoidingView,
   Linking,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAvoider, KeyboardAwareScrollView } from '../../components/ui/KeyboardAware';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthTitle, BackButton, ErrorNote, InfoNote, OutlineButton, authColors } from '../../components/ui/AuthUi';
@@ -22,6 +20,7 @@ import {
   cleanCode,
   formatCountdown,
   secondsUntil,
+  telegramAppLink,
   telegramErrorText,
 } from '../../features/auth/telegram';
 
@@ -99,7 +98,10 @@ export default function TelegramScreen({ phone, challenge, auth, t, onNewRequest
   const openBot = useCallback(async () => {
     setErrorText(null);
     try {
-      await Linking.openURL(challenge.deepLink);
+      // Avval Telegram ilovasining o'zi (tg://), o'rnatilmagan bo'lsa — t.me (brauzer/ilova)
+      const appLink = telegramAppLink(challenge.deepLink);
+      const opened = appLink ? await Linking.openURL(appLink).then(() => true, () => false) : false;
+      if (!opened) await Linking.openURL(challenge.deepLink);
       setOpenedBot(true);
     } catch {
       setErrorText(t('tgOpenFailed'));
@@ -158,8 +160,8 @@ export default function TelegramScreen({ phone, challenge, auth, t, onNewRequest
 
   return (
     <SafeAreaView style={styles.safe}>
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <KeyboardAvoider style={styles.flex}>
+        <KeyboardAwareScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={styles.topBar}>
             <BackButton onPress={onBack} label={t('back')} />
           </View>
@@ -262,8 +264,8 @@ export default function TelegramScreen({ phone, challenge, auth, t, onNewRequest
               <OutlineButton label={t('tgNewRequest')} onPress={newRequest} loading={requesting} />
             </View>
           )}
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }

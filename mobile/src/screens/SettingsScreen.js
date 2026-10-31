@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Linking, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
+import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
 import { languageOptions } from '../i18n';
 import { Button, Header, Overline, Screen } from '../components/ui/Common';
@@ -119,7 +120,12 @@ export default function SettingsScreen({ language, setLanguage, t, onBack, auth,
         </>
       ) : null}
 
-      <Button variant="secondary" style={styles.logoutButton} onPress={() => auth?.logout?.()}>
+      <Button
+        variant="danger"
+        style={styles.logoutButton}
+        onPress={() => auth?.logout?.()}
+        icon={<MaterialCommunityIcons name="logout" size={18} color={colors.danger} />}
+      >
         {t('logout')}
       </Button>
 

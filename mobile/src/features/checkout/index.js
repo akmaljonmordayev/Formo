@@ -1,20 +1,22 @@
 import { useCallback, useEffect, useState } from 'react';
 import { api } from '../../services/api';
+import { getCached, setCached } from '../../utils/memCache';
 
 /**
  * Saqlangan manzillar (GET/POST /api/addresses).
  * `create` yangi manzilni qaytaradi yoki ApiError tashlaydi (validatsiya xabari bilan).
  */
 export function useAddresses() {
-  const [addresses, setAddresses] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [addresses, setAddresses] = useState(() => getCached('addresses') || []);
+  const [isLoading, setIsLoading] = useState(() => getCached('addresses') === undefined);
   const [error, setError] = useState(null);
 
   const refetch = useCallback(async () => {
-    setIsLoading(true);
+    // Keshdagi ro'yxat ko'rinib turadi — spinner faqat birinchi marta
+    setIsLoading(getCached('addresses') === undefined);
     setError(null);
     try {
-      setAddresses((await api.addresses.list()) || []);
+      setAddresses(setCached('addresses', (await api.addresses.list()) || []));
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
     } finally {

@@ -1,18 +1,17 @@
 import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAvoider, KeyboardAwareScrollView } from '../../components/ui/KeyboardAware';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthTitle, BackButton, ErrorNote, authColors } from '../../components/ui/AuthUi';
+import LegalModal from '../../components/ui/LegalModal';
 import { fonts } from '../../constants/theme';
 import { telegramErrorText } from '../../features/auth/telegram';
 
@@ -44,9 +43,12 @@ const HOW_STEPS = [
  * Fokus: maydon uslubi fokusda faqat `borderColor`ni almashtiradi (soya/elevation yo'q),
  * ota Pressable `collapsable={false}` — Fabric TextInput'ni qayta yaratmaydi va fokus yo'qolmaydi.
  */
-export default function PhoneScreen({ auth, t, initialPhone = '', onBack, onTelegramStarted }) {
+export default function PhoneScreen({ auth, t, language, initialPhone = '', onBack, onTelegramStarted }) {
   const [digits, setDigits] = useState(() => toLocalDigits(initialPhone));
-  const [agree, setAgree] = useState(true);
+  // Rozilik foydalanuvchining o'zi tomonidan belgilanadi (oldindan qo'yilmaydi)
+  const [agree, setAgree] = useState(false);
+  // Ochiq hujjat: 'offer' | 'privacy' | null
+  const [legalTab, setLegalTab] = useState(null);
   const [loading, setLoading] = useState(false);
   const [focused, setFocused] = useState(false);
   const [errorText, setErrorText] = useState(null);
@@ -87,8 +89,8 @@ export default function PhoneScreen({ auth, t, initialPhone = '', onBack, onTele
   return (
     <SafeAreaView style={styles.safe}>
       {/* Android: app.json softwareKeyboardLayoutMode=resize oynani o'zi kichraytiradi */}
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
-        <ScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+      <KeyboardAvoider style={styles.flex}>
+        <KeyboardAwareScrollView contentContainerStyle={styles.scroll} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
           <View style={styles.topBar}>{Boolean(onBack) && <BackButton onPress={onBack} label={t('back')} />}</View>
 
           <View style={styles.head}>
@@ -162,11 +164,31 @@ export default function PhoneScreen({ auth, t, initialPhone = '', onBack, onTele
               <View style={[styles.checkbox, agree && styles.checkboxOn]}>
                 {agree && <MaterialCommunityIcons name="check-bold" size={14} color={authColors.bg} />}
               </View>
+              {/* Havolalar oferta/maxfiylik sahifasini ochadi; qolgan joy — galochka */}
               <Text style={styles.agreeText}>
-                <Text style={styles.agreeLink}>{t('agreeOffer')}</Text>
-                {t('agreeRest')}
+                <Text style={styles.agreeLink} onPress={() => setLegalTab('offer')} accessibilityRole="link">
+                  {t('agreeOffer')}
+                </Text>
+                {t('agreeAnd')}
+                <Text style={styles.agreeLink} onPress={() => setLegalTab('privacy')} accessibilityRole="link">
+                  {t('agreePrivacy')}
+                </Text>
+                {t('agreeTail')}
               </Text>
             </Pressable>
+
+            <LegalModal
+              visible={legalTab != null}
+              initialTab={legalTab || 'offer'}
+              language={language}
+              t={t}
+              onClose={() => setLegalTab(null)}
+              onAccept={() => {
+                setAgree(true);
+                setErrorText(null);
+                setLegalTab(null);
+              }}
+            />
 
             <Pressable
               onPress={handleContinue}
@@ -190,8 +212,8 @@ export default function PhoneScreen({ auth, t, initialPhone = '', onBack, onTele
               <Text style={styles.privacyText}>{t('loginPrivacy')}</Text>
             </View>
           </View>
-        </ScrollView>
-      </KeyboardAvoidingView>
+        </KeyboardAwareScrollView>
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }

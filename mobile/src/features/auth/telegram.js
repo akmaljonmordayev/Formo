@@ -1,4 +1,4 @@
-import { ApiError } from '../../services/api';
+import { API_BASE_URL, ApiError } from '../../services/api';
 
 /**
  * Telegram bot orqali kirish — ekrandan mustaqil yordamchilar (testlanadi).
@@ -51,6 +51,20 @@ export function telegramErrorText(err, t) {
     if (err.status === 0 || err.status >= 500) return t('networkError');
     return err.message || t('authError');
   }
-  if (err instanceof TypeError) return t('networkError');
-  return t('authError');
+  // Server javob bermadi (tarmoq): RN eski versiyalarida TypeError, yangilarida oddiy Error ("fetch failed")
+  const network = err instanceof TypeError || /fetch|network|timed out|abort|cancel/i.test(err?.message || '');
+  // Dev buildda asl sabab va ulanayotgan server manzili — telefon serverga yetmayotgani darhol ko'rinadi
+  if (typeof __DEV__ !== 'undefined' && __DEV__ && err?.message) {
+    return `${t(network ? 'networkError' : 'authError')}: ${err.message}\n${API_BASE_URL}`;
+  }
+  return t(network ? 'networkError' : 'authError');
+}
+
+/**
+ * https://t.me/<bot>?start=<token> → tg://resolve?domain=<bot>&start=<token>.
+ * tg:// Telegram ilovasini to'g'ridan-to'g'ri ochadi (brauzer oraliq sahifasisiz, /start tokeni yo'qolmaydi).
+ */
+export function telegramAppLink(deepLink) {
+  const m = /^https:\/\/t\.me\/([A-Za-z0-9_]{5,32})\?start=([A-Za-z0-9_-]{1,64})$/.exec(String(deepLink || ''));
+  return m ? `tg://resolve?domain=${m[1]}&start=${m[2]}` : null;
 }

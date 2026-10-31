@@ -9,6 +9,7 @@ import Kit360Thumb from '../components/ui/Kit360Thumb';
 import { itemKit360 } from '../features/kit360';
 import { designText } from '../features/studio';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import StatusPill, { OrderStepper, statusTone } from '../components/ui/StatusPill';
 import { errorText } from '../utils/errors';
 import { formatDate } from '../utils/formatters';
 
@@ -20,6 +21,7 @@ export default function OrdersScreen({ t, onOrder }) {
   const doneLabel = t('tabDone');
   const filtered = orders.filter((order) => (tab === 'active' ? !isFinal(order) : isFinal(order)));
   const activeOrder = orders.find((order) => !isFinal(order)) || null;
+  const activeTone = statusTone(activeOrder?.status);
 
   return (
     <Screen scroll={false}>
@@ -57,28 +59,25 @@ export default function OrdersScreen({ t, onOrder }) {
                     <Text style={styles.id}>{activeOrder.code}</Text>
                   </View>
 
-                  <Text style={styles.trackerTitle}>
-                    {statusText(t, activeOrder.status, activeOrder.statusLabel)}
-                  </Text>
-                  <Text style={styles.trackerSub}>
-                    {activeOrder.delivery.date
-                      ? `${activeOrder.delivery.date.split('-').reverse().join('.')} · ${activeOrder.delivery.slot}`
-                      : '—'}
-                  </Text>
-
-                  <View style={styles.progress}>
-                    <View
-                      style={[
-                        styles.done,
-                        { width: `${Math.max(15, Math.round(progressOf(activeOrder) * 100))}%` },
-                      ]}
-                    />
+                  <View style={styles.trackerHead}>
+                    <View style={[styles.trackerIcon, { backgroundColor: activeTone.bg, borderColor: activeTone.border }]}>
+                      <MaterialCommunityIcons name={activeTone.icon} size={24} color={activeTone.color} />
+                    </View>
+                    <View style={{ flex: 1 }}>
+                      <Text style={styles.trackerTitle} numberOfLines={1}>
+                        {statusText(t, activeOrder.status, activeOrder.statusLabel)}
+                      </Text>
+                      <Text style={styles.trackerSub}>
+                        {activeOrder.delivery.date
+                          ? `${activeOrder.delivery.date.split('-').reverse().join('.')} · ${activeOrder.delivery.slot}`
+                          : '—'}
+                      </Text>
+                    </View>
+                    <MaterialCommunityIcons name="chevron-right" size={22} color={colors.muted} />
                   </View>
 
-                  <View style={styles.labels}>
-                    <Text style={styles.labelText}>{t('trackDesign')}</Text>
-                    <Text style={styles.labelText}>{t('trackProduction')}</Text>
-                    <Text style={styles.labelText}>{t('trackDelivery')}</Text>
+                  <View style={styles.stepper}>
+                    <OrderStepper t={t} status={activeOrder.status} />
                   </View>
                 </Card>
               </Pressable>
@@ -96,7 +95,6 @@ export default function OrdersScreen({ t, onOrder }) {
             {/* Orders List */}
             <View style={styles.list}>
               {filtered.map((order) => {
-                const delivered = order.status === 'DELIVERED';
                 const stopped = ['CANCELLED', 'RETURNED'].includes(order.status);
                 const first = order.items[0] || {};
                 const more = order.items.length > 1 ? ` +${order.items.length - 1}` : '';
@@ -111,23 +109,7 @@ export default function OrdersScreen({ t, onOrder }) {
                     <Card style={styles.order}>
                       <View style={styles.orderTop}>
                         <Text style={styles.id}>{order.code}</Text>
-                        <View
-                          style={[
-                            styles.pill,
-                            delivered && styles.pillGreen,
-                            stopped && styles.pillRed,
-                          ]}
-                        >
-                          <Text
-                            style={[
-                              styles.pillText,
-                              delivered && styles.pillTextGreen,
-                              stopped && styles.pillTextRed,
-                            ]}
-                          >
-                            {statusText(t, order.status, order.statusLabel)}
-                          </Text>
-                        </View>
+                        <StatusPill status={order.status} label={statusText(t, order.status, order.statusLabel)} />
                       </View>
 
                       <View style={styles.orderBody}>
@@ -138,7 +120,7 @@ export default function OrdersScreen({ t, onOrder }) {
                           <Text style={styles.product} numberOfLines={1}>
                             {first.design
                               ? `${t('customDesign')} · ${designText(t, first.design)}`
-                              : `${first.clubName} · ${first.kitLabel}`}
+                              : first.clubName}
                             {more}
                           </Text>
                           <Text style={styles.meta}>
@@ -153,6 +135,7 @@ export default function OrdersScreen({ t, onOrder }) {
                           <View
                             style={[
                               styles.barDone,
+                              { backgroundColor: statusTone(order.status).color },
                               { width: `${Math.max(15, Math.round(progressOf(order) * 100))}%` },
                             ]}
                           />
@@ -169,8 +152,8 @@ export default function OrdersScreen({ t, onOrder }) {
                   title={t('noOrders')}
                   description={
                     tab === 'active'
-                      ? 'Hozirda faol buyurtmalaringiz mavjud emas.'
-                      : 'Yakunlangan buyurtmalar tarixi bu yerda ko‘rinadi.'
+                      ? t('noActiveOrders')
+                      : t('noDoneOrders')
                   }
                 />
               ) : null}
@@ -217,37 +200,35 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '800',
   },
+  trackerHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    marginTop: spacing.md,
+  },
+  trackerIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 16,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   trackerTitle: {
     color: colors.text,
     fontSize: 18,
     fontWeight: '900',
-    marginTop: spacing.md,
   },
   trackerSub: {
     color: colors.muted,
     fontSize: 12,
-    marginTop: 4,
+    marginTop: 3,
   },
-  progress: {
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: colors.surface,
+  stepper: {
     marginTop: spacing.lg,
-    overflow: 'hidden',
-  },
-  done: {
-    height: 6,
-    backgroundColor: colors.accent,
-  },
-  labels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: spacing.sm,
-  },
-  labelText: {
-    color: colors.muted,
-    fontSize: 10,
-    fontWeight: '700',
+    paddingTop: spacing.md,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: colors.borderLight,
   },
   tabs: {
     alignSelf: 'stretch',
@@ -265,33 +246,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-  },
-  pill: {
-    backgroundColor: 'rgba(242, 163, 58, 0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(242, 163, 58, 0.35)',
-    borderRadius: radii.xs,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-  },
-  pillGreen: {
-    backgroundColor: 'rgba(25, 167, 161, 0.12)',
-    borderColor: 'rgba(25, 167, 161, 0.4)',
-  },
-  pillRed: {
-    backgroundColor: 'rgba(232, 84, 63, 0.12)',
-    borderColor: 'rgba(232, 84, 63, 0.4)',
-  },
-  pillText: {
-    color: colors.accent,
-    fontSize: 10,
-    fontWeight: '800',
-  },
-  pillTextRed: {
-    color: colors.danger,
-  },
-  pillTextGreen: {
-    color: colors.tealLight,
   },
   orderBody: {
     flexDirection: 'row',
