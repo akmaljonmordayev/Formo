@@ -9,7 +9,12 @@ const PERIODS = [
   { key: 'bugun', labelKey: 'stat.today', days: 1 },
   { key: 'hafta', labelKey: 'stat.week', days: 7 },
   { key: 'oy', labelKey: 'stat.month', days: 30 },
+  { key: 'chorak', labelKey: 'stat.quarter', days: 90 },
 ];
+
+// Ishlab chiqarish ustunlari (GET /workshop/production → columns) — API holatlari tartibi
+const STAGES = ['ACCEPTED', 'PRINTING', 'QUALITY_CHECK', 'READY'];
+const orderPieces = (order) => order.items?.reduce((sum, item) => sum + (item.quantity ?? 0), 0) ?? order.quantity ?? 0;
 
 export default function Statistika() {
   const t = useT();
@@ -49,12 +54,12 @@ export default function Statistika() {
     value: item.count,
   }));
   const maxValue = Math.max(1, ...points.map((point) => point.value));
-  const pointsString = points.map((point, index) => {
-    const x = (index / Math.max(1, points.length - 1)) * 500 + 40;
-    const y = 200 - (point.value / maxValue) * 160;
-    return `${x},${y}`;
-  }).join(' ');
-  const fillAreaString = `40,200 ${pointsString} 540,200`;
+  // Bitta nuqta (bugun) — grafik o'rtasida; ko'p nuqtada x o'qi yorliqlari bir-birini bosmasligi uchun siyraklashtiriladi
+  const xOf = (index) => (points.length === 1 ? 290 : (index / (points.length - 1)) * 500 + 40);
+  const yOf = (value) => 200 - (value / maxValue) * 160;
+  const pointsString = points.map((point, index) => `${xOf(index)},${yOf(point.value)}`).join(' ');
+  const fillAreaString = `${xOf(0)},200 ${pointsString} ${xOf(points.length - 1)},200`;
+  const labelStep = Math.ceil(points.length / 8);
 
   const stats = [
     { label: 'stat.apiOrders', value: dashboard?.ordersCount, hint: 'stat.apiOrdersHint', Icon: Layers, iconStyle: 'bg-teal-500/20 text-teal-400' },
@@ -135,16 +140,17 @@ export default function Statistika() {
               <line x1="40" y1="90" x2="540" y2="90" stroke="#ffffff15" strokeDasharray="4" />
               <line x1="40" y1="145" x2="540" y2="145" stroke="#ffffff15" strokeDasharray="4" />
               <line x1="40" y1="200" x2="540" y2="200" stroke="#ffffff30" />
-              <polygon points={fillAreaString} fill="url(#areaGradient)" />
+              {points.length > 1 && <polygon points={fillAreaString} fill="url(#areaGradient)" />}
               <polyline fill="none" stroke="#22d3ee" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round" points={pointsString} />
               {points.map((point, index) => {
-                const x = (index / Math.max(1, points.length - 1)) * 500 + 40;
-                const y = 200 - (point.value / maxValue) * 160;
+                const x = xOf(index);
+                const y = yOf(point.value);
+                const showValue = points.length <= 14 || (point.value > 0 && point.value === maxValue);
                 return (
-                  <g key={point.label}>
-                    <circle cx={x} cy={y} r="5" fill="#0b0f19" stroke="#22d3ee" strokeWidth="3" />
-                    <text x={x} y={y - 12} textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="bold">{point.value}</text>
-                    <text x={x} y="220" textAnchor="middle" fill="#94a3b8" fontSize="11" fontWeight="600">{point.label}</text>
+                  <g key={`${point.label}-${index}`}>
+                    <circle cx={x} cy={y} r={points.length > 14 ? 3 : 5} fill="#0b0f19" stroke="#22d3ee" strokeWidth="3" />
+                    {showValue && <text x={x} y={y - 12} textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="bold">{point.value}</text>}
+                    {index % labelStep === 0 && <text x={x} y="220" textAnchor="middle" fill="#94a3b8" fontSize="11" fontWeight="600">{point.label}</text>}
                   </g>
                 );
               })}
@@ -157,22 +163,25 @@ export default function Statistika() {
 
         <Card className="border border-white/10 bg-[#121829] p-6">
           <div className="flex items-center justify-between border-b border-white/10 pb-3">
-            <h3 className="text-base font-extrabold text-white">{t('stat.workshops')}</h3>
+            <h3 className="text-base font-extrabold text-white">{t('stat.apiLoad')}</h3>
             <Factory className="h-5 w-5 text-teal-400" />
           </div>
           <div className="mt-4 space-y-4">
-            {(production?.workshops ?? []).map((workshop) => (
-              <div key={workshop.id}>
+            {dashboard && (
+              <div>
                 <div className="flex justify-between gap-3 text-xs font-bold">
-                  <span className="truncate text-slate-300">{workshop.name}</span>
-                  <span className="shrink-0 text-teal-400">{workshop.activeCount} / {workshop.capacity ?? '—'}</span>
+                  <span className="truncate text-slate-300">{t('stat.myLoad')}</span>
+                  <span className="shrink-0 text-teal-400">{dashboard.activeCount} / {dashboard.capacity ?? '—'}</span>
                 </div>
                 <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
-                  <div className="h-full rounded-full bg-teal-400" style={{ width: `${Math.min(100, workshop.loadPct ?? 0)}%` }} />
+                  <div className="h-full rounded-full bg-teal-400" style={{ width: `${Math.min(100, dashboard.loadPct ?? 0)}%` }} />
                 </div>
+                <p className="mt-2 text-[11px] font-semibold text-slate-400">
+                  {dashboard.loadPct == null ? t('stat.noCapacity') : `${dashboard.loadPct}%`}
+                </p>
               </div>
-            ))}
-            {!loading && !error && !(production?.workshops?.length) && (
+            )}
+            {!loading && !dashboard && (
               <p className="py-8 text-center text-xs text-slate-500">{t('api.empty')}</p>
             )}
           </div>
@@ -180,29 +189,30 @@ export default function Statistika() {
       </div>
 
       <Card className="overflow-hidden border border-white/10 bg-[#121829] p-6">
-        <h3 className="mb-1 text-base font-extrabold text-white">{t('stat.workshops')}</h3>
-        <p className="mb-4 text-xs text-slate-400">{t('stat.workshopsHint')}</p>
+        <h3 className="mb-1 text-base font-extrabold text-white">{t('stat.stages')}</h3>
+        <p className="mb-4 text-xs text-slate-400">{t('stat.stagesHint')}</p>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs">
             <thead>
               <tr className="border-b border-white/10 font-bold uppercase tracking-wider text-slate-400">
-                <th className="pb-3">{t('stat.col.workshop')}</th>
-                <th className="pb-3">{t('stat.col.active')}</th>
-                <th className="pb-3">{t('stat.col.capacity')}</th>
-                <th className="pb-3">{t('stat.col.load')}</th>
+                <th className="pb-3">{t('stat.col.stage')}</th>
+                <th className="pb-3">{t('stat.col.orders')}</th>
+                <th className="pb-3">{t('stat.col.pieces')}</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-white/5 text-slate-200">
-              {(production?.workshops ?? []).map((workshop) => (
-                <tr key={workshop.id} className="transition hover:bg-white/5">
-                  <td className="py-3.5 font-extrabold text-white">{workshop.name}</td>
-                  <td className="py-3.5 font-bold text-teal-400">{workshop.activeCount}</td>
-                  <td className="py-3.5 text-slate-400">{workshop.capacity ?? '—'}</td>
-                  <td className="py-3.5 font-semibold">{workshop.loadPct == null ? '—' : `${workshop.loadPct}%`}</td>
-                </tr>
-              ))}
-              {!loading && !error && !(production?.workshops?.length) && (
-                <tr><td colSpan={4} className="py-6 text-center text-xs text-slate-500">{t('api.empty')}</td></tr>
+              {production && STAGES.map((stage) => {
+                const orders = Array.isArray(production.columns?.[stage]) ? production.columns[stage] : [];
+                return (
+                  <tr key={stage} className="transition hover:bg-white/5">
+                    <td className="py-3.5 font-extrabold text-white">{t(`stat.stage.${stage}`)}</td>
+                    <td className="py-3.5 font-bold text-teal-400">{orders.length}</td>
+                    <td className="py-3.5 text-slate-300">{orders.reduce((sum, order) => sum + orderPieces(order), 0)}</td>
+                  </tr>
+                );
+              })}
+              {!loading && !production && (
+                <tr><td colSpan={3} className="py-6 text-center text-xs text-slate-500">{t('api.empty')}</td></tr>
               )}
             </tbody>
           </table>
