@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { AlertTriangle, ArrowLeft, CheckCircle2, Eye, HelpCircle, Move, RefreshCw, Ruler, Shirt } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, Check, CheckCircle2, ChevronDown, Eye, HelpCircle, Minus, Move, Plus, RefreshCw, Ruler, Shirt } from 'lucide-react';
 import { Card } from './ui';
 import { useT } from './i18n';
 import { cx } from './utils';
@@ -21,7 +21,8 @@ export default function Brak() {
   const { orders = [], ordersError = '', ordersLoading = false } = useTailor() ?? {};
   const t = useT();
   const routedOrder = location.state?.order;
-  const order = orders.find((item) => item.id === routedOrder?.id) ?? routedOrder ?? orders[0];
+  const [selectedId, setSelectedId] = useState(routedOrder?.id);
+  const order = orders.find((item) => item.id === selectedId) ?? orders.find((item) => item.id === routedOrder?.id) ?? routedOrder ?? orders[0];
   const [reason, setReason] = useState('bosma-siljidi');
   const [note, setNote] = useState('');
   const [submitted, setSubmitted] = useState(false);
@@ -110,6 +111,28 @@ export default function Brak() {
       <div className="grid gap-5 xl:grid-cols-[340px_minmax(0,1fr)]">
         {/* Left Column Card: Order Summary */}
         <Card className="flex flex-col gap-5 bg-[#121829] p-5 border border-white/10">
+          {orders.length > 0 && (
+            <div>
+              <label htmlFor="brak-order" className="mb-2 block text-[10px] font-extrabold uppercase tracking-wider text-slate-400">
+                {t('brak.orderLabel')}
+              </label>
+              <div className="relative">
+                <select
+                  id="brak-order"
+                  value={order.id}
+                  onChange={(e) => setSelectedId(e.target.value)}
+                  className="w-full cursor-pointer appearance-none rounded-xl border border-white/10 bg-[#0e1424] py-3 pl-3.5 pr-10 text-xs font-bold text-white outline-none transition [color-scheme:dark] hover:border-white/20 focus:border-rose-400 focus:ring-4 focus:ring-rose-400/10"
+                >
+                  {orders.map((item) => (
+                    <option key={item.id} value={item.id}>
+                      #{item.id} · {item.customer}{item.number !== '' && item.number != null ? ` · ${item.number}` : ''}
+                    </option>
+                  ))}
+                </select>
+                <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+              </div>
+            </div>
+          )}
           <div>
             <span className="inline-block rounded-full bg-rose-500/20 px-3 py-1 text-[10px] font-extrabold uppercase text-rose-400 ring-1 ring-rose-500/40">
               {t('brak.qc')}
@@ -145,8 +168,7 @@ export default function Brak() {
               <h2 className="text-2xl font-black text-white">{t('brak.reasonsTitle')}</h2>
               <p className="mt-1 text-xs text-slate-400">{t('brak.reasonsHint')}</p>
 
-              {/* 3 Interactive Cards */}
-              <div className="mt-4 grid gap-3 sm:grid-cols-2">
+              <div role="radiogroup" aria-label={t('brak.reasonsTitle')} className="mt-4 grid gap-3 sm:grid-cols-2">
                 {reasons.map((item) => {
                   const Icon = item.icon;
                   const isSelected = reason === item.id;
@@ -154,23 +176,34 @@ export default function Brak() {
                     <button
                       key={item.id}
                       type="button"
+                      role="radio"
+                      aria-checked={isSelected}
                       onClick={() => setReason(item.id)}
                       className={cx(
-                        'flex flex-col items-start gap-3 rounded-2xl border p-4 transition text-left',
+                        'relative flex items-center gap-3 rounded-2xl border p-4 text-left outline-none transition focus-visible:ring-2 focus-visible:ring-rose-400/60',
                         isSelected
-                          ? 'border-blue-500 bg-[#17264a] ring-2 ring-blue-500/60'
-                          : 'border-white/10 bg-[#0e1424] hover:bg-[#131b30]'
+                          ? 'border-rose-400 bg-rose-500/10 shadow-[0_0_0_1px_rgba(251,113,133,0.4)]'
+                          : 'border-white/10 bg-[#0e1424] hover:border-white/20 hover:bg-[#131b30]'
                       )}
                     >
-                      <div
+                      <span
                         className={cx(
-                          'flex h-9 w-9 items-center justify-center rounded-xl',
-                          isSelected ? 'bg-blue-600 text-white' : 'bg-white/5 text-slate-400'
+                          'flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition',
+                          isSelected ? 'bg-rose-500 text-white' : 'bg-white/5 text-slate-400'
                         )}
                       >
                         <Icon className="h-5 w-5" />
-                      </div>
-                      <span className="text-xs font-bold text-white">{item.label}</span>
+                      </span>
+                      <span className="min-w-0 flex-1 text-xs font-bold text-white">{item.label}</span>
+                      <span
+                        aria-hidden="true"
+                        className={cx(
+                          'flex h-5 w-5 shrink-0 items-center justify-center rounded-full border transition',
+                          isSelected ? 'border-rose-400 bg-rose-400 text-slate-950' : 'border-white/20 text-transparent'
+                        )}
+                      >
+                        <Check className="h-3 w-3 stroke-[3]" />
+                      </span>
                     </button>
                   );
                 })}
@@ -187,7 +220,7 @@ export default function Brak() {
                 maxLength={500}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                className="w-full resize-none rounded-xl border border-white/10 bg-[#0e1424] p-3 text-xs text-white outline-none focus:border-blue-500"
+                className="w-full resize-none rounded-xl border border-white/10 bg-[#0e1424] p-3 text-xs text-white outline-none focus:border-rose-400"
               />
             </div>
 
@@ -195,15 +228,34 @@ export default function Brak() {
               <label htmlFor="brak-qty" className="mb-2 block text-xs font-extrabold uppercase tracking-wider text-slate-300">
                 {t('brak.qty')}
               </label>
-              <input
-                id="brak-qty"
-                type="number"
-                min={1}
-                max={1000}
-                value={qty}
-                onChange={(e) => setQty(e.target.value)}
-                className="w-32 rounded-xl border border-white/10 bg-[#0e1424] p-3 text-xs text-white outline-none focus:border-blue-500"
-              />
+              <div className="inline-flex items-stretch overflow-hidden rounded-xl border border-white/10 bg-[#0e1424] focus-within:border-rose-400">
+                <button
+                  type="button"
+                  aria-label="−"
+                  onClick={() => setQty(String(Math.max(1, (Number(qty) || 1) - 1)))}
+                  className="px-3.5 text-slate-300 transition hover:bg-white/10 hover:text-white"
+                >
+                  <Minus className="h-4 w-4" />
+                </button>
+                <input
+                  id="brak-qty"
+                  type="number"
+                  inputMode="numeric"
+                  min={1}
+                  max={1000}
+                  value={qty}
+                  onChange={(e) => setQty(e.target.value)}
+                  className="w-16 bg-transparent py-3 text-center text-sm font-extrabold text-white outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                />
+                <button
+                  type="button"
+                  aria-label="+"
+                  onClick={() => setQty(String(Math.min(1000, (Number(qty) || 0) + 1)))}
+                  className="px-3.5 text-slate-300 transition hover:bg-white/10 hover:text-white"
+                >
+                  <Plus className="h-4 w-4" />
+                </button>
+              </div>
             </div>
 
             {/* Auto Re-print Banner Notice */}

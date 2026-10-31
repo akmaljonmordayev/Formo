@@ -65,6 +65,9 @@ const orderToQueueItem = (order) => {
     clubName: line?.clubName ?? '',
     kitLabel: line?.kitLabel ?? '',
     isCustomDesign: Boolean(line && (line.kitId == null || line.design)),
+    // Shortik: futbolka bilan birga tikiladimi va unda raqam bormi (null raqam — futbolkadagi raqam)
+    withShorts: line?.withShorts ?? true,
+    shortsNumber: line?.numberOnShorts ? String(line.shortsNumber ?? line.printNumber ?? order.printNumber ?? '') : '',
     apiItems: order.items ?? [],
     apiSummary: details.join(' · '),
     apiPrintName: line?.printName ?? order.printName ?? '',
@@ -87,6 +90,8 @@ export async function listTailorOrders() {
 
   return records.map(orderToQueueItem).filter(Boolean);
 }
+
+export const getTailorOrder = (orderId) => api(`/workshop/orders/${orderId}`);
 
 export const acceptTailorOrder = (orderId) =>
   api(`/workshop/orders/${orderId}/accept`, { method: 'POST' });
