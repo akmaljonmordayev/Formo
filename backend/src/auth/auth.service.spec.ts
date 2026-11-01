@@ -1,11 +1,19 @@
-import { BadRequestException, ConflictException, ForbiddenException, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Role, User } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
-import { AuthService, LEGACY_DUMMY_PASSWORD } from './auth.service';
+import { AuthService, LEGACY_DUMMY_PASSWORD, MAX_FAILED_LOGIN_ATTEMPTS } from './auth.service';
 
 const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 const DAY = 24 * 60 * 60 * 1000;
@@ -42,6 +50,16 @@ describe('AuthService', () => {
   beforeEach(() => {
     jest.resetAllMocks();
     config.get.mockReturnValue(undefined);
+    user.failedLoginAttempts = 0;
+    user.lockedUntil = null;
+    // Haqiqiy Prisma'dagi kabi: { increment } atomik qo'shiladi, boshqa maydonlar to'g'ridan-to'g'ri yoziladi
+    prisma.user.update.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => {
+      const inc = data.failedLoginAttempts as { increment?: number } | number | undefined;
+      if (inc && typeof inc === 'object') user.failedLoginAttempts += inc.increment ?? 0;
+      else if (typeof inc === 'number') user.failedLoginAttempts = inc;
+      if ('lockedUntil' in data) user.lockedUntil = data.lockedUntil as Date | null;
+      return user;
+    });
     prisma.session.create.mockImplementation(async ({ data }) => ({ id: SESSION_ID, ...data }));
     prisma.session.findUnique.mockReturnValue(Promise.resolve(null));
     prisma.session.updateMany.mockResolvedValue({ count: 1 });
@@ -149,6 +167,37 @@ describe('AuthService', () => {
       prisma.user.findUnique.mockResolvedValue(legacy);
       await expect(service.login({ phone: user.phone, password: LEGACY_DUMMY_PASSWORD }, {})).rejects.toThrow(UnauthorizedException);
       expect(prisma.session.create).not.toHaveBeenCalled();
+    });
+
+    it('IP-cheklov VPN bilan chetlab o‘tilsa ham — MAX urinishdan keyin hisob bloklanadi', async () => {
+      prisma.user.findUnique.mockImplementation(async () => user);
+      for (let i = 0; i < MAX_FAILED_LOGIN_ATTEMPTS; i++) {
+        await expect(service.login({ phone: user.phone, password: 'wrong' }, {})).rejects.toThrow(UnauthorizedException);
+      }
+      expect(user.failedLoginAttempts).toBe(MAX_FAILED_LOGIN_ATTEMPTS);
+      expect(user.lockedUntil).toBeInstanceOf(Date);
+
+      // Endi hatto to'g'ri parol bilan ham — bloklangan, parol umuman tekshirilmaydi
+      const err = await service.login({ phone: user.phone, password: PASSWORD }, {}).catch((e) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect(err.getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
+      expect(prisma.session.create).not.toHaveBeenCalled();
+    });
+
+    it('bloklash muddati o‘tgach — qayta urinish mumkin', async () => {
+      prisma.user.findUnique.mockImplementation(async () => user);
+      user.lockedUntil = new Date(Date.now() - 1000); // o'tgan
+      const result = await service.login({ phone: user.phone, password: PASSWORD }, {});
+      expect(result.accessToken).toEqual(expect.any(String));
+    });
+
+    it('muvaffaqiyatli kirish hisoblagichni nolga tushiradi', async () => {
+      prisma.user.findUnique.mockImplementation(async () => user);
+      await service.login({ phone: user.phone, password: 'wrong' }, {}).catch(() => {});
+      expect(user.failedLoginAttempts).toBe(1);
+      await service.login({ phone: user.phone, password: PASSWORD }, {});
+      expect(user.failedLoginAttempts).toBe(0);
+      expect(user.lockedUntil).toBeNull();
     });
   });
 
