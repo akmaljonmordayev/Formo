@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
   UnauthorizedException,
@@ -21,6 +23,12 @@ import { RegisterDto, UpdateProfileDto } from './dto/register.dto';
 export const BCRYPT_ROUNDS = 10;
 // Haqiqiy SMS integratsiyasigacha: faqat shu kod to'g'ri deb hisoblanadi.
 const DEMO_OTP_CODE = '12345';
+/**
+ * /auth/login IP bo'yicha cheklangan (@Throttle), lekin bu VPN/proksi bilan chetlab o'tiladi —
+ * shuning uchun urinishlar hisobning o'zida (User.failedLoginAttempts) ham sanaladi.
+ */
+export const MAX_FAILED_LOGIN_ATTEMPTS = 5;
+export const LOGIN_LOCKOUT_MS = 15 * 60 * 1000;
 /** Parolsiz ochilgan hisobning vaqtinchalik ismi — ilova shunda profil to'ldirishni so'raydi */
 export const NEW_CUSTOMER_NAME = 'Yangi mijoz';
 
@@ -95,13 +103,45 @@ export class AuthService {
   /** Superadmin, operator, tikuv sexi va mobil foydalanuvchilar uchun umumiy login */
   async login(dto: LoginDto, client: ClientInfo) {
     const user = await this.prisma.user.findUnique({ where: { phone: dto.phone } });
+
+    // Hisob hozir bloklangan bo'lsa — parolni tekshirmasdan rad etiladi (VPN bilan IP-cheklovni
+    // aylanib o'tib ham bu limitdan qochib bo'lmaydi, chunki hisobning o'ziga bog'langan)
+    if (user?.lockedUntil && user.lockedUntil > new Date()) {
+      const retryAfterSec = Math.ceil((user.lockedUntil.getTime() - Date.now()) / 1000);
+      throw new HttpException(
+        `Juda ko'p noto'g'ri urinish. ${Math.ceil(retryAfterSec / 60)} daqiqadan keyin qayta urinib ko'ring`,
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     const valid = await bcrypt.compare(dto.password, user?.passwordHash ?? DUMMY_HASH);
 
     // Eski demo-OTP hisoblarining ochiq paroli — mos kelsa ham rad etiladi
-    if (!user || !valid || dto.password === LEGACY_DUMMY_PASSWORD) throw new UnauthorizedException("Telefon raqam yoki parol noto'g'ri");
+    if (!user || !valid || dto.password === LEGACY_DUMMY_PASSWORD) {
+      if (user) await this.registerFailedLogin(user.id);
+      throw new UnauthorizedException("Telefon raqam yoki parol noto'g'ri");
+    }
     if (!user.isActive) throw new ForbiddenException('Akkauntingiz bloklangan. Administratorga murojaat qiling');
 
+    if (user.failedLoginAttempts > 0) {
+      await this.prisma.user.update({ where: { id: user.id }, data: { failedLoginAttempts: 0, lockedUntil: null } });
+    }
     return this.issueTokens(user, client);
+  }
+
+  /**
+   * Muvaffaqiyatsiz urinish: hisoblagich atomik oshiriladi (parallel so'rovlar ham to'g'ri sanaladi —
+   * oddiy "o'qi-yoz" emas, bitta UPDATE ... increment), chegaraga yetsa hisob vaqtincha bloklanadi.
+   */
+  private async registerFailedLogin(userId: number) {
+    const { failedLoginAttempts } = await this.prisma.user.update({
+      where: { id: userId },
+      data: { failedLoginAttempts: { increment: 1 } },
+      select: { failedLoginAttempts: true },
+    });
+    if (failedLoginAttempts >= MAX_FAILED_LOGIN_ATTEMPTS) {
+      await this.prisma.user.update({ where: { id: userId }, data: { lockedUntil: new Date(Date.now() + LOGIN_LOCKOUT_MS) } });
+    }
   }
 
   /**
