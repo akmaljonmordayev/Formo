@@ -69,12 +69,12 @@ function pixelKind(img, x, y, bg = backgroundRow(img, y)) {
 
 /* y qatorida x0 atrofidagi mato bo'lagi [chap, o'ng]: gap px gacha kulrang tirqishlar (burma, chiziq) o'tkaziladi,
    lekin 2 px fon — siluet chegarasi (qo'l bilan tana orasidagi bo'shliq). minKind = FABRIC — faqat aniq mato. */
-function runAt(img, y, x0, gap = 4, bg = backgroundRow(img, y), minKind = TINTED) {
+function runAt(img, y, x0, gap = 4, bg = backgroundRow(img, y), minKind = TINTED, kindAt = pixelKind) {
   if (y < 0 || y >= img.height) return null;
   let start = -1;
   for (let d = 0; d < 30 && start < 0; d += 1) {
     for (const x of [x0 + d, x0 - d]) {
-      if (x >= 0 && x < img.width && pixelKind(img, x, y, bg) >= minKind) { start = x; break; }
+      if (x >= 0 && x < img.width && kindAt(img, x, y, bg) >= minKind) { start = x; break; }
     }
   }
   if (start < 0) return null;
@@ -85,7 +85,7 @@ function runAt(img, y, x0, gap = 4, bg = backgroundRow(img, y), minKind = TINTED
     let bgRun = 0;
     while (miss <= gap && bgRun < 2 && x + dir >= 0 && x + dir < img.width) {
       x += dir;
-      const k = pixelKind(img, x, y, bg);
+      const k = kindAt(img, x, y, bg);
       if (k >= minKind) { last = x; miss = 0; bgRun = 0; } else { miss += 1; bgRun = k === BG ? bgRun + 1 : 0; }
     }
     return last;
@@ -112,11 +112,18 @@ function runsAt(img, y, x0, x1, gap, minW, minKind = TINTED) {
   return runs;
 }
 
+// Tana o'lchovi uchun: yorug' neytral kulrang (l ≥ MANNEQUIN_L) — soyadagi oq mato (rm, ar 180°: aks holda bir chet
+// kesilib, markaz 12 px siljiydi); maneken plastigi bundan qorong'i va avvalgidek tashlanadi
+function torsoKind(img, x, y, bg) {
+  const k = pixelKind(img, x, y, bg);
+  return k === GREY && pixel(img, x, y).l >= MANNEQUIN_L ? FABRIC : k;
+}
+
 // Bir nechta qator bo'yicha mediana — bitta burma yoki soya natijani buzmasin
 function spanNear(img, y, x0, gap) {
   const runs = [];
   for (let dy = -8; dy <= 8; dy += 4) {
-    const r = runAt(img, y + dy, x0, gap, backgroundRow(img, y + dy), FABRIC);
+    const r = runAt(img, y + dy, x0, gap, backgroundRow(img, y + dy), FABRIC, torsoKind);
     if (r) runs.push(r);
   }
   return runs.length ? [median(runs.map((r) => r[0])), median(runs.map((r) => r[1]))] : null;

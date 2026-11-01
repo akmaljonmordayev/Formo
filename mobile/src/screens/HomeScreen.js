@@ -12,6 +12,7 @@ import Skeleton from '../components/ui/Skeleton';
 import { statusText, useActiveOrder } from '../features/orders';
 import { useCategories, usePopularClubs, usePopularProducts } from '../features/products';
 import { displayName, nameInitial } from '../utils/userName';
+import { KIT360_TEAMS, kit360Team } from '../features/kit360';
 
 const FEATURED = 4;
 
@@ -22,7 +23,16 @@ const FEATURED = 4;
  */
 export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotifications, onCategory, onSearch, rules, auth }) {
   const { order } = useActiveOrder();
-  const { clubs, isLoading: clubsLoading } = usePopularClubs(8);
+  const { clubs: rawClubs, isLoading: clubsLoading } = usePopularClubs(8);
+  const clubs = rawClubs && rawClubs.length ? rawClubs : KIT360_TEAMS.map((t) => ({
+    id: t.id,
+    name: t.name,
+    code: t.code,
+    color: t.color,
+    accent: t.accent,
+    league: t.kind === 'national' ? t('nationalTeams') : t('clubTeams'),
+    kit360Id: t.id,
+  }));
   const { categories } = useCategories();
   const { products, isLoading: productsLoading } = usePopularProducts(8);
 
@@ -49,12 +59,12 @@ export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotificat
     },
     {
       key: 'clubs',
-      overline: t('promoClubsOver'),
-      title: t('clubKitTitle'),
-      sub: t('clubKitSub'),
-      cta: t('catalog'),
+      overline: t('forma360'),
+      title: t('forma360'),
+      sub: t('forma360Sub'),
+      cta: t('view360'),
       colors: ['#0E7C66', '#08102C'],
-      onPress: () => onNavigate('catalog'),
+      onPress: () => onNavigate('kit360'),
       art: featured[0] ? (
         <View style={styles.artTilt}>
           <JerseyPreview product={featured[0]} side="front" />
@@ -130,7 +140,7 @@ export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotificat
 
       {/* Ligalar: katalogni shu filtr bilan ochadi */}
       <View style={styles.padded}>
-        <SectionTitle title={t('categoriesTitle')} eyebrow={t('eyebrowLeagues')} action={t('all')} onAction={() => onNavigate('catalog')} />
+        <SectionTitle title={t('categoriesTitle')} eyebrow={t('eyebrowLeagues')} action={t('all')} onAction={() => onNavigate('kit360')} />
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
         <Pressable style={[styles.catTile, styles.catTileAccent]} onPress={() => onNavigate('studio')}>
@@ -140,7 +150,7 @@ export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotificat
           </Text>
         </Pressable>
         {categories.map((cat) => (
-          <Pressable key={cat.id} style={styles.catTile} onPress={() => onCategory(cat.id)}>
+          <Pressable key={cat.id} style={styles.catTile} onPress={() => onNavigate('kit360')}>
             <MaterialCommunityIcons name="trophy-outline" size={22} color={colors.accent} />
             <Text style={styles.catTitle} numberOfLines={1}>
               {cat.name}
@@ -150,7 +160,7 @@ export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotificat
       </ScrollView>
 
       <View style={styles.padded}>
-        <SectionTitle title={t('featuredKits')} eyebrow={t('eyebrowModels')} action={t('all')} onAction={() => onNavigate('catalog')} />
+        <SectionTitle title={t('featuredKits')} eyebrow={t('eyebrowModels')} action={t('all')} onAction={() => onNavigate('kit360')} />
       </View>
       {productsLoading && !products.length ? (
         <View style={styles.padded}>
@@ -165,7 +175,7 @@ export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotificat
       )}
 
       <View style={[styles.padded, styles.sectionGap]}>
-        <SectionTitle title={t('popular')} eyebrow={t('eyebrowClubs')} action={t('all')} onAction={() => onNavigate('catalog')} />
+        <SectionTitle title={t('popular')} eyebrow={t('eyebrowClubs')} action={t('all')} onAction={() => onNavigate('kit360')} />
       </View>
       {clubsLoading && !clubs.length ? (
         <View style={styles.rail}>
@@ -197,7 +207,7 @@ export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotificat
       {popular.length ? (
         <>
           <View style={[styles.padded, styles.sectionGap]}>
-            <SectionTitle title={t('popularModels')} eyebrow={t('eyebrowTrending')} action={t('all')} onAction={() => onNavigate('catalog')} />
+            <SectionTitle title={t('popularModels')} eyebrow={t('eyebrowTrending')} action={t('all')} onAction={() => onNavigate('kit360')} />
           </View>
           <FlatList
             horizontal

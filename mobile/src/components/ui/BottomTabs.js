@@ -6,7 +6,7 @@ import { colors, TAB_BAR_HEIGHT } from '../../constants/theme';
 
 const TABS = [
   { key: 'home', label: 'home', icon: 'home-outline', iconActive: 'home' },
-  { key: 'catalog', label: 'catalog', icon: 'view-grid-outline', iconActive: 'view-grid' },
+  { key: 'kit360', label: 'forma360', icon: 'rotate-3d-variant', iconActive: 'rotate-3d-variant' },
   { key: 'studio', label: 'studio', icon: 'tshirt-crew-outline', iconActive: 'tshirt-crew' },
   { key: 'orders', label: 'orders', icon: 'clipboard-list-outline', iconActive: 'clipboard-list' },
   { key: 'profile', label: 'profile', icon: 'account-outline', iconActive: 'account' },

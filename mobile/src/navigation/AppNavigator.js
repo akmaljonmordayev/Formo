@@ -7,7 +7,7 @@ import OtpLoginScreen from '../screens/Auth/OtpLoginScreen';
 import CompleteProfileScreen from '../screens/Login/CompleteProfileScreen';
 import AddressesScreen from '../screens/AddressesScreen';
 import CartScreen from '../screens/CartScreen';
-import CatalogScreen from '../screens/CatalogScreen';
+import Kit360Screen from '../screens/Kit360Screen';
 import CheckoutScreen from '../screens/CheckoutScreen';
 import HomeScreen from '../screens/HomeScreen';
 import LocationPickerScreen from '../screens/LocationPickerScreen';
@@ -21,6 +21,7 @@ import StudioScreen from '../screens/StudioScreen';
 import WalletScreen from '../screens/WalletScreen';
 import useAppConfig from '../features/config';
 import useCart from '../features/cart';
+import { kit360Team } from '../features/kit360';
 import * as storage from '../utils/storage';
 import { profileGaps } from '../utils/userName';
 
@@ -44,7 +45,7 @@ export default function AppNavigator({ store, t, auth }) {
   const [notifFrom, setNotifFrom] = useState('home');
   const [walletFrom, setWalletFrom] = useState('profile');
   // Bosh sahifadan katalogga: liga filtri yoki qidiruvga fokus
-  const [catalogIntent, setCatalogIntent] = useState({ categoryId: null, search: false });
+  const [kit360TeamId, setKit360TeamId] = useState(null);
 
   // ─── Cart origin (to return where the user came from) ────────────────────────
   const [cartFrom, setCartFrom] = useState('home');
@@ -102,16 +103,26 @@ export default function AppNavigator({ store, t, auth }) {
   // Tab/bosh sahifadan studiyaga kirilsa — maxsus dizayn rejimi (klub formasi faqat klub sahifasidan)
   const navigateTab = (next) => {
     if (next === 'studio') setStudioKit(null);
-    if (next === 'catalog') setCatalogIntent({ categoryId: null, search: false });
-    setRoute(next);
+    if (next === 'kit360' || next === 'catalog') setKit360TeamId(null);
+    setRoute(next === 'catalog' ? 'kit360' : next);
   };
   const openCart = (from) => {
     setCartFrom(from);
     setRoute('cart');
   };
   const openClub = (club, kitId) => {
+    const tId = club?.kit360Id || (club && kit360Team(club));
+    if (tId) {
+      setKit360TeamId(tId);
+      setRoute('kit360');
+      return;
+    }
     setSelectedClub({ clubId: club.id, kitId });
     setRoute('product');
+  };
+  const openKit360 = (teamId) => {
+    setKit360TeamId(teamId || null);
+    setRoute('kit360');
   };
   const openOrder = (id, from = route) => {
     setOrderId(id);
@@ -170,23 +181,18 @@ export default function AppNavigator({ store, t, auth }) {
         onClub={openClub}
         onOrder={(id) => openOrder(id, 'home')}
         onNotifications={() => openNotifications('home')}
-        onCategory={(categoryId) => {
-          setCatalogIntent({ categoryId, search: false });
-          setRoute('catalog');
-        }}
-        onSearch={() => {
-          setCatalogIntent({ categoryId: null, search: true });
-          setRoute('catalog');
-        }}
+        onCategory={() => openKit360()}
+        onSearch={() => openKit360()}
+        onTeam={openKit360}
         rules={config.rules}
         auth={auth}
       />
-    ) : route === 'catalog' ? (
-      <CatalogScreen
+    ) : route === 'kit360' || route === 'catalog' ? (
+      <Kit360Screen
         t={t}
-        onClub={openClub}
-        initialCategoryId={catalogIntent.categoryId}
-        focusSearch={catalogIntent.search}
+        initialTeam={kit360TeamId}
+        rules={config.rules}
+        cart={cart}
       />
     ) : route === 'studio' ? (
       <StudioScreen
@@ -198,7 +204,7 @@ export default function AppNavigator({ store, t, auth }) {
         studioError={config.error}
         onRetryConfig={refreshConfig}
         onOpenCart={() => openCart('studio')}
-        onPickKit={() => navigate('catalog')}
+        onPickKit={() => navigate('kit360')}
         onBack={() => navigate('home')}
       />
     ) : route === 'cart' ? (
@@ -271,7 +277,7 @@ export default function AppNavigator({ store, t, auth }) {
         clubId={selectedClub?.clubId}
         kitId={selectedClub?.kitId}
         rules={config.rules}
-        onBack={() => navigate('catalog')}
+        onBack={() => navigate('kit360')}
         onCustomize={(product) => {
           setStudioKit(product);
           navigate('studio');
