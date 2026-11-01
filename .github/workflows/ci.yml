@@ -65,6 +65,10 @@ jobs:
         run: pnpm typecheck
       - name: Unit tests
         run: pnpm test:cov
+      - name: Create DB for migration check
+        # POSTGRES_DB formo_test'ni yaratadi, lekin migratsiya tekshiruvi alohida (toza) bazada
+        # ishlashi kerak — formo_migrations hech qachon avtomatik yaratilmagan edi
+        run: PGPASSWORD=formo psql -h localhost -U formo -d formo_test -c "CREATE DATABASE formo_migrations;"
       - name: Migrations apply cleanly and match schema.prisma
         env:
           DATABASE_URL: ${{ env.MIGRATIONS_DATABASE_URL }}
