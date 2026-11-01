@@ -186,35 +186,6 @@
   font-weight: 600;
 }
 
-.sa-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex: 1;
-  max-width: 420px;
-  margin: 0 auto 0 24px;
-  padding: 0 14px;
-  height: 38px;
-  border-radius: 10px;
-  background: var(--sa-surface);
-  border: 1px solid var(--sa-line);
-  color: var(--sa-mu);
-}
-
-.sa-search input {
-  flex: 1;
-  min-width: 0;
-  background: transparent;
-  border: none;
-  outline: none;
-  color: var(--sa-ink);
-  font-size: 13.5px;
-}
-
-.sa-search input::placeholder {
-  color: var(--sa-mu-2);
-}
-
 .sa-iconbtn {
   display: grid;
   place-items: center;
@@ -233,6 +204,7 @@
 
 .sa-pp {
   position: relative;
+  margin-left: auto;
 }
 
 .sa-user {
@@ -860,10 +832,6 @@
 
   .sa-kanban {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .sa-search {
-    display: none;
   }
 }
 

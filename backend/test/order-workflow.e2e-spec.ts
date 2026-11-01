@@ -245,10 +245,10 @@ describe('Buyurtma oqimi: operator → tikuv sexi (e2e)', () => {
     expect(stats.body.dailyTrend).toHaveLength(7);
 
     await as(sexA.token)
-      .put('/api/workshop/inventory', { items: [{ productType: 'TSHIRT', color: 'Oq', size: 'M', qty: 12 }] })
+      .put('/api/workshop/inventory', { items: [{ productType: 'TSHIRT', kitId, size: 'M', qty: 12 }] })
       .expect(200);
     const stock = await as(sexB.token).get('/api/workshop/inventory?productType=TSHIRT').expect(200);
-    expect(stock.body).toEqual(expect.arrayContaining([expect.objectContaining({ color: 'Oq', size: 'M', qty: 12 })]));
+    expect(stock.body).toEqual(expect.arrayContaining([expect.objectContaining({ kitId, size: 'M', qty: 12 })]));
 
     for (const path of ['/api/admin/orders', '/api/admin/inventory', '/api/admin/production', '/api/admin/dashboard']) {
       await as(sexA.token).get(path).expect(403);

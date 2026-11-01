@@ -1,35 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Check, Minus, Plus, X } from 'lucide-react';
+import { ArrowRight, Minus, Plus, X } from 'lucide-react';
 import { Card } from './ui';
 import { useT } from './i18n';
-import { STOCK_COLORS, STOCK_SIZES } from './tailorConstants';
+import { STOCK_SIZES } from './tailorConstants';
 import { tailorInventoryApi } from './tailorApi';
 
-const emptyMatrix = () => Object.fromEntries(
-  STOCK_COLORS.map(({ name }) => [name, Object.fromEntries(STOCK_SIZES.map((itemSize) => [itemSize, 0]))]),
-);
-
-const inventoryToMatrix = (items) => {
-  const matrix = emptyMatrix();
-  for (const item of items) {
-    if (matrix[item.color] && STOCK_SIZES.includes(item.size) && Number.isInteger(item.qty) && item.qty >= 0) {
-      matrix[item.color][item.size] = item.qty;
-    }
-  }
-  return matrix;
-};
-
-const matrixToInventory = (matrix) => STOCK_COLORS.flatMap(({ name }) => STOCK_SIZES.map((itemSize) => ({
-  productType: 'TSHIRT',
-  color: name,
-  size: itemSize,
-  qty: matrix[name]?.[itemSize] ?? 0,
-})));
+const kitLabelOf = (kit) => (kit ? `${kit.clubName} — ${kit.label}` : '');
 
 export default function Zaxira() {
   const t = useT();
-  const [matrix, setMatrix] = useState(emptyMatrix);
-  const [color, setColor] = useState(STOCK_COLORS[0].name);
+  const [kits, setKits] = useState([]); // katalog: [{ kitId, label, clubName, bgColor, textColor }]
+  const [items, setItems] = useState([]); // zaxira qatorlari: [{ kitId, size, qty }]
+  const [kitId, setKitId] = useState('');
   const [size, setSize] = useState(STOCK_SIZES[0]);
   const [quantity, setQuantity] = useState('1');
   const [error, setError] = useState('');
@@ -41,13 +23,14 @@ export default function Zaxira() {
 
   useEffect(() => {
     let cancelled = false;
-    tailorInventoryApi.list()
-      .then((items) => {
-        if (!cancelled) {
-          setMatrix(inventoryToMatrix(items));
-          setInventoryLoaded(true);
-          setError('');
-        }
+    Promise.all([tailorInventoryApi.kits(), tailorInventoryApi.list()])
+      .then(([kitList, invItems]) => {
+        if (cancelled) return;
+        setKits(kitList);
+        setItems(invItems);
+        setKitId(kitList[0] ? String(kitList[0].kitId) : '');
+        setInventoryLoaded(true);
+        setError('');
       })
       .catch((requestError) => {
         if (!cancelled) setError(requestError.message);
@@ -60,16 +43,19 @@ export default function Zaxira() {
     };
   }, []);
 
-  const currentQty = matrix[color]?.[size] ?? 0;
+  const kitById = useMemo(() => Object.fromEntries(kits.map((k) => [String(k.kitId), k])), [kits]);
+  const qtyOf = (kId, sz) => items.find((i) => String(i.kitId) === String(kId) && i.size === sz)?.qty ?? 0;
+
+  const currentQty = qtyOf(kitId, size);
 
   const summary = useMemo(() => {
-    const values = STOCK_COLORS.flatMap(({ name }) => STOCK_SIZES.map((itemSize) => matrix[name]?.[itemSize] ?? 0));
+    const values = kits.flatMap((k) => STOCK_SIZES.map((sz) => items.find((i) => String(i.kitId) === String(k.kitId) && i.size === sz)?.qty ?? 0));
     return {
       total: values.reduce((sum, value) => sum + value, 0),
       low: values.filter((value) => value > 0 && value < 5).length,
       zero: values.filter((value) => value === 0).length,
     };
-  }, [matrix]);
+  }, [kits, items]);
 
   useEffect(() => {
     if (!formOpen) return undefined;
@@ -83,24 +69,21 @@ export default function Zaxira() {
   const addStock = async (event) => {
     event.preventDefault();
     const amount = Number(quantity);
-    if (!Number.isInteger(amount) || amount < 1) {
+    if (!kitId || !Number.isInteger(amount) || amount < 1) {
       setError(t('stock.add.invalid'));
       setSaved('');
       return;
     }
 
-    const nextMatrix = {
-      ...matrix,
-      [color]: { ...matrix[color], [size]: (matrix[color]?.[size] ?? 0) + amount },
-    };
+    const nextQty = currentQty + amount;
     setSaving(true);
     setError('');
     setSaved('');
     try {
-      const items = await tailorInventoryApi.save(matrixToInventory(nextMatrix));
-      setMatrix(inventoryToMatrix(items));
+      const fresh = await tailorInventoryApi.save([{ productType: 'TSHIRT', kitId: Number(kitId), size, qty: nextQty }]);
+      setItems(fresh);
       setSaved(t('stock.add.toast', {
-        color: t(`color.${STOCK_COLORS.find((item) => item.name === color)?.key}`),
+        color: kitLabelOf(kitById[kitId]),
         size,
         qty: amount,
       }));
@@ -123,7 +106,7 @@ export default function Zaxira() {
         <button
           type="button"
           onClick={() => setFormOpen(true)}
-          disabled={loading || !inventoryLoaded}
+          disabled={loading || !inventoryLoaded || !kits.length}
           className="inline-flex items-center gap-2 rounded-xl bg-teal-400 px-4 py-2.5 text-xs font-extrabold text-slate-950 transition hover:bg-teal-300 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-300 disabled:cursor-not-allowed disabled:opacity-50"
         >
           <Plus size={15} aria-hidden="true" />
@@ -139,7 +122,11 @@ export default function Zaxira() {
         </div>
       )}
 
-      {inventoryLoaded && (
+      {inventoryLoaded && !kits.length && (
+        <Card className="p-5 text-xs text-slate-400">{t('api.empty')}</Card>
+      )}
+
+      {inventoryLoaded && kits.length > 0 && (
         <>
           <div className="grid gap-4 sm:grid-cols-3">
             {[
@@ -165,16 +152,16 @@ export default function Zaxira() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {STOCK_COLORS.map((item) => (
-                  <tr key={item.name}>
+                {kits.map((k) => (
+                  <tr key={k.kitId}>
                     <td className="py-4">
                       <div className="flex items-center gap-3">
-                        <span className="h-5 w-5 shrink-0 rounded-full ring-2 ring-white/20" style={{ backgroundColor: item.hex }} />
-                        <span className="text-sm font-extrabold text-white">{t(`color.${item.key}`)}</span>
+                        <span className="h-5 w-5 shrink-0 rounded-full ring-2 ring-white/20" style={{ backgroundColor: k.bgColor }} />
+                        <span className="text-sm font-extrabold text-white">{kitLabelOf(k)}</span>
                       </div>
                     </td>
                     {STOCK_SIZES.map((itemSize) => {
-                      const count = matrix[item.name]?.[itemSize] ?? 0;
+                      const count = qtyOf(k.kitId, itemSize);
                       const state = count === 0 ? 'nol' : count < 5 ? 'kam' : 'dona';
                       const style = count === 0
                         ? 'border border-rose-500/40 bg-rose-500/20 text-rose-400'
@@ -236,35 +223,24 @@ export default function Zaxira() {
               </button>
             </div>
             <form className="relative mt-3.5 space-y-3.5" onSubmit={addStock}>
-              <fieldset>
-                <legend className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('stock.add.color')}</legend>
-                <div className="grid grid-cols-4 gap-2" role="radiogroup" aria-label={t('stock.add.color')}>
-                  {STOCK_COLORS.map((item) => {
-                    const active = item.name === color;
-                    return (
-                      <button
-                        key={item.name}
-                        type="button"
-                        role="radio"
-                        aria-checked={active}
-                        onClick={() => setColor(item.name)}
-                        className={`group flex flex-col items-center gap-1 rounded-xl border px-1 py-2 transition active:scale-95 ${
-                          active
-                            ? 'border-teal-400/60 bg-teal-400/10 shadow-[0_0_0_3px_rgba(45,212,191,0.12)]'
-                            : 'border-white/10 bg-[#0e1424] hover:border-white/25'
-                        }`}
-                      >
-                        <span className="relative flex h-7 w-7 items-center justify-center rounded-full ring-2 ring-white/20 transition group-hover:scale-110" style={{ backgroundColor: item.hex }}>
-                          {active && <Check size={16} strokeWidth={3} className="text-teal-300 mix-blend-difference" aria-hidden="true" />}
-                        </span>
-                        <span className={`max-w-full truncate text-[10px] font-bold ${active ? 'text-white' : 'text-slate-400'}`}>
-                          {t(`color.${item.key}`)}
-                        </span>
-                      </button>
-                    );
-                  })}
+              <div>
+                <label htmlFor="tailor-stock-kit" className="mb-1.5 block text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                  {t('stock.add.color')}
+                </label>
+                <div className="flex items-center gap-2">
+                  <span className="h-6 w-6 shrink-0 rounded-full ring-2 ring-white/20" style={{ backgroundColor: kitById[kitId]?.bgColor || '#888' }} />
+                  <select
+                    id="tailor-stock-kit"
+                    value={kitId}
+                    onChange={(event) => setKitId(event.target.value)}
+                    className="h-10 w-full min-w-0 rounded-xl border border-white/10 bg-[#0e1424] px-3 text-sm font-bold text-white outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-400/10"
+                  >
+                    {kits.map((k) => (
+                      <option key={k.kitId} value={k.kitId}>{kitLabelOf(k)}</option>
+                    ))}
+                  </select>
                 </div>
-              </fieldset>
+              </div>
 
               <fieldset>
                 <legend className="mb-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">{t('stock.add.size')}</legend>
@@ -338,7 +314,7 @@ export default function Zaxira() {
               </div>
 
               <div className="flex items-center justify-between rounded-xl border border-white/10 bg-[#0e1424] px-4 py-2.5">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{t(`color.${STOCK_COLORS.find((item) => item.name === color)?.key}`)} · {size}</span>
+                <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{kitLabelOf(kitById[kitId])} · {size}</span>
                 <span className="flex items-center gap-2 text-sm font-black">
                   <span className="text-slate-400">{currentQty}</span>
                   <ArrowRight size={14} className="text-slate-500" aria-hidden="true" />

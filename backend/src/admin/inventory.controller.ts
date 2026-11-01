@@ -16,10 +16,16 @@ export class InventoryController {
   constructor(private readonly inventory: InventoryService) {}
 
   @Get()
-  @ApiOperation({ summary: "Rang/o'lcham bo'yicha zaxira qoldig'i" })
+  @ApiOperation({ summary: "Klub formasi/o'lcham bo'yicha zaxira qoldig'i" })
   @ApiOkResponse()
   list(@Query() query: ListInventoryQueryDto) {
     return this.inventory.list(query);
+  }
+
+  @Get('kits')
+  @ApiOperation({ summary: 'Zaxira uchun klub formalari ro‘yxati (tanlov uchun)' })
+  kitOptions() {
+    return this.inventory.kitOptions();
   }
 
   @Put()

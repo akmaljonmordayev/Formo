@@ -12,10 +12,7 @@ function TranslatedLayout({ menu }) {
 
   useEffect(() => {
     document.documentElement.lang = lang === 'oz' ? 'uz-Cyrl' : lang;
-    // Yuqori paneldagi qidiruv maydoni umumiy layoutda — placeholder shu yerdan tarjima qilinadi
-    const input = document.querySelector('.sa-search input');
-    if (input) input.placeholder = t('Buyurtma raqami yoki telefon + Enter');
-  }, [lang, t]);
+  }, [lang]);
 
   return (
     <>

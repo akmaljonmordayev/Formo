@@ -290,14 +290,15 @@ async function main() {
       }
     }
 
-    // ---- Zaxira (faqat yo'q qatorlar) ----
+    // ---- Zaxira (faqat yo'q qatorlar) — klub formalari bo'yicha ----
     let inventory = 0;
+    const stockKits = await prisma.kit.findMany({ where: { isActive: true }, orderBy: { id: 'asc' }, take: 8 });
     for (const productType of ['TSHIRT', 'SHORTS'] as const) {
-      for (const color of ['oq', 'qora', 'toqkok', 'qizil']) {
+      for (const [ki, kit] of stockKits.entries()) {
         for (const [si, size] of ['S', 'M', 'L', 'XL', 'XXL'].entries()) {
-          const key = { productType_color_size: { productType, color, size } };
+          const key = { productType_kitId_size: { productType, kitId: kit.id, size } };
           if (await prisma.inventoryItem.findUnique({ where: key })) continue;
-          await prisma.inventoryItem.create({ data: { productType, color, size, qty: 6 + ((si * 7 + color.length * 3) % 30) } });
+          await prisma.inventoryItem.create({ data: { productType, kitId: kit.id, size, qty: 6 + ((si * 7 + ki * 3) % 30) } });
           inventory++;
         }
       }

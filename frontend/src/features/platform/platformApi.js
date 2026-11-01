@@ -47,6 +47,7 @@ export const ordersApi = {
 export const inventoryApi = {
   list: (params) => api(`/admin/inventory${qs(params)}`),
   save: (items) => api('/admin/inventory', { method: 'PUT', body: { items } }),
+  kits: () => api('/admin/inventory/kits'),
 };
 
 export const pricingApi = {

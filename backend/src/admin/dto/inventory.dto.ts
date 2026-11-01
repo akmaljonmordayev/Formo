@@ -8,9 +8,9 @@ export class InventoryItemInput {
   @IsEnum(InventoryProductType)
   productType: InventoryProductType;
 
-  @ApiProperty({ example: 'Qora' })
-  @IsString()
-  color: string;
+  @ApiProperty({ example: 1, description: 'Kit.id — klubning uy/mehmon/uchinchi formasi' })
+  @IsInt()
+  kitId: number;
 
   @ApiProperty({ example: 'M' })
   @IsString()
