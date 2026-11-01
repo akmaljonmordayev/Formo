@@ -22,6 +22,10 @@ describe('Reverse proxy ortida rate-limit (e2e)', () => {
     ({ app } = await helpers.createApp());
   });
 
+  beforeEach(async () => {
+    await helpers.resetLoginLockout(app);
+  });
+
   afterAll(async () => {
     await app.close();
     delete process.env.TRUST_PROXY;
@@ -95,6 +99,10 @@ describe('Klient IP alohida headerda (CLIENT_IP_HEADER) (e2e)', () => {
     process.env.TRUST_PROXY = '2';
     process.env.CLIENT_IP_HEADER = 'x-real-ip';
     ({ app } = await helpers.createApp());
+  });
+
+  beforeEach(async () => {
+    await helpers.resetLoginLockout(app);
   });
 
   afterAll(async () => {
