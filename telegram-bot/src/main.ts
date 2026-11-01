@@ -5,6 +5,7 @@ import { handleUpdate } from './handlers';
 import { createLogger, errorMessage } from './log';
 import { startOutboxLoop } from './outbox';
 import { runPolling } from './polling';
+import { RateLimiter } from './ratelimit';
 import { createBotServer } from './server';
 import { UserSessions } from './session';
 import { TelegramApi, TgUpdate } from './telegram';
@@ -14,7 +15,7 @@ async function main() {
   const log = createLogger([config.botToken, config.internalToken, config.webhookSecret]);
   const tg = new TelegramApi(config.botToken, config.telegramApiBase);
   const backend = new BackendClient(config.backendUrl, config.internalToken);
-  const deps = { tg, backend, log, dedupe: new RecentIds(), sessions: new UserSessions() };
+  const deps = { tg, backend, log, dedupe: new RecentIds(), sessions: new UserSessions(), limiter: new RateLimiter() };
   const process_ = (u: TgUpdate) => handleUpdate(u, deps);
 
   const server = createBotServer({

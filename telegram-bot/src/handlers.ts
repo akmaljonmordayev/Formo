@@ -3,6 +3,7 @@ import { RecentIds } from './dedupe';
 import { FIRST_LANGUAGE_PROMPT, isLang, Lang, langFromCode, menuAction, money, T } from './i18n';
 import { errorMessage, Logger } from './log';
 import { contactKeyboard, LOGIN, removeKeyboard, RESEND_DATA, resendKeyboard } from './messages';
+import { RateLimiter } from './ratelimit';
 import { UserSessions } from './session';
 import { SendOptions, TelegramError, TgCallbackQuery, TgMessage, TgUpdate, TgUser } from './telegram';
 import {
@@ -29,6 +30,7 @@ export interface Deps {
   log: Logger;
   dedupe: RecentIds;
   sessions: UserSessions;
+  limiter: RateLimiter;
 }
 
 /** guarded() foydalanuvchiga xabar berib, qayta ishlashni to'xtatgan */
@@ -38,10 +40,19 @@ const START = /^\/start(?:@\w+)?(?:\s+(\S+))?\s*$/;
 const COMMAND = (name: string) => new RegExp(`^/${name}(?:@\\w+)?\\s*$`);
 const LIMITS_TTL_MS = 5 * 60_000;
 
+const fromId = (update: TgUpdate) => update.message?.from?.id ?? update.callback_query?.from.id;
+
 /** Bitta update'ni qayta ishlaydi. Hech qachon xato tashlamaydi — polling/webhook to'xtamasin */
 export async function handleUpdate(update: TgUpdate, deps: Deps) {
   if (!deps.dedupe.add(update.update_id)) {
     deps.log.info('takroriy update tashlandi', { updateId: update.update_id });
+    return;
+  }
+  const userId = fromId(update);
+  // Bitta foydalanuvchi oqimi: callback tugmasi javobsiz qolishi mumkin (Telegram'da "yuklanmoqda"
+  // bir ozdan keyin o'zi tugaydi) — bu faqat suiiste'mol holatida, oddiy foydalanishga ta'sir qilmaydi
+  if (userId !== undefined && !deps.limiter.allow(String(userId))) {
+    deps.log.info('tezlik chegarasi: update tashlandi', { updateId: update.update_id });
     return;
   }
   try {

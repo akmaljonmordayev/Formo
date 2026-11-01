@@ -15,6 +15,7 @@ import { RecentIds } from '../src/dedupe';
 import { Deps } from '../src/handlers';
 import { Lang } from '../src/i18n';
 import { Logger } from '../src/log';
+import { RateLimiter } from '../src/ratelimit';
 import { UserSessions } from '../src/session';
 import { SendOptions, TgUpdate } from '../src/telegram';
 
@@ -135,6 +136,7 @@ export function fakeDeps() {
     log,
     dedupe: new RecentIds(),
     sessions: new UserSessions(),
+    limiter: new RateLimiter(),
   };
   return { deps, backend, sent, answered, lines };
 }
