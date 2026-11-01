@@ -324,6 +324,13 @@ export const notifications = {
   list: () => request('/notifications'),
 };
 
+/** Qo'llab-quvvatlash chati (operator bilan): { items: [{ id, text, fromWorkshop (true = mijoz yozgan), createdAt }] } */
+export const support = {
+  messages: (after) => request(`/support/messages${query({ after })}`),
+  send: (text) => request('/support/messages', { method: 'POST', body: { text } }),
+  unread: () => request('/support/unread'),
+};
+
 // ─── Public API object ───────────────────────────────────────────────────────
 
 export const api = {
@@ -336,4 +343,5 @@ export const api = {
   appConfig,
   notifications,
   kits,
+  support,
 };

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, MessagesSquare, Phone, Send } from 'lucide-react';
-import { chatApi } from '../../../features/platform/platformApi';
+import { chatApi, supportApi } from '../../../features/platform/platformApi';
 import { prettyPhone, workshopsApi } from '../../../features/accounts/accountsApi';
 import { useDebounced } from '../../../hooks/useDebounced';
 import { useT } from '../i18n';
@@ -16,13 +16,23 @@ function usePolling(fn) {
   });
   useEffect(() => {
     let timer = null;
+    let busy = false;
     const stop = () => {
       if (timer) clearInterval(timer);
       timer = null;
     };
     const start = () => {
       stop();
-      timer = setInterval(() => ref.current(), POLL_MS);
+      timer = setInterval(async () => {
+        // Sekin serverda so'rovlar ustma-ust yig'ilmasin
+        if (busy) return;
+        busy = true;
+        try {
+          await ref.current();
+        } finally {
+          busy = false;
+        }
+      }, POLL_MS);
     };
     const onVis = () => {
       if (document.hidden) stop();
@@ -42,6 +52,12 @@ function usePolling(fn) {
 
 export default function OperatorMessages() {
   const t = useT();
+  // 'customers' — mobil ilova mijozlari (qo'llab-quvvatlash), 'workshops' — tikuv sexlari
+  const [mode, setMode] = useState('customers');
+  const api = mode === 'customers' ? supportApi : chatApi;
+  // Tab almashganda eski rejimdan kechikib kelgan javob ro'yxatni bosib ketmasin
+  const modeRef = useRef(mode);
+  modeRef.current = mode;
   const [search, setSearch] = useState('');
   const [threads, setThreads] = useState(null);
   const [error, setError] = useState('');
@@ -58,14 +74,18 @@ export default function OperatorMessages() {
   const activeRef = useRef(null);
 
   const loadThreads = useCallback(async () => {
+    const requested = api === supportApi ? 'customers' : 'workshops';
     try {
-      setThreads(await chatApi.threads());
+      const list = await api.threads();
+      if (modeRef.current !== requested) return;
+      setThreads(list);
       setError('');
     } catch (err) {
+      if (modeRef.current !== requested) return;
       setError(err.message);
       setThreads((prev) => prev ?? []);
     }
-  }, []);
+  }, [api]);
 
   // Yangi xabarlarni qo'shadi (id bo'yicha takrorlanmaydi)
   const appendMessages = useCallback((wid, items) => {
@@ -83,12 +103,12 @@ export default function OperatorMessages() {
     const wid = activeRef.current;
     if (!wid) return;
     try {
-      const res = await chatApi.messages(wid, lastIdRef.current || undefined);
+      const res = await api.messages(wid, lastIdRef.current || undefined);
       appendMessages(wid, res.items);
     } catch {
       // keyingi poll qayta urinadi
     }
-  }, [appendMessages]);
+  }, [api, appendMessages]);
 
   useEffect(() => {
     loadThreads();
@@ -102,10 +122,7 @@ export default function OperatorMessages() {
       .catch(() => {});
   }, []);
 
-  usePolling(() => {
-    loadThreads();
-    pollMessages();
-  });
+  usePolling(() => Promise.all([loadThreads(), pollMessages()]));
 
   useEffect(() => {
     activeRef.current = activeId;
@@ -115,7 +132,7 @@ export default function OperatorMessages() {
     setSendError('');
     if (!activeId) return undefined;
     let cancelled = false;
-    chatApi
+    api
       .messages(activeId)
       .then((res) => {
         if (cancelled) return;
@@ -127,7 +144,7 @@ export default function OperatorMessages() {
     return () => {
       cancelled = true;
     };
-  }, [activeId, loadThreads]);
+  }, [activeId, api, loadThreads]);
 
   useEffect(() => {
     const el = bodyRef.current;
@@ -146,7 +163,7 @@ export default function OperatorMessages() {
     setSending(true);
     setSendError('');
     try {
-      const msg = await chatApi.send(activeId, value);
+      const msg = await api.send(activeId, value);
       setText('');
       stickRef.current = true;
       appendMessages(activeId, [msg]);
@@ -165,7 +182,7 @@ export default function OperatorMessages() {
 
   const colorOf = (wid) => (threads ?? []).findIndex((th) => th.workshopId === wid) % 5;
   const active = (threads ?? []).find((th) => th.workshopId === activeId) ?? null;
-  const phone = activeId ? phones[activeId] : null;
+  const phone = activeId ? (mode === 'customers' ? active?.phone : phones[activeId]) : null;
   const time = (iso) => new Date(iso).toLocaleTimeString(t.locale, { hour: '2-digit', minute: '2-digit' });
   const day = (iso) => new Date(iso).toLocaleDateString(t.locale, { day: '2-digit', month: '2-digit' });
   const stamp = (iso) => (new Date(iso).toDateString() === new Date().toDateString() ? time(iso) : `${day(iso)} ${time(iso)}`);
@@ -181,7 +198,27 @@ export default function OperatorMessages() {
 
       <section className={`op-cd op-chat${activeId ? ' has-active' : ''}`}>
         <aside className="op-chat-ls" aria-label={t('menu.messages')}>
-          <div className="op-chat-sr">
+          <div className="op-chat-sr" style={{ display: 'grid', gap: 8 }}>
+            <div role="tablist" style={{ display: 'flex', gap: 6 }}>
+              {['customers', 'workshops'].map((m) => (
+                <button
+                  key={m}
+                  type="button"
+                  role="tab"
+                  aria-selected={mode === m}
+                  className={`op-b${mode === m ? ' is-p' : ''}`}
+                  style={{ flex: 1, justifyContent: 'center' }}
+                  onClick={() => {
+                    if (mode === m) return;
+                    setMode(m);
+                    setActiveId(null);
+                    setThreads(null);
+                  }}
+                >
+                  {t(m === 'customers' ? 'msg.tabCustomers' : 'msg.tabWorkshops')}
+                </button>
+              ))}
+            </div>
             <input
               type="search"
               className="op-in"
@@ -293,8 +330,8 @@ export default function OperatorMessages() {
                         maxWidth: '78%',
                         padding: '8px 12px',
                         borderRadius: 14,
-                        background: m.fromWorkshop ? 'var(--op-cd, #fff)' : 'var(--op-ac)',
-                        color: m.fromWorkshop ? 'inherit' : 'var(--op-acf)',
+                        background: m.fromWorkshop ? 'var(--op-sf2)' : 'var(--op-ac)',
+                        color: m.fromWorkshop ? 'var(--op-ink)' : 'var(--op-acf)',
                         border: m.fromWorkshop ? '1px solid var(--op-ln)' : 'none',
                         overflowWrap: 'anywhere',
                         whiteSpace: 'pre-wrap',

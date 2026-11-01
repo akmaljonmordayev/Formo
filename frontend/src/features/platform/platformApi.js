@@ -95,6 +95,14 @@ export const chatApi = {
   send: (workshopId, text) => api(`/admin/chat/${workshopId}/messages`, { method: 'POST', body: { text } }),
 };
 
+// Operator/Superadmin ↔ mobil ilova mijozi (qo'llab-quvvatlash chati)
+export const supportApi = {
+  threads: () => api('/admin/support/threads'), // [{ workshopId(=userId), name, phone, unread, lastMessage }]
+  unread: () => api('/admin/support/unread'), // { unread }
+  messages: (userId, after) => api(`/admin/support/${userId}/messages${qs({ after })}`), // { items }
+  send: (userId, text) => api(`/admin/support/${userId}/messages`, { method: 'POST', body: { text } }),
+};
+
 // Sexlar topgan nuqsonlar (brak)
 export const defectsApi = {
   list: (params) => api(`/admin/defects${qs(params)}`), // { items, total, page, limit, openCount }

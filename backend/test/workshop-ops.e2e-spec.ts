@@ -128,6 +128,68 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
   });
 
   // ---------------------------------------------------------------------------
+  describe('Mijoz ↔ operator yozishmasi (qo‘llab-quvvatlash)', () => {
+    let user2: string;
+    let userId: number;
+
+    beforeAll(async () => {
+      userId = (await as(user).get('/api/auth/me').expect(200)).body.id;
+      const reg = await api(app)
+        .post('/api/auth/register')
+        .send({ phone: nextPhone(), password: 'secret123', fullName: 'Bobur Aliyev' })
+        .expect(201);
+      user2 = reg.body.accessToken;
+    });
+
+    it('mijoz yozadi → operator ro‘yxatda ko‘radi (o‘qilmagan) → javob mijozga yetadi', async () => {
+      const sent = await as(user).post('/api/support/messages', { text: 'Buyurtmam qachon keladi?' }).expect(201);
+      expect(sent.body).toMatchObject({ workshopId: userId, fromWorkshop: true, text: 'Buyurtmam qachon keladi?' });
+
+      expect((await as(operator).get('/api/admin/support/unread').expect(200)).body.unread).toBe(1);
+      const threads = await as(operator).get('/api/admin/support/threads').expect(200);
+      expect(threads.body).toHaveLength(1);
+      expect(threads.body[0]).toMatchObject({ workshopId: userId, name: 'Aziz Karimov', unread: 1 });
+
+      const opened = await as(operator).get(`/api/admin/support/${userId}/messages`).expect(200);
+      expect(opened.body.items.map((m: { text: string }) => m.text)).toEqual(['Buyurtmam qachon keladi?']);
+      expect((await as(operator).get('/api/admin/support/unread').expect(200)).body.unread).toBe(0);
+
+      await as(operator).post(`/api/admin/support/${userId}/messages`, { text: 'Ertaga yetkaziladi' }).expect(201);
+      expect((await as(user).get('/api/support/unread').expect(200)).body.unread).toBe(1);
+      const mine = await as(user).get(`/api/support/messages?after=${sent.body.id}`).expect(200);
+      expect(mine.body.items).toHaveLength(1);
+      expect(mine.body.items[0]).toMatchObject({ fromWorkshop: false, text: 'Ertaga yetkaziladi' });
+      expect((await as(user).get('/api/support/unread').expect(200)).body.unread).toBe(0);
+    });
+
+    it('mijozlar bir-birining yozishmasini ko‘rmaydi; sex chatlari aralashmaydi', async () => {
+      const other = await as(user2).get('/api/support/messages').expect(200);
+      expect(other.body.items).toEqual([]);
+      // Mijoz suhbatlari sexlar ro'yxatiga, sex suhbatlari mijozlar ro'yxatiga tushmaydi
+      const sexThreads = await as(operator).get('/api/admin/chat/threads').expect(200);
+      expect(sexThreads.body.find((th: { workshopId: number }) => th.workshopId === userId)).toBeUndefined();
+      const custThreads = await as(operator).get('/api/admin/support/threads').expect(200);
+      expect(custThreads.body.find((th: { workshopId: number }) => th.workshopId === sexA.id)).toBeUndefined();
+    });
+
+    it('rol, IDOR va validatsiya', async () => {
+      await as(sexA.token).get('/api/support/messages').expect(403);
+      await as(operator).get('/api/support/messages').expect(403);
+      await as(user).get('/api/admin/support/threads').expect(403);
+      await as(user).get(`/api/admin/support/${userId}/messages`).expect(403);
+      await as(sexA.token).get('/api/admin/support/threads').expect(403);
+      // Operator sex id'si bilan mijoz chatiga, mijoz id'si bilan sex chatiga yoza olmaydi
+      await as(operator).post(`/api/admin/support/${sexA.id}/messages`, { text: 'salom' }).expect(404);
+      await as(operator).post(`/api/admin/chat/${userId}/messages`, { text: 'salom' }).expect(404);
+      await as(user).post('/api/support/messages', { text: '   ' }).expect(400);
+      await as(user).post('/api/support/messages', { text: '<script>alert(1)</script>' }).expect(400);
+      await as(user).post('/api/support/messages', { text: 'x'.repeat(1001) }).expect(400);
+      await as(user).post('/api/support/messages', { text: 'ok', workshopId: 1 }).expect(400);
+      await api(app).get('/api/support/messages').expect(401);
+    });
+  });
+
+  // ---------------------------------------------------------------------------
   describe('Nuqson (brak)', () => {
     beforeAll(async () => {
       await as(user).post('/api/cart/items', { kitId, shirtSize: 'M' }).expect(201);
