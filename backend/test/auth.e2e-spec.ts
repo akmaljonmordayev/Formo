@@ -15,6 +15,15 @@ describe('Auth (e2e)', () => {
     await app.close();
   });
 
+  // Har test boshida tozalanadi: ba'zi testlar SUPERADMIN'ga ataylab xato parol yuboradi —
+  // shu urinishlar keyingi testlarda hisobni (login-lockout) bloklab qo'ymasin
+  beforeEach(async () => {
+    await prisma.user.update({
+      where: { phone: SUPERADMIN.phone },
+      data: { failedLoginAttempts: 0, lockedUntil: null },
+    });
+  });
+
   const validUser = () => ({
     phone: nextPhone(),
     password: 'secret123',
