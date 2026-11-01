@@ -24,6 +24,8 @@ async function request(path, { method = 'GET', body, auth = true } = {}) {
       ...(token && { Authorization: `Bearer ${token}` }),
     },
     body: form ? body : body ? JSON.stringify(body) : undefined,
+    // Server osilib qolsa spinner abadiy aylanmasin (fayl yuklashga ko'proq vaqt)
+    signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(form ? 120_000 : 20_000) : undefined,
   });
   const data = await res.json().catch(() => null);
   return { res, data };
@@ -56,7 +58,16 @@ function errorMessage(data) {
 }
 
 export async function api(path, options = {}) {
-  let { res, data } = await request(path, options);
+  let res;
+  let data;
+  try {
+    ({ res, data } = await request(path, options));
+  } catch (err) {
+    if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
+      throw new ApiError("Server javob bermayapti. Birozdan so'ng qayta urinib ko'ring", 0);
+    }
+    throw new ApiError("Internetga ulanib bo'lmadi. Tarmoqni tekshiring", 0);
+  }
 
   if (res.status === 401 && options.auth !== false && session.refreshToken) {
     if (await refreshTokens()) {

@@ -36,7 +36,7 @@ export function Card({ className, children }) {
   return (
     <div
       className={cx(
-        'rounded-2xl border border-white/10 bg-white/[0.04] shadow-[0_16px_50px_-24px_rgba(0,0,0,0.9)] backdrop-blur-xl',
+        'rounded-2xl border border-white/10 bg-[#121829] shadow-[0_16px_50px_-24px_rgba(0,0,0,0.9)]',
         className
       )}
     >
@@ -190,7 +190,7 @@ export function JerseyPreview({
 
 export function StatCard({ label, value, hint, icon: Icon, tone = 'teal' }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
+    <div className="rounded-2xl border border-white/10 bg-[#121829] p-5">
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
           <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">{label}</p>
