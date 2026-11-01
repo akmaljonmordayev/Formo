@@ -2,7 +2,7 @@
   "expo": {
     "name": "Formo",
     "slug": "formo",
-    "version": "0.2.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "dark",
     "plugins": [
@@ -31,11 +31,32 @@
         "LSApplicationQueriesSchemes": [
           "tg"
         ]
-      }
+      },
+      "buildNumber": "1"
     },
     "android": {
       "package": "com.formo.app",
-      "softwareKeyboardLayoutMode": "resize"
+      "versionCode": 1,
+      "icon": "./assets/icon.png",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "monochromeImage": "./assets/monochrome-icon.png",
+        "backgroundColor": "#000000"
+      },
+      "softwareKeyboardLayoutMode": "resize",
+      "permissions": [
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_FINE_LOCATION",
+        "INTERNET"
+      ],
+      "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
+        "android.permission.SYSTEM_ALERT_WINDOW",
+        "android.permission.READ_EXTERNAL_STORAGE",
+        "android.permission.WRITE_EXTERNAL_STORAGE",
+        "android.permission.ACCESS_BACKGROUND_LOCATION"
+      ],
+      "allowBackup": false
     },
     "updates": {
       "enabled": false
@@ -47,6 +68,8 @@
       "eas": {
         "projectId": ""
       }
-    }
+    },
+    "icon": "./assets/icon.png",
+    "backgroundColor": "#050818"
   }
 }
