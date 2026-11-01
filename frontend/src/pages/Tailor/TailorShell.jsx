@@ -79,8 +79,9 @@ export default function TailorShell({ title, subtitle, children }) {
     setPrefsError('');
   }, [user?.id]);
 
-  const reloadOrders = useCallback(async () => {
-    setOrdersLoading(true);
+  // silent — fon yangilanishi: yuklanish holati ko'rsatilmaydi (sahifa sakramaydi)
+  const reloadOrders = useCallback(async ({ silent = false } = {}) => {
+    if (!silent) setOrdersLoading(true);
     setOrdersError('');
     try {
       const freshOrders = await listTailorOrders();
@@ -197,7 +198,10 @@ export default function TailorShell({ title, subtitle, children }) {
 
   useEffect(() => {
     reloadOrders();
-    const timer = window.setInterval(reloadOrders, 30_000);
+    // Tab yashirin bo'lsa so'ramaymiz
+    const timer = window.setInterval(() => {
+      if (!document.hidden) reloadOrders({ silent: true });
+    }, 30_000);
     return () => window.clearInterval(timer);
   }, [reloadOrders]);
 
@@ -231,11 +235,9 @@ export default function TailorShell({ title, subtitle, children }) {
         <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
           <div
             className="absolute -right-32 -top-32 h-[28rem] w-[28rem] rounded-full bg-teal-500/10 blur-3xl"
-            style={{ animation: 'tl-drift 18s ease-in-out infinite' }}
           />
           <div
             className="absolute -bottom-40 left-1/3 h-[26rem] w-[26rem] rounded-full bg-indigo-500/10 blur-3xl"
-            style={{ animation: 'tl-drift 24s ease-in-out infinite reverse' }}
           />
         </div>
 

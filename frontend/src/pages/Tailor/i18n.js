@@ -994,10 +994,17 @@ export const orderTime = (t, order) => {
   return date ? new Date(date).toLocaleDateString(t.locale, { timeZone: 'UTC' }) : t('api.empty');
 };
 
-export const orderDeadline = (t, order) => {
+export const orderDeadline = (t, order, now = new Date()) => {
   if (!order.deadline) return order.deliveryTime ?? t('api.empty');
-  const base = t('time.withClock', { when: t('time.today'), time: order.deadline.time });
-  return order.deadline.done
-    ? `${base} · ${t('order.deadlineDone')}`
-    : t('order.deadlineFull', { base, h: order.deadline.h, m: order.deadline.m });
+  // deliveryTime — 'YYYY-MM-DD', deadline.time — '10:00-14:00' (slot boshlanishi muddat hisoblanadi)
+  const date = order.deliveryTime;
+  const [hh, mm] = String(order.deadline.time).split('-')[0].split(':').map(Number);
+  const start = date && Number.isFinite(hh) ? new Date(`${date}T${String(hh).padStart(2, '0')}:${String(mm || 0).padStart(2, '0')}:00`) : null;
+  const isToday = start && start.toDateString() === now.toDateString();
+  const when = !start || isToday ? t('time.today') : start.toLocaleDateString(t.locale);
+  const base = t('time.withClock', { when, time: order.deadline.time });
+  if (order.deadline.done) return `${base} · ${t('order.deadlineDone')}`;
+  const left = start ? start.getTime() - now.getTime() : 0;
+  if (left <= 0) return base;
+  return t('order.deadlineFull', { base, h: Math.floor(left / 3_600_000), m: Math.floor((left % 3_600_000) / 60_000) });
 };

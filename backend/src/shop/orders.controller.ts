@@ -76,7 +76,7 @@ export class ShopOrdersController {
     summary: 'To‘lovni tasdiqlash (demo)',
     description:
       'Click/Payme integratsiyasi ulanguncha dizayndagi "To‘lovni tasdiqlash (demo)" tugmasi uchun. ' +
-      'Productionda faqat `PAYMENT_DEMO=true` bo‘lsa ishlaydi.',
+      'Productionda ishlamaydi (faqat dev/test).',
   })
   @ApiConflictResponse({ description: 'Buyurtma to‘lov kutmayapti yoki muddati tugagan' })
   confirmPayment(@CurrentUser() user: AuthUser, @Param('id', ParseIdPipe) id: number) {

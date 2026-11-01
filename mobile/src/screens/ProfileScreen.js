@@ -35,7 +35,7 @@ function formatDate(value) {
  * gender/age/height/weight). Profilda manzil maydoni yo'q — "Manzillarim"
  * rasmiylashtirishda saqlangan manzillarni ko'rsatadi (GET /addresses).
  */
-export default function ProfileScreen({ t, onSettings, onOrders, onAddresses, onWallet, auth }) {
+export default function ProfileScreen({ t, onSettings, onOrders, onAddresses, onWallet, onSupport, auth }) {
   const wallet = useWallet();
   const [editVisible, setEditVisible] = useState(false);
   const [logoutRequested, setLogoutRequested] = useState(false);
@@ -130,6 +130,7 @@ export default function ProfileScreen({ t, onSettings, onOrders, onAddresses, on
           }}
         />
         <Row icon="clipboard-list-outline" title={t('myOrders')} onPress={onOrders} />
+        <Row icon="message-text-outline" title={t('supportChat')} sub={t('supportChatSub')} onPress={onSupport} />
         <Row icon="cog-outline" title={t('settings')} sub={t('languageSub')} onPress={onSettings} last />
       </View>
 

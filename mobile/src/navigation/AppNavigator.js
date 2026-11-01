@@ -18,6 +18,7 @@ import ProductScreen from '../screens/ProductScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import StudioScreen from '../screens/StudioScreen';
+import SupportChatScreen from '../screens/SupportChatScreen';
 import WalletScreen from '../screens/WalletScreen';
 import useAppConfig from '../features/config';
 import useCart from '../features/cart';
@@ -240,7 +241,10 @@ export default function AppNavigator({ store, t, auth }) {
         onOrders={() => navigate('orders')}
         onAddresses={() => navigate('addresses')}
         onWallet={() => openWallet('profile')}
+        onSupport={() => navigate('support')}
       />
+    ) : route === 'support' ? (
+      <SupportChatScreen t={t} onBack={() => navigate('profile')} />
     ) : route === 'wallet' ? (
       <WalletScreen t={t} telegramBot={config.telegramBot} onBack={() => navigate(walletFrom)} />
     ) : route === 'addresses' ? (
@@ -287,7 +291,7 @@ export default function AppNavigator({ store, t, auth }) {
 
   // Tab bar stays visible everywhere in the main app (including the design
   // studio — only full-screen detail/settings pages hide it).
-  const hideTabs = ['product', 'settings', 'checkout', 'order', 'notifications', 'addresses', 'locationPicker', 'wallet'].includes(route);
+  const hideTabs = ['product', 'settings', 'checkout', 'order', 'notifications', 'addresses', 'locationPicker', 'wallet', 'support'].includes(route);
 
   return (
     <CartContext.Provider value={cartValue}>

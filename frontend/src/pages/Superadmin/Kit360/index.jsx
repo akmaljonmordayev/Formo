@@ -56,25 +56,32 @@ export default function Kit360() {
   const [fontsCss, setFontsCss] = useState(false);
   const [tick, setTick] = useState(0);
   const repaint = useCallback(() => setTick((n) => n + 1), []);
+  // Fonda oldindan yuklanayotgan 8 kadr har biri butun canvasni qayta chizmasin — faqat ko'rinayotganlari
+  const shownRef = useRef(null);
+  const repaintIfShown = useCallback((im) => {
+    const s = shownRef.current;
+    if (!s || im === s.img || im === s.back) repaint();
+  }, [repaint]);
 
   const image = useCallback((id, i) => {
     const key = `${id}/${i}`;
     if (!cache.current[key]) {
       const im = new Image();
       im.decoding = 'async';
-      im.onload = repaint;
+      im.onload = () => repaintIfShown(im);
       im.onerror = () => {
         im.failed = true;
-        repaint();
+        repaintIfShown(im);
       };
       im.src = frameUrl(id, i);
       cache.current[key] = im;
     }
     return cache.current[key];
-  }, [repaint]);
+  }, [repaintIfShown]);
 
   const img = image(team.id, frame);
   const back = image(team.id, 4);
+  shownRef.current = { img, back };
   const imgReady = ready(img);
   const backReady = ready(back);
   const status = imgReady ? 'ok' : img.failed ? 'error' : 'loading';

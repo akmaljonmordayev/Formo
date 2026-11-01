@@ -140,9 +140,10 @@ describe('AccountsService', () => {
 
       const result = await service.createSingle(Role.OPERATOR, input);
 
-      expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
-        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-      });
+      expect(prisma.$transaction).toHaveBeenCalledWith(
+        expect.any(Function),
+        expect.objectContaining({ isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 10_000 }),
+      );
       expect(tx.user.create.mock.calls[0][0].data).toMatchObject({ role: Role.OPERATOR, phone: input.phone });
       expect(result).not.toHaveProperty('passwordHash');
     });
