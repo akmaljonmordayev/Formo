@@ -64,9 +64,12 @@ type OrderRow = Prisma.OrderGetPayload<{ include: typeof include }>;
 
 export const orderCode = (id: number) => `FRM-${String(id).padStart(6, '0')}`;
 
-/** Demo to'lov tasdig'i (Click/Payme integratsiyasigacha) — productionda faqat PAYMENT_DEMO=true bilan */
+/**
+ * Demo to'lov tasdig'i (Click/Payme integratsiyasigacha) — faqat dev/test muhitida.
+ * Productionda HECH QACHON yoqilmaydi: aks holda har kim pulsiz buyurtmani "to'langan" qila oladi.
+ */
 export const demoPaymentEnabled = () =>
-  process.env.PAYMENT_DEMO === 'true' || (process.env.NODE_ENV !== 'production' && process.env.PAYMENT_DEMO !== 'false');
+  process.env.NODE_ENV !== 'production' && process.env.PAYMENT_DEMO !== 'false';
 
 export function toOrderView(o: OrderRow) {
   const date = o.deliveryDate?.toISOString().slice(0, 10) ?? null;

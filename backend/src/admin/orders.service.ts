@@ -145,13 +145,23 @@ export class OrdersService {
     const current = await this.prisma.order.findUnique({ where: { id } });
     if (!current) throw new NotFoundException('Buyurtma topilmadi');
     this.assertTransition(current, dto);
+    // Sex faqat o'zgarayotgan bo'lsa tekshiriladi (bloklangan sexdagi buyurtmani bekor qilish mumkin bo'lsin)
+    if (dto.workshopId != null && dto.workshopId !== current.workshopId) {
+      const workshop = await this.prisma.user.findFirst({
+        where: { id: dto.workshopId, role: Role.TAILOR, isActive: true },
+        select: { id: true },
+      });
+      if (!workshop) throw new BadRequestException('Tikuv sexi topilmadi');
+    }
 
     const order = await this.prisma.$transaction(async (tx) => {
-      const updated = await tx.order.update({
-        where: { id },
+      // Holat shartli yangilanadi: shu orada sex/boshqa operator o'zgartirgan bo'lsa — 409
+      const { count } = await tx.order.updateMany({
+        where: { id, status: current.status },
         data: { status: dto.status, ...(dto.workshopId !== undefined && { workshopId: dto.workshopId }) },
-        include,
       });
+      if (!count) throw new ConflictException('Buyurtma holati shu orada o‘zgardi — sahifani yangilang');
+      const updated = await tx.order.findUniqueOrThrow({ where: { id }, include });
       if (current.status !== dto.status) {
         await this.history.record({ orderId: id, from: current.status, to: dto.status, actor, note: dto.note }, tx);
         // Balansdan to'langan buyurtma bekor qilinsa yoki qaytarilsa — pul mijoz balansiga bir marta qaytadi
@@ -178,6 +188,10 @@ export class OrdersService {
   /** Yakuniy holatdan qaytib bo'lmaydi; DELIVERED faqat yetkazishdan keyin; sex bosqichlari sexsiz bo'lmaydi */
   private assertTransition(current: { status: OrderStatus; workshopId: number | null }, dto: UpdateOrderStatusDto) {
     if (dto.status === current.status) return;
+    // To'lanmagan onlayn buyurtma ishlab chiqarishga o'tib ketmasin (faqat bekor qilish mumkin)
+    if (current.status === OrderStatus.PENDING_PAYMENT && dto.status !== OrderStatus.CANCELLED) {
+      throw new ConflictException("Buyurtma hali to'lanmagan — faqat bekor qilish mumkin");
+    }
     if (current.status === OrderStatus.CANCELLED || current.status === OrderStatus.RETURNED) {
       throw new ConflictException(`Buyurtma ${current.status} holatida — o'zgartirib bo'lmaydi`);
     }

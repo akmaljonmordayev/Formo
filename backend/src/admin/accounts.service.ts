@@ -87,7 +87,8 @@ export class AccountsService {
           }
           return tx.user.create({ data: { ...data, role, passwordHash } });
         },
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        // maxWait: parallel so'rovlarda ulanish kutish (standart 2s) yetmay 500 qaytmasin
+        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 10_000, timeout: 10_000 },
       );
       return toPublicUser(user);
     } catch (e) {
