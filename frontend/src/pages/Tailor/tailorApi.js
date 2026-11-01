@@ -105,6 +105,7 @@ export const updateTailorOrderStatus = (orderId, status) =>
 export const tailorInventoryApi = {
   list: () => api('/workshop/inventory?productType=TSHIRT'),
   save: (items) => api('/workshop/inventory', { method: 'PUT', body: { items } }),
+  kits: () => api('/workshop/inventory/kits'),
 };
 
 export const getTailorProduction = () => api('/workshop/production');

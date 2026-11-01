@@ -338,7 +338,7 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
       await as(admin).put('/api/admin/settings/admin.notifications', { value: { newOrder: true, telegramChatId: '123' } }).expect(200);
       await as(user).post('/api/cart/items', { kitId, shirtSize: 'S' }).expect(201);
       await checkout(3).expect(201);
-      await as(admin).put('/api/admin/inventory', { items: [{ productType: 'TSHIRT', color: 'Oq', size: 'M', qty: 1 }] }).expect(200);
+      await as(admin).put('/api/admin/inventory', { items: [{ productType: 'TSHIRT', kitId, size: 'M', qty: 1 }] }).expect(200);
     });
   });
 });

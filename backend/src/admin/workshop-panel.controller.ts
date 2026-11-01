@@ -51,9 +51,15 @@ export class WorkshopPanelController {
   }
 
   @Get('inventory')
-  @ApiOperation({ summary: "Rang/o'lcham bo'yicha zaxira qoldig'i" })
+  @ApiOperation({ summary: "Klub formasi/o'lcham bo'yicha zaxira qoldig'i" })
   listInventory(@Query() query: ListInventoryQueryDto) {
     return this.inventory.list(query);
+  }
+
+  @Get('inventory/kits')
+  @ApiOperation({ summary: 'Zaxira uchun klub formalari ro‘yxati (tanlov uchun)' })
+  inventoryKits() {
+    return this.inventory.kitOptions();
   }
 
   @Put('inventory')

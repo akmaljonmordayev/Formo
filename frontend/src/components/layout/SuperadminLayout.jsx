@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDown, LogOut, Menu, Search } from 'lucide-react';
+import { ChevronDown, LogOut, Menu } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { ROLE_LABELS } from '../../constants/roles';
 import '../ui/ui.css';
@@ -117,11 +117,6 @@ export default function SuperadminLayout({ menu }) {
 
           <div className="sa-crumb">
             {current?.group ?? 'Asosiy'} <span>/</span> <b>{current?.label ?? 'Dashboard'}</b>
-          </div>
-
-          <div className="sa-search">
-            <Search size={15} strokeWidth={1.8} aria-hidden="true" />
-            <input type="search" placeholder="Buyurtma raqami yoki telefon + Enter" maxLength={120} />
           </div>
 
           <div className="sa-pp" ref={popRef}>
