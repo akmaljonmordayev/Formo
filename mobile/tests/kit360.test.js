@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const path = require('path');
 
 const src = (p) => path.join(__dirname, '..', 'src', p);
-const { kit360Team, kit360Message, parseKit360Message, KIT360_SOURCE } = require(src('features/kit360/index.js'));
+const { kit360Team, kit360Message, parseKit360Message, KIT360_SOURCE, KIT360_TEAMS, findKit360Team } = require(src('features/kit360/index.js'));
 const viewerHtml = require(src('components/ui/kit360/viewerHtml.js')).default;
 
 test("kit360Team: katalogdagi klub nomi/kodi → foto-360° jamoasi (lotin, kirill, inglizcha)", () => {
@@ -52,6 +52,19 @@ test("viewer.html: 10 jamoaning 8 tadan kadri ichida (data: URL), tashqi skript 
     for (const url of list) assert.ok(url.startsWith('data:image/jpeg;base64,'));
   }
   assert.ok(!/<script[^>]+src=/i.test(viewerHtml));
+});
+
+test("KIT360_TEAMS: 10 ta jamoa (5 terma jamoa, 5 klub), to'liq ma'lumotlar bilan", () => {
+  assert.equal(KIT360_TEAMS.length, 10);
+  const ids = KIT360_TEAMS.map((t) => t.id).sort();
+  assert.deepEqual(ids, ['ar', 'en', 'es', 'fcb', 'fr', 'mci', 'mu', 'psg', 'pt', 'rm']);
+  const nationals = KIT360_TEAMS.filter((t) => t.kind === 'national');
+  const clubs = KIT360_TEAMS.filter((t) => t.kind === 'club');
+  assert.equal(nationals.length, 5);
+  assert.equal(clubs.length, 5);
+  assert.equal(findKit360Team('rm').name, 'Real Madrid');
+  assert.equal(findKit360Team('fcb').name, 'Barselona');
+  assert.ok(findKit360Team('unknown')); // fallback
 });
 
 test("savat/buyurtma qatori → karta surati: savatda club.kit360Id, buyurtmada kit360Id; noma'lum — null", () => {

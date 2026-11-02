@@ -8,7 +8,7 @@ import { useKeyboard } from './KeyboardAware';
 
 const TABS = [
   { key: 'home', label: 'home', icon: 'home-variant-outline', iconActive: 'home-variant' },
-  { key: 'catalog', label: 'catalog', icon: 'view-grid-outline', iconActive: 'view-grid' },
+  { key: 'kit360', label: 'forma360', icon: 'rotate-3d-variant', iconActive: 'rotate-3d-variant' },
   { key: 'studio', label: 'studio', icon: 'tshirt-crew-outline', iconActive: 'tshirt-crew' },
   { key: 'orders', label: 'orders', icon: 'clipboard-text-outline', iconActive: 'clipboard-text' },
   { key: 'profile', label: 'profile', icon: 'account-circle-outline', iconActive: 'account-circle' },

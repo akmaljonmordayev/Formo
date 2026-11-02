@@ -118,6 +118,15 @@ describe('Forma 360° — suratdan bosma joyini o\'lchash', () => {
     expect(measureTorso(frame())).toEqual({ mid: 300, half: 70 });
   });
 
+  it("soyadagi oq yon (neytral [190, 190, 191], l < 205) torsdan kesilmaydi — markaz siljimaydi; maneken qo'li qo'shilmaydi", () => {
+    const img = frame();
+    for (let y = 150; y < 400; y += 1) {
+      for (let x = 230; x < 260; x += 1) img.data.set([190, 190, 191], (y * img.width + x) * 4);
+      for (let x = 371; x < 390; x += 1) img.data.set(GREY_ARM, (y * img.width + x) * 4);
+    }
+    expect(measureTorso(img)).toEqual({ mid: 300, half: 70 });
+  });
+
   it("shortikning o'ng oyog'i va pastki cheti", () => {
     expect(measureShorts(frame())).toMatchObject({ cx: 329.5, half: 45.5, hem: 505 });
   });

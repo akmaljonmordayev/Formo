@@ -22,6 +22,20 @@ const norm = (s) => String(s ?? '').toLowerCase().replace(/[‘’ʻʼ`]/g, "'")
 
 export const KIT360_IDS = Object.keys(ALIASES);
 
+/** 10 ta Forma 360° jamoalari — admin paneldagi Superadmin → Forma 360° bilan bir xil */
+export const KIT360_TEAMS = [
+  { id: 'es', kind: 'national', name: 'Ispaniya', code: 'ESP', color: '#c60b1e', accent: '#f6c23e', colorsLabel: 'Qizil / sariq' },
+  { id: 'ar', kind: 'national', name: 'Argentina', code: 'ARG', color: '#75aadb', accent: '#111318', colorsLabel: 'Oq / havorang' },
+  { id: 'fr', kind: 'national', name: 'Fransiya', code: 'FR', color: '#1f2a5c', accent: '#ffffff', colorsLabel: "To'q ko'k / oq" },
+  { id: 'en', kind: 'national', name: 'Angliya', code: 'EN', color: '#ffffff', accent: '#1b2450', colorsLabel: "Oq / to'q ko'k" },
+  { id: 'pt', kind: 'national', name: 'Portugaliya', code: 'PT', color: '#a6192e', accent: '#f3c74a', colorsLabel: 'Qizil / yashil' },
+  { id: 'rm', kind: 'club', name: 'Real Madrid', code: 'RMA', color: '#ffffff', accent: '#1b2450', colorsLabel: "Oq / to'q ko'k" },
+  { id: 'fcb', kind: 'club', name: 'Barselona', code: 'FCB', color: '#1d3f8f', accent: '#f2c12e', colorsLabel: "Ko'k / to'q qizil" },
+  { id: 'mu', kind: 'club', name: 'Manchester Yunayted', code: 'MU', color: '#da291c', accent: '#ffffff', colorsLabel: 'Qizil / oq' },
+  { id: 'psg', kind: 'club', name: 'PSJ', code: 'PSG', color: '#1b2450', accent: '#ffffff', colorsLabel: "To'q ko'k / qizil" },
+  { id: 'mci', kind: 'club', name: 'Manchester Siti', code: 'MCI', color: '#6cabdd', accent: '#1b2450', colorsLabel: 'Havorang / oq' },
+];
+
 /**
  * Mahsulot (klub formasi) → viewer jamoa id'si yoki null (foto-360° yo'q — 3D ko'rinish qoladi).
  * Avval backend'dagi aniq bog'lanish (product.kit360Id): id — shu suratlar, null — admin bog'lamagan (3D).
@@ -66,3 +80,8 @@ export function parseKit360Message(raw) {
     return null;
   }
 }
+
+export function findKit360Team(id) {
+  return KIT360_TEAMS.find((t) => t.id === id) || KIT360_TEAMS[0];
+}
+
