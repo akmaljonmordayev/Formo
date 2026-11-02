@@ -32,14 +32,14 @@ const promoArt = (team) => (
 export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotifications, onCategory, onSearch, rules, auth }) {
   const { order } = useActiveOrder();
   const { clubs: rawClubs, isLoading: clubsLoading } = usePopularClubs(8);
-  const clubs = rawClubs && rawClubs.length ? rawClubs : KIT360_TEAMS.map((t) => ({
-    id: t.id,
-    name: t.name,
-    code: t.code,
-    color: t.color,
-    accent: t.accent,
-    league: t.kind === 'national' ? t('nationalTeams') : t('clubTeams'),
-    kit360Id: t.id,
+  const clubs = rawClubs && rawClubs.length ? rawClubs : KIT360_TEAMS.map((team) => ({
+    id: team.id,
+    name: team.name,
+    code: team.code,
+    color: team.color,
+    accent: team.accent,
+    league: team.kind === 'national' ? t('nationalTeams') : t('clubTeams'),
+    kit360Id: team.id,
   }));
   const { categories } = useCategories();
   const { products, isLoading: productsLoading } = usePopularProducts(8);
