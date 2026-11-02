@@ -5,10 +5,10 @@ const SHIRT =
   'M96 22 Q150 46 204 22 L268 50 L294 122 L248 140 L240 112 L240 318 Q150 334 60 318 L60 112 L52 140 L6 122 L32 50 Z';
 
 export const KITS = [
-  { id: 'tun', name: 'Tun', from: '#0E1A3F', to: '#1D2F8C', trim: '#F2A33A', ink: '#F3F5F9' },
-  { id: 'afrosiyob', name: 'Afrosiyob', from: '#19A7A1', to: '#9184D9', trim: '#F3F5F9', ink: '#080C24' },
-  { id: 'anor', name: 'Anor', from: '#B8323F', to: '#5B1530', trim: '#F2A33A', ink: '#F3F5F9' },
-  { id: 'qum', name: 'Qum', from: '#F2A33A', to: '#E0662E', trim: '#0E1A3F', ink: '#0E1A3F' },
+  { id: 'tun', name: 'Tun', from: '#0E1A3F', to: '#1D2F8C', trim: '#F2A33A', ink: '#F3F5F9', accent: '#6C8CFF', accent2: '#B6C8FF', accentInk: '#080C24' },
+  { id: 'afrosiyob', name: 'Afrosiyob', from: '#19A7A1', to: '#9184D9', trim: '#F3F5F9', ink: '#080C24', accent: '#3FD6CE', accent2: '#B3A9F2', accentInk: '#080C24' },
+  { id: 'anor', name: 'Anor', from: '#B8323F', to: '#5B1530', trim: '#F2A33A', ink: '#F3F5F9', accent: '#FF5F72', accent2: '#FFA7B0', accentInk: '#1F0710' },
+  { id: 'qum', name: 'Qum', from: '#F2A33A', to: '#E0662E', trim: '#0E1A3F', ink: '#0E1A3F', accent: '#F2A33A', accent2: '#F7C27A', accentInk: '#080C24' },
 ];
 
 function Side({ kit, children, id }) {

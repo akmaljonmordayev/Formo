@@ -4,7 +4,6 @@ import Navbat from './Navbat';
 import Partiyalar from './Partiyalar';
 import Profil from './Profil';
 import Statistika from './Statistika';
-import Zaxira from './Zaxira';
 import TailorShell from './TailorShell';
 
 const BASE = '/tailor';
@@ -23,10 +22,6 @@ export const tailorRoutes = [
   {
     path: 'partiyalar',
     element: shell('route.batches.title', 'route.batches.sub', <Partiyalar />),
-  },
-  {
-    path: 'zaxira',
-    element: shell('route.stock.title', 'route.stock.sub', <Zaxira />),
   },
   {
     path: 'statistika',
@@ -49,7 +44,6 @@ export const tailorRoutes = [
 export const tailorMenu = [
   { to: BASE, label: 'Bugungi navbat', end: true },
   { to: `${BASE}/partiyalar`, label: 'Partiyalar' },
-  { to: `${BASE}/zaxira`, label: 'Zaxira' },
   { to: `${BASE}/statistika`, label: 'Statistika' },
   { to: `${BASE}/chat`, label: 'Chat' },
   { to: `${BASE}/profil`, label: 'Profil va sozlamalar' },

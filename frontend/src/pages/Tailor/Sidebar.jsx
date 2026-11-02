@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { Boxes, ClipboardList, Layers, LogOut, Settings2, BarChart3, MessageSquare } from 'lucide-react';
+import { ClipboardList, Layers, LogOut, Settings2, BarChart3, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { FormoLogo } from './ui';
 import { useT } from './i18n';
@@ -11,7 +11,6 @@ import { getChatUnread, getWorkshopProfile } from './tailorApi';
 const NAV_ITEMS = [
   { to: '/tailor', key: 'nav.queue', icon: ClipboardList, queueBadge: true, end: true },
   { to: '/tailor/partiyalar', key: 'nav.batches', icon: Layers },
-  { to: '/tailor/zaxira', key: 'nav.stock', icon: Boxes },
   { to: '/tailor/statistika', key: 'nav.stats', icon: BarChart3 },
   { to: '/tailor/chat', key: 'nav.chat', icon: MessageSquare, chatBadge: true },
   { to: '/tailor/profil', key: 'nav.profile', icon: Settings2 },
