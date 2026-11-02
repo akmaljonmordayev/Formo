@@ -108,7 +108,7 @@ export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCusto
           <Segment
             style={styles.segment}
             options={[t('front'), t('rear')]}
-            value={side === 'front' ? t('front') : t('rear')}
+            value={side === 'front' ? t('front') : side === 'back' ? t('rear') : null}
             onChange={(value) => setSide(value === t('front') ? 'front' : 'back')}
           />
         </View>

@@ -11,6 +11,8 @@ export interface ServerOptions {
   webhook?: { path: string; secret: string };
   process: (u: TgUpdate) => Promise<void>;
   log: Logger;
+  /** true — bot ishlamayapti (polling osilgan): /health 503 qaytaradi */
+  unhealthy?: () => boolean;
 }
 
 const digest = (v: string) => createHash('sha256').update(v).digest();
@@ -41,7 +43,7 @@ function readBody(req: IncomingMessage): Promise<string> {
 }
 
 /** GET /health va (webhook rejimida) POST <path> */
-export function createBotServer({ webhook, process, log }: ServerOptions): Server {
+export function createBotServer({ webhook, process, log, unhealthy }: ServerOptions): Server {
   return createServer(async (req, res) => {
     const reply = (status: number, body: unknown = { ok: status < 400 }) => {
       if (res.headersSent) return;
@@ -50,7 +52,7 @@ export function createBotServer({ webhook, process, log }: ServerOptions): Serve
     };
     const path = (req.url ?? '').split('?')[0];
 
-    if (req.method === 'GET' && path === '/health') return reply(200, { ok: true });
+    if (req.method === 'GET' && path === '/health') return unhealthy?.() ? reply(503, { ok: false }) : reply(200, { ok: true });
     if (!webhook || path !== webhook.path) return reply(404);
     if (req.method !== 'POST') return reply(405);
     if (!secretMatches(req.headers[SECRET_HEADER], webhook.secret)) {

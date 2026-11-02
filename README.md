@@ -2,6 +2,28 @@
 
 Monorepo for the FORMО custom tailoring platform MVP.
 
+## Eng oson yo'l: faqat frontend yoki mobil (Docker, backend, baza shart emas)
+
+Faqat [Node.js 20+](https://nodejs.org) kerak. Ikkalasi ham haqiqiy API'ga (`https://api.formo.uz`) ulanadi, `.env` shart emas.
+
+```bash
+git clone https://github.com/Umar033ya/Formo.git
+cd Formo
+
+# Admin panel (frontend) → http://localhost:5173
+# frontend pnpm workspace paketiga bog'liq — oddiy `npm install` ishlamaydi (EUNSUPPORTEDPROTOCOL)
+npx -y pnpm@8.15.0 install --filter "!@formo/mobile"
+npm run web
+
+# Mobil ilova (Expo Go bilan QR kodni skanerlang)
+cd mobile && npm install && cd ..
+npm run mobile
+```
+
+> **Diqqat: bu production baza.** Yaratilgan buyurtma, o'zgartirilgan sozlama, o'chirilgan narsa haqiqiy bo'ladi va operatorlarga ko'rinadi. Panelga production akkaunti bilan kiriladi (`admin123` ishlamaydi). Sinov buyurtmasi bersangiz, keyin bekor qiling.
+
+Backend kodini o'zgartirayotgan bo'lsangizgina pastdagi lokal backend kerak.
+
 ## Tez ishga tushirish (Docker)
 
 Faqat [Docker Desktop](https://www.docker.com/products/docker-desktop/) kerak — Node, pnpm, Postgres yoki `.env` shart emas.
@@ -37,9 +59,8 @@ Superadmin avtomatik yaratiladi: **+998 90 111 11 11** / **admin123**. Operator 
 Backend va Postgres kerak emas — Vite proxy `/api` ni `api.formo.uz` ga yuboradi.
 
 ```bash
-cd frontend
-npm install
-npm run dev:prod   # http://localhost:5173 — .env shart emas
+npx -y pnpm@8.15.0 install --filter "!@formo/mobile"   # ildizda; `npm install` ishlamaydi
+npm run web        # = frontend'da `npm run dev:prod` — http://localhost:5173, .env shart emas
 ```
 
 > **Diqqat:** bu **production baza** — yaratilgan/o'zgartirilgan/o'chirilgan hamma narsa haqiqiy. Production akkaunti bilan kiriladi (`admin123` ishlamaydi).

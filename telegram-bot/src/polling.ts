@@ -33,6 +33,13 @@ export async function processBatch(updates: TgUpdate[], process: (u: TgUpdate) =
  * jarayon qulasa update qayta keladi (dedupe/idempotentlik ushlaydi).
  * Tarmoq uzilsa to'xtamaydi: kutish vaqti oshib boradi (5s → 60s) va ulanish tiklanganda davom etadi.
  */
+/** Oxirgi muvaffaqiyatli getUpdates vaqti — watchdog va /health uchun */
+export const pollingState = { lastOkAt: Date.now() };
+
+/** Polling shuncha vaqt muvaffaqiyatsiz/osilgan bo'lsa — jarayon o'zini o'ldiradi, Railway qayta ishga tushiradi */
+export const POLL_STALE_MS = 5 * 60_000;
+export const pollingStale = (now = Date.now()) => now - pollingState.lastOkAt > POLL_STALE_MS;
+
 export async function runPolling(api: TelegramApi, process: (u: TgUpdate) => Promise<void>, log: Logger, signal: AbortSignal) {
   let offset = 0;
   let failures = 0;
@@ -46,6 +53,7 @@ export async function runPolling(api: TelegramApi, process: (u: TgUpdate) => Pro
         webhookCleared = true;
       }
       const updates = await api.getUpdates(offset, LONG_POLL_SEC, signal);
+      pollingState.lastOkAt = Date.now();
       if (failures) log.info('polling tiklandi', { afterFailures: failures });
       failures = 0;
       if (!updates.length) continue;

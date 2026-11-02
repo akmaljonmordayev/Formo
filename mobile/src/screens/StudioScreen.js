@@ -227,7 +227,7 @@ function SideSwitch({ t, side, setSide }) {
   return (
     <Segment
       options={[t('front'), t('rear')]}
-      value={side === 'front' ? t('front') : t('rear')}
+      value={side === 'front' ? t('front') : side === 'back' ? t('rear') : null}
       onChange={(value) => setSide(value === t('front') ? 'front' : 'back')}
     />
   );

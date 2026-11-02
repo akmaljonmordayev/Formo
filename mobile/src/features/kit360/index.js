@@ -67,7 +67,8 @@ export function kit360Message({ team, name, number, side }) {
     team,
     name: String(name ?? ''),
     number: String(number ?? ''),
-    side: side === 'front' ? 'front' : 'back',
+    // 'side' — viewer o'zi yonga burilgan (90°/270°): tomon buyrug'i yuborilmaydi, forma joyida qoladi
+    side: side === 'front' ? 'front' : side === 'side' ? null : 'back',
   });
 }
 

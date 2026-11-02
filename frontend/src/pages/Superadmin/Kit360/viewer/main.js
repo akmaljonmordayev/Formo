@@ -2,9 +2,9 @@
    Kadrlar HTML ichida (data: URL, tarmoq kerak emas); shriftlar Google Fonts'dan, internet bo'lmasa — tizim shrifti.
 
    Ilova → viewer:  { source, type: 'update', team, name, number, side?: 'front' | 'back', font?: id }
-   Viewer → ilova:  { source, type: 'ready' } · { source, type: 'face', view } · { source, type: 'error', message } */
-import { BACK_FRAMES } from '../measure';
-import { FONTS, FONTS_CSS, FONT_SAMPLE, H, N, TEAMS, W, fontCss, layerCache, paint, ready } from '../render';
+   Viewer → ilova:  { source, type: 'ready' } · { source, type: 'face', view: 'front' | 'back' | 'side' } · { source, type: 'error', message } */
+import { BACK_FRAMES, FRONT_FRAMES } from '../measure';
+import { FONTS, FONTS_CSS, FONT_SAMPLE, H, N, TEAMS, W, fontCss, layerCache, paint, prepare, ready } from '../render';
 
 export const SOURCE = 'formo-kit360';
 const FRAMES = window.FORMO_FRAMES || {};
@@ -28,13 +28,46 @@ function image(id, i) {
   const key = `${id}/${i}`;
   if (!images[key]) {
     const im = new Image();
-    im.onload = draw;
+    // Faqat ko'rinib turgan kadr (yoki 180° namuna) yuklanganda qayta chiziladi — 8 ta ortiqcha chizish yo'q
+    im.onload = () => {
+      if (id === state.team.id && (i === state.frame || i === 4)) schedule();
+    };
     im.onerror = () => post({ type: 'error', message: `frame ${key}` });
     im.src = FRAMES[id]?.[i] ?? '';
     images[key] = im;
   }
   return images[key];
 }
+
+// Bir kadrda ko'p o'zgarish (sudrash, yozish, rasm yuklanishi) — bitta chizish
+let pending = false;
+function schedule() {
+  if (pending) return;
+  pending = true;
+  requestAnimationFrame(() => {
+    pending = false;
+    draw();
+  });
+}
+
+// Yozuv bor bo'lsa qolgan kadrlar bo'sh vaqtda oldindan o'lchanadi — aylantirganda har yangi kadrda qotmaydi
+let warmTimer = null;
+function warmUp() {
+  clearTimeout(warmTimer);
+  if (!state.name.trim() && !state.number) return;
+  const { team } = state;
+  const order = [1, 7, 2, 6, 3, 5, 0, 4].map((d) => (state.frame + d) % N);
+  const step = () => {
+    if (team !== state.team) return;
+    const i = order.shift();
+    if (i === undefined) return;
+    prepare(i, image(team.id, i), image(team.id, 4));
+    warmTimer = setTimeout(step, 60);
+  };
+  warmTimer = setTimeout(step, 400);
+}
+
+const faceOf = (frame) => (frame in FRONT_FRAMES ? 'front' : frame in BACK_FRAMES ? 'back' : 'side');
 
 function draw() {
   const { team } = state;
@@ -54,7 +87,8 @@ function draw() {
     ready(back) ? back : null,
   );
   // Old/Orqa tugmalari ilovada barmoq bilan aylantirishga mos tursin
-  const now = state.frame in BACK_FRAMES ? 'back' : 'front';
+  // Yon (90°/270°) — 'side': aks holda ilova uni "old" deb bilib, "Old" bosilganda hech narsa yubormasdi
+  const now = faceOf(state.frame);
   if (now !== face) {
     face = now;
     post({ type: 'face', view: now });
@@ -71,9 +105,10 @@ function update(msg) {
   state.font = FONTS.find((f) => f.id === msg.font) ?? state.font;
   // Ilova tomonni almashtirsa (Old/Orqa yoki ism maydoniga bosilsa) — o'sha tomonga buriladi; aylantirilgan burchak saqlanadi
   if (msg.side === 'back' && !(state.frame in BACK_FRAMES)) state.frame = 4;
-  if (msg.side === 'front' && state.frame in BACK_FRAMES) state.frame = 0;
+  if (msg.side === 'front' && !(state.frame in FRONT_FRAMES)) state.frame = 0;
   loadFonts();
-  draw();
+  schedule();
+  warmUp();
   return undefined;
 }
 
@@ -101,7 +136,7 @@ canvas.addEventListener('pointermove', (e) => {
   if (Math.abs(dx) < 40) return;
   state.frame = (state.frame + (dx < 0 ? 1 : -1) + N) % N;
   dragX = e.clientX;
-  draw();
+  schedule();
 });
 const stop = () => {
   dragX = null;
@@ -122,7 +157,7 @@ function loadFonts() {
 }
 document.fonts?.addEventListener('loadingdone', () => {
   layerCache.clear();
-  draw();
+  schedule();
 });
 
 for (let i = 0; i < N; i += 1) image(state.team.id, i);

@@ -158,6 +158,11 @@ function printFor(frame, img, backImg, scale) {
   return { zones: byKey.get(key), mask: pixels(img).mask };
 }
 
+/** Kadr pikseli, kiyim maskasi va yozuv joylashuvini oldindan hisoblab keshlaydi (aylantirishda qotmasin) */
+export function prepare(frame, img, backImg, scale = 1) {
+  if (ready(img)) printFor(frame, img, ready(backImg) ? backImg : null, scale);
+}
+
 /* Matnni tana sirtiga "kiyintirish" — teskari tanlov: buferning har ustuni uchun sirtdagi burchak t va yoy s topiladi,
    matn qatlamidan shu joy bilinear olinadi. Ustunlar bir-birini qoplamaydi — burilishlarda qorong'i chiziqlar bo'lmaydi.
    Kiyim maskasi (mato bo'lmagan joy — qo'l, fon) shaffoflikka ko'paytiriladi. */

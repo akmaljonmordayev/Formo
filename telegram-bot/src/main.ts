@@ -4,7 +4,7 @@ import { RecentIds } from './dedupe';
 import { handleUpdate } from './handlers';
 import { createLogger, errorMessage } from './log';
 import { startOutboxLoop } from './outbox';
-import { runPolling } from './polling';
+import { pollingStale, runPolling } from './polling';
 import { RateLimiter } from './ratelimit';
 import { createBotServer } from './server';
 import { UserSessions } from './session';
@@ -22,6 +22,7 @@ async function main() {
     webhook: config.mode === 'webhook' ? { path: config.webhookPath, secret: config.webhookSecret } : undefined,
     process: process_,
     log,
+    unhealthy: config.mode === 'polling' ? () => pollingStale() : undefined,
   });
   await new Promise<void>((resolve) => server.listen(config.port, resolve));
   log.info('bot ishga tushdi', { mode: config.mode, port: config.port });
@@ -37,7 +38,20 @@ async function main() {
     await tg.setWebhook(config.webhookUrl, config.webhookSecret);
     log.info('webhook o‘rnatildi');
   } else {
-    runPolling(tg, process_, log, abort.signal).catch((err) => log.error('polling to‘xtadi', { error: errorMessage(err) }));
+    // Polling to'xtasa yoki osilib qolsa jarayon tirik, lekin bot "o'lik" bo'lib qolardi. Railway faqat jarayon
+    // tugaganda qayta ishga tushiradi — shuning uchun o'zimiz chiqamiz (exit 1) va bot toza holatda qayta ko'tariladi
+    const exitStale = (reason: string) => {
+      log.error('bot javob bermayapti — qayta ishga tushirilmoqda', { reason });
+      setTimeout(() => process.exit(1), 500).unref();
+    };
+    runPolling(tg, process_, log, abort.signal)
+      .catch((err) => log.error('polling to‘xtadi', { error: errorMessage(err) }))
+      .finally(() => {
+        if (!abort.signal.aborted) exitStale('polling tsikli tugadi');
+      });
+    setInterval(() => {
+      if (pollingStale()) exitStale('getUpdates uzoq vaqt muvaffaqiyatsiz');
+    }, 30_000).unref();
   }
 
   const shutdown = (signal: string) => {

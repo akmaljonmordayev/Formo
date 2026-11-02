@@ -35,6 +35,8 @@ test('xabarlar: update va javoblar formo-kit360 belgisi bilan, boshqa postMessag
   const msg = JSON.parse(kit360Message({ team: 'rm', name: 'ISROIL', number: 10, side: 'front' }));
   assert.deepEqual(msg, { source: KIT360_SOURCE, type: 'update', team: 'rm', name: 'ISROIL', number: '10', side: 'front' });
   assert.equal(JSON.parse(kit360Message({ team: 'rm' })).side, 'back');
+  // Yonga burilgan (viewer 'side' xabar qilgan) — tomon buyrug'i yo'q, keyingi "Old" bosilishi holatni o'zgartiradi
+  assert.equal(JSON.parse(kit360Message({ team: 'rm', side: 'side' })).side, null);
   assert.deepEqual(parseKit360Message(JSON.stringify({ source: KIT360_SOURCE, type: 'face', view: 'front' })), {
     source: KIT360_SOURCE,
     type: 'face',
