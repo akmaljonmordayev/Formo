@@ -62,6 +62,22 @@ const include = {
 
 type OrderRow = Prisma.OrderGetPayload<{ include: typeof include }>;
 
+/**
+ * Serializable tranzaksiya parallel so'rov bilan to'qnashsa (P2034) — butun tranzaksiya
+ * qaytariladi, demak qayta urinish xavfsiz. Mijoz "qayta urinib ko'ring" ko'rmasin.
+ */
+export async function retrySerializable<T>(run: () => Promise<T>, attempts = 3): Promise<T> {
+  for (let i = 1; ; i++) {
+    try {
+      return await run();
+    } catch (e) {
+      const conflict = e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034';
+      if (!conflict || i >= attempts) throw e;
+      await new Promise((r) => setTimeout(r, 50 * i + Math.floor(Math.random() * 50)));
+    }
+  }
+}
+
 export const orderCode = (id: number) => `FRM-${String(id).padStart(6, '0')}`;
 
 /**
@@ -176,7 +192,7 @@ export class ShopOrdersService {
     const online = ONLINE.includes(dto.paymentMethod);
     const fromBalance = dto.paymentMethod === PaymentMethod.BALANCE;
 
-    const orderId = await this.prisma.$transaction(
+    const orderId = await retrySerializable(() => this.prisma.$transaction(
       async (tx) => {
         const lines = await this.cart.lines(user.id, tx);
         if (!lines.length) throw new BadRequestException("Savat bo'sh");
@@ -285,9 +301,10 @@ export class ShopOrdersService {
         await tx.cartItem.deleteMany({ where: { userId: user.id } });
         return order.id;
       },
-      // Slot sig'imi va promokod limiti parallel buyurtmalarda ham buzilmasin
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-    );
+      // Slot sig'imi va promokod limiti parallel buyurtmalarda ham buzilmasin.
+      // Standart maxWait 2s / timeout 5s — uzoq DB'da o'nlab so'rovli tranzaksiya P2028 bilan 500 berardi.
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 10_000, timeout: 20_000 },
+    ));
 
     const order = await this.prisma.order.findUniqueOrThrow({ where: { id: orderId }, include });
     await this.audit.log({
