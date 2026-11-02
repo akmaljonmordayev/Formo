@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../hooks/useAuth';
 import { ROLE_HOME } from '../../constants/roles';
 import Jersey, { KITS } from './Jersey';
+import Background from './Background';
+import logoImg from '../Tailor/assets/formologo.png';
 import './Login.css';
 
 // "90 123 45 67" ko'rinishida formatlash (faqat 9 ta raqam)
@@ -84,7 +86,14 @@ export default function Login() {
   const kit = KITS[kitIndex];
 
   return (
-    <div className="login" style={{ '--kit-a': kit.from, '--kit-b': kit.to }}>
+    <div className="login" style={{
+        '--kit-a': kit.from,
+        '--kit-b': kit.to,
+        '--accent': kit.accent,
+        '--accent-2': kit.accent2,
+        '--accent-ink': kit.accentInk,
+      }}>
+      <Background color={kit.accent} reducedMotion={prefersReducedMotion()} />
       <section className="login__stage" aria-hidden="true">
         <svg className="login__pitch" viewBox="0 0 600 800" preserveAspectRatio="xMidYMid slice">
           <g fill="none" stroke="currentColor" strokeWidth="2">
@@ -98,7 +107,9 @@ export default function Login() {
         </svg>
 
         <div className="login__brand">
-          <span className="login__logo">FORMO</span>
+          <span className="login__logo-wrap">
+            <img className="login__logo" src={logoImg} alt="Formo" />
+          </span>
           <span className="login__badge">ish paneli</span>
         </div>
 
@@ -110,12 +121,13 @@ export default function Login() {
             flipped={passwordFocused && !showPassword && !welcomeName}
             error={!!error && !loading}
           />
-          <div className="login__kits" role="radiogroup" aria-label="Forma rangi">
+          <div className="login__kits" role="group" aria-label="Forma rangi">
             {KITS.map((k, i) => (
               <button
                 key={k.id}
                 type="button"
-                tabIndex={-1}
+                aria-pressed={i === kitIndex}
+                aria-label={k.name}
                 className={`login__swatch${i === kitIndex ? ' login__swatch--active' : ''}`}
                 style={{ background: `linear-gradient(135deg, ${k.from}, ${k.to})`, '--trim': k.trim }}
                 onClick={() => {
@@ -130,7 +142,7 @@ export default function Login() {
         </div>
 
         <p className="login__tagline">
-          Har bir forma — <em>bitta jamoa</em> hikoyasi.
+          Har bir buyurtma — <em>nazoratda</em>.
         </p>
         <div className="login__ghost">FORMO</div>
       </section>
@@ -142,14 +154,6 @@ export default function Login() {
           onSubmit={handleSubmit}
           noValidate
         >
-          <div className="tag__string" aria-hidden="true" />
-          <div className="tag__hole" aria-hidden="true" />
-
-          <div className="tag__meta">
-            <span>FORMO · PANEL</span>
-            <span>№ 0001</span>
-          </div>
-
           <h1 className="tag__title">
             {welcomeName ? (
               <>
@@ -159,19 +163,24 @@ export default function Login() {
               </>
             ) : (
               <>
-                Kiyinish
+                Ish paneliga
                 <br />
-                <span>xonasiga</span> kirish
+                <span>kirish</span>
               </>
             )}
           </h1>
-          <p className="tag__subtitle">Superadmin, operator va tikuv sexlari uchun</p>
+          <ul className="tag__roles" aria-label="Kirish mumkin bo'lgan rollar">
+            <li>Superadmin</li>
+            <li>Operator</li>
+            <li>Tikuv sexi</li>
+          </ul>
 
-          <label className="tag__field">
+          <label className="tag__field" htmlFor="login-phone">
             <span className="tag__label">Telefon raqam</span>
             <span className={`tag__input tag__input--phone${phoneComplete ? ' is-complete' : ''}`}>
               <span className="tag__prefix">+998</span>
               <input
+                id="login-phone"
                 ref={phoneRef}
                 type="tel"
                 inputMode="numeric"
@@ -193,10 +202,11 @@ export default function Login() {
             </span>
           </label>
 
-          <label className="tag__field">
+          <label className="tag__field" htmlFor="login-password">
             <span className="tag__label">Parol</span>
             <span className="tag__input">
               <input
+                id="login-password"
                 type={showPassword ? 'text' : 'password'}
                 autoComplete="current-password"
                 placeholder="••••••••"
@@ -227,28 +237,13 @@ export default function Login() {
           </div>
 
           <button type="submit" className="tag__submit" disabled={loading || !password}>
-            <span>{welcomeName ? 'Maydonga chiqilmoqda' : loading ? 'Tekshirilmoqda' : 'Kirish'}</span>
+            <span>{welcomeName ? 'Panel ochilmoqda' : loading ? 'Tekshirilmoqda' : 'Kirish'}</span>
             <span className="tag__arrow" aria-hidden="true">
               →
             </span>
           </button>
 
-          <div className="tag__care">
-            <span className="tag__care-icons" aria-hidden="true">
-              <svg viewBox="0 0 24 24">
-                <path d="M3 7 L5 18 H19 L21 7" />
-                <path d="M3 7 Q7.5 10 12 7 Q16.5 4 21 7" />
-              </svg>
-              <svg viewBox="0 0 24 24">
-                <path d="M12 4 L21 19 H3 Z" />
-              </svg>
-              <svg viewBox="0 0 24 24">
-                <path d="M4 17 H20 L18 10 H9 Q5 10 4 17 Z" />
-                <circle cx="13" cy="14" r="1" />
-              </svg>
-            </span>
-            <span>Akkauntlarni faqat superadmin ochib beradi</span>
-          </div>
+          <p className="tag__care">Akkauntni faqat superadmin ochib beradi. Kira olmasangiz, unga murojaat qiling.</p>
         </form>
       </section>
     </div>
