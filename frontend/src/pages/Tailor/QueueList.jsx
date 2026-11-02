@@ -50,7 +50,7 @@ export default function QueueList({
                 type="button"
                 onClick={() => onTabChange(tab.key)}
                 className={cx(
-                  'rounded-lg px-2.5 py-1 text-[10px] font-bold',
+                  'rounded-lg px-3 py-1.5 text-xs font-bold',
                   activeTab === tab.key ? 'bg-teal-400 text-slate-950' : 'bg-white/5 text-slate-400'
                 )}
               >
@@ -106,7 +106,7 @@ export default function QueueList({
               </div>
 
               <p className="mt-2 text-xs font-medium text-slate-300">
-                {orderSummary(t, order)}
+                {order.apiSummary || orderSummary(t, order)}
               </p>
 
               <div className="mt-3 flex items-center gap-1.5 text-[11px] font-semibold text-teal-400">

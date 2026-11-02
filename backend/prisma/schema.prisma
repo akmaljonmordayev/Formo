@@ -27,6 +27,11 @@ model User {
   fullName     String
   isActive     Boolean @default(true)
 
+  // Parol bilan kirish (/auth/login): IP-cheklov VPN/proksi bilan chetlab o'tilishi mumkin —
+  // shuning uchun urinishlar hisobning o'zida ham sanaladi. Muvaffaqiyatli kirishda ikkalasi ham nolga tushadi.
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+
   // Mobil foydalanuvchi profili
   gender Gender?
   age    Int?
@@ -314,8 +319,9 @@ model Kit {
   sizes       String[] @default(["S", "M", "L", "XL", "XXL", "3XL"]) // sotuvda bor o'lchamlar
   isActive    Boolean  @default(true)
 
-  cartItems  CartItem[]
-  orderItems OrderItem[]
+  cartItems      CartItem[]
+  orderItems     OrderItem[]
+  inventoryItems InventoryItem[]
 
   @@index([clubId])
 }
@@ -561,15 +567,18 @@ enum InventoryProductType {
   SHORTS
 }
 
+// Zaxira klub formasi (Kit) bo'yicha yuritiladi, masalan "Real Madrid — Uy"
 model InventoryItem {
   id          Int                  @id @default(autoincrement())
   productType InventoryProductType
-  color       String
+  kitId       Int
+  kit         Kit                  @relation(fields: [kitId], references: [id], onDelete: Cascade)
   size        String
   qty         Int                  @default(0)
   updatedAt   DateTime             @updatedAt
 
-  @@unique([productType, color, size])
+  @@unique([productType, kitId, size])
+  @@index([kitId])
 }
 
 // ---------------------------------------------------------------------------

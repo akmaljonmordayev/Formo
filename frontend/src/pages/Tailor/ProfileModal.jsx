@@ -3,7 +3,7 @@ import { X, User, Factory, MapPin, Phone, Clock, Check, Loader2, AlertCircle, Gl
 import { LANGS, useT } from './i18n';
 import { useTailor } from './prefs';
 import { updateWorkshopProfile } from './tailorApi';
-import { cx, formatPhone, initialsOf, phoneForServer } from './utils';
+import { cx, formatPhone, initialsOf } from './utils';
 
 const EXIT_MS = 220;
 const ADDRESS_MAX = 200;
@@ -62,7 +62,6 @@ export default function ProfileModal({ open, profile, onClose, onSaved }) {
   const changes = useMemo(() => {
     const next = {
       fullName: clean(form.fullName),
-      phone: phoneForServer(form.phone),
       workshopName: clean(form.workshopName),
       address: clean(form.address),
       shiftStart: form.shiftStart,
@@ -70,7 +69,6 @@ export default function ProfileModal({ open, profile, onClose, onSaved }) {
     };
     const base = {
       fullName: clean(initial.fullName),
-      phone: phoneForServer(initial.phone),
       workshopName: clean(initial.workshopName),
       address: clean(initial.address),
       shiftStart: initial.shiftStart,
@@ -105,9 +103,8 @@ export default function ProfileModal({ open, profile, onClose, onSaved }) {
 
   const nameMissing = !clean(form.fullName);
   const workshopMissing = !clean(form.workshopName);
-  // Telefon login raqami: bo'sh bo'lmasin, kamida 9 raqam (+998 dan keyin) yoki chet el raqami uchun 7+
-  const phoneDigits = form.phone.replace(/\D/g, '');
-  const phoneInvalid = phoneDigits.length < (phoneDigits.startsWith('998') ? 12 : 7);
+  // Telefon — login raqami: PATCH /workshop/profile uni qabul qilmaydi (faqat ko'rsatiladi), shuning uchun tekshirilmaydi ham
+  const phoneInvalid = false;
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -229,7 +226,8 @@ export default function ProfileModal({ open, profile, onClose, onSaved }) {
             type: 'text', maxLength: 120, delay: 60, inputRef: nameRef, missing: nameMissing,
           })}
           {field('pf-phone', t('profile.phoneLabel'), Phone, 'phone', {
-            type: 'tel', inputMode: 'tel', maxLength: 30, delay: 90, missing: phoneInvalid, errorText: t('profile.phoneInvalid'), placeholder: '+998 90 123 45 67',
+            type: 'tel', readOnly: true, tabIndex: -1, delay: 90, missing: phoneInvalid,
+            className: cx(inputCls, 'cursor-not-allowed border-white/5 opacity-60'),
           })}
           {field('pf-workshop', t('profile.workshopLabel'), Factory, 'workshopName', {
             type: 'text', maxLength: 120, delay: 120, missing: workshopMissing,

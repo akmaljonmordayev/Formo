@@ -3,6 +3,7 @@ import { AuthModule } from '../auth/auth.module';
 import { AccountsService } from './accounts.service';
 import { AdminChatController, AdminDefectsController } from './workshop-ops.controller';
 import { ChatService } from './chat.service';
+import { AdminSupportChatController, SupportChatController } from './support-chat.controller';
 import { DefectsService } from './defects.service';
 import { WorkshopProfileService } from './workshop-profile.service';
 import { AuditController } from './audit.controller';
@@ -46,6 +47,8 @@ import { WorkshopsController } from './workshops.controller';
     WorkshopOrdersController,
     WorkshopPanelController,
     AdminChatController,
+    AdminSupportChatController,
+    SupportChatController,
     AdminDefectsController,
     InsightsController,
     InventoryController,

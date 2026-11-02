@@ -3,12 +3,12 @@ import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-n
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, fonts, radii, spacing } from '../constants/theme';
 import { EmptyState, Header, Screen, SectionTitle } from '../components/ui/Common';
-import { JerseyPreview } from '../components/ui/JerseyPreview';
+import Kit360Thumb from '../components/ui/Kit360Thumb';
 import KitCarousel from '../components/ui/KitCarousel';
 import { ProductCard } from '../components/ui/ProductCard';
 import PromoCarousel from '../components/ui/PromoCarousel';
-import { Shirt } from '../components/ui/Shirt';
 import Skeleton from '../components/ui/Skeleton';
+import StatusPill, { statusTone } from '../components/ui/StatusPill';
 import { statusText, useActiveOrder } from '../features/orders';
 import { useCategories, usePopularClubs, usePopularProducts } from '../features/products';
 import { displayName, nameInitial } from '../utils/userName';
@@ -16,10 +16,18 @@ import { KIT360_TEAMS, kit360Team } from '../features/kit360';
 
 const FEATURED = 4;
 
+/** Aksiya kartasidagi Forma 360° surati (biroz qiyshaytirilgan) */
+const promoArt = (team) => (
+  <View style={styles.artTilt}>
+    <Kit360Thumb team={team} width={112} height={140} zoom={1.7} style={styles.artPhoto} />
+  </View>
+);
+
 /**
  * Bosh sahifa: qotib turadigan sarlavha (savat bilan), qidiruv, aksiya swiper'i, faol buyurtma,
  * ligalar (kategoriyalar) lentasi, tavsiya formalar karuseli, mashhur klublar va modellar.
- * Ma'lumotlar: /orders/active, /catalog/categories, /catalog/clubs/popular.
+ * Formalar — Forma 360° suratlari (faqat kit360Id bog'langan klublar).
+ * Ma'lumotlar: /orders/active, /catalog/categories, /catalog/clubs/popular (kit360=true).
  */
 export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotifications, onCategory, onSearch, rules, auth }) {
   const { order } = useActiveOrder();
@@ -46,16 +54,12 @@ export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotificat
     {
       key: 'studio',
       overline: t('promoStudioOver'),
-      title: t('heroTitle'),
-      sub: t('heroSub'),
+      title: t('promo360Title'),
+      sub: t('promo360Sub'),
       cta: t('startShort'),
       colors: ['#1D2F8C', '#0B1535'],
       onPress: () => onNavigate('studio'),
-      art: (
-        <View style={styles.artTilt}>
-          <Shirt width={128} color="#F2A33A" ink="#080C24" side="back" player="FORMO" number="10" />
-        </View>
-      ),
+      art: promoArt('rm'),
     },
     {
       key: 'clubs',
@@ -65,11 +69,7 @@ export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotificat
       cta: t('view360'),
       colors: ['#0E7C66', '#08102C'],
       onPress: () => onNavigate('kit360'),
-      art: featured[0] ? (
-        <View style={styles.artTilt}>
-          <JerseyPreview product={featured[0]} side="front" />
-        </View>
-      ) : null,
+      art: promoArt(featured[0]?.kit360Id || 'ar'),
     },
     {
       key: 'shorts',
@@ -79,11 +79,7 @@ export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotificat
       cta: t('startShort'),
       colors: ['#8E1F3F', '#0B1535'],
       onPress: () => onNavigate('studio'),
-      art: (
-        <View style={styles.artTilt}>
-          <Shirt width={118} color="#F3F5F9" ink="#8E1F3F" trim="#8E1F3F" side="front" number="7" />
-        </View>
-      ),
+      art: promoArt('fcb'),
     },
   ];
 
@@ -123,15 +119,19 @@ export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotificat
       <PromoCarousel slides={slides} />
 
       {order ? (
-        <Pressable style={[styles.trackerCard, styles.padded]} onPress={() => onOrder(order.id)} accessibilityRole="button">
-          <View style={styles.trackerIconBox}>
-            <MaterialCommunityIcons name="truck-fast-outline" size={22} color={colors.accent} />
+        <Pressable
+          style={[styles.trackerCard, styles.padded, { borderColor: statusTone(order.status).border }]}
+          onPress={() => onOrder(order.id)}
+          accessibilityRole="button"
+        >
+          <View style={[styles.trackerIconBox, { backgroundColor: statusTone(order.status).bg }]}>
+            <MaterialCommunityIcons name={statusTone(order.status).icon} size={22} color={statusTone(order.status).color} />
           </View>
           <View style={{ flex: 1 }}>
             <Text style={styles.trackerOverline}>
               {t('activeOrder')} · {order.code}
             </Text>
-            <Text style={styles.trackerStatus}>{statusText(t, order.status, order.statusLabel)}</Text>
+            <StatusPill status={order.status} label={statusText(t, order.status, order.statusLabel)} style={styles.trackerPill} />
           </View>
           <Text style={styles.trackerAction}>{t('track')}</Text>
           <MaterialCommunityIcons name="chevron-right" size={18} color={colors.accent} />
@@ -144,9 +144,9 @@ export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotificat
       </View>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
         <Pressable style={[styles.catTile, styles.catTileAccent]} onPress={() => onNavigate('studio')}>
-          <MaterialCommunityIcons name="palette-swatch-outline" size={22} color={colors.primaryDark} />
+          <MaterialCommunityIcons name="rotate-3d-variant" size={22} color={colors.primaryDark} />
           <Text style={[styles.catTitle, styles.catTitleAccent]} numberOfLines={1}>
-            {t('customDesign')}
+            {t('promo360Title')}
           </Text>
         </Pressable>
         {categories.map((cat) => (
@@ -192,7 +192,7 @@ export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotificat
           contentContainerStyle={styles.rail}
           renderItem={({ item: club }) => (
             <Pressable style={({ pressed }) => [styles.clubTile, pressed && styles.pressed]} onPress={() => onClub(club)} accessibilityRole="button">
-              <Shirt width={54} color={club.color} ink={club.accent} side="front" crest={club.code || club.name?.slice(0, 3) || ''} />
+              <Kit360Thumb team={club.kit360Id} width={92} height={78} zoom={1.7} />
               <Text style={styles.clubName} numberOfLines={1}>
                 {club.name}
               </Text>
@@ -297,6 +297,7 @@ const styles = StyleSheet.create({
   searchText: { flex: 1, color: colors.dim, fontSize: 14, fontFamily: fonts.body },
   searchKbd: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' },
   artTilt: { transform: [{ rotate: '8deg' }] },
+  artPhoto: { borderRadius: radii.lg, borderWidth: 2, borderColor: 'rgba(255,255,255,0.35)' },
   trackerCard: {
     marginTop: spacing.lg,
     backgroundColor: colors.surfaceRaised,
@@ -311,6 +312,7 @@ const styles = StyleSheet.create({
   trackerIconBox: { width: 42, height: 42, borderRadius: 12, backgroundColor: colors.accentGlow, alignItems: 'center', justifyContent: 'center' },
   trackerOverline: { color: colors.accent, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
   trackerStatus: { color: colors.text, fontSize: 14, fontWeight: '800', marginTop: 2 },
+  trackerPill: { marginTop: 6 },
   trackerAction: { color: colors.accent, fontSize: 12, fontWeight: '800' },
   rail: { paddingHorizontal: spacing.lg, gap: 10, flexDirection: 'row' },
   catTile: {
@@ -330,7 +332,7 @@ const styles = StyleSheet.create({
   clubTile: {
     width: 92,
     height: 118,
-    paddingTop: 10,
+    overflow: 'hidden',
     borderRadius: radii.md,
     backgroundColor: colors.surface,
     borderWidth: 1,

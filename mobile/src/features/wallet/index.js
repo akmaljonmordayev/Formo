@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { AppState, Linking } from 'react-native';
 import { api } from '../../services/api';
+import { getCached, setCached } from '../../utils/memCache';
 import { isBotUsername } from '../config';
 
 // Ochiq so'rov (chek kutilmoqda / tekshiruvda) bo'lsa holat shu oraliqda yangilanadi
@@ -58,8 +59,8 @@ export const canPayFromBalance = (balance, total) => Number.isFinite(balance) &&
  * Returns { balance, transactions, topUps, hasOpen, isLoading, error, refetch }
  */
 export default function useWallet(enabled = true) {
-  const [data, setData] = useState(null);
-  const [isLoading, setIsLoading] = useState(enabled);
+  const [data, setData] = useState(() => (enabled ? getCached('wallet') ?? null : null));
+  const [isLoading, setIsLoading] = useState(() => enabled && getCached('wallet') === undefined);
   const [error, setError] = useState(null);
   const seq = useRef(0);
 
@@ -70,7 +71,7 @@ export default function useWallet(enabled = true) {
     try {
       const result = await api.wallet.get();
       if (id !== seq.current) return;
-      setData(result);
+      setData(setCached('wallet', result));
       setError(null);
     } catch (err) {
       if (id === seq.current) setError(err instanceof Error ? err : new Error(String(err)));
@@ -80,7 +81,7 @@ export default function useWallet(enabled = true) {
   }, [enabled]);
 
   useEffect(() => {
-    refetch();
+    refetch({ silent: getCached('wallet') !== undefined });
   }, [refetch]);
 
   useEffect(() => {

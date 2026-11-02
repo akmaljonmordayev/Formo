@@ -13,7 +13,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { ParseIdPipe } from '../common/pipes/parse-id.pipe';
 import { CatalogService } from './catalog.service';
-import { ListCatalogClubsQueryDto, PopularClubsQueryDto } from './dto/catalog.dto';
+import { Kit360FilterDto, ListCatalogClubsQueryDto, PopularClubsQueryDto } from './dto/catalog.dto';
 
 @ApiTags('Mobil · Katalog')
 @Controller('catalog')
@@ -23,9 +23,9 @@ export class CatalogController {
   @Public()
   @Get('categories')
   @ApiOperation({ summary: 'Kategoriyalar (ligalar) — katalogdagi filtr chiplari' })
-  @ApiOkResponse({ description: '[{ id, name, slug, clubsCount }]' })
-  categories() {
-    return this.catalog.categories();
+  @ApiOkResponse({ description: '[{ id, name, slug, clubsCount }] — kit360=true: faqat Forma 360° klubi bor ligalar' })
+  categories(@Query() query: Kit360FilterDto) {
+    return this.catalog.categories(query.kit360);
   }
 
   @Public()
@@ -40,7 +40,7 @@ export class CatalogController {
   @Get('clubs/popular')
   @ApiOperation({ summary: 'Mashhur klublar (eng ko‘p buyurtma qilinganlar)' })
   popular(@Query() query: PopularClubsQueryDto) {
-    return this.catalog.popular(query.limit);
+    return this.catalog.popular(query.limit, query.kit360);
   }
 
   @Public()

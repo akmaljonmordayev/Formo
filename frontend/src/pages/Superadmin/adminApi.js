@@ -11,23 +11,13 @@ export const PRICE_KEYS = {
   shirt: 'club.tshirt',
   shorts: 'club.shorts',
   print: 'club.print',
-  studio: 'studio.custom',
-  studioGradient: 'studio.gradient',
-  studioPatch: 'studio.patch',
-  studioGift: 'studio.gift',
-  studioShorts: 'studio.shorts',
 };
 
 // Jadval bo'sh bo'lsa (yangi baza) — shu standart qatorlar bilan yaratish taklif qilinadi
 export const DEFAULT_PRICING = [
-  { key: PRICE_KEYS.shirt, section: 'Klub formasi', step: 1, label: 'Futbolka', sub: "Barcha o'lchamlar: 2-13 yosh va S-3XL", price: 99000 },
-  { key: PRICE_KEYS.shorts, section: 'Klub formasi', step: 1, label: 'Shortik', sub: "Futbolkaga qo'shimcha", price: 60000 },
-  { key: PRICE_KEYS.print, section: 'Klub formasi', step: 1, label: 'Ism + raqam', sub: 'DTF bosma, orqa tomonda', price: 30000 },
-  { key: PRICE_KEYS.studio, section: 'Dizayn studiyasi', step: 2, label: "O'z dizayni", sub: 'Futbolka + ism va raqam', price: 129000 },
-  { key: PRICE_KEYS.studioGradient, section: 'Dizayn studiyasi', step: 2, label: 'Gradient / maxsus rang', sub: "Bir rangga qo'shimcha", price: 30000 },
-  { key: PRICE_KEYS.studioPatch, section: 'Dizayn studiyasi', step: 2, label: 'Yamoq', sub: 'Kapitan belgisi, bayroq va h.k.', price: 10000 },
-  { key: PRICE_KEYS.studioGift, section: 'Dizayn studiyasi', step: 2, label: "Sovg'a qutisi", sub: 'Karton quti, lenta, tabriknoma', price: 15000 },
-  { key: PRICE_KEYS.studioShorts, section: 'Dizayn studiyasi', step: 2, label: 'Shortik (maxsus dizayn)', sub: "Maxsus futbolkaga qo'shimcha", price: 60000 },
+  { key: PRICE_KEYS.shirt, section: 'Komplekt', step: 1, label: 'Futbolka', sub: "Alohida ham sotiladi. Barcha o'lchamlar: 2-13 yosh va S-3XL", price: 99000 },
+  { key: PRICE_KEYS.shorts, section: 'Komplekt', step: 1, label: 'Shortik', sub: "Futbolkaga qo'shimcha", price: 60000 },
+  { key: PRICE_KEYS.print, section: 'Komplekt', step: 1, label: 'Ism + raqam', sub: 'DTF bosma, orqa tomonda', price: 30000 },
 ];
 
 export const FALLBACK_PRICES = { shirt: 99000, shorts: 60000, print: 30000 };

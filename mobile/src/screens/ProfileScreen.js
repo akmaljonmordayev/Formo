@@ -1,16 +1,14 @@
 import React, { useMemo, useState } from 'react';
 import {
   Alert,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAvoider, KeyboardAwareScrollView } from '../components/ui/KeyboardAware';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
 import { Button, Card, Header, Screen, Segment } from '../components/ui/Common';
@@ -37,7 +35,7 @@ function formatDate(value) {
  * gender/age/height/weight). Profilda manzil maydoni yo'q — "Manzillarim"
  * rasmiylashtirishda saqlangan manzillarni ko'rsatadi (GET /addresses).
  */
-export default function ProfileScreen({ t, onSettings, onOrders, onAddresses, onWallet, auth }) {
+export default function ProfileScreen({ t, onSettings, onOrders, onAddresses, onWallet, onSupport, auth }) {
   const wallet = useWallet();
   const [editVisible, setEditVisible] = useState(false);
   const [logoutRequested, setLogoutRequested] = useState(false);
@@ -132,10 +130,16 @@ export default function ProfileScreen({ t, onSettings, onOrders, onAddresses, on
           }}
         />
         <Row icon="clipboard-list-outline" title={t('myOrders')} onPress={onOrders} />
+        <Row icon="message-text-outline" title={t('supportChat')} sub={t('supportChatSub')} onPress={onSupport} />
         <Row icon="cog-outline" title={t('settings')} sub={t('languageSub')} onPress={onSettings} last />
       </View>
 
-      <Button variant="secondary" style={styles.logout} onPress={requestLogout}>
+      <Button
+        variant="danger"
+        style={styles.logout}
+        onPress={requestLogout}
+        icon={<MaterialCommunityIcons name="logout" size={18} color={colors.danger} />}
+      >
         {t('logout')}
       </Button>
 
@@ -258,10 +262,7 @@ function EditProfileModal({ visible, onClose, user, auth, t }) {
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.modalBackdrop}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      >
+      <KeyboardAvoider style={styles.modalBackdrop}>
         <View style={styles.modalCard}>
           <View style={styles.modalHeader}>
             <Text style={styles.modalTitle}>{t('editProfile')}</Text>
@@ -270,7 +271,7 @@ function EditProfileModal({ visible, onClose, user, auth, t }) {
             </Pressable>
           </View>
 
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <KeyboardAwareScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <View style={styles.modalMetrics}>
               <ModalInput
                 label={t('firstName')}
@@ -309,9 +310,9 @@ function EditProfileModal({ visible, onClose, user, auth, t }) {
             <Button style={styles.modalSave} onPress={handleSave} disabled={saving}>
               {saving ? '…' : t('save')}
             </Button>
-          </ScrollView>
+          </KeyboardAwareScrollView>
         </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoider>
     </Modal>
   );
 }

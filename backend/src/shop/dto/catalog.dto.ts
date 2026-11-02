@@ -1,9 +1,20 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsBoolean, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import { CleanText } from '../../common/utils/no-html';
 
-export class ListCatalogClubsQueryDto {
+const toBool = ({ value }: { value: unknown }) => (value === 'true' ? true : value === 'false' ? false : value);
+
+/** ?kit360=true — faqat Forma 360° suratlariga bog'langan klublar (mobil katalog faqat shularni ko'rsatadi) */
+export class Kit360FilterDto {
+  @ApiPropertyOptional({ description: "true — faqat Forma 360° suratlari bor klublar (Club.kit360Id bog'langan)" })
+  @IsOptional()
+  @Transform(toBool)
+  @IsBoolean()
+  kit360?: boolean;
+}
+
+export class ListCatalogClubsQueryDto extends Kit360FilterDto {
   @ApiPropertyOptional({ description: 'Kategoriya (liga) id — "Barchasi" uchun yubormang' })
   @IsOptional()
   @Type(() => Number)
@@ -40,7 +51,7 @@ export class ListCatalogClubsQueryDto {
   limit?: number = 50;
 }
 
-export class PopularClubsQueryDto {
+export class PopularClubsQueryDto extends Kit360FilterDto {
   @ApiPropertyOptional({ default: 8, maximum: 20 })
   @IsOptional()
   @Type(() => Number)

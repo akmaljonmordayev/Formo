@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { StyleSheet, View } from 'react-native';
 import { BottomTabs } from '../components/ui/BottomTabs';
 import { CartContext } from '../components/ui/CartButton';
@@ -18,10 +18,12 @@ import ProductScreen from '../screens/ProductScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import SettingsScreen from '../screens/SettingsScreen';
 import StudioScreen from '../screens/StudioScreen';
+import SupportChatScreen from '../screens/SupportChatScreen';
 import WalletScreen from '../screens/WalletScreen';
 import useAppConfig from '../features/config';
 import useCart from '../features/cart';
 import { kit360Team } from '../features/kit360';
+import { clearCache } from '../utils/memCache';
 import * as storage from '../utils/storage';
 import { profileGaps } from '../utils/userName';
 
@@ -82,6 +84,13 @@ export default function AppNavigator({ store, t, auth }) {
     if (needsSurvey) setSurveyOpen(true);
   }, [needsSurvey]);
 
+  // Boshqa hisobga o'tilsa (yoki chiqilsa) — oldingi foydalanuvchining keshlangan ma'lumoti ko'rinmasin
+  const cacheOwner = useRef(userId);
+  if (cacheOwner.current !== userId) {
+    cacheOwner.current = userId;
+    clearCache();
+  }
+
   useEffect(() => {
     let cancelled = false;
     if (!userId) {
@@ -100,7 +109,7 @@ export default function AppNavigator({ store, t, auth }) {
   }, [route, refreshConfig]);
 
   const navigate = (next) => setRoute(next);
-  // Tab/bosh sahifadan studiyaga kirilsa — maxsus dizayn rejimi (klub formasi faqat klub sahifasidan)
+  // Tab/bosh sahifadan studiyaga kirilsa — Forma 360° jamoalari ro'yxati (forma klub sahifasidan tanlanadi)
   const navigateTab = (next) => {
     if (next === 'studio') setStudioKit(null);
     if (next === 'kit360' || next === 'catalog') setKit360TeamId(null);
@@ -158,7 +167,7 @@ export default function AppNavigator({ store, t, auth }) {
   // ─── 2. Auth wall — faqat telefon + Telegram bot kodi (parol/SMS yo'q) ────────
   if (!auth.isAuthenticated) {
     // Successful login/register: auth.isAuthenticated flips → navigator re-renders
-    return <OtpLoginScreen auth={auth} t={t} />;
+    return <OtpLoginScreen auth={auth} t={t} language={store.language} />;
   }
 
   // ─── 2b. Ro'yxatdan o'tish qadamlari (o'lchovlari bo'sh foydalanuvchiga bir marta) ─
@@ -200,10 +209,8 @@ export default function AppNavigator({ store, t, auth }) {
         kit={studioKit}
         cart={cart}
         rules={config.rules}
-        studio={config.studio}
-        studioError={config.error}
-        onRetryConfig={refreshConfig}
         onOpenCart={() => openCart('studio')}
+        onClub={openClub}
         onPickKit={() => navigate('kit360')}
         onBack={() => navigate('home')}
       />
@@ -240,7 +247,10 @@ export default function AppNavigator({ store, t, auth }) {
         onOrders={() => navigate('orders')}
         onAddresses={() => navigate('addresses')}
         onWallet={() => openWallet('profile')}
+        onSupport={() => navigate('support')}
       />
+    ) : route === 'support' ? (
+      <SupportChatScreen t={t} onBack={() => navigate('profile')} />
     ) : route === 'wallet' ? (
       <WalletScreen t={t} telegramBot={config.telegramBot} onBack={() => navigate(walletFrom)} />
     ) : route === 'addresses' ? (
@@ -287,7 +297,7 @@ export default function AppNavigator({ store, t, auth }) {
 
   // Tab bar stays visible everywhere in the main app (including the design
   // studio — only full-screen detail/settings pages hide it).
-  const hideTabs = ['product', 'settings', 'checkout', 'order', 'notifications', 'addresses', 'locationPicker', 'wallet'].includes(route);
+  const hideTabs = ['product', 'settings', 'checkout', 'order', 'notifications', 'addresses', 'locationPicker', 'wallet', 'support'].includes(route);
 
   return (
     <CartContext.Provider value={cartValue}>

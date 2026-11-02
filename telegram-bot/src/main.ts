@@ -5,6 +5,7 @@ import { handleUpdate } from './handlers';
 import { createLogger, errorMessage } from './log';
 import { startOutboxLoop } from './outbox';
 import { runPolling } from './polling';
+import { RateLimiter } from './ratelimit';
 import { createBotServer } from './server';
 import { UserSessions } from './session';
 import { TelegramApi, TgUpdate } from './telegram';
@@ -14,7 +15,7 @@ async function main() {
   const log = createLogger([config.botToken, config.internalToken, config.webhookSecret]);
   const tg = new TelegramApi(config.botToken, config.telegramApiBase);
   const backend = new BackendClient(config.backendUrl, config.internalToken);
-  const deps = { tg, backend, log, dedupe: new RecentIds(), sessions: new UserSessions() };
+  const deps = { tg, backend, log, dedupe: new RecentIds(), sessions: new UserSessions(), limiter: new RateLimiter() };
   const process_ = (u: TgUpdate) => handleUpdate(u, deps);
 
   const server = createBotServer({
@@ -28,11 +29,15 @@ async function main() {
   const abort = new AbortController();
   const stopOutbox = startOutboxLoop(backend, tg, log, config.outboxIntervalMs);
 
+  // Kutilmagan xato bot jarayonini jim o'ldirmasin — logga yozamiz va ishlashda davom etamiz
+  process.on('unhandledRejection', (err) => log.error('ushlanmagan promise xatosi', { error: errorMessage(err) }));
+  process.on('uncaughtException', (err) => log.error('ushlanmagan xato', { error: errorMessage(err) }));
+
   if (config.mode === 'webhook') {
     await tg.setWebhook(config.webhookUrl, config.webhookSecret);
     log.info('webhook o‘rnatildi');
   } else {
-    void runPolling(tg, process_, log, abort.signal);
+    runPolling(tg, process_, log, abort.signal).catch((err) => log.error('polling to‘xtadi', { error: errorMessage(err) }));
   }
 
   const shutdown = (signal: string) => {

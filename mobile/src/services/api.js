@@ -1,13 +1,23 @@
 import * as storage from '../utils/storage';
+import { resolveApiUrl } from '../utils/apiUrl';
 
 // mobile/.env:  EXPO_PUBLIC_API_URL=http://<kompyuter-IP>:3001/api
 // Telefonda "localhost" ishlamaydi — kompyuterning Wi-Fi IP manzili kerak.
 // Android emulator uchun: http://10.0.2.2:3001/api
-const BASE_URL = (() => {
-  const raw = (process.env.EXPO_PUBLIC_API_URL || 'https://api.formo.uz/api').trim().replace(/\/+$/, '');
-  if (!raw) return 'https://api.formo.uz/api';
-  return raw.endsWith('/api') ? raw : `${raw}/api`;
+// Dev'da: .env dagi lokal IP eskirgan bo'lsa (Wi-Fi almashgan) — Metro xostiga almashtiriladi (utils/apiUrl)
+const devServerUrl = (() => {
+  if (typeof __DEV__ === 'undefined' || !__DEV__) return null;
+  try {
+    // eslint-disable-next-line global-require
+    return require('react-native/Libraries/Core/Devtools/getDevServer').default().url;
+  } catch {
+    return null;
+  }
 })();
+const BASE_URL = resolveApiUrl(process.env.EXPO_PUBLIC_API_URL, devServerUrl);
+
+/** Ilova ulanadigan API manzili (dev diagnostikasi uchun — xato xabarida ko'rsatiladi) */
+export const API_BASE_URL = BASE_URL;
 
 // ─── Error types ─────────────────────────────────────────────────────────────
 
@@ -202,15 +212,17 @@ function query(params = {}) {
 
 /** Katalog: GET'lar ochiq (public), sevimlilar — faqat USER */
 export const catalog = {
-  /** [{ id, name, slug, clubsCount }] */
-  categories: () => request('/catalog/categories'),
+  // Ilova faqat Forma 360° suratlari bor klublarni ko'rsatadi — kit360=true (backend Club.kit360Id bog'langanlar)
 
-  /** { items: [club card], total, page, limit } — club card: { id, name, league, season, code, markColor, category, kitsCount } */
+  /** [{ id, name, slug, clubsCount }] — faqat 360° klubi bor ligalar */
+  categories: () => request(`/catalog/categories${query({ kit360: true })}`),
+
+  /** { items: [club card], total, page, limit } — club card: { id, name, league, season, code, markColor, kit360Id, category, kitsCount } */
   clubs: ({ categoryId, category, search, page, limit } = {}) =>
-    request(`/catalog/clubs${query({ categoryId, category, search, page, limit })}`),
+    request(`/catalog/clubs${query({ categoryId, category, search, page, limit, kit360: true })}`),
 
   /** [club card + ordersCount] */
-  popular: (limit) => request(`/catalog/clubs/popular${query({ limit })}`),
+  popular: (limit) => request(`/catalog/clubs/popular${query({ limit, kit360: true })}`),
 
   /** Club + kits: [{ id, label, title, bgColor, textColor, price, priceBreakdown, sizes, ... }] */
   club: (id) => request(`/catalog/clubs/${id}`),
@@ -312,6 +324,13 @@ export const notifications = {
   list: () => request('/notifications'),
 };
 
+/** Qo'llab-quvvatlash chati (operator bilan): { items: [{ id, text, fromWorkshop (true = mijoz yozgan), createdAt }] } */
+export const support = {
+  messages: (after) => request(`/support/messages${query({ after })}`),
+  send: (text) => request('/support/messages', { method: 'POST', body: { text } }),
+  unread: () => request('/support/unread'),
+};
+
 // ─── Public API object ───────────────────────────────────────────────────────
 
 export const api = {
@@ -324,4 +343,5 @@ export const api = {
   appConfig,
   notifications,
   kits,
+  support,
 };

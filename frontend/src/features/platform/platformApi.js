@@ -47,6 +47,7 @@ export const ordersApi = {
 export const inventoryApi = {
   list: (params) => api(`/admin/inventory${qs(params)}`),
   save: (items) => api('/admin/inventory', { method: 'PUT', body: { items } }),
+  kits: () => api('/admin/inventory/kits'),
 };
 
 export const pricingApi = {
@@ -92,6 +93,14 @@ export const chatApi = {
   threads: () => api('/admin/chat/threads'), // [{ workshopId, name, unread, lastMessage }]
   messages: (workshopId, after) => api(`/admin/chat/${workshopId}/messages${qs({ after })}`), // { items }
   send: (workshopId, text) => api(`/admin/chat/${workshopId}/messages`, { method: 'POST', body: { text } }),
+};
+
+// Operator/Superadmin ↔ mobil ilova mijozi (qo'llab-quvvatlash chati)
+export const supportApi = {
+  threads: () => api('/admin/support/threads'), // [{ workshopId(=userId), name, phone, unread, lastMessage }]
+  unread: () => api('/admin/support/unread'), // { unread }
+  messages: (userId, after) => api(`/admin/support/${userId}/messages${qs({ after })}`), // { items }
+  send: (userId, text) => api(`/admin/support/${userId}/messages`, { method: 'POST', body: { text } }),
 };
 
 // Sexlar topgan nuqsonlar (brak)

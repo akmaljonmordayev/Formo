@@ -1,12 +1,12 @@
 /**
  * dist/viewer.html — bitta faylli (JS, CSS, shriftlar ichida) 3D ko'rinish; internet kerak emas.
- * Mobil ilovaga JS moduli sifatida ko'chiriladi: mobile/src/components/ui/kit3d/viewerHtml.js
+ * Mobil ilova endi 3D emas, Forma 360° suratlarini ko'rsatadi (frontend/.../Kit360/viewer/build.mjs) — nusxa yozilmaydi.
  *
- *   node scripts/build-viewer.mjs          — yig'adi va ikkala faylni yozadi
- *   node scripts/build-viewer.mjs --check  — mobil nusxa manbaga mosligini tekshiradi (CI)
+ *   node scripts/build-viewer.mjs          — yig'adi va dist/viewer.html ni yozadi
+ *   node scripts/build-viewer.mjs --check  — faqat yig'ilishini tekshiradi (CI)
  */
 import { build } from 'esbuild';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { STUDIO_BACKGROUND } from '../src/scene-background.js';
@@ -14,7 +14,6 @@ import { STUDIO_BACKGROUND } from '../src/scene-background.js';
 const here = dirname(fileURLToPath(import.meta.url));
 const pkg = resolve(here, '..');
 const htmlOut = resolve(pkg, 'dist/viewer.html');
-const mobileOut = resolve(pkg, '../../mobile/src/components/ui/kit3d/viewerHtml.js');
 
 const result = await build({
   entryPoints: [resolve(pkg, 'src/viewer/main.js')],
@@ -43,22 +42,14 @@ html,body,#kit{margin:0;width:100%;height:100%;overflow:hidden;background:${STUD
 </head><body><div id="kit"></div><script>${js}</script></body></html>
 `;
 
-const moduleText = `// AVTOMATIK YARATILGAN — tahrirlamang. Manba: packages/kit-3d (pnpm --filter @formo/kit-3d build:viewer)
-// Admin paneldagi 3D ko'rinish bilan bir xil kod; WebView'ga lokal HTML sifatida beriladi (tarmoq URL'i yo'q).
-export default ${JSON.stringify(html)};
-`;
-
 if (process.argv.includes('--check')) {
-  const current = await readFile(mobileOut, 'utf8').catch(() => '');
-  if (current.replace(/\r\n/g, '\n') !== moduleText) {
-    console.error('mobile/src/components/ui/kit3d/viewerHtml.js eskirgan — `pnpm --filter @formo/kit-3d build:viewer` ni ishga tushiring');
+  if (!js) {
+    console.error("viewer.html yig'ilmadi");
     process.exit(1);
   }
-  console.log('viewerHtml.js manbaga mos');
+  console.log(`viewer.html yig'iladi: ${(html.length / 1024).toFixed(0)} KB`);
 } else {
   await mkdir(dirname(htmlOut), { recursive: true });
-  await mkdir(dirname(mobileOut), { recursive: true });
   await writeFile(htmlOut, html);
-  await writeFile(mobileOut, moduleText);
   console.log(`viewer.html: ${(html.length / 1024).toFixed(0)} KB`);
 }

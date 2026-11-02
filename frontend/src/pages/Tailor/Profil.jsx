@@ -5,6 +5,8 @@ import {
 import { useAuth } from '../../hooks/useAuth';
 import { Toggle } from './ui';
 import ProfileModal from './ProfileModal';
+import EmployeesPanel from './EmployeesPanel';
+import { TAILOR_EMPLOYEES_ENABLED } from './tailorConstants';
 import { useTailor } from './prefs';
 import { LANGS, translate, useT } from './i18n';
 import { cx, initialsOf, prettyPhone } from './utils';
@@ -273,6 +275,7 @@ export default function Profile() {
           <p className="mt-3 text-[11px] text-slate-500">{t('profile.localNotifications')}</p>
         </Panel>
       </div>
+      {TAILOR_EMPLOYEES_ENABLED && <EmployeesPanel />}
       <ProfileModal open={modalOpen} profile={profile} onClose={() => setModalOpen(false)} onSaved={onProfileSaved} />
     </div>
   );

@@ -7,7 +7,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import JerseyVisualizer from '../../components/ui/JerseyVisualizer';
+import Kit360Thumb from '../../components/ui/Kit360Thumb';
 import { colors } from '../../constants/theme';
 
 const SLIDES = [
@@ -55,39 +55,15 @@ export default function OnboardingScreen({ onFinish }) {
         {index === 0 && (
           <View style={styles.jerseysRow}>
             <View style={[styles.sideShirt, styles.leftShirt]}>
-              <JerseyVisualizer
-                color="#19A7A1"
-                trim="#080C24"
-                ink="#080C24"
-                player="OYIM"
-                number="7"
-                side="back"
-                size={120}
-              />
+              <Kit360Thumb team="ar" width={90} height={120} zoom={1.7} style={styles.kitPhoto} />
             </View>
 
             <View style={[styles.sideShirt, styles.rightShirt]}>
-              <JerseyVisualizer
-                color="#B8323F"
-                trim="#F3F5F9"
-                ink="#F3F5F9"
-                player="DADAM"
-                number="1"
-                side="back"
-                size={120}
-              />
+              <Kit360Thumb team="mu" width={90} height={120} zoom={1.7} style={styles.kitPhoto} />
             </View>
 
             <View style={styles.centerShirt}>
-              <JerseyVisualizer
-                color="#1D2F8C"
-                trim="#F2A33A"
-                ink="#F2A33A"
-                player="ISMING"
-                number="10"
-                side="back"
-                size={190}
-              />
+              <Kit360Thumb team="rm" width={143} height={190} zoom={1.7} style={styles.kitPhoto} />
             </View>
           </View>
         )}
@@ -95,33 +71,10 @@ export default function OnboardingScreen({ onFinish }) {
         {index === 1 && (
           <View style={styles.jerseysRow}>
             <View style={[styles.sideShirt, styles.leftShirt, { top: 20 }]}>
-              <JerseyVisualizer
-                color="#F3F5F9"
-                trim="#F2A33A"
-                ink="#0E1A3F"
-                crest="RM"
-                player="REAL"
-                number="7"
-                side="front"
-                size={145}
-                showShorts
-                shorts={{ color: '#F3F5F9', trim: '#F2A33A', ink: '#0E1A3F' }}
-              />
+              <Kit360Thumb team="psg" width={109} height={145} zoom={1.7} style={styles.kitPhoto} />
             </View>
             <View style={[styles.sideShirt, styles.rightShirt, { top: 20 }]}>
-              <JerseyVisualizer
-                color="#1D2F8C"
-                trim="#B8323F"
-                ink="#F2A33A"
-                pattern="stripes"
-                crest="FCB"
-                player="BARCA"
-                number="10"
-                side="front"
-                size={145}
-                showShorts
-                shorts={{ color: '#1D2F8C', trim: '#B8323F', ink: '#F2A33A' }}
-              />
+              <Kit360Thumb team="fcb" width={109} height={145} zoom={1.7} style={styles.kitPhoto} />
             </View>
           </View>
         )}
@@ -131,15 +84,7 @@ export default function OnboardingScreen({ onFinish }) {
             <View style={styles.deliveryIconWrap}>
               <MaterialCommunityIcons name="package-variant-closed" size={54} color={colors.accent} />
             </View>
-            <JerseyVisualizer
-              color="#0E1A3F"
-              trim="#F2A33A"
-              ink="#F3F5F9"
-              player="FORMO"
-              number="24"
-              side="back"
-              size={170}
-            />
+            <Kit360Thumb team="es" width={128} height={170} zoom={1.7} style={styles.kitPhoto} />
           </View>
         )}
       </View>
@@ -242,6 +187,8 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 2,
   },
+  // Forma 360° suratlari (haqiqiy formalar) — 2D chizma o'rniga
+  kitPhoto: { borderRadius: 18, borderWidth: 1.5, borderColor: 'rgba(255,255,255,0.18)' },
   jerseysRow: {
     width: '100%',
     height: 310,

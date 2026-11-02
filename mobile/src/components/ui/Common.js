@@ -1,29 +1,34 @@
 import React from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, screenStyles, spacing } from '../../constants/theme';
 import { HeaderCart } from './CartButton';
+import { KeyboardAvoider, KeyboardAwareScrollView, useKeyboard } from './KeyboardAware';
 
 export function Screen({ children, scroll = true, contentStyle, footer, footerStyle }) {
   const insets = useSafeAreaInsets();
-  const Content = scroll ? ScrollView : View;
+  const kb = useKeyboard();
+  const Content = scroll ? KeyboardAwareScrollView : View;
   // Birinchi bola Header bo'lsa — skroll ustida qotib turadi (savat tugmasi doim ko'rinadi)
   const items = React.Children.toArray(children);
   const lead = scroll && items[0]?.type === Header ? items.shift() : null;
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={screenStyles.safe}>
-      {lead ? <View style={styles.stickyHeader}>{React.cloneElement(lead, { sticky: true })}</View> : null}
-      <Content
-        contentContainerStyle={scroll ? [screenStyles.content, lead && styles.contentUnderHeader, contentStyle] : undefined}
-        style={!scroll ? [screenStyles.content, contentStyle] : undefined}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
-      >
-        {lead ? items : children}
-      </Content>
-      {footer ? (
+      <KeyboardAvoider>
+        {lead ? <View style={styles.stickyHeader}>{React.cloneElement(lead, { sticky: true })}</View> : null}
+        <Content
+          contentContainerStyle={scroll ? [screenStyles.content, lead && styles.contentUnderHeader, contentStyle] : undefined}
+          style={!scroll ? [screenStyles.content, contentStyle] : undefined}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {lead ? items : children}
+        </Content>
+      </KeyboardAvoider>
+      {/* Yozish paytida pastki panel inputlarni yopmasin — klaviatura yopilganda qaytadi */}
+      {footer && !kb.visible ? (
         <View style={[styles.footer, { paddingBottom: Math.max(insets.bottom, 14) }, footerStyle]}>
           {footer}
         </View>
@@ -361,15 +366,17 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     fontSize: 14,
   },
+  // Xavfli amal (akkauntdan chiqish va h.k.) — qizil, darrov ko'zga tashlanadi
   dangerButton: {
-    backgroundColor: 'rgba(232, 84, 63, 0.12)',
-    borderWidth: 1,
-    borderColor: colors.danger,
+    backgroundColor: 'rgba(232, 84, 63, 0.14)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(232, 84, 63, 0.75)',
   },
   dangerText: {
-    color: colors.danger,
-    fontWeight: '800',
+    color: '#FF6B57',
+    fontWeight: '900',
     fontSize: 14,
+    letterSpacing: 0.3,
   },
   ghostButton: {
     backgroundColor: 'transparent',

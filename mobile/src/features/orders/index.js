@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { api } from '../../services/api';
+import { getCached, setCached } from '../../utils/memCache';
 
 // Holat operator/sex panelida o'zgaradi — ochiq ekran shu oraliqda qayta so'raydi
 export const POLL_MS = 20000;
@@ -50,15 +51,15 @@ function usePolling(fn, enabled = true) {
  * @returns {{ orders: object[], isLoading: boolean, error: Error|null, refetch: () => Promise<void> }}
  */
 export default function useOrders() {
-  const [orders, setOrders] = useState([]);
-  const [isLoading, setIsLoading] = useState(true);
+  const [orders, setOrders] = useState(() => getCached('orders') || []);
+  const [isLoading, setIsLoading] = useState(() => getCached('orders') === undefined);
   const [error, setError] = useState(null);
 
   const fetchOrders = useCallback(async ({ silent = false } = {}) => {
     if (!silent) setIsLoading(true);
     try {
       const data = await api.orders.list({ limit: 50 });
-      setOrders(data?.items || []);
+      setOrders(setCached('orders', data?.items || []));
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
@@ -68,7 +69,8 @@ export default function useOrders() {
   }, []);
 
   useEffect(() => {
-    fetchOrders();
+    // Keshdan ko'rsatilayotgan bo'lsa — fonda (spinnersiz) yangilaymiz
+    fetchOrders({ silent: getCached('orders') !== undefined });
   }, [fetchOrders]);
 
   usePolling(() => fetchOrders({ silent: true }));
@@ -78,14 +80,14 @@ export default function useOrders() {
 
 /** Bosh sahifadagi kuzatish kartasi: GET /api/orders/active -> { order | null } */
 export function useActiveOrder() {
-  const [order, setOrder] = useState(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [order, setOrder] = useState(() => getCached('activeOrder') ?? null);
+  const [isLoading, setIsLoading] = useState(() => getCached('activeOrder') === undefined);
   const [error, setError] = useState(null);
 
   const fetchActive = useCallback(async () => {
     try {
       const data = await api.orders.active();
-      setOrder(data?.order || null);
+      setOrder(setCached('activeOrder', data?.order || null));
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));

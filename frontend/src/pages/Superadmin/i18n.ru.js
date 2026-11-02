@@ -226,6 +226,11 @@ const RU = {
   "O'z dizayni": 'Свой дизайн',
   'Klub formasi': 'Клубная форма',
   'Klub formalari': 'Клубные формы',
+  Komplekt: 'Комплект',
+  'Faqat futbolka': 'Только футболка',
+  'Klub komplektlari narxi': 'Цена клубных комплектов',
+  'Ilova har bir komplektning o‘z narxini ko‘rsatadi. Jadvaldagi narxdan farq qiladigan komplektlarni bir tugma bilan to‘g‘rilash mumkin.':
+    'Приложение показывает собственную цену каждого комплекта. Комплекты, отличающиеся от цены в таблице, можно исправить одной кнопкой.',
 
   // --- клубы ---
   "Ilovadagi «Klub formalari» katalogi: liga klublari va davlat terma jamoalari. Har birida uy, mehmon va uchinchi forma. O'chirilgan forma ilovada ko'rinmaydi.":

@@ -107,6 +107,17 @@ const uz = {
   'order.spec.location': 'JOYLASHUVI',
   'order.deadline': 'MUDDAT',
   'order.workflow': 'Ish jarayoni',
+  'order.address': 'Yetkazish manzili',
+  'order.comment': 'Izoh',
+  'order.history': 'Holat tarixi',
+  'order.kitPhotoAria': '{team} formasi, {deg}°',
+  'order.spec.status': 'Status',
+  'order.spec.shorts': 'Shortik',
+  'order.spec.shortsNumber': 'Shortikda raqam',
+  'brak.orderLabel': 'Buyurtma',
+  'order.yes': 'Bor',
+  'order.no': 'Yo‘q',
+  'jersey.side': 'Yon',
   'order.wfReady': 'Bosmaga tayyor',
   'order.wfPrinting': 'Bosilmoqda',
   'order.wfDone': "Tayyor bo'ldi",
@@ -167,6 +178,18 @@ const uz = {
   'stat.today': 'bugun',
   'stat.week': 'hafta',
   'stat.month': 'oy',
+  'stat.quarter': '3 oy',
+  'stat.myLoad': 'Mening sexim',
+  'stat.noCapacity': 'Kunlik quvvat belgilanmagan',
+  'stat.stages': 'Bosqichlar bo‘yicha',
+  'stat.stagesHint': 'Sexdagi buyurtmalar ishlab chiqarish bosqichlari bo‘yicha.',
+  'stat.col.stage': 'Bosqich',
+  'stat.col.orders': 'Buyurtmalar',
+  'stat.col.pieces': 'Dona',
+  'stat.stage.ACCEPTED': 'Qabul qilindi',
+  'stat.stage.PRINTING': 'Bosilmoqda',
+  'stat.stage.QUALITY_CHECK': 'Sifat nazorati',
+  'stat.stage.READY': 'Tayyor',
   'stat.volumeChart': 'Bosma hajmi dinamika grafigi',
   'stat.volumeChartHint': "Tanlangan davr ({period}) bo'yicha ishlab chiqarish egri grafigi",
 
@@ -260,7 +283,7 @@ const uz = {
   'stock.title': "Bo'sh futbolkalar (Zaxira)",
   'stock.backendMissing': 'GET/PUT /admin/inventory endpointlariga faqat SUPERADMIN kira oladi. TAILOR roliga serverdan zaxira API ruxsati berilmagan; bu yerdagi o‘zgarishlar serverga saqlanmaydi.',
   'stock.persistError': 'Zaxirani ushbu qurilmada saqlab bo‘lmadi.',
-  'stock.updated': 'Rang va o‘lcham bo‘yicha zaxira qoldig‘i.',
+  'stock.updated': 'Klub formasi va o‘lcham bo‘yicha zaxira qoldig‘i.',
   'stock.addBtn': 'Qoldiq kiritish',
   'stock.total': 'Jami qoldiq',
   'stock.totalHint': "Bo'sh futbolka",
@@ -268,7 +291,7 @@ const uz = {
   'stock.lowHint': '5 donadan kam',
   'stock.zero': 'Nol qoldiq',
   'stock.zeroHint': 'Buyurtma qabul qilinmaydi',
-  'stock.colorRow': 'Rang',
+  'stock.colorRow': 'Klub formasi',
   'stock.cell.nol': 'NOL',
   'stock.cell.kam': 'KAM',
   'stock.cell.dona': 'DONA',
@@ -280,7 +303,7 @@ const uz = {
   'stock.alerts.low': 'Kam qoldiq',
   'stock.alerts.createDoc': 'Kirim hujjatini yaratish',
   'stock.add.title': 'Yangi qoldiq / mato kiritish',
-  'stock.add.color': 'Mato rangi',
+  'stock.add.color': 'Klub formasi',
   'stock.add.size': "Futbolka o'lchami",
   'stock.add.qty': "Qo'shiladigan miqdor (dona)",
   'stock.add.cancel': 'Bekor qilish',
@@ -429,6 +452,13 @@ const uz = {
   'emp.editTitle': 'Xodimni tahrirlash',
   'emp.saving': 'Saqlanmoqda...',
   'emp.saveError': "Xodimni saqlab bo'lmadi.",
+  'emp.listTitle': 'Xodimlar',
+  'emp.add': "Xodim qo'shish",
+  'emp.empty': "Hozircha xodim yo'q",
+  'emp.delete': "O'chirish",
+  'emp.deleteConfirm': "O'chirilsinmi?",
+  'emp.deleteError': "Xodimni o'chirib bo'lmadi.",
+  'emp.loadError': "Xodimlar ro'yxatini yuklab bo'lmadi.",
 };
 
 const ru = {
@@ -524,6 +554,17 @@ const ru = {
   'order.spec.location': 'РАСПОЛОЖЕНИЕ',
   'order.deadline': 'СРОК',
   'order.workflow': 'Процесс работы',
+  'order.address': 'Адрес доставки',
+  'order.comment': 'Комментарий',
+  'order.history': 'История статусов',
+  'order.kitPhotoAria': 'Форма {team}, {deg}°',
+  'order.spec.status': 'Статус',
+  'order.spec.shorts': 'Шорты',
+  'order.spec.shortsNumber': 'Номер на шортах',
+  'brak.orderLabel': 'Заказ',
+  'order.yes': 'Есть',
+  'order.no': 'Нет',
+  'jersey.side': 'Сбоку',
   'order.wfReady': 'Готов к печати',
   'order.wfPrinting': 'Печатается',
   'order.wfDone': 'Готово',
@@ -584,6 +625,18 @@ const ru = {
   'stat.today': 'сегодня',
   'stat.week': 'неделя',
   'stat.month': 'месяц',
+  'stat.quarter': '3 месяца',
+  'stat.myLoad': 'Мой цех',
+  'stat.noCapacity': 'Дневная мощность не задана',
+  'stat.stages': 'По этапам',
+  'stat.stagesHint': 'Заказы цеха по этапам производства.',
+  'stat.col.stage': 'Этап',
+  'stat.col.orders': 'Заказы',
+  'stat.col.pieces': 'Штук',
+  'stat.stage.ACCEPTED': 'Принят',
+  'stat.stage.PRINTING': 'Печатается',
+  'stat.stage.QUALITY_CHECK': 'Контроль качества',
+  'stat.stage.READY': 'Готов',
   'stat.volumeChart': 'График динамики объёма печати',
   'stat.volumeChartHint': 'Кривая производства за выбранный период ({period})',
 
@@ -677,7 +730,7 @@ const ru = {
   'stock.title': 'Пустые футболки (Запас)',
   'stock.backendMissing': 'К GET/PUT /admin/inventory имеет доступ только SUPERADMIN. Для роли TAILOR нет разрешения на API запасов; изменения здесь не сохраняются на сервере.',
   'stock.persistError': 'Не удалось сохранить запасы на этом устройстве.',
-  'stock.updated': 'Остатки по цвету и размеру.',
+  'stock.updated': 'Остатки по клубной форме и размеру.',
   'stock.addBtn': 'Внести остаток',
   'stock.total': 'Всего остаток',
   'stock.totalHint': 'Пустые футболки',
@@ -685,7 +738,7 @@ const ru = {
   'stock.lowHint': 'Менее 5 штук',
   'stock.zero': 'Нулевой остаток',
   'stock.zeroHint': 'Заказ не принимается',
-  'stock.colorRow': 'Цвет',
+  'stock.colorRow': 'Клубная форма',
   'stock.cell.nol': 'НОЛЬ',
   'stock.cell.kam': 'МАЛО',
   'stock.cell.dona': 'ШТУК',
@@ -697,7 +750,7 @@ const ru = {
   'stock.alerts.low': 'Мало остатка',
   'stock.alerts.createDoc': 'Создать приходный документ',
   'stock.add.title': 'Новый остаток / ткань',
-  'stock.add.color': 'Цвет ткани',
+  'stock.add.color': 'Клубная форма',
   'stock.add.size': 'Размер футболки',
   'stock.add.qty': 'Добавляемое количество (шт.)',
   'stock.add.cancel': 'Отмена',
@@ -846,6 +899,13 @@ const ru = {
   'emp.editTitle': 'Редактировать сотрудника',
   'emp.saving': 'Сохранение...',
   'emp.saveError': 'Не удалось сохранить сотрудника.',
+  'emp.listTitle': 'Сотрудники',
+  'emp.add': 'Добавить сотрудника',
+  'emp.empty': 'Сотрудников пока нет',
+  'emp.delete': 'Удалить',
+  'emp.deleteConfirm': 'Удалить?',
+  'emp.deleteError': 'Не удалось удалить сотрудника.',
+  'emp.loadError': 'Не удалось загрузить список сотрудников.',
 };
 
 const DICTS = { uz, ru };
@@ -934,10 +994,17 @@ export const orderTime = (t, order) => {
   return date ? new Date(date).toLocaleDateString(t.locale, { timeZone: 'UTC' }) : t('api.empty');
 };
 
-export const orderDeadline = (t, order) => {
+export const orderDeadline = (t, order, now = new Date()) => {
   if (!order.deadline) return order.deliveryTime ?? t('api.empty');
-  const base = t('time.withClock', { when: t('time.today'), time: order.deadline.time });
-  return order.deadline.done
-    ? `${base} · ${t('order.deadlineDone')}`
-    : t('order.deadlineFull', { base, h: order.deadline.h, m: order.deadline.m });
+  // deliveryTime — 'YYYY-MM-DD', deadline.time — '10:00-14:00' (slot boshlanishi muddat hisoblanadi)
+  const date = order.deliveryTime;
+  const [hh, mm] = String(order.deadline.time).split('-')[0].split(':').map(Number);
+  const start = date && Number.isFinite(hh) ? new Date(`${date}T${String(hh).padStart(2, '0')}:${String(mm || 0).padStart(2, '0')}:00`) : null;
+  const isToday = start && start.toDateString() === now.toDateString();
+  const when = !start || isToday ? t('time.today') : start.toLocaleDateString(t.locale);
+  const base = t('time.withClock', { when, time: order.deadline.time });
+  if (order.deadline.done) return `${base} · ${t('order.deadlineDone')}`;
+  const left = start ? start.getTime() - now.getTime() : 0;
+  if (left <= 0) return base;
+  return t('order.deadlineFull', { base, h: Math.floor(left / 3_600_000), m: Math.floor((left % 3_600_000) / 60_000) });
 };

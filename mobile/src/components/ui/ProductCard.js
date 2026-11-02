@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, fonts, radii, spacing } from '../../constants/theme';
 import { Badge, formatMoney } from './Common';
-import { JerseyPreview } from './JerseyPreview';
+import Kit360Thumb from './Kit360Thumb';
 
 export function ProductCard({ product, onPress, favorite, onFavorite, style }) {
   if (!product) return null;
@@ -35,11 +35,7 @@ export function ProductCard({ product, onPress, favorite, onFavorite, style }) {
           </Pressable>
         ) : null}
 
-        <View style={styles.jerseyCenter}>
-          <JerseyPreview product={product} compact number="10" />
-        </View>
-
-        <View style={styles.shineGlow} />
+        <Kit360Thumb team={product.kit360Id} />
       </View>
 
       <View style={styles.info}>
@@ -66,7 +62,7 @@ const styles = StyleSheet.create({
     width: '48%',
     marginBottom: spacing.md,
   },
-  // Barcha kartalarda bir xil nisbat (4:5) — forma markazda, kesilmaydi
+  // Barcha kartalarda bir xil nisbat (4:5) — Forma 360° surati markazda
   imageBox: {
     aspectRatio: 0.8,
     borderRadius: radii.lg,
@@ -95,21 +91,6 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(7, 10, 32, 0.75)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  jerseyCenter: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginTop: 6,
-    zIndex: 1,
-  },
-  shineGlow: {
-    position: 'absolute',
-    width: 140,
-    height: 140,
-    borderRadius: 70,
-    backgroundColor: 'rgba(255, 255, 255, 0.02)',
-    bottom: -20,
-    zIndex: 0,
   },
   info: {
     paddingTop: 10,

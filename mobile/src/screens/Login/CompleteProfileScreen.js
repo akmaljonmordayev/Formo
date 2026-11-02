@@ -1,15 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   BackHandler,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
+import { KeyboardAvoider, KeyboardAwareScrollView } from '../../components/ui/KeyboardAware';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
@@ -194,8 +192,8 @@ export default function CompleteProfileScreen({ auth, t, onSkip, onFinish }) {
     <SafeAreaView style={styles.safe}>
       {header}
       {/* Android: app.json softwareKeyboardLayoutMode=resize oynani o'zi kichraytiradi */}
-      <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.flex}>
-      <ScrollView
+      <KeyboardAvoider style={styles.flex}>
+      <KeyboardAwareScrollView
         contentContainerStyle={styles.scroll}
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
@@ -350,7 +348,7 @@ export default function CompleteProfileScreen({ auth, t, onSkip, onFinish }) {
             </View>
           </>
         )}
-      </ScrollView>
+      </KeyboardAwareScrollView>
 
       <View style={styles.footer}>
         {Boolean(error) && <ErrorNote>{error}</ErrorNote>}
@@ -365,7 +363,7 @@ export default function CompleteProfileScreen({ auth, t, onSkip, onFinish }) {
           />
         )}
       </View>
-      </KeyboardAvoidingView>
+      </KeyboardAvoider>
     </SafeAreaView>
   );
 }

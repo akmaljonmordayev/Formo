@@ -2,14 +2,12 @@ import { Suspense, lazy } from 'react';
 import {
   AlertTriangle,
   BarChart3,
-  Box,
   CreditCard,
   Factory,
   History,
   LayoutDashboard,
   Megaphone,
   Package,
-  Palette,
   Rotate3d,
   Settings,
   ShieldCheck,
@@ -26,7 +24,6 @@ import CustomersUsers from './Users';
 import Factories_ from './Factories';
 import Operator from './Operator';
 import Orders from './Orders';
-import DesignStudio from './Dashboard/DesignStudio';
 import Production from './Production';
 import Defects from './Defects';
 import Kit360 from './Kit360';
@@ -42,7 +39,9 @@ import AuditLog from './AuditLog';
 
 const BASE = '/superadmin';
 
-// three.js (~600 KB) faqat 3D formalar sahifasi ochilganda yuklanadi
+// Dizayn studiyasi / 3D formalar menyudan olib tashlandi (Forma 360° ularning o'rnini bosadi),
+// lekin eski sahifalar/havolalar hali ishlaydi — kerak bo'lsa qaytarish uchun saqlanmoqda.
+const DesignStudio = lazy(() => import('./Dashboard/DesignStudio'));
 const KitDesigns = lazy(() => import('./KitDesigns'));
 const lazyPage = (El) => (
   <Suspense fallback={<div className="sa-table__sub" style={{ padding: 20 }}>Yuklanmoqda...</div>}>
@@ -72,7 +71,7 @@ export const superadminRoutes = [
   // Eski katalog (har klubda 3 forma) olib tashlandi — eski havolalar Forma 360° ga olib boradi
   { path: 'clubs', element: <Navigate to={`${BASE}/kit-360`} replace /> },
   { path: 'categories', element: <Navigate to={`${BASE}/kit-360`} replace /> },
-  { path: 'design-studio', element: <DesignStudio /> },
+  { path: 'design-studio', element: lazyPage(DesignStudio) },
   { path: 'kit-designs', element: lazyPage(KitDesigns) },
   { path: 'inventory', element: <Inventory /> },
   { path: 'pricing', element: <Pricing /> },
@@ -96,8 +95,6 @@ export const superadminMenu = [
   { to: `${BASE}/defects`, label: 'Nuqsonlar (brak)', icon: AlertTriangle, group: 'Asosiy' },
 
   { to: `${BASE}/kit-360`, label: 'Forma 360°', icon: Rotate3d, group: 'Formalar' },
-  { to: `${BASE}/design-studio`, label: 'Dizayn studiyasi', icon: Palette, group: 'Formalar' },
-  { to: `${BASE}/kit-designs`, label: '3D formalar', icon: Box, group: 'Formalar' },
   { to: `${BASE}/inventory`, label: 'Zaxira', icon: Package, group: 'Formalar' },
   { to: `${BASE}/pricing`, label: 'Narxlar', icon: Tag, group: 'Formalar' },
 

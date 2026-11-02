@@ -1,10 +1,12 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Shirt, Clock, FileText, Image as ImageIcon, Play, CheckCircle, AlertTriangle, Truck, XCircle } from 'lucide-react';
-import { Card, JerseyPreview } from './ui';
+import { Card } from './ui';
+import OrderKitView from './OrderKitView';
 import WorkflowTracker from './WorkflowTracker';
 import { useT, orderDeadline } from './i18n';
 import { cx } from './utils';
+import { getTailorOrder } from './tailorApi';
 
 const BADGE_STYLES = {
   yangi: 'bg-amber-500/20 text-amber-300 ring-1 ring-amber-500/40',
@@ -19,6 +21,20 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
   const detailRef = useRef(null);
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState('');
+  const [fullOrder, setFullOrder] = useState(null);
+
+  // Tafsilot (manzil, izoh, holat tarixi) ro'yxatda yo'q — tanlangan buyurtma uchun alohida olinadi
+  const apiId = order?.apiId;
+  const apiStatus = order?.apiStatus;
+  useEffect(() => {
+    setFullOrder(null);
+    if (!apiId) return undefined;
+    let cancelled = false;
+    getTailorOrder(apiId)
+      .then((data) => { if (!cancelled) setFullOrder(data); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [apiId, apiStatus]);
 
   const submitReject = async () => {
     const text = reason.trim();
@@ -39,6 +55,13 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
   }
 
   const badgeStyle = BADGE_STYLES[order.status] ?? BADGE_STYLES.qabul;
+  const statusBadge = (
+    <span className="inline-block rounded-full bg-[#0b1220] shadow-lg">
+      <span className={cx('inline-block rounded-full px-3 py-1 text-xs font-extrabold uppercase', badgeStyle)}>
+        {t(`status.${order.status}`)}
+      </span>
+    </span>
+  );
 
   const design = order.design;
   const colorOf = (c) => {
@@ -54,6 +77,9 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
     { label: t('order.spec.number'), value: order.number, isHighlight: true },
     { label: t('order.spec.size'), value: order.size },
     { label: t('order.spec.qty'), value: t('order.qtyUnit', { n: order.qty }) },
+    { label: t('order.spec.status'), value: t(`status.${order.status}`), tone: order.status },
+    // Shortikda raqam bormi — API'dagi numberOnShorts / shortsNumber (faqat Bor / Yo'q)
+    { label: t('order.spec.shortsNumber'), value: order.shortsNumber ? t('order.yes') : t('order.no'), isHighlight: Boolean(order.shortsNumber) },
     ...(kit3d
       ? [
           { label: t('order.spec.design'), value: `${t('order.spec.kit3d')} · ${kit3d.name}` },
@@ -88,6 +114,22 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
 
   const handleDownload = async (type) => {
     if (type === 'PNG') {
+      // Forma surati (klub): canvas'ning o'zi
+      const photo = detailRef.current?.querySelector('canvas[data-kit-photo]');
+      if (photo) {
+        try {
+          const anchor = document.createElement('a');
+          anchor.href = photo.toDataURL('image/png');
+          anchor.download = `${order.id}.png`;
+          document.body.appendChild(anchor);
+          anchor.click();
+          anchor.remove();
+          onToast?.(t('order.downloadToast', { id: order.id, type }));
+        } catch {
+          onToast?.(t('order.downloadError'), true);
+        }
+        return;
+      }
       const svg = detailRef.current?.querySelector('[data-jersey-preview]');
       if (!svg) {
         onToast?.(t('order.downloadError'), true);
@@ -96,8 +138,11 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
 
       const exportSvg = svg.cloneNode(true);
       exportSvg.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
-      exportSvg.setAttribute('width', '960');
-      exportSvg.setAttribute('height', '1040');
+      const [, , vbW, vbH] = (svg.getAttribute('viewBox') || '0 0 240 350').split(/\s+/).map(Number);
+      const exportW = 960;
+      const exportH = Math.round((exportW * vbH) / vbW);
+      exportSvg.setAttribute('width', String(exportW));
+      exportSvg.setAttribute('height', String(exportH));
       const svgBlob = new Blob([new XMLSerializer().serializeToString(exportSvg)], {
         type: 'image/svg+xml;charset=utf-8',
       });
@@ -111,8 +156,8 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
         });
 
         const canvas = document.createElement('canvas');
-        canvas.width = 960;
-        canvas.height = 1040;
+        canvas.width = exportW;
+        canvas.height = exportH;
         const context = canvas.getContext('2d');
         if (!context) throw new Error('PNG eksporti bu brauzerda ishlamaydi');
         context.drawImage(image, 0, 0, canvas.width, canvas.height);
@@ -166,46 +211,40 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
           </div>
         </div>
 
-        <span className={cx('rounded-full px-3 py-1 text-xs font-extrabold uppercase', badgeStyle)}>
-          {t(`status.${order.status}`)}
-        </span>
       </div>
 
-      {/* Grid: Preview (Left) + Specifications (Right) */}
-      <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
-        {/* Left: Jersey Visual Preview */}
-        <JerseyPreview
-          color={design?.color?.hex || order.jerseyColor}
-          number={order.number}
-          name={order.customer}
-          colorKey={order.colorKey}
-        />
+      {/* Katta forma surati (chap) + ixcham ma'lumotlar (o'ng) */}
+      <div className="grid gap-5 lg:grid-cols-[minmax(320px,1.15fr)_minmax(0,1fr)]">
+        <OrderKitView order={order} statusBadge={statusBadge} />
 
-        {/* Right: Key-Value Spec Grid */}
-        <div className="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-3">
+        <dl className="grid h-fit grid-cols-2 gap-x-4 gap-y-3 rounded-2xl border border-white/10 bg-[#0e1424] p-4">
           {specs.map((item) => (
-            <div key={item.label} className="flex flex-col justify-center">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                {item.label}
-              </span>
-              <span
+            <div key={item.label} className="min-w-0">
+              <dt className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{item.label}</dt>
+              <dd
                 className={cx(
-                  'mt-0.5 text-sm font-extrabold truncate',
-                  item.isHighlight ? 'text-cyan-400 text-lg' : 'text-white'
+                  'mt-0.5 truncate text-[13px] font-extrabold',
+                  item.isHighlight ? 'text-cyan-400' : 'text-white'
                 )}
               >
                 {item.swatch && (
                   <span
-                    className="mr-1.5 inline-block h-3 w-3 rounded-full align-middle ring-1 ring-white/30"
+                    className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full align-middle ring-1 ring-white/30"
                     style={{ backgroundColor: item.swatch }}
                     aria-hidden="true"
                   />
                 )}
-                {item.value}
-              </span>
+                {item.tone ? (
+                  <span className={cx('rounded-full px-2 py-0.5 text-[10px] uppercase', BADGE_STYLES[item.tone] ?? BADGE_STYLES.qabul)}>
+                    {item.value}
+                  </span>
+                ) : (
+                  item.value
+                )}
+              </dd>
             </div>
           ))}
-        </div>
+        </dl>
       </div>
 
       {/* Countdown Timer Banner */}
@@ -223,6 +262,23 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
         </div>
       </div>
 
+      {(fullOrder?.deliveryAddress || fullOrder?.comment) && (
+        <div className="grid gap-3 sm:grid-cols-2">
+          {fullOrder.deliveryAddress && (
+            <div className="rounded-2xl border border-white/10 bg-[#0e1424] p-4">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('order.address')}</span>
+              <p className="mt-1 break-words text-sm font-bold text-white">{fullOrder.deliveryAddress}</p>
+            </div>
+          )}
+          {fullOrder.comment && (
+            <div className="rounded-2xl border border-white/10 bg-[#0e1424] p-4">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{t('order.comment')}</span>
+              <p className="mt-1 break-words text-sm font-bold text-white">{fullOrder.comment}</p>
+            </div>
+          )}
+        </div>
+      )}
+
       {/* Ish Jarayoni (Workflow Tracker) */}
       <div className="rounded-2xl border border-white/10 bg-[#0e1424] p-4">
         <div className="flex items-center justify-between pb-3">
@@ -233,6 +289,23 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
         </div>
         <WorkflowTracker stage={order.stage} status={order.status} />
       </div>
+
+      {fullOrder?.statusLogs?.length > 0 && (
+        <div className="rounded-2xl border border-white/10 bg-[#0e1424] p-4">
+          <h3 className="pb-3 text-xs font-extrabold uppercase tracking-wider text-slate-300">{t('order.history')}</h3>
+          <ul className="space-y-2">
+            {[...fullOrder.statusLogs].reverse().map((log) => (
+              <li key={log.id} className="flex flex-wrap items-baseline justify-between gap-2 text-xs">
+                <span className="font-bold text-white">
+                  {log.fromStatus ? `${log.fromStatus} → ` : ''}{log.toStatus}
+                  <span className="ml-2 font-semibold text-slate-400">{log.actorName}{log.note ? ` · ${log.note}` : ''}</span>
+                </span>
+                <span className="text-slate-500">{new Date(log.createdAt).toLocaleString(t.locale)}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       {/* Action Buttons Footer */}
       <div className="flex flex-wrap items-center justify-between gap-3 pt-2">

@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { inventoryApi } from '../../../features/platform/platformApi';
 import { useT } from '../i18n';
 
@@ -6,34 +6,28 @@ const KID_SIZES = ['2-3', '4-5', '6-7', '8-9', '10-11', '12-13'];
 const ADULT_SIZES = ['S', 'M', 'L', 'XL', 'XXL', '3XL'];
 const SIZES = [...KID_SIZES, ...ADULT_SIZES];
 
-const cellKey = (color, size) => `${color}::${size}`;
+const cellKey = (kitId, size) => `${kitId}::${size}`;
 
 export default function SuperadminInventory() {
   const t = useT();
   const [tab, setTab] = useState('TSHIRT');
-  const [colors, setColors] = useState([]);
-  const [qtyMap, setQtyMap] = useState({});
+  const [kits, setKits] = useState([]); // Forma 360° bilan bir xil 10 ta klub/terma jamoa
+  const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-  const [newColor, setNewColor] = useState('');
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError('');
     setSaved(false);
-    inventoryApi
-      .list({ productType: tab })
-      .then((items) => {
+    Promise.all([inventoryApi.kits(), inventoryApi.list({ productType: tab })])
+      .then(([kitList, invItems]) => {
         if (!active) return;
-        setColors(Array.from(new Set(items.map((i) => i.color))));
-        const map = {};
-        items.forEach((i) => {
-          map[cellKey(i.color, i.size)] = String(i.qty);
-        });
-        setQtyMap(map);
+        setKits(kitList);
+        setItems(invItems);
       })
       .catch((e) => active && setError(e.message))
       .finally(() => active && setLoading(false));
@@ -42,41 +36,34 @@ export default function SuperadminInventory() {
     };
   }, [tab]);
 
-  const setQty = (color, size, value) => {
-    if (value !== '' && !/^\d+$/.test(value)) return;
-    setQtyMap((m) => ({ ...m, [cellKey(color, size)]: value }));
-    setSaved(false);
-  };
+  const qtyMap = useMemo(() => Object.fromEntries(items.map((i) => [cellKey(i.kitId, i.size), String(i.qty)])), [items]);
+  const [draft, setDraft] = useState({});
+  useEffect(() => setDraft(qtyMap), [qtyMap]);
 
-  const addColor = () => {
-    const name = newColor.trim();
-    if (!name || colors.includes(name)) return;
-    setColors((c) => [...c, name]);
-    setNewColor('');
+  const valueOf = (kitId, size) => (draft[cellKey(kitId, size)] ?? '');
+
+  const setQty = (kitId, size, value) => {
+    if (value !== '' && !/^\d+$/.test(value)) return;
+    setDraft((m) => ({ ...m, [cellKey(kitId, size)]: value }));
     setSaved(false);
   };
 
   const save = async () => {
-    const items = [];
-    colors.forEach((color) => {
+    const payload = [];
+    kits.forEach((k) => {
       SIZES.forEach((size) => {
-        const raw = qtyMap[cellKey(color, size)];
+        const raw = draft[cellKey(k.kitId, size)];
         if (raw === '' || raw === undefined) return;
-        items.push({ productType: tab, color, size, qty: Number(raw) });
+        payload.push({ productType: tab, kitId: k.kitId, size, qty: Number(raw) });
       });
     });
-    if (!items.length) return;
+    if (!payload.length) return;
     setSaving(true);
     setError('');
     setSaved(false);
     try {
-      const fresh = (await inventoryApi.save(items)).filter((i) => i.productType === tab);
-      setColors(Array.from(new Set(fresh.map((i) => i.color))));
-      const map = {};
-      fresh.forEach((i) => {
-        map[cellKey(i.color, i.size)] = String(i.qty);
-      });
-      setQtyMap(map);
+      const fresh = (await inventoryApi.save(payload)).filter((i) => i.productType === tab);
+      setItems(fresh);
       setSaved(true);
     } catch (e) {
       setError(e.message);
@@ -89,8 +76,8 @@ export default function SuperadminInventory() {
     <>
       <div className="sa-head">
         <div>
-          <h1>{t("Zaxira")}</h1>
-          <p>{t("Rang va o'lcham bo'yicha bo'sh futbolkalar. 0 bo'lsa, bu variant mijozga ko'rinmaydi.")}</p>
+          <h1>{t('Zaxira')}</h1>
+          <p>{t("Forma 360°dagi klub va terma jamoalar bo'yicha tayyor qoldiq. 0 bo'lsa, bu variant mijozga ko'rinmaydi.")}</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {saved && <span className="sa-table__sub" style={{ color: 'var(--sa-teal)' }}>{t("Saqlandi ✓")}</span>}
@@ -116,35 +103,18 @@ export default function SuperadminInventory() {
 
       {error && <div className="form-error">{error}</div>}
 
-      <div className="sa-toolbar">
-        <input
-          className="sa-input"
-          style={{ maxWidth: 200 }}
-          placeholder={t("Yangi rang nomi")}
-          value={newColor}
-          onChange={(e) => setNewColor(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addColor())}
-          maxLength={30}
-        />
-        <button type="button" className="sa-btn sa-btn--ghost" onClick={addColor} disabled={!newColor.trim()}>
-          {t("+ Rang qo'shish")}
-        </button>
-      </div>
-
       {loading ? (
-        <div className="sa-table__sub" style={{ padding: 20 }}>{t("Yuklanmoqda...")}</div>
-      ) : colors.length === 0 ? (
+        <div className="sa-table__sub" style={{ padding: 20 }}>{t('Yuklanmoqda...')}</div>
+      ) : kits.length === 0 ? (
         <div className="sa-panel">
-          <div className="sa-table__sub">
-            {t("Hali bu mahsulot turi uchun zaxira kiritilmagan. Yuqoridan rang qo'shib, qoldiqlarni kiriting.")}
-          </div>
+          <div className="sa-table__sub">{t("Forma 360° klublari topilmadi.")}</div>
         </div>
       ) : (
         <div className="sa-table-wrap">
           <table className="sa-table">
             <thead>
               <tr>
-                <th>{t("Rang")}</th>
+                <th>{t('Klub formasi')}</th>
                 {SIZES.map((s) => (
                   <th key={s} style={{ textAlign: 'center' }}>{s}</th>
                 ))}
@@ -152,22 +122,33 @@ export default function SuperadminInventory() {
               </tr>
             </thead>
             <tbody>
-              {colors.map((color) => {
+              {kits.map((kit) => {
                 let total = 0;
                 return (
-                  <tr key={color}>
-                    <td><b>{color}</b></td>
+                  <tr key={kit.kitId}>
+                    <td>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            width: 18, height: 18, borderRadius: 5, flexShrink: 0,
+                            background: kit.bgColor || '#888', border: `2px solid ${kit.textColor || '#333'}`,
+                          }}
+                        />
+                        <b>{kit.clubName}</b>
+                      </div>
+                    </td>
                     {SIZES.map((s) => {
-                      const raw = qtyMap[cellKey(color, s)];
-                      const v = raw === '' || raw === undefined ? null : Number(raw);
+                      const raw = valueOf(kit.kitId, s);
+                      const v = raw === '' ? null : Number(raw);
                       total += v ?? 0;
                       const low = v !== null && v > 0 && v < 5;
                       const out = v === 0;
                       return (
                         <td key={s} style={{ textAlign: 'center' }}>
                           <input
-                            value={raw ?? ''}
-                            onChange={(e) => setQty(color, s, e.target.value)}
+                            value={raw}
+                            onChange={(e) => setQty(kit.kitId, s, e.target.value)}
                             inputMode="numeric"
                             placeholder="—"
                             style={{

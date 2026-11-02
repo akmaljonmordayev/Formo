@@ -28,6 +28,14 @@ export async function login(app: INestApplication, phone: string, password: stri
 
 export const bearer = (token: string) => ({ Authorization: `Bearer ${token}` });
 
+/** Login-lockout hisoblagichini tozalaydi — ataylab xato parol yuboradigan testlar hisobni bloklab qo'ymasin */
+export async function resetLoginLockout(app: INestApplication, phone: string = SUPERADMIN.phone) {
+  await app.get(PrismaService).user.update({
+    where: { phone },
+    data: { failedLoginAttempts: 0, lockedUntil: null },
+  });
+}
+
 let seq = 0;
 /** Har chaqiriqda yangi, unikal o'zbek raqami */
 export function nextPhone() {

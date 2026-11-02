@@ -64,9 +64,12 @@ type OrderRow = Prisma.OrderGetPayload<{ include: typeof include }>;
 
 export const orderCode = (id: number) => `FRM-${String(id).padStart(6, '0')}`;
 
-/** Demo to'lov tasdig'i (Click/Payme integratsiyasigacha) — productionda faqat PAYMENT_DEMO=true bilan */
+/**
+ * Demo to'lov tasdig'i (Click/Payme integratsiyasigacha) — faqat dev/test muhitida.
+ * Productionda HECH QACHON yoqilmaydi: aks holda har kim pulsiz buyurtmani "to'langan" qila oladi.
+ */
 export const demoPaymentEnabled = () =>
-  process.env.PAYMENT_DEMO === 'true' || (process.env.NODE_ENV !== 'production' && process.env.PAYMENT_DEMO !== 'false');
+  process.env.NODE_ENV !== 'production' && process.env.PAYMENT_DEMO !== 'false';
 
 export function toOrderView(o: OrderRow) {
   const date = o.deliveryDate?.toISOString().slice(0, 10) ?? null;
@@ -141,13 +144,14 @@ export class ShopOrdersService {
    * Buyurtmani bekor qiladi va ishlatilgan promokodni qaytaradi.
    * `from` — faqat shu holatdagi buyurtma o'zgaradi (parallel so'rovlardan himoya).
    */
-  private async release(id: number, paymentStatus: PaymentStatus, from: OrderStatus, actor: AuthUser | null, note?: string) {
-    await this.prisma.$transaction(async (tx) => {
+  /** true — bekor qilindi; false — holat shu orada o'zgargan (masalan, sex qabul qildi) */
+  private async release(id: number, paymentStatus: PaymentStatus, from: OrderStatus, actor: AuthUser | null, note?: string): Promise<boolean> {
+    return this.prisma.$transaction(async (tx) => {
       const { count } = await tx.order.updateMany({
         where: { id, status: from },
         data: { status: OrderStatus.CANCELLED, paymentStatus },
       });
-      if (!count) return;
+      if (!count) return false;
       await this.history.record({ orderId: id, from, to: OrderStatus.CANCELLED, actor, note }, tx);
       // Balansdan to'langan bo'lsa — pul shu tranzaksiyada (bir marta) qaytadi
       await this.wallet.refundOrder(tx, id, actor?.id ?? null);
@@ -158,6 +162,7 @@ export class ShopOrdersService {
           data: { usedCount: { decrement: 1 } },
         });
       }
+      return true;
     });
   }
 
@@ -444,7 +449,11 @@ export class ShopOrdersService {
     }
     // To'langan bo'lsa pul qaytariladi (operator qo'lda qaytaradi)
     const paymentStatus = order.paymentStatus === PaymentStatus.PAID ? PaymentStatus.REFUNDED : order.paymentStatus;
-    await this.release(id, paymentStatus, order.status, user, 'Mijoz bekor qildi');
+    const cancelled = await this.release(id, paymentStatus, order.status, user, 'Mijoz bekor qildi');
+    // Shu orada sex qabul qilgan bo'lsa — bekor qilinmaydi (tikish boshlangan)
+    if (!cancelled) {
+      throw new ConflictException('Buyurtma tikuv sexi tomonidan qabul qilingan — bekor qilish uchun operatorga murojaat qiling');
+    }
 
     await this.audit.log({ actor: user, action: 'Buyurtma bekor qilindi', category: AuditCategory.ORDER, context: order.code });
     return this.get(user.id, id);

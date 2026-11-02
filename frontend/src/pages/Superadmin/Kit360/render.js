@@ -354,7 +354,8 @@ function shadeInto(ctx, zone, K) {
 
 export const ready = (im) => Boolean(im && im.complete && im.naturalWidth > 0);
 
-export function paint(canvas, img, frame, { name, number, team, style }, backImg) {
+// shortsNumber berilsa (bo'sh qator ham) shortikdagi raqam alohida; berilmasa — orqadagi raqam bilan bir xil
+export function paint(canvas, img, frame, { name, number, shortsNumber, team, style }, backImg) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.imageSmoothingEnabled = true;
@@ -362,11 +363,11 @@ export function paint(canvas, img, frame, { name, number, team, style }, backImg
   // 45° da ko'zgudek chizilgan gerb doim yamalgan (raqam va gerb oyoqdan oyoqqa sakramasin, birinchi raqamda miltillamasin)
   const source = healedFor(frame, img, backImg)?.canvas ?? img;
   ctx.drawImage(source, CROP.x, CROP.y, CROP.w, CROP.h, 0, 0, canvas.width, canvas.height);
-  if (!name && !number) return;
+  if (!name && !number && !shortsNumber) return;
   const K = canvas.width / CROP.w;
   const { zones, mask } = printFor(frame, img, backImg, style.scale);
   for (const z of zones) {
-    const text = z.text === 'name' ? name : number;
+    const text = z.text === 'name' ? name : z.shorts && shortsNumber !== undefined ? shortsNumber : number;
     if (!text) continue;
     // Shortikda klub rangi saqlanadi, agar admin raqam rangini o'zgartirmagan bo'lsa (shortik boshqa rangda)
     const color = z.text === 'name' ? style.nameColor

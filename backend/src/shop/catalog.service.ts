@@ -23,6 +23,9 @@ const clubCard = {
   _count: { select: { kits: { where: { isActive: true } } } },
 } satisfies Prisma.ClubSelect;
 
+/** Forma 360° suratlari bor klublar (mobil katalog: ?kit360=true) */
+const withKit360: Prisma.ClubWhereInput = { kit360Id: { not: null } };
+
 type ClubCardRow = Prisma.ClubGetPayload<{ select: typeof clubCard }>;
 
 const toClubCard = ({ _count, ...c }: ClubCardRow) => ({ ...c, kitsCount: _count.kits });
@@ -52,24 +55,27 @@ export class CatalogService {
   constructor(private readonly prisma: PrismaService) {}
 
   /** Katalogdagi filtr chiplari (Barchasi, LaLiga, Premier League ...) */
-  async categories() {
+  async categories(kit360 = false) {
+    const clubs: Prisma.ClubWhereInput = kit360 ? { isActive: true, ...withKit360 } : { isActive: true };
     const rows = await this.prisma.category.findMany({
-      where: { isActive: true },
+      // kit360 — faqat 360° klubi bor ligalar (bo'sh chip ko'rinmasin)
+      where: kit360 ? { isActive: true, clubs: { some: clubs } } : { isActive: true },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }],
       select: {
         id: true,
         name: true,
         slug: true,
-        _count: { select: { clubs: { where: { isActive: true } } } },
+        _count: { select: { clubs: { where: clubs } } },
       },
     });
     return rows.map(({ _count, ...c }) => ({ ...c, clubsCount: _count.clubs }));
   }
 
   async clubs(query: ListCatalogClubsQueryDto) {
-    const { categoryId, category, search, page = 1, limit = 50 } = query;
+    const { categoryId, category, search, kit360, page = 1, limit = 50 } = query;
     const where: Prisma.ClubWhereInput = { AND: [visibleClub] };
     const and = where.AND as Prisma.ClubWhereInput[];
+    if (kit360) and.push(withKit360);
     if (categoryId) and.push({ categoryId });
     if (category) and.push({ category: { slug: category } });
     if (search) and.push({ name: { contains: search, mode: 'insensitive' } });
@@ -88,9 +94,9 @@ export class CatalogService {
   }
 
   /** "Mashhur klublar" — eng ko'p buyurtma qilinganlar */
-  async popular(limit = 8) {
+  async popular(limit = 8, kit360 = false) {
     const clubs = await this.prisma.club.findMany({
-      where: visibleClub,
+      where: kit360 ? { AND: [visibleClub, withKit360] } : visibleClub,
       orderBy: [{ orders: { _count: 'desc' } }, { name: 'asc' }],
       take: limit,
       select: {

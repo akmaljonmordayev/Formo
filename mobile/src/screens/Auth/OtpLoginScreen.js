@@ -22,7 +22,7 @@ const ONBOARDING_SEEN_KEY = 'formo_onboarding_seen';
  * Android "orqaga" tugmasi ekrandagi orqaga tugmasi bilan bir xil ishlaydi:
  * telegram → phone → onboarding → ilovadan chiqish.
  */
-export default function OtpLoginScreen({ auth, t }) {
+export default function OtpLoginScreen({ auth, t, language }) {
   const [step, setStep] = useState('splash');
   const [phone, setPhone] = useState('');
   // Telegram so'rovi: { challengeId, deepLink, expiresAt } — "Yangi so'rov" bilan almashtiriladi
@@ -84,6 +84,7 @@ export default function OtpLoginScreen({ auth, t }) {
     <PhoneScreen
       auth={auth}
       t={t}
+      language={language}
       initialPhone={phone}
       onBack={() => setStep('onboarding')}
       onTelegramStarted={({ phone: enteredPhone, challenge: started }) => {
