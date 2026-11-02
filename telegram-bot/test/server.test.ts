@@ -74,3 +74,20 @@ describe('polling rejimi', () => {
     await new Promise<void>((r) => server.close(() => r()));
   });
 });
+
+describe('health: polling osilib qolsa', () => {
+  it('unhealthy() true — /health 503, aks holda 200', async () => {
+    const { deps } = fakeDeps();
+    let stale = false;
+    const server = createBotServer({ process: async () => undefined, log: deps.log, unhealthy: () => stale });
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r));
+    const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}/health`;
+    try {
+      assert.equal((await fetch(url)).status, 200);
+      stale = true;
+      assert.equal((await fetch(url)).status, 503);
+    } finally {
+      await new Promise<void>((r) => server.close(() => r()));
+    }
+  });
+});
