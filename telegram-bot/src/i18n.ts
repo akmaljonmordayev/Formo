@@ -65,7 +65,9 @@ interface Dict {
   methodUnavailable: string;
   receiptReceived: (code: string, amount: number) => string;
   noOpenTopUp: string;
+  receiptInReview: string;
   sendPhoto: string;
+  tooFast: string;
   duplicateReceipt: string;
 }
 
@@ -84,6 +86,7 @@ const uz: Dict = {
     '/start — boshlash va xabarlarni yoqish\n' +
     '/balance — balans\n' +
     '/topup — balansni to‘ldirish\n' +
+    '/orders — buyurtmalar\n' +
     '/language — til\n' +
     '/stop — buyurtma xabarlarini o‘chirish\n\n' +
     'Ilovaga kirish uchun Formo ilovasida «Telegram orqali kirish» tugmasini bosing.',
@@ -123,7 +126,10 @@ const uz: Dict = {
   receiptReceived: (code, amount) =>
     `🧾 Chek qabul qilindi: ${code} · ${money(amount, 'uz')}\n\nAdmin tekshiradi. Tasdiqlangach balansingiz to‘ldiriladi va sizga xabar keladi.`,
   noOpenTopUp: 'Ochiq to‘ldirish so‘rovi yo‘q. Avval «➕ Balansni to‘ldirish» orqali summani tanlang, keyin chekni yuboring.',
+  receiptInReview:
+    'Chekingiz allaqachon tekshiruvda — uni almashtirib bo‘lmaydi. Yangi o‘tkazma qilgan bo‘lsangiz, avval «➕ Balansni to‘ldirish» orqali yangi so‘rov oching, keyin chekni yuboring.',
   sendPhoto: 'Chekni rasm sifatida yuboring (JPG/PNG).',
+  tooFast: 'Juda tez yuboryapsiz. Bir necha soniya kutib, qayta urinib ko‘ring.',
   duplicateReceipt: 'Bu chek avval boshqa so‘rov uchun yuborilgan. Aynan shu so‘rov bo‘yicha qilingan o‘tkazmaning chekini yuboring.',
 };
 
@@ -142,6 +148,7 @@ const ru: Dict = {
     '/start — начать и включить уведомления\n' +
     '/balance — баланс\n' +
     '/topup — пополнить баланс\n' +
+    '/orders — заказы\n' +
     '/language — язык\n' +
     '/stop — отключить уведомления о заказах\n\n' +
     'Чтобы войти в приложение, нажмите «Войти через Telegram» в приложении Formo.',
@@ -181,7 +188,10 @@ const ru: Dict = {
   receiptReceived: (code, amount) =>
     `🧾 Чек получен: ${code} · ${money(amount, 'ru')}\n\nАдминистратор проверит его. После подтверждения баланс пополнится и вы получите уведомление.`,
   noOpenTopUp: 'Нет открытой заявки на пополнение. Сначала выберите сумму через «➕ Пополнить баланс», затем отправьте чек.',
+  receiptInReview:
+    'Ваш чек уже на проверке — заменить его нельзя. Если вы сделали новый перевод, сначала создайте новую заявку через «➕ Пополнить баланс», затем отправьте чек.',
   sendPhoto: 'Отправьте чек как изображение (JPG/PNG).',
+  tooFast: 'Слишком много запросов. Подождите несколько секунд и попробуйте снова.',
   duplicateReceipt: 'Этот чек уже был отправлен для другой заявки. Отправьте чек перевода именно по этой заявке.',
 };
 
@@ -199,6 +209,7 @@ const en: Dict = {
     '/start — start and enable notifications\n' +
     '/balance — balance\n' +
     '/topup — top up balance\n' +
+    '/orders — orders\n' +
     '/language — language\n' +
     '/stop — turn off order notifications\n\n' +
     'To sign in, tap “Sign in with Telegram” in the Formo app.',
@@ -238,7 +249,10 @@ const en: Dict = {
   receiptReceived: (code, amount) =>
     `🧾 Receipt received: ${code} · ${money(amount, 'en')}\n\nAn admin will review it. Once approved, your balance will be credited and you will be notified.`,
   noOpenTopUp: 'No open top-up request. First choose an amount via “➕ Top up balance”, then send the receipt.',
+  receiptInReview:
+    'Your receipt is already under review and cannot be replaced. If you made a new transfer, first open a new request via “➕ Top up balance”, then send the receipt.',
   sendPhoto: 'Please send the receipt as an image (JPG/PNG).',
+  tooFast: 'Too many requests. Please wait a few seconds and try again.',
   duplicateReceipt: 'This receipt was already submitted for another request. Please send the receipt for the transfer made for this request.',
 };
 

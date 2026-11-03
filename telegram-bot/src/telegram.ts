@@ -96,6 +96,12 @@ interface CallOptions {
   retries?: number;
   timeoutMs?: number;
   signal?: AbortSignal;
+  /**
+   * false — javob kutish vaqti tugasa qayta yuborilmaydi: so'rov Telegram'ga yetib, faqat javob yo'qolgan
+   * bo'lishi mumkin (xabar ikki marta keladi — masalan, kirish kodi yoki to'lov rekvizitlari).
+   * Ulanish o'rnatilmagan tarmoq xatolari (so'rov yetmagan) baribir qayta uriniladi.
+   */
+  retryOnTimeout?: boolean;
 }
 
 /**
@@ -111,9 +117,10 @@ export class TelegramApi {
   ) {}
 
   async call<T>(method: string, params: Record<string, unknown>, opts: CallOptions = {}): Promise<T> {
-    const { retries = 3, timeoutMs = 15_000, signal } = opts;
+    const { retries = 3, timeoutMs = 15_000, signal, retryOnTimeout = true } = opts;
     for (let attempt = 0; ; attempt++) {
       let error: TelegramError;
+      let timedOut = false;
       try {
         const timeout = AbortSignal.timeout(timeoutMs);
         const res = await this.fetchImpl(`${this.base}/bot${this.token}/${method}`, {
@@ -129,10 +136,11 @@ export class TelegramApi {
         error = new TelegramError(method, body?.error_code ?? res.status, body?.description ?? 'javob yo‘q', body?.parameters?.retry_after);
       } catch (err) {
         if (signal?.aborted) throw err;
-        error = new TelegramError(method, 0, (err as Error).name === 'TimeoutError' ? 'timeout' : 'tarmoq xatosi');
+        timedOut = (err as Error).name === 'TimeoutError';
+        error = new TelegramError(method, 0, timedOut ? 'timeout' : 'tarmoq xatosi');
       }
 
-      const transient = error.code === 0 || error.code === 429 || error.code >= 500;
+      const transient = (error.code === 0 && (retryOnTimeout || !timedOut)) || error.code === 429 || error.code >= 500;
       if (!transient || attempt >= retries) throw error;
       const wait = error.retryAfter ? Math.min(error.retryAfter, MAX_RETRY_AFTER_SEC) * 1000 : 500 * 2 ** attempt;
       await this.sleep(wait);
@@ -148,7 +156,7 @@ export class TelegramApi {
   }
 
   sendMessage(chatId: number | string, text: string, options: SendOptions = {}, retries?: number) {
-    return this.call<unknown>('sendMessage', { chat_id: chatId, text, ...options }, { retries });
+    return this.call<unknown>('sendMessage', { chat_id: chatId, text, ...options }, { retries, retryOnTimeout: false });
   }
 
   answerCallbackQuery(id: string, text?: string) {

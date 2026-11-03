@@ -91,6 +91,7 @@ function DesignStudio() {
   const [rules, setRules] = useState(DEFAULT_ORDER_RULES)
   const [bannedCount, setBannedCount] = useState(0)
   const [saveError, setSaveError] = useState('')
+  const [loadFailed, setLoadFailed] = useState(false)
   const [view, setView] = useState('orqa')
   const [activeStep, setActiveStep] = useState(1)
   const [colorSelection, setColorSelection] = useState({ type: 'solid', id: 'lojuvard' })
@@ -152,7 +153,12 @@ function DesignStudio() {
         if (all?.[SETTING_KEYS.studio]) applyConfig(all[SETTING_KEYS.studio])
         else applyLocal()
       })
-      .catch(() => active && applyLocal())
+      .catch(() => {
+        if (!active) return
+        // Server sozlamasi noma'lum — saqlash uni lokal/standart qiymatlar bilan almashtirib yubormasin
+        setLoadFailed(true)
+        applyLocal()
+      })
     return () => {
       active = false
     }
@@ -194,6 +200,10 @@ function DesignStudio() {
   }
 
   async function handleSave() {
+    if (loadFailed) {
+      setSaveError(t("Sozlamalar serverdan yuklanmadi — saqlashdan oldin sahifani yangilang"))
+      return
+    }
     const config = {
       colorSelection,
       customColorValue,

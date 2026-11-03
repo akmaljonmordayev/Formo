@@ -30,15 +30,20 @@ export default function SuperadminSettings() {
   const [active, setActive] = useState('profile');
   const [settings, setSettings] = useState(null);
   const [error, setError] = useState('');
+  const [reloadKey, setReloadKey] = useState(0);
 
+  // Yuklanmasa formalar ochilmaydi: aks holda ular standart qiymatlar bilan to'lib, saqlash
+  // haqiqiy sozlamalarni (buyurtma qoidalari, xabarlar) standartlarga almashtirib yuborardi
   useEffect(() => {
+    let alive = true;
+    setError('');
     loadSettings()
-      .then(setSettings)
-      .catch((e) => {
-        setError(e.message);
-        setSettings({});
-      });
-  }, []);
+      .then((s) => alive && setSettings(s))
+      .catch((e) => alive && setError(e.message));
+    return () => {
+      alive = false;
+    };
+  }, [reloadKey]);
 
   // Saqlangandan keyin boshqa bo'limlar ham yangi qiymatni ko'rsin
   const onSaved = (key, value) => setSettings((s) => ({ ...s, [key]: value }));
@@ -89,7 +94,13 @@ export default function SuperadminSettings() {
           ) : active === 'integrations' ? (
             <p className="sa-table__sub">{t("Bu bo'lim hali ulanmagan.")}</p>
           ) : settings === null ? (
-            <div className="sa-table__sub">{t('Yuklanmoqda...')}</div>
+            error ? (
+              <button type="button" className="sa-btn" onClick={() => setReloadKey((k) => k + 1)}>
+                {t('Qayta urinish')}
+              </button>
+            ) : (
+              <div className="sa-table__sub">{t('Yuklanmoqda...')}</div>
+            )
           ) : active === 'slots' ? (
             <SlotsSection {...common} />
           ) : active === 'orderRules' ? (
@@ -429,14 +440,22 @@ function OrderRulesSection({ settings, onSaved }) {
     'autoCancelUnpaidHours', 'cancelWindowHours', 'returnDays', 'printNameMaxLength', 'printNumberMin', 'printNumberMax',
   ];
 
+  // 0 bo'lsa server har bir savat qatorini rad etadi — hech kim buyurtma bera olmay qoladi
+  const AT_LEAST_ONE = ['maxItemsPerOrder', 'maxQtyPerItem', 'printNameMaxLength'];
+
   const submit = () => {
-    if (NUMERIC.some((k) => r[k] === '' || Number.isNaN(Number(r[k])) || Number(r[k]) < 0)) {
+    if (NUMERIC.some((k) => r[k] === '' || !Number.isInteger(Number(r[k])) || Number(r[k]) < 0)) {
       return setError(t('Barcha raqamli maydonlarni to‘ldiring (manfiy bo‘lmasin)'));
     }
-    if (r.productionDaysMin > r.productionDaysMax) return setError(t('Tayyorlash muddati: minimal qiymat maksimaldan katta'));
-    if (r.printNumberMin > r.printNumberMax) return setError(t('Raqam oralig‘i noto‘g‘ri'));
-    if (r.prepaymentPercent > 100) return setError(t('Oldindan to‘lov 100% dan oshmasin'));
-    if (!r.allowCash && r.prepaymentPercent < 100) return setError(t('Naqd to‘lov o‘chirilgan bo‘lsa, oldindan to‘lov 100% bo‘lishi kerak'));
+    if (AT_LEAST_ONE.some((k) => Number(r[k]) < 1)) {
+      return setError(t('Buyurtma, mahsulot soni va ism uzunligi chegarasi kamida 1 bo‘lishi kerak'));
+    }
+    // Inputlar matn qaytaradi — taqqoslash sonlar bilan ('10' > '9' false bo'lardi)
+    const n = (k) => Number(r[k]);
+    if (n('productionDaysMin') > n('productionDaysMax')) return setError(t('Tayyorlash muddati: minimal qiymat maksimaldan katta'));
+    if (n('printNumberMin') > n('printNumberMax')) return setError(t('Raqam oralig‘i noto‘g‘ri'));
+    if (n('prepaymentPercent') > 100) return setError(t('Oldindan to‘lov 100% dan oshmasin'));
+    if (!r.allowCash && n('prepaymentPercent') < 100) return setError(t('Naqd to‘lov o‘chirilgan bo‘lsa, oldindan to‘lov 100% bo‘lishi kerak'));
     const clean = Object.fromEntries(Object.entries(r).map(([k, v]) => [k, NUMERIC.includes(k) ? Number(v) : v]));
     return save({ ...clean, pausedMessage: r.pausedMessage.trim(), terms: r.terms.trim() });
   };

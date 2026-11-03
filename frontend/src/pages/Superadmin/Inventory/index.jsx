@@ -17,19 +17,27 @@ export default function SuperadminInventory() {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [loadFailed, setLoadFailed] = useState(false);
 
   useEffect(() => {
     let active = true;
     setLoading(true);
     setError('');
     setSaved(false);
+    // Oldingi tab qoldiqlari yangi tab nomi bilan saqlanib ketmasin (yuklash tugamasa/xato bo'lsa ham)
+    setItems([]);
+    setLoadFailed(false);
     Promise.all([inventoryApi.kits(), inventoryApi.list({ productType: tab })])
       .then(([kitList, invItems]) => {
         if (!active) return;
         setKits(kitList);
         setItems(invItems);
       })
-      .catch((e) => active && setError(e.message))
+      .catch((e) => {
+        if (!active) return;
+        setError(e.message);
+        setLoadFailed(true);
+      })
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
@@ -43,17 +51,24 @@ export default function SuperadminInventory() {
   const valueOf = (kitId, size) => (draft[cellKey(kitId, size)] ?? '');
 
   const setQty = (kitId, size, value) => {
-    if (value !== '' && !/^\d+$/.test(value)) return;
+    // 6 xonagacha: kattaroq son bazadagi int chegarasidan oshib server 500 qaytarardi
+    if (value !== '' && !/^\d{1,6}$/.test(value)) return;
     setDraft((m) => ({ ...m, [cellKey(kitId, size)]: value }));
     setSaved(false);
   };
 
   const save = async () => {
+    if (loading || loadFailed) return;
     const payload = [];
     kits.forEach((k) => {
       SIZES.forEach((size) => {
-        const raw = draft[cellKey(k.kitId, size)];
-        if (raw === '' || raw === undefined) return;
+        const key = cellKey(k.kitId, size);
+        const raw = draft[key];
+        // Serverda qoldig'i bor katak tozalansa — 0 yuboriladi (aks holda eski son qaytib chiqardi)
+        if (raw === '' || raw === undefined) {
+          if (qtyMap[key] !== undefined) payload.push({ productType: tab, kitId: k.kitId, size, qty: 0 });
+          return;
+        }
         payload.push({ productType: tab, kitId: k.kitId, size, qty: Number(raw) });
       });
     });
@@ -81,7 +96,7 @@ export default function SuperadminInventory() {
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {saved && <span className="sa-table__sub" style={{ color: 'var(--sa-teal)' }}>{t("Saqlandi ✓")}</span>}
-          <button type="button" className="sa-btn" onClick={save} disabled={saving}>
+          <button type="button" className="sa-btn" onClick={save} disabled={saving || loading || loadFailed}>
             {saving ? t("Saqlanmoqda...") : t("Qoldiqni saqlash")}
           </button>
         </div>

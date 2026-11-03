@@ -165,6 +165,37 @@ describe('api', () => {
       window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
     });
 
+    it('refresh 502/429 (deploy, limit) — sessiya saqlanadi, xodim tizimdan chiqarilmaydi', async () => {
+      const onExpired = vi.fn();
+      window.addEventListener(SESSION_EXPIRED_EVENT, onExpired);
+      for (const status of [502, 429]) {
+        fetch.mockResolvedValueOnce(json(401, {})).mockResolvedValueOnce(json(status, { message: 'x' }));
+        await expect(api('/auth/me')).rejects.toMatchObject({ status });
+        expect(session.refreshToken).toBe('refresh-1');
+      }
+      expect(onExpired).not.toHaveBeenCalled();
+      window.removeEventListener(SESSION_EXPIRED_EVENT, onExpired);
+    });
+
+    it('refresh paytida tarmoq uzilsa — ApiError (xom TypeError emas), sessiya saqlanadi', async () => {
+      fetch.mockResolvedValueOnce(json(401, {})).mockRejectedValueOnce(new TypeError('Failed to fetch'));
+      await expect(api('/auth/me')).rejects.toMatchObject({ status: 0 });
+      expect(session.refreshToken).toBe('refresh-1');
+    });
+
+    it('boshqa tab shu orada yangilagan bo‘lsa — eski token bilan refresh qilinmaydi (sessiya yopilmasin)', async () => {
+      fetch.mockImplementationOnce(async () => {
+        // 401 javobi kelguncha boshqa tab tokenlarni almashtirib qo'ydi
+        session.save(fresh);
+        return json(401, {});
+      });
+      fetch.mockResolvedValueOnce(json(200, { id: 1 }));
+
+      await expect(api('/auth/me')).resolves.toEqual({ id: 1 });
+      expect(calls().map((c) => c.url)).toEqual(['/api/auth/me', '/api/auth/me']);
+      expect(calls()[1].auth).toBe('Bearer access-2');
+    });
+
     it('muvaffaqiyatsiz refreshdan keyin keyingi urinish yana refresh qila oladi', async () => {
       fetch.mockResolvedValueOnce(json(401, {})).mockResolvedValueOnce(json(401, {}));
       await expect(api('/auth/me')).rejects.toBeInstanceOf(ApiError);

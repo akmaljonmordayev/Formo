@@ -101,7 +101,11 @@ async function refreshTokens() {
       body: { refreshToken },
       auth: false,
     });
-    if (!response.ok) return false;
+    // Faqat 401/403 — sessiya haqiqatan tugagan. 429/5xx (deploy, limit) — vaqtinchalik: tokenlar saqlanadi
+    if (response.status === 401 || response.status === 403) return false;
+    if (!response.ok || !data?.accessToken || !data?.refreshToken) {
+      throw new ApiError(errorMessage(data, `API error: ${response.status}`), response.status);
+    }
 
     await storage.setToken(data.accessToken);
     await storage.setRefreshToken(data.refreshToken);
@@ -229,6 +233,14 @@ export const catalog = {
 
   /** Kit + { club, siblings, sizeGroups } */
   kit: (id) => request(`/catalog/kits/${id}`),
+
+  /** Eng ko'p sotilgan formalar (Forma 360°: har klubdan bitta): [kit + { club, soldCount }] */
+  bestSellingKits: (limit) => request(`/catalog/kits/best-selling${query({ limit, kit360: true })}`),
+
+  /** Yoqtirilgan formalar (yurakcha) — forma bo'yicha */
+  favoriteKits: () => request('/catalog/favorite-kits'),
+  addFavoriteKit: (kitId) => request(`/catalog/kits/${kitId}/favorite`, { method: 'PUT' }),
+  removeFavoriteKit: (kitId) => request(`/catalog/kits/${kitId}/favorite`, { method: 'DELETE' }),
 
   favorites: () => request('/catalog/favorites'),
   addFavorite: (clubId) => request(`/catalog/clubs/${clubId}/favorite`, { method: 'PUT' }),

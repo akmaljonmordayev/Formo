@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
@@ -12,14 +12,11 @@ import {
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
 import { useTabBarSpace } from '../components/ui/BottomTabs';
-import { Button, EmptyState, Header, Overline, Screen, Segment, formatMoney } from '../components/ui/Common';
-import ErrorView from '../components/ui/ErrorView';
-import Kit360ClubGrid from '../components/ui/Kit360ClubGrid';
+import { Button, Header, Overline, Screen, Segment, formatMoney } from '../components/ui/Common';
 import Kit360Thumb, { KIT360_BG } from '../components/ui/Kit360Thumb';
 import Kit360Viewer from '../components/ui/Kit360Viewer';
 import { visibleSizes } from '../features/config';
 import { kit360Team } from '../features/kit360';
-import { useClubs } from '../features/products';
 import { errorText } from '../utils/errors';
 
 // Studiya — faqat Forma 360° (admin paneldagi Superadmin → Forma 360° suratlari, WebView'da):
@@ -32,28 +29,9 @@ const pickSize = (sizes, preferred) => {
   return open.includes(preferred) ? preferred : open[0] || null;
 };
 
-export default function StudioScreen({ t, kit, onClub, ...props }) {
-  if (kit) return <KitStudio t={t} product={kit} {...props} />;
-  return <StudioPicker t={t} onClub={onClub} onBack={props.onBack} />;
-}
-
-/** Forma tanlanmagan: Forma 360° jamoalari — katalog bilan bir xil kartalar */
-function StudioPicker({ t, onClub, onBack }) {
-  const { clubs, isLoading, error, refetch } = useClubs({});
-  return (
-    <Screen>
-      <Header cart onBack={onBack} title={t('designStudio')} />
-      <Text style={styles.pickTitle}>{t('studioPickTitle')}</Text>
-      <Text style={styles.pickSub}>{t('studioPickSub')}</Text>
-      {error ? (
-        <ErrorView message={t('loadError')} onRetry={refetch} retryLabel={t('retry')} />
-      ) : clubs.length || isLoading ? (
-        <Kit360ClubGrid t={t} clubs={clubs} loading={isLoading} onPress={onClub} />
-      ) : (
-        <EmptyState icon="tshirt-crew-outline" title={t('catalogEmpty')} />
-      )}
-    </Screen>
-  );
+/** Klub formasini moslashtirish (klub sahifasidan "Moslashtirish"). Forma tanlanmagan Studio — KitCatalogScreen */
+export default function StudioScreen({ t, kit, onClub: _onClub, ...props }) {
+  return kit ? <KitStudio t={t} product={kit} {...props} /> : null;
 }
 
 // ─── Umumiy bo'laklar ────────────────────────────────────────────────────────
@@ -271,9 +249,13 @@ function Preview360({ t, side, setSide, team, name, number }) {
 /** Savatga qo'shish: muvaffaqiyatda savat sahifasiga o'tamiz, xato matni footer'da */
 function useAddToCart(t, cart, onAdded) {
   const [adding, setAdding] = useState(false);
+  const addingRef = useRef(false);
   const [feedback, setFeedback] = useState(null);
 
   const add = async (item) => {
+    // Tez ikki marta bosish — server bir xil qatorlarni birlashtirib miqdorni 2 qilib qo'yardi
+    if (addingRef.current) return;
+    addingRef.current = true;
     setAdding(true);
     setFeedback(null);
     try {
@@ -287,6 +269,7 @@ function useAddToCart(t, cart, onAdded) {
     } catch (err) {
       setFeedback({ ok: false, text: errorText(err, t) });
     } finally {
+      addingRef.current = false;
       setAdding(false);
     }
   };
@@ -415,8 +398,6 @@ function KitStudio({ t, product, cart, rules, onBack, onPickKit, onOpenCart }) {
 }
 
 const styles = StyleSheet.create({
-  pickTitle: { color: colors.text, fontSize: 18, fontWeight: '900', marginBottom: 4 },
-  pickSub: { color: colors.muted, fontSize: 12, lineHeight: 18, marginBottom: spacing.lg },
   flex: { flex: 1 },
   previewWrap: { marginBottom: spacing.lg },
   // 360° sahna (WebView) butun qutini egallaydi; fon — viewer'dagi suratlar foni bilan bir xil

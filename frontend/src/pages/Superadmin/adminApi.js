@@ -11,6 +11,11 @@ export const PRICE_KEYS = {
   shirt: 'club.tshirt',
   shorts: 'club.shorts',
   print: 'club.print',
+  // Maxsus dizayn (studiya) narxlari — backend/src/shop/studio.ts STUDIO_PRICE_KEYS bilan bir xil
+  studio: 'studio.custom',
+  studioGradient: 'studio.gradient',
+  studioPatch: 'studio.patch',
+  studioGift: 'studio.gift',
 };
 
 // Jadval bo'sh bo'lsa (yangi baza) — shu standart qatorlar bilan yaratish taklif qilinadi

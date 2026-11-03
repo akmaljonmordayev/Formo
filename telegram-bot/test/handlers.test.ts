@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
 import { handleUpdate } from '../src/handlers';
 import { RESEND_DATA } from '../src/messages';
+import { RateLimiter } from '../src/ratelimit';
 import { callbackUpdate, chooseLang, contactUpdate, fakeDeps, textUpdate, USER_ID } from './helpers';
 
 const START_TOKEN = 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcde';
@@ -84,6 +85,18 @@ describe('handleUpdate', () => {
     assert.equal(answered.length, 1);
     assert.deepEqual(backend.calls[0], { name: 'resend', args: [String(USER_ID)] });
     assert.match(sent[0].text, /<code>48213<\/code>/);
+  });
+
+  it('tezlik chegarasi: callback javoblanadi, "sekinroq" xabari oynada bir marta', async () => {
+    const { deps, backend, sent, answered } = fakeDeps();
+    deps.limiter = new RateLimiter(10_000, 1);
+    chooseLang(deps, 'uz');
+    await handleUpdate(callbackUpdate(RESEND_DATA), deps); // ruxsat
+    await handleUpdate(callbackUpdate(RESEND_DATA), deps); // limit
+    await handleUpdate(callbackUpdate(RESEND_DATA), deps); // limit
+    assert.equal(answered.length, 3);
+    assert.equal(backend.calls.filter((c) => c.name === 'resend').length, 1);
+    assert.equal(sent.filter((s) => /Juda tez/.test(s.text)).length, 1);
   });
 
   it('guruh chatida hech narsa qilinmaydi', async () => {

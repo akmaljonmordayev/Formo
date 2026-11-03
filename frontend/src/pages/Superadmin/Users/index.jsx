@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { ConfirmModal } from '../ui';
 import { formatDate, prettyPhone, usersApi } from '../../../features/accounts/accountsApi';
 import { useDebounced } from '../../../hooks/useDebounced';
@@ -20,15 +20,19 @@ export default function SuperadminUsers() {
   const [busy, setBusy] = useState(false);
   const debouncedSearch = useDebounced(search, 300);
 
+  // Faqat oxirgi so'rov javobi qo'llanadi — sekin eski javob yangi qidiruv/sahifani ustidan yozmasin
+  const lastReq = useRef(0);
   const load = useCallback(async () => {
+    const req = ++lastReq.current;
     setLoading(true);
     setError('');
     try {
-      setData(await usersApi.list({ search: debouncedSearch, isActive: status, page, limit: LIMIT }));
+      const res = await usersApi.list({ search: debouncedSearch, isActive: status, page, limit: LIMIT });
+      if (req === lastReq.current) setData(res);
     } catch (err) {
-      setError(err.message);
+      if (req === lastReq.current) setError(err.message);
     } finally {
-      setLoading(false);
+      if (req === lastReq.current) setLoading(false);
     }
   }, [debouncedSearch, status, page]);
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Linking } from 'react-native';
 import * as Location from 'expo-location';
 import { api } from '../../services/api';
+import { getCached, setCached } from '../../utils/memCache';
 import { formatGeocode, toAddressPayload } from './address';
 
 export * from './address';
@@ -104,10 +105,25 @@ export function useReverseGeocode() {
  * Manzilni saqlaydi: `id` bo'lsa PATCH /addresses/:id, aks holda POST /addresses.
  * Server javobini (saqlangan manzil) qaytaradi yoki ApiError tashlaydi.
  */
-export function saveAddress(form, id) {
-  return id
-    ? api.addresses.update(id, toAddressPayload(form, { isUpdate: true }))
-    : api.addresses.create(toAddressPayload(form));
+export async function saveAddress(form, id) {
+  const saved = id
+    ? await api.addresses.update(id, toAddressPayload(form, { isUpdate: true }))
+    : await api.addresses.create(toAddressPayload(form));
+  // Keshdagi ro'yxat ham yangilanadi: aks holda qaytilgan ekran (checkout) eski ro'yxatni ko'rib,
+  // yangi manzil o'rniga asosiy manzilni tanlab qo'yardi
+  const cached = getCached('addresses');
+  if (cached && saved?.id) setCached('addresses', upsertAddress(cached, saved));
+  return saved;
+}
+
+export function upsertAddress(list, saved) {
+  const rest = list
+    .filter((a) => a.id !== saved.id)
+    .map((a) => (saved.isDefault && a.isDefault ? { ...a, isDefault: false } : a));
+  const index = list.findIndex((a) => a.id === saved.id);
+  if (index === -1) return [...rest, saved];
+  rest.splice(index, 0, saved);
+  return rest;
 }
 
 /** Matn bo'yicha qidiruv (qurilma geokoderi): birinchi topilgan nuqta yoki null. */

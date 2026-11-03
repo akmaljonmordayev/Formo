@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -35,6 +37,8 @@ import { WalletService } from '../wallet/wallet.service';
 
 /** Click/Payme: buyurtma to'lov uchun shuncha vaqt band turadi */
 export const PAYMENT_HOLD_MS = 30 * 60 * 1000;
+/** Bir mijozning bir vaqtdagi to'lanmagan onlayn buyurtmalari (slot/promokod band qilib turish suiiste'molidan) */
+export const MAX_UNPAID_ONLINE_ORDERS = 3;
 
 const ONLINE: PaymentMethod[] = [PaymentMethod.CLICK, PaymentMethod.PAYME];
 const FINAL: OrderStatus[] = [OrderStatus.DELIVERED, OrderStatus.CANCELLED, OrderStatus.RETURNED];
@@ -87,7 +91,18 @@ export const orderCode = (id: number) => `FRM-${String(id).padStart(6, '0')}`;
 export const demoPaymentEnabled = () =>
   process.env.NODE_ENV !== 'production' && process.env.PAYMENT_DEMO !== 'false';
 
-export function toOrderView(o: OrderRow) {
+/**
+ * Mijoz o'zi bekor qila oladimi: to'lanmagan buyurtma — har doim; qolganlari sex qabul qilguncha va
+ * Superadmin sozlamasidagi muddat (`cancelWindowHours`, buyurtmadan keyin) ichida.
+ * `windowHours` berilmasa — faqat holat bo'yicha.
+ */
+export function customerCanCancel(o: { status: OrderStatus; createdAt: Date }, windowHours?: number, now = Date.now()) {
+  if (o.status === OrderStatus.PENDING_PAYMENT) return true;
+  if (!CANCELLABLE.includes(o.status)) return false;
+  return windowHours == null || now - o.createdAt.getTime() <= windowHours * 3_600_000;
+}
+
+export function toOrderView(o: OrderRow, cancelWindowHours?: number) {
   const date = o.deliveryDate?.toISOString().slice(0, 10) ?? null;
   const current = TIMELINE.indexOf(o.status);
   // Tarix tartib bilan o'qiladi — keyingi yozuv oldingisini bosadi
@@ -120,7 +135,7 @@ export function toOrderView(o: OrderRow) {
       // shu bosqichga oxirgi marta qachon o'tilgan (sex rad etib qayta yuborilsa ham to'g'ri chiqadi)
       at: current >= 0 && i <= current ? (reached.get(status) ?? null) : null,
     })),
-    canCancel: CANCELLABLE.includes(o.status),
+    canCancel: customerCanCancel(o, cancelWindowHours),
     createdAt: o.createdAt,
   };
 }
@@ -196,6 +211,13 @@ export class ShopOrdersService {
       async (tx) => {
         const lines = await this.cart.lines(user.id, tx);
         if (!lines.length) throw new BadRequestException("Savat bo'sh");
+        // To'lanmagan onlayn buyurtmalar slot va promokodni band qiladi — bitta mijoz ko'p ocholmasin
+        if (online) {
+          const unpaid = await tx.order.count({ where: { customerId: user.id, status: OrderStatus.PENDING_PAYMENT } });
+          if (unpaid >= MAX_UNPAID_ONLINE_ORDERS) {
+            throw new HttpException("To'lanmagan buyurtmalaringiz ko'p — avval ularni to'lang yoki bekor qiling", HttpStatus.TOO_MANY_REQUESTS);
+          }
+        }
         const prices = await this.cart.prices(tx);
         const problems = lines
           .map((l) => [l, lineProblem(l)] as const)
@@ -315,7 +337,11 @@ export class ShopOrdersService {
     });
     // Naqd buyurtma darhol operatorga tushadi; onlayn to'lovlar to'lovdan keyin (confirmPayment)
     if (order.status === OrderStatus.NEW) void this.announceNew(order.code, order.customerName, order.totalSum);
-    return { ...toOrderView(order), payment: this.paymentInfo(order) };
+    return { ...toOrderView(order, await this.cancelWindow()), payment: this.paymentInfo(order) };
+  }
+
+  private async cancelWindow() {
+    return (await this.rules.rules()).cancelWindowHours;
   }
 
   private paymentInfo(o: OrderRow) {
@@ -344,7 +370,8 @@ export class ShopOrdersService {
       this.prisma.order.findMany({ where, include, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
       this.prisma.order.count({ where }),
     ]);
-    return { items: items.map(toOrderView), total, page, limit };
+    const window = await this.cancelWindow();
+    return { items: items.map((o) => toOrderView(o, window)), total, page, limit };
   }
 
   /** Bosh sahifadagi "FRM-000124 · Yetkazishga chiqdi · Kuzatish" kartasi */
@@ -355,13 +382,13 @@ export class ShopOrdersService {
       orderBy: { createdAt: 'desc' },
       include,
     });
-    return { order: order ? toOrderView(order) : null };
+    return { order: order ? toOrderView(order, await this.cancelWindow()) : null };
   }
 
   async get(userId: number, id: number) {
     await this.expireStale(userId);
     const order = await this.own(userId, id);
-    return { ...toOrderView(order), payment: this.paymentInfo(order) };
+    return { ...toOrderView(order, await this.cancelWindow()), payment: this.paymentInfo(order) };
   }
 
   /** "To'lovni tasdiqlash (demo)" — haqiqiy Click/Payme callback'i ulanguncha */
@@ -448,7 +475,9 @@ export class ShopOrdersService {
           paymentMethod: dto.paymentMethod,
           // Naqd — kuryerga to'lanadi, buyurtma darhol operatorga tushadi
           status: online ? OrderStatus.PENDING_PAYMENT : OrderStatus.NEW,
-          paymentExpiresAt: online ? new Date(Date.now() + PAYMENT_HOLD_MS) : null,
+          // Onlayn usullar orasida almashtirish muddatni uzaytirmaydi — aks holda slot va promokodni
+          // cheksiz band qilib turish mumkin edi (har 25 daqiqada CLICK↔PAYME)
+          paymentExpiresAt: online ? (order.paymentExpiresAt ?? new Date(Date.now() + PAYMENT_HOLD_MS)) : null,
         },
       });
       if (count && !online) {
@@ -463,6 +492,12 @@ export class ShopOrdersService {
     const order = await this.own(user.id, id);
     if (!CANCELLABLE.includes(order.status)) {
       throw new ConflictException('Buyurtma tikuv sexi tomonidan qabul qilingan — bekor qilish uchun operatorga murojaat qiling');
+    }
+    const windowHours = await this.cancelWindow();
+    if (!customerCanCancel(order, windowHours)) {
+      throw new ConflictException(
+        `Buyurtmani faqat berilgandan keyin ${windowHours} soat ichida bekor qilish mumkin — operatorga murojaat qiling`,
+      );
     }
     // To'langan bo'lsa pul qaytariladi (operator qo'lda qaytaradi)
     const paymentStatus = order.paymentStatus === PaymentStatus.PAID ? PaymentStatus.REFUNDED : order.paymentStatus;

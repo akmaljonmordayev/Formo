@@ -57,7 +57,13 @@ export async function runPolling(api: TelegramApi, process: (u: TgUpdate) => Pro
       if (failures) log.info('polling tiklandi', { afterFailures: failures });
       failures = 0;
       if (!updates.length) continue;
-      await processBatch(updates, process, log);
+      // Har bir qayta ishlangan update — tiriklik belgisi: backend sekin bo'lsa uzun partiya watchdog'ni
+      // bekorga ishga tushirib, offset saqlanmasdan qayta ishga tushish (va takroriy javoblar) bo'lmasin
+      const tracked = (u: TgUpdate) =>
+        process(u).finally(() => {
+          pollingState.lastOkAt = Date.now();
+        });
+      await processBatch(updates, tracked, log);
       offset = updates[updates.length - 1].update_id + 1;
     } catch (err) {
       if (signal.aborted) break;

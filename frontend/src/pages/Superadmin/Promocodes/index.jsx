@@ -161,12 +161,16 @@ function PromocodeForm({ promo, onClose, onSaved }) {
       if (form.type !== 'FREE_SHIPPING' && form.value !== '') body.value = Number(form.value);
       if (form.minSum !== '') body.minSum = Number(form.minSum);
       if (form.usageCap !== '') body.usageCap = Number(form.usageCap);
-      if (form.startsAt) body.startsAt = new Date(form.startsAt).toISOString();
-      if (form.endsAt) body.endsAt = new Date(form.endsAt).toISOString();
+      // Mahalliy kun boshi/oxiri: `new Date('YYYY-MM-DD')` UTC yarim tun (Toshkentda 05:00) bo'lib,
+      // promokod oxirgi kunining 05:00 da to'xtab qolardi
+      if (form.startsAt) body.startsAt = new Date(`${form.startsAt}T00:00:00`).toISOString();
+      if (form.endsAt) body.endsAt = new Date(`${form.endsAt}T23:59:59.999`).toISOString();
       if (isEdit) {
-        // Tahrirlashda bo'shatilgan limitlar serverda ham olib tashlanadi
+        // Tahrirlashda bo'shatilgan limitlar va sanalar serverda ham olib tashlanadi
         if (form.minSum === '') body.minSum = null;
         if (form.usageCap === '') body.usageCap = null;
+        if (!form.startsAt) body.startsAt = null;
+        if (!form.endsAt) body.endsAt = null;
         await promocodesApi.update(promo.id, body);
       } else {
         await promocodesApi.create(body);

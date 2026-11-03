@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -49,6 +49,7 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
   const [numberOnShorts, setNumberOnShorts] = useState(false);
   const [shortsNumber, setShortsNumber] = useState('');
   const [adding, setAdding] = useState(false);
+  const addingRef = useRef(false);
   const [feedback, setFeedback] = useState(null);
 
   // Backend klublarini yuklaymiz (aniq kitId va narxlar uchun)
@@ -107,11 +108,13 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
   }, [category]);
 
   const addToCart = async () => {
-    if (!shirtSize || !cart) return;
+    // Tez ikki marta bosish — server bir xil qatorlarni birlashtirib miqdorni 2 qilib qo'yardi
+    if (!shirtSize || !cart || addingRef.current) return;
     if (!kitId) {
       setFeedback({ ok: false, text: t('noKits') });
       return;
     }
+    addingRef.current = true;
     setAdding(true);
     setFeedback(null);
     try {
@@ -130,6 +133,7 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
     } catch (err) {
       setFeedback({ ok: false, text: errorText(err, t) });
     } finally {
+      addingRef.current = false;
       setAdding(false);
     }
   };

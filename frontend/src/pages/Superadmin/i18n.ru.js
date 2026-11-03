@@ -202,6 +202,7 @@ const RU = {
   'Bekor qilindi': 'Отменён',
   Qaytarildi: 'Возвращён',
   'Bekor / qaytarilgan': 'Отменённые / возвраты',
+  Qaytarilgan: 'Возвраты',
   Naqd: 'Наличные',
 
   // --- производство ---
@@ -795,6 +796,10 @@ const RU = {
   'Nuqtali gradient': 'Точечный градиент',
   Dumaloq: 'Круглый',
   'V-simon': 'V-образный',
+  'Buyurtma, mahsulot soni va ism uzunligi chegarasi kamida 1 bo‘lishi kerak':
+    'Лимиты заказа, количества товара и длины имени должны быть не меньше 1',
+  'Sozlamalar serverdan yuklanmadi — saqlashdan oldin sahifani yangilang':
+    'Настройки не загрузились с сервера — обновите страницу перед сохранением',
 };
 
 export default RU;

@@ -68,7 +68,9 @@ const stubs = {
       openSettings: async () => {},
       // tg:// — test boshqaradi (Telegram o'rnatilgan / yo'q)
       canOpenURL: async (url) => !url.startsWith('tg://') || global.__stubs.telegramInstalled === true,
+      // Android'dagi kabi: ilova o'rnatilmagan bo'lsa tg:// ochilmaydi (xato)
       openURL: async (url) => {
+        if (url.startsWith('tg://') && global.__stubs.telegramInstalled !== true) throw new Error('No Activity found');
         stubs['react-native'].Linking.opened.push(url);
       },
     },

@@ -31,21 +31,40 @@ async function request(path, { method = 'GET', body, auth = true } = {}) {
   return { res, data };
 }
 
+// Tokenlar localStorage'da — barcha tablar uchun umumiy. Ikki tab bir vaqtda bitta refresh token bilan
+// yangilasa, server rotatsiyasi tufayli eskirgan juftlik saqlanib qolib, keyin sessiya yopilardi.
+// Shuning uchun refresh tablararo qulf (Web Locks) ostida; qulf yo'q brauzerda — tab ichida bir marta.
+const withRefreshLock = (fn) =>
+  typeof navigator !== 'undefined' && navigator.locks?.request ? navigator.locks.request('formo-auth-refresh', fn) : fn();
+
 // Bir vaqtda bir nechta so'rov 401 olsa ham refresh faqat bir marta chaqiriladi
 let refreshing = null;
-function refreshTokens() {
-  refreshing ??= (async () => {
+/**
+ * `staleToken` — 401 olgan so'rov paytidagi refresh token. Qulfni kutayotganda boshqa tab allaqachon
+ * yangilagan bo'lsa (token o'zgargan), serverga bormasdan yangi tokenlar bilan davom etiladi.
+ * false — sessiya haqiqatan tugagan (401/403). Vaqtinchalik xato (5xx, 429, tarmoq) — ApiError, sessiya saqlanadi.
+ */
+function refreshTokens(staleToken) {
+  refreshing ??= withRefreshLock(async () => {
     const refreshToken = session.refreshToken;
     if (!refreshToken) return false;
-    const { res, data } = await request('/auth/refresh', {
-      method: 'POST',
-      body: { refreshToken },
-      auth: false,
-    });
-    if (!res.ok) return false;
+    if (staleToken && refreshToken !== staleToken) return true;
+    let res;
+    let data;
+    try {
+      ({ res, data } = await request('/auth/refresh', {
+        method: 'POST',
+        body: { refreshToken },
+        auth: false,
+      }));
+    } catch {
+      throw new ApiError("Internetga ulanib bo'lmadi. Tarmoqni tekshiring", 0);
+    }
+    if (res.status === 401 || res.status === 403) return false;
+    if (!res.ok || !data?.accessToken || !data?.refreshToken) throw new ApiError(errorMessage(data), res.status);
     session.save(data);
     return true;
-  })().finally(() => {
+  }).finally(() => {
     refreshing = null;
   });
   return refreshing;
@@ -60,6 +79,7 @@ function errorMessage(data) {
 export async function api(path, options = {}) {
   let res;
   let data;
+  const refreshBefore = session.refreshToken;
   try {
     ({ res, data } = await request(path, options));
   } catch (err) {
@@ -70,8 +90,12 @@ export async function api(path, options = {}) {
   }
 
   if (res.status === 401 && options.auth !== false && session.refreshToken) {
-    if (await refreshTokens()) {
-      ({ res, data } = await request(path, options));
+    if (await refreshTokens(refreshBefore)) {
+      try {
+        ({ res, data } = await request(path, options));
+      } catch {
+        throw new ApiError("Internetga ulanib bo'lmadi. Tarmoqni tekshiring", 0);
+      }
     } else {
       session.clear();
       window.dispatchEvent(new Event(SESSION_EXPIRED_EVENT));
@@ -91,8 +115,9 @@ export async function apiBlobUrl(path) {
     fetch(`${BASE_URL}/api${path}`, {
       headers: session.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {},
     });
+  const refreshBefore = session.refreshToken;
   let res = await load();
-  if (res.status === 401 && session.refreshToken && (await refreshTokens())) res = await load();
+  if (res.status === 401 && session.refreshToken && (await refreshTokens(refreshBefore))) res = await load();
   if (!res.ok) {
     const data = await res.json().catch(() => null);
     throw new ApiError(errorMessage(data), res.status);

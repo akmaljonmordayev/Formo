@@ -17,7 +17,8 @@ const TABS = [
   { label: 'Ishlab chiqarishda', status: 'PRINTING' },
   { label: 'Yetkazishda', status: 'DELIVERING' },
   { label: 'Yetkazildi', status: 'DELIVERED' },
-  { label: 'Bekor / qaytarilgan', status: 'CANCELLED' },
+  { label: 'Bekor qilingan', status: 'CANCELLED' },
+  { label: 'Qaytarilgan', status: 'RETURNED' },
 ];
 
 export default function SuperadminOrders() {
@@ -70,10 +71,11 @@ export default function SuperadminOrders() {
     );
   };
 
+  // byStatus — butun baza bo'yicha (qidiruv/tabdan qat'i nazar); "Barchasi" ham shundan yig'iladi,
+  // aks holda boshqa tabda turganda u joriy tabning sonini ko'rsatardi
   const countFor = (status) => {
-    if (!status) return data.total;
-    if (status === 'CANCELLED') return (data.byStatus.CANCELLED ?? 0) + (data.byStatus.RETURNED ?? 0);
-    return data.byStatus[status] ?? 0;
+    if (!status) return Object.values(data.byStatus ?? {}).reduce((s, n) => s + n, 0);
+    return data.byStatus?.[status] ?? 0;
   };
 
   return (
@@ -208,16 +210,19 @@ function OrderModal({ order, onClose, onSaved }) {
       .catch((e) => setError(e.message));
   }, []);
 
-  const changed = status !== order.status || workshopId !== (order.workshop?.id ? String(order.workshop.id) : '');
+  const workshopChanged = workshopId !== (order.workshop?.id ? String(order.workshop.id) : '');
+  const changed = status !== order.status || workshopChanged;
 
   const submit = async (e) => {
     e.preventDefault();
     setSaving(true);
     setError('');
     try {
-      const body = { status };
-      if (workshopId) body.workshopId = Number(workshopId);
-      await ordersApi.updateStatus(order.id, body);
+      // Sex almashishi — faqat assign orqali (to'lanmagan/tikilayotgan buyurtmani server rad etadi, tarix yoziladi).
+      // assign holatni SENT_TO_WORKSHOP qiladi; boshqa holat tanlangan bo'lsa u alohida o'rnatiladi
+      if (workshopChanged && workshopId) await ordersApi.assign(order.id, { workshopId: Number(workshopId) });
+      const assignedNow = workshopChanged && workshopId && status === 'SENT_TO_WORKSHOP';
+      if (status !== order.status && !assignedNow) await ordersApi.updateStatus(order.id, { status });
       onSaved();
     } catch (err) {
       setError(err.message);

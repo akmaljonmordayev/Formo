@@ -35,13 +35,13 @@ export function topUpLinks(bot) {
 export async function openTopUpBot(bot) {
   const links = topUpLinks(bot);
   if (!links) return false;
+  // canOpenURL ishlatilmaydi: Android 11+ da manifestda <queries> bo'lmasa u doim false qaytaradi
+  // va release APK har doim brauzerni ochardi. To'g'ridan-to'g'ri ochib ko'ramiz (login ekranidagi kabi)
   try {
-    if (await Linking.canOpenURL(links.app)) {
-      await Linking.openURL(links.app);
-      return true;
-    }
+    await Linking.openURL(links.app);
+    return true;
   } catch {
-    // tg:// sxemasi ruxsat etilmagan — https orqali
+    // Telegram o'rnatilmagan — https orqali
   }
   try {
     await Linking.openURL(links.web);
