@@ -43,6 +43,8 @@ const dprNow = () => Math.min(window.devicePixelRatio || 1, 2);
 export default function Kit360() {
   const t = useT();
   const canvasRef = useRef(null);
+  const ghostRef = useRef(null);
+  const lastPaint = useRef({ team: null, frame: null });
   const cache = useRef({});
   const drag = useRef(null);
   const [team, setTeam] = useState(TEAMS[5]);
@@ -163,14 +165,33 @@ export default function Kit360() {
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       return;
     }
+    // Kadr almashganda (aylantirish) eski kadr ustidan asta so'nadi — 45° qadamlar sakramasdan, silliq o'tadi
+    // ("harakatni kamaytirish" yoqilgan bo'lsa — so'nishsiz)
+    const ghost = ghostRef.current;
+    const last = lastPaint.current;
+    const fade = ghost && last.team === team.id && last.frame !== frame && !window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    if (fade) {
+      ghost.width = canvas.width;
+      ghost.height = canvas.height;
+      ghost.getContext('2d').drawImage(canvas, 0, 0);
+      ghost.style.transition = 'none';
+      ghost.style.opacity = '1';
+    }
     // 180° kadr hali yuklanmagan yoki xato bo'lsa — joylashuv joriy kadrning o'zidan o'lchanadi
     paint(canvas, img, frame, { name: shown, number, team, style }, backReady ? back : null);
+    if (fade) {
+      requestAnimationFrame(() => {
+        ghost.style.transition = 'opacity 180ms ease-out';
+        ghost.style.opacity = '0';
+      });
+    }
+    lastPaint.current = { team: team.id, frame };
   }, [img, back, imgReady, backReady, frame, shown, number, team, style, dpr, tick]);
 
   // Ism — orqa tomonda; raqam, shrift, o'lcham — oldidan (shortik) qarab turgan bo'lsa ham shu yerda qoladi
   const toBack = () => setFrame((f) => (f in BACK_FRAMES ? f : 4));
   const toPrint = () => setFrame((f) => (f in BACK_FRAMES || f in FRONT_FRAMES ? f : 4));
-  const turn = (step) => setFrame((f) => (f + step + N) % N);
+  const turn = (step) => setFrame((f) => (((f + step) % N) + N) % N);
   const pickTeam = (tm) => {
     setTeam(tm);
     setStyle((st) => defaultStyle(tm, st.font, st.scale));
@@ -202,9 +223,11 @@ export default function Kit360() {
   const onPointerMove = (e) => {
     if (drag.current === null) return;
     const dx = e.clientX - drag.current;
-    if (Math.abs(dx) >= 40) {
-      turn(dx < 0 ? 1 : -1);
-      drag.current = e.clientX;
+    // Sezgir sudrash: har 24 px — bitta qadam; tez surilganda bir necha qadam birdan
+    const steps = Math.trunc(Math.abs(dx) / 24);
+    if (steps > 0) {
+      turn(dx < 0 ? steps : -steps);
+      drag.current = e.clientX - (dx % 24);
     }
   };
   const onKeyDown = (e) => {
@@ -247,6 +270,13 @@ export default function Kit360() {
             style={{
               display: 'block', width: '100%', aspectRatio: '3 / 4', borderRadius: 12, background: '#b2b2b3',
               touchAction: 'pan-y', cursor: 'grab',
+            }}
+          />
+          <canvas
+            ref={ghostRef}
+            aria-hidden="true"
+            style={{
+              position: 'absolute', inset: 0, width: '100%', height: '100%', borderRadius: 12, pointerEvents: 'none', opacity: 0,
             }}
           />
           {status !== 'ok' && (
