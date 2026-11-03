@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, ShoppingBag } from 'lucide-react';
 import { ordersApi } from '../../../features/platform/platformApi';
 import { prettyPhone, workshopsApi } from '../../../features/accounts/accountsApi';
@@ -179,15 +179,20 @@ export default function OperatorOrders() {
   const [openId, setOpenId] = useState(null);
   const debouncedQuery = useDebounced(query, 300);
 
+  // Faqat oxirgi so'rov javobi qo'llanadi — sekin eski javob yangi filtr/sahifani ustidan yozmasin
+  const lastReq = useRef(0);
   const load = useCallback(async () => {
+    const req = ++lastReq.current;
     setLoading(true);
     try {
-      setData(await ordersApi.list({ search: debouncedQuery, status, page, limit: LIMIT }));
+      const res = await ordersApi.list({ search: debouncedQuery, status, page, limit: LIMIT });
+      if (req !== lastReq.current) return;
+      setData(res);
       setError('');
     } catch (err) {
-      setError(err.message);
+      if (req === lastReq.current) setError(err.message);
     } finally {
-      setLoading(false);
+      if (req === lastReq.current) setLoading(false);
     }
   }, [debouncedQuery, status, page]);
 

@@ -51,6 +51,16 @@ export class ListCatalogClubsQueryDto extends Kit360FilterDto {
   limit?: number = 50;
 }
 
+export class BestSellingKitsQueryDto extends Kit360FilterDto {
+  @ApiPropertyOptional({ default: 20, maximum: 50 })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  limit?: number = 20;
+}
+
 export class PopularClubsQueryDto extends Kit360FilterDto {
   @ApiPropertyOptional({ default: 8, maximum: 20 })
   @IsOptional()

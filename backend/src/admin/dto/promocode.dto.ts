@@ -30,15 +30,15 @@ export class CreatePromocodeDto {
   @Min(1)
   usageCap?: number;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true, description: 'null — tahrirlashda sanani olib tashlash' })
   @IsOptional()
   @IsDateString()
-  startsAt?: string;
+  startsAt?: string | null;
 
-  @ApiPropertyOptional()
+  @ApiPropertyOptional({ nullable: true, description: 'null — tahrirlashda sanani olib tashlash' })
   @IsOptional()
   @IsDateString()
-  endsAt?: string;
+  endsAt?: string | null;
 }
 
 export class UpdatePromocodeDto extends PartialType(CreatePromocodeDto) {

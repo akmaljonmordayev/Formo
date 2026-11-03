@@ -104,30 +104,6 @@ export function useClubs({ categoryId, search } = {}) {
   return { clubs, ...rest };
 }
 
-/** "Mashhur klublar" — eng ko'p buyurtma qilinganlar */
-export function usePopularClubs(limit = 8) {
-  const { data, ...rest } = useLoader(() => api.catalog.popular(limit), [limit], `popular:${limit}`);
-  const clubs = useMemo(() => (data || []).map(toClub), [data]);
-  return { clubs, ...rest };
-}
-
-/**
- * "Mashhur modellar": mashhur klublarning birinchi formasi.
- * Backendda formalar ro'yxati alohida endpoint emas — klub sahifasidan olinadi.
- */
-export function usePopularProducts(limit = 4) {
-  const { data, ...rest } = useLoader(
-    async () => {
-      const popular = await api.catalog.popular(limit);
-      const clubs = await Promise.all(popular.map((club) => loadClub(club.id)));
-      return clubs.filter((club) => club.kits?.length).map((club) => toProduct(club.kits[0], club));
-    },
-    [limit],
-    `popularProducts:${limit}`,
-  );
-  return { products: data || [], ...rest };
-}
-
 const clubView = (club) => (club ? { club: toClub(club), products: club.kits.map((kit) => toProduct(kit, club)) } : null);
 
 /** Klub sahifasi: klub + formalari product ko'rinishida (bosh sahifada yuklangan bo'lsa — darhol) */

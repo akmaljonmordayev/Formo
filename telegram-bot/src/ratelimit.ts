@@ -10,6 +10,8 @@ const MAX_USERS = 10_000;
 interface Entry {
   count: number;
   windowStart: number;
+  /** Shu oynada foydalanuvchiga "sekinroq" xabari yuborilgan */
+  notified?: boolean;
 }
 
 export class RateLimiter {
@@ -32,6 +34,17 @@ export class RateLimiter {
     }
     if (e.count >= this.max) return false;
     e.count++;
+    return true;
+  }
+
+  /**
+   * Limit tugagan foydalanuvchiga ogohlantirish kerakmi: oynada faqat birinchi marta `true` —
+   * aks holda tashlangan kontakt/chek javobsiz yo'qolardi, har biriga javob esa limitning ma'nosini yo'qotardi
+   */
+  shouldNotify(userId: string): boolean {
+    const e = this.map.get(userId);
+    if (!e || e.notified) return false;
+    e.notified = true;
     return true;
   }
 

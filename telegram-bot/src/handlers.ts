@@ -49,10 +49,11 @@ export async function handleUpdate(update: TgUpdate, deps: Deps) {
     return;
   }
   const userId = fromId(update);
-  // Bitta foydalanuvchi oqimi: callback tugmasi javobsiz qolishi mumkin (Telegram'da "yuklanmoqda"
-  // bir ozdan keyin o'zi tugaydi) — bu faqat suiiste'mol holatida, oddiy foydalanishga ta'sir qilmaydi
+  // Bitta foydalanuvchi oqimi: limitdan oshgan update qayta ishlanmaydi, lekin javobsiz ham qolmaydi —
+  // callback tugmasining "yuklanmoqda" holati yopiladi va oynada bir marta "sekinroq" xabari yuboriladi
   if (userId !== undefined && !deps.limiter.allow(String(userId))) {
     deps.log.info('tezlik chegarasi: update tashlandi', { updateId: update.update_id });
+    await notifyRateLimited(update, String(userId), deps);
     return;
   }
   try {
@@ -205,6 +206,7 @@ async function onReceipt(msg: TgMessage, deps: Deps, lang: Lang) {
   const res = await guarded(deps, chatId, lang, () => deps.backend.attachReceipt(userId, file.fileId, file.uniqueId));
   if (res.result === 'NOT_LINKED') return send(deps, chatId, T[lang].notLinked);
   if (res.result === 'NO_OPEN_TOPUP') return send(deps, chatId, T[lang].noOpenTopUp, { reply_markup: amountKeyboard(lang) });
+  if (res.result === 'ALREADY_IN_REVIEW') return send(deps, chatId, T[lang].receiptInReview);
   if (res.result === 'DUPLICATE_RECEIPT') return send(deps, chatId, T[lang].duplicateReceipt);
   return send(deps, chatId, T[lang].receiptReceived(res.topUp.code, res.topUp.amount));
 }
@@ -379,6 +381,18 @@ async function guarded<T>(deps: Deps, chatId: string, lang: Lang, fn: () => Prom
     await send(deps, chatId, T[lang].failure);
     throw new Handled('backend');
   }
+}
+
+async function notifyRateLimited(update: TgUpdate, userId: string, deps: Deps) {
+  const from = update.message?.from ?? update.callback_query?.from;
+  const lang = from ? quickLang(deps, from) : 'uz';
+  if (update.callback_query) {
+    await deps.tg
+      .answerCallbackQuery(update.callback_query.id, T[lang].tooFast)
+      .catch((err) => deps.log.warn('answerCallbackQuery', { error: errorMessage(err) }));
+  }
+  const chatId = update.message?.chat.id ?? update.callback_query?.message?.chat.id;
+  if (chatId !== undefined && deps.limiter.shouldNotify(userId)) await send(deps, String(chatId), T[lang].tooFast);
 }
 
 async function send(deps: Deps, chatId: string, body: string, options?: SendOptions) {

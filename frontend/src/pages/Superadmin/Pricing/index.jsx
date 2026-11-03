@@ -157,14 +157,17 @@ export default function SuperadminPricing() {
       return d?.shirtPrice !== s?.shirtPrice || d?.shortsPrice !== s?.shortsPrice || d?.printPrice !== s?.printPrice;
     });
     const failed = [];
+    const succeeded = {};
     for (const r of dirtyRows) {
       try {
         await clubsApi.updateKit(r.kitId, draft360[r.kitId]);
+        succeeded[r.kitId] = draft360[r.kitId];
       } catch {
         failed.push(r.clubName);
       }
     }
-    setSaved360(draft360);
+    // Faqat saqlanganlari "saqlangan" deb belgilanadi — xato bo'lganlari o'zgargan bo'lib qoladi va qayta yuboriladi
+    setSaved360((s) => ({ ...s, ...succeeded }));
     setSaving360(false);
     if (failed.length) setError360(t('{n} ta formani yangilab bo‘lmadi: {list}', { n: failed.length, list: failed.join(', ') }));
     else setNotice360(t('{n} ta forma narxi yangilandi', { n: dirtyRows.length }));

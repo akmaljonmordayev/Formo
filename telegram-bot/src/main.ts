@@ -30,9 +30,14 @@ async function main() {
   const abort = new AbortController();
   const stopOutbox = startOutboxLoop(backend, tg, log, config.outboxIntervalMs);
 
-  // Kutilmagan xato bot jarayonini jim o'ldirmasin — logga yozamiz va ishlashda davom etamiz
+  // Ushlanmagan promise — logga yozamiz va ishlashda davom etamiz (holat buzilmaydi)
   process.on('unhandledRejection', (err) => log.error('ushlanmagan promise xatosi', { error: errorMessage(err) }));
-  process.on('uncaughtException', (err) => log.error('ushlanmagan xato', { error: errorMessage(err) }));
+  // Sinxron ushlanmagan xatodan keyin jarayon holati noaniq (yarim yozilgan sessiya, to'xtagan tsikl) —
+  // logga yozib chiqamiz, Railway/Docker restart siyosati botni toza holatda qayta ko'taradi
+  process.on('uncaughtException', (err) => {
+    log.error('ushlanmagan xato — qayta ishga tushirilmoqda', { error: errorMessage(err) });
+    setTimeout(() => process.exit(1), 500).unref();
+  });
 
   if (config.mode === 'webhook') {
     await tg.setWebhook(config.webhookUrl, config.webhookSecret);

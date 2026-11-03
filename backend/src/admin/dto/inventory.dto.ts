@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { InventoryProductType } from '@prisma/client';
-import { ArrayMinSize, IsArray, IsEnum, IsInt, IsOptional, IsString, Min, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsEnum, IsInt, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
 
 export class InventoryItemInput {
   @ApiProperty({ enum: InventoryProductType })
@@ -19,6 +19,7 @@ export class InventoryItemInput {
   @ApiProperty({ example: 12 })
   @IsInt()
   @Min(0)
+  @Max(999_999) // int ustuni chegarasidan oshsa 500 emas, 400
   qty: number;
 }
 

@@ -1,6 +1,6 @@
 import { Body, Controller, Get, HttpCode, HttpStatus, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { ApiExcludeController } from '@nestjs/swagger';
-import { Throttle } from '@nestjs/throttler';
+import { SkipThrottle } from '@nestjs/throttler';
 import { Public } from '../common/decorators/public.decorator';
 import { ParseIdPipe } from '../common/pipes/parse-id.pipe';
 import { TopUpMethod } from '@prisma/client';
@@ -24,11 +24,13 @@ import { TelegramOutboxService } from './telegram-outbox.service';
 /**
  * Faqat telegram-bot servisi uchun (JWT emas, `TELEGRAM_INTERNAL_TOKEN`). Swagger'da ko'rsatilmaydi.
  * Bot bu yerdan balans, to'lov yoki buyurtmani o'zgartira olmaydi — faqat kirish va xabarlar.
+ * IP bo'yicha rate-limit yo'q: hamma Telegram foydalanuvchilari bitta IP (bot) orqali keladi va umumiy
+ * limitga tushib qolardi. Har bir foydalanuvchi uchun limit botda; OTP urinishlari backend'da cheklangan.
  */
 @ApiExcludeController()
 @Public()
 @UseGuards(InternalTokenGuard)
-@Throttle({ default: { limit: 600, ttl: 60_000 } })
+@SkipThrottle()
 @Controller('internal/telegram')
 export class TelegramInternalController {
   constructor(

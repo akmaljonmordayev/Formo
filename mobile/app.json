@@ -66,10 +66,11 @@
     },
     "extra": {
       "eas": {
-        "projectId": ""
+        "projectId": "fdc0700c-48dd-4dfb-aa49-9807c38bb4ce"
       }
     },
     "icon": "./assets/icon.png",
-    "backgroundColor": "#050818"
+    "backgroundColor": "#050818",
+    "owner": "umar033"
   }
 }

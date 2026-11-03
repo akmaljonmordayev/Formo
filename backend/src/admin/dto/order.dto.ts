@@ -1,7 +1,7 @@
 import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { OrderStatus, PaymentStatus } from '@prisma/client';
-import { IsEnum, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min } from 'class-validator';
+import { IsEnum, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min, ValidateIf } from 'class-validator';
 import { CleanText } from '../../common/utils/no-html';
 
 export class ListOrdersQueryDto {
@@ -57,9 +57,11 @@ export class UpdateOrderStatusDto {
   note?: string;
 
   @ApiPropertyOptional({ description: 'Qayta belgilanadigan tikuv sexi (ixtiyoriy)' })
-  @IsOptional()
+  // null o'tkazilmaydi: sex bosqichidagi buyurtma sexsiz qolib, hech kim uni ko'ra olmasdi
+  @ValidateIf((o: { workshopId?: unknown }) => o.workshopId !== undefined)
   @Type(() => Number)
   @IsInt()
+  @Min(1)
   workshopId?: number;
 }
 

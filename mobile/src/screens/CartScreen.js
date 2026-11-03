@@ -176,7 +176,7 @@ export default function CartScreen({ t, cart, rules, onBack, onCheckout }) {
                     disabled={busy != null}
                     style={styles.deleteBtn}
                     hitSlop={8}
-                    accessibilityLabel="Delete item"
+                    accessibilityLabel={t('removeItemA11y')}
                   >
                     <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.muted} />
                   </Pressable>
@@ -192,7 +192,7 @@ export default function CartScreen({ t, cart, rules, onBack, onCheckout }) {
               <TextInput
                 value={promo}
                 onChangeText={setPromo}
-                placeholder="PROMO KOD (masalan: FORMO10)"
+                placeholder={t('promoPlaceholder')}
                 placeholderTextColor={colors.dim}
                 autoCapitalize="characters"
                 editable={!cart.promocode}

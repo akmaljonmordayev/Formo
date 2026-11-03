@@ -31,6 +31,12 @@ export const MAX_FAILED_LOGIN_ATTEMPTS = 5;
 export const LOGIN_LOCKOUT_MS = 15 * 60 * 1000;
 /** Parolsiz ochilgan hisobning vaqtinchalik ismi — ilova shunda profil to'ldirishni so'raydi */
 export const NEW_CUSTOMER_NAME = 'Yangi mijoz';
+/**
+ * Rotatsiyadan keyin oldingi refresh token shuncha vaqt qabul qilinadi: javob tarmoqda yo'qolsa
+ * (mijoz eski tokenda qoladi) yoki ikki tab/so'rov bir vaqtda yangilasa, sessiya o'g'irlik deb yopilmasin.
+ * Undan eski yoki grace'dan keyin ishlatilgan token — hali ham qayta ishlatish (sessiya bekor qilinadi).
+ */
+export const REFRESH_REUSE_GRACE_MS = 60_000;
 
 // Foydalanuvchi topilmaganda ham bcrypt ishlashi uchun (timing orqali raqam borligini bilib bo'lmasin).
 // Parol tasodifiy va hech qayerda saqlanmaydi — bu xesh hech qachon "to'g'ri" bo'lmaydi.
@@ -113,6 +119,14 @@ export class AuthService {
         HttpStatus.TOO_MANY_REQUESTS,
       );
     }
+    // Bloklash muddati tugagan — hisoblagich noldan boshlanadi. Aks holda keyingi bitta xato yana
+    // 15 daqiqaga bloklardi va raqamni bilgan har kim xodim hisobini doimiy bloklab tura olardi
+    if (user?.lockedUntil) {
+      await this.prisma.user.updateMany({
+        where: { id: user.id, lockedUntil: user.lockedUntil },
+        data: { failedLoginAttempts: 0, lockedUntil: null },
+      });
+    }
 
     const valid = await bcrypt.compare(dto.password, user?.passwordHash ?? DUMMY_HASH);
 
@@ -177,39 +191,58 @@ export class AuthService {
     return this.issueTokens(user, client);
   }
 
-  /** Refresh token rotatsiyasi: eski token bekor bo'ladi, yangi juftlik qaytadi */
+  /**
+   * Refresh token rotatsiyasi: eski token bekor bo'ladi, yangi juftlik qaytadi. Rotatsiya shartli (atomik):
+   * parallel so'rov yutqazsa sessiya yopilmaydi — qayta o'qib, grace oynasidagi oldingi token sifatida o'tadi.
+   */
   async refresh(refreshToken: string) {
     const [sessionId, secret] = refreshToken.split('.');
     if (!sessionId || !secret) throw new UnauthorizedException('Refresh token yaroqsiz');
 
-    const session = await this.prisma.session
-      .findUnique({ where: { id: sessionId }, include: { user: true } })
-      .catch(() => null); // id uuid bo'lmasa
-    if (!session || session.revokedAt || session.expiresAt < new Date()) {
-      throw new UnauthorizedException('Sessiya tugagan, qaytadan kiring');
-    }
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const session = await this.prisma.session
+        .findUnique({ where: { id: sessionId }, include: { user: true } })
+        .catch(() => null); // id uuid bo'lmasa
+      if (!session || session.revokedAt || session.expiresAt < new Date()) {
+        throw new UnauthorizedException('Sessiya tugagan, qaytadan kiring');
+      }
 
-    if (!this.hashMatches(secret, session.refreshTokenHash)) {
-      // Eski (allaqachon almashtirilgan) token qayta ishlatildi — o'g'irlangan bo'lishi mumkin
-      await this.revokeSession(session.id);
-      throw new UnauthorizedException('Sessiya tugagan, qaytadan kiring');
-    }
-    if (!session.user.isActive) {
-      await this.revokeSession(session.id);
-      throw new ForbiddenException('Akkauntingiz bloklangan');
-    }
+      const current = this.hashMatches(secret, session.refreshTokenHash);
+      const graced =
+        !current &&
+        session.prevRefreshTokenHash != null &&
+        session.rotatedAt != null &&
+        Date.now() - session.rotatedAt.getTime() < REFRESH_REUSE_GRACE_MS &&
+        this.hashMatches(secret, session.prevRefreshTokenHash);
+      if (!current && !graced) {
+        // Eski (allaqachon almashtirilgan) token qayta ishlatildi — o'g'irlangan bo'lishi mumkin
+        await this.revokeSession(session.id);
+        throw new UnauthorizedException('Sessiya tugagan, qaytadan kiring');
+      }
+      if (!session.user.isActive) {
+        await this.revokeSession(session.id);
+        throw new ForbiddenException('Akkauntingiz bloklangan');
+      }
 
-    const newSecret = randomBytes(32).toString('hex');
-    await this.prisma.session.update({
-      where: { id: session.id },
-      data: { refreshTokenHash: this.hash(newSecret), expiresAt: this.refreshExpiry() },
-    });
+      const newSecret = randomBytes(32).toString('hex');
+      const { count } = await this.prisma.session.updateMany({
+        where: { id: session.id, revokedAt: null, refreshTokenHash: session.refreshTokenHash },
+        data: {
+          refreshTokenHash: this.hash(newSecret),
+          prevRefreshTokenHash: session.refreshTokenHash,
+          rotatedAt: new Date(),
+          expiresAt: this.refreshExpiry(),
+        },
+      });
+      if (!count) continue; // boshqa so'rov shu orada almashtirdi — qayta o'qiymiz
 
-    return {
-      accessToken: await this.signAccess(session.user, session.id),
-      refreshToken: `${session.id}.${newSecret}`,
-      user: toPublicUser(session.user),
-    };
+      return {
+        accessToken: await this.signAccess(session.user, session.id),
+        refreshToken: `${session.id}.${newSecret}`,
+        user: toPublicUser(session.user),
+      };
+    }
+    throw new UnauthorizedException('Sessiya tugagan, qaytadan kiring');
   }
 
   async logout(sessionId: string) {

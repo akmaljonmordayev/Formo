@@ -305,14 +305,35 @@ describe('Auth (e2e)', () => {
       await api(app).get('/api/auth/me').set(bearer(res.body.accessToken)).expect(200);
     });
 
-    it("eski refresh token qayta ishlatilsa — butun sessiya yopiladi (o'g'irlik aniqlash)", async () => {
+    it("eski refresh token grace'dan keyin qayta ishlatilsa — butun sessiya yopiladi (o'g'irlik aniqlash)", async () => {
       const first = await login(app, SUPERADMIN.phone, SUPERADMIN.password);
       const second = await api(app).post('/api/auth/refresh').send({ refreshToken: first.refreshToken }).expect(200);
+      // Grace oynasi (60s) o'tdi
+      const sid = first.refreshToken.split('.')[0];
+      await prisma.session.update({ where: { id: sid }, data: { rotatedAt: new Date(Date.now() - 2 * 60_000) } });
 
       await api(app).post('/api/auth/refresh').send({ refreshToken: first.refreshToken }).expect(401);
       // Hujumchi eski tokenni ishlatgani uchun qonuniy foydalanuvchining yangi tokenlari ham o'ladi
       await api(app).get('/api/auth/me').set(bearer(second.body.accessToken)).expect(401);
       await api(app).post('/api/auth/refresh').send({ refreshToken: second.body.refreshToken }).expect(401);
+    });
+
+    it('javob yo‘qolsa / ikki tab: oldingi token grace oynasida ishlaydi, ikki rotatsiya eskisi — o‘g‘irlik', async () => {
+      const first = await login(app, SUPERADMIN.phone, SUPERADMIN.password);
+      // Ikkita parallel refresh bir xil token bilan — ikkalasi ham o'tadi, sessiya yopilmaydi
+      const [a, b] = await Promise.all([
+        api(app).post('/api/auth/refresh').send({ refreshToken: first.refreshToken }),
+        api(app).post('/api/auth/refresh').send({ refreshToken: first.refreshToken }),
+      ]);
+      expect([a.status, b.status]).toEqual([200, 200]);
+      const latest = [a, b].find((r) => r.body.refreshToken)!;
+      await api(app).get('/api/auth/me').set(bearer(b.body.accessToken)).expect(200);
+
+      // Oxirgi tokendan ikki qadam eski token (first) endi grace'da emas — sessiya yopiladi
+      const third = await api(app).post('/api/auth/refresh').send({ refreshToken: b.body.refreshToken }).expect(200);
+      await api(app).post('/api/auth/refresh').send({ refreshToken: third.body.refreshToken }).expect(200);
+      await api(app).post('/api/auth/refresh').send({ refreshToken: first.refreshToken }).expect(401);
+      await api(app).get('/api/auth/me').set(bearer(latest.body.accessToken)).expect(401);
     });
 
     it.each([

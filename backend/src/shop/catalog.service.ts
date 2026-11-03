@@ -50,6 +50,28 @@ export function toKitProduct(kit: Kit) {
   };
 }
 
+/** Forma kartasi: mahsulot + klub (Forma 360° surati uchun kit360Id) */
+const kitCardInclude = {
+  club: {
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      league: true,
+      markColor: true,
+      kit360Id: true,
+      category: { select: { id: true, name: true, slug: true } },
+    },
+  },
+} satisfies Prisma.KitInclude;
+
+type KitCardRow = Prisma.KitGetPayload<{ include: typeof kitCardInclude }>;
+
+const toKitCard = (kit: KitCardRow, soldCount = 0) => ({ ...toKitProduct(kit), club: kit.club, soldCount });
+
+/** Sotilgan deb hisoblanmaydigan buyurtmalar: bekor qilingan, qaytarilgan, to'lanmagan */
+const NOT_SOLD: OrderStatus[] = [OrderStatus.CANCELLED, OrderStatus.RETURNED, OrderStatus.PENDING_PAYMENT];
+
 @Injectable()
 export class CatalogService {
   constructor(private readonly prisma: PrismaService) {}
@@ -184,5 +206,61 @@ export class CatalogService {
   async removeFavorite(userId: number, clubId: number) {
     await this.prisma.favoriteClub.deleteMany({ where: { userId, clubId } });
     return { clubId, isFavorite: false };
+  }
+
+  // ---- Formalar: eng ko'p sotilganlari va sevimlilar (yurakcha) ----
+
+  /**
+   * Formalar sotilgan soni bo'yicha (ko'pidan kamiga): buyurtmalardagi qatorlar miqdori yig'indisi,
+   * bekor qilingan/qaytarilgan/to'lanmaganlar sanalmaydi. Teng bo'lsa — klub nomi bo'yicha.
+   * kit360=true — har klubdan bitta (birinchi) forma: Forma 360° ekrani buyurtmada shuni ishlatadi
+   * va jamoa surati katalogda takrorlanmaydi.
+   */
+  async bestSellingKits(limit = 20, kit360 = false) {
+    const rows = await this.prisma.kit.findMany({
+      where: { isActive: true, club: kit360 ? { AND: [visibleClub, withKit360] } : visibleClub },
+      include: kitCardInclude,
+      orderBy: [{ club: { name: 'asc' } }, { sortOrder: 'asc' }, { id: 'asc' }],
+    });
+    const seen = new Set<number>();
+    const kits = kit360 ? rows.filter((k) => !seen.has(k.clubId) && seen.add(k.clubId)) : rows;
+    if (!kits.length) return [];
+
+    const sold = await this.prisma.orderItem.groupBy({
+      by: ['kitId'],
+      where: { kitId: { in: kits.map((k) => k.id) }, order: { status: { notIn: NOT_SOLD } } },
+      _sum: { quantity: true },
+    });
+    const soldBy = new Map(sold.map((s) => [s.kitId, s._sum.quantity ?? 0]));
+    // Array.sort barqaror — teng sotuvda nom bo'yicha tartib saqlanadi
+    return kits
+      .map((k) => toKitCard(k, soldBy.get(k.id) ?? 0))
+      .sort((a, b) => b.soldCount - a.soldCount)
+      .slice(0, limit);
+  }
+
+  async favoriteKits(userId: number) {
+    const rows = await this.prisma.favoriteKit.findMany({
+      where: { userId, kit: { isActive: true, club: visibleClub } },
+      orderBy: { createdAt: 'desc' },
+      select: { kit: { include: kitCardInclude } },
+    });
+    return rows.map((r) => toKitCard(r.kit));
+  }
+
+  async addFavoriteKit(userId: number, kitId: number) {
+    const kit = await this.prisma.kit.findFirst({ where: { id: kitId, isActive: true, club: visibleClub }, select: { id: true } });
+    if (!kit) throw new NotFoundException('Forma topilmadi');
+    await this.prisma.favoriteKit.upsert({
+      where: { userId_kitId: { userId, kitId } },
+      create: { userId, kitId },
+      update: {},
+    });
+    return { kitId, isFavorite: true };
+  }
+
+  async removeFavoriteKit(userId: number, kitId: number) {
+    await this.prisma.favoriteKit.deleteMany({ where: { userId, kitId } });
+    return { kitId, isFavorite: false };
   }
 }

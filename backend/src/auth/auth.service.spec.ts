@@ -22,7 +22,7 @@ const SESSION_ID = '11111111-1111-4111-8111-111111111111';
 
 describe('AuthService', () => {
   const prisma = {
-    user: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn() },
+    user: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
     session: { findUnique: jest.fn(), create: jest.fn(), update: jest.fn(), updateMany: jest.fn() },
     $transaction: jest.fn(),
   };
@@ -59,6 +59,11 @@ describe('AuthService', () => {
       else if (typeof inc === 'number') user.failedLoginAttempts = inc;
       if ('lockedUntil' in data) user.lockedUntil = data.lockedUntil as Date | null;
       return user;
+    });
+    prisma.user.updateMany.mockImplementation(async ({ data }: { data: Record<string, unknown> }) => {
+      if (typeof data.failedLoginAttempts === 'number') user.failedLoginAttempts = data.failedLoginAttempts;
+      if ('lockedUntil' in data) user.lockedUntil = data.lockedUntil as Date | null;
+      return { count: 1 };
     });
     prisma.session.create.mockImplementation(async ({ data }) => ({ id: SESSION_ID, ...data }));
     prisma.session.findUnique.mockReturnValue(Promise.resolve(null));
@@ -191,6 +196,18 @@ describe('AuthService', () => {
       expect(result.accessToken).toEqual(expect.any(String));
     });
 
+    it('bloklash tugagach bitta xato parol hisobni qayta bloklamaydi (doimiy bloklab turib bo‘lmaydi)', async () => {
+      prisma.user.findUnique.mockImplementation(async () => user);
+      user.failedLoginAttempts = MAX_FAILED_LOGIN_ATTEMPTS;
+      user.lockedUntil = new Date(Date.now() - 1000); // o'tgan
+      await expect(service.login({ phone: user.phone, password: 'wrong' }, {})).rejects.toThrow(UnauthorizedException);
+      expect(user.failedLoginAttempts).toBe(1);
+      expect(user.lockedUntil).toBeNull();
+      // Keyingi urinish 429 emas — parol tekshiriladi
+      const result = await service.login({ phone: user.phone, password: PASSWORD }, {});
+      expect(result.accessToken).toEqual(expect.any(String));
+    });
+
     it('muvaffaqiyatli kirish hisoblagichni nolga tushiradi', async () => {
       prisma.user.findUnique.mockImplementation(async () => user);
       await service.login({ phone: user.phone, password: 'wrong' }, {}).catch(() => {});
@@ -289,20 +306,68 @@ describe('AuthService', () => {
       expect(prisma.session.updateMany).toHaveBeenCalled();
     });
 
-    it('to‘g‘ri token: rotatsiya — yangi secret, eski xesh almashtiriladi', async () => {
+    it('to‘g‘ri token: atomik rotatsiya — yangi secret, oldingi xesh grace uchun saqlanadi', async () => {
       prisma.session.findUnique.mockReturnValue(Promise.resolve(session()));
+      prisma.session.updateMany.mockResolvedValue({ count: 1 });
 
       const result = await service.refresh(`${SESSION_ID}.${SECRET}`);
 
       const [sessionId, newSecret] = result.refreshToken.split('.');
       expect(sessionId).toBe(SESSION_ID);
       expect(newSecret).not.toBe(SECRET);
-      expect(prisma.session.update).toHaveBeenCalledWith({
-        where: { id: SESSION_ID },
-        data: { refreshTokenHash: sha256(newSecret), expiresAt: expect.any(Date) },
+      expect(prisma.session.updateMany).toHaveBeenCalledWith({
+        where: { id: SESSION_ID, revokedAt: null, refreshTokenHash: sha256(SECRET) },
+        data: {
+          refreshTokenHash: sha256(newSecret),
+          prevRefreshTokenHash: sha256(SECRET),
+          rotatedAt: expect.any(Date),
+          expiresAt: expect.any(Date),
+        },
       });
       expect(jwt.verify(result.accessToken)).toMatchObject({ sub: 7, sid: SESSION_ID });
       expect(result.user).not.toHaveProperty('passwordHash');
+    });
+
+    it('oldingi token grace oynasida (javob yo‘qolgan / parallel tab) — sessiya yopilmaydi, yangi juftlik', async () => {
+      const NEW = 'c'.repeat(64);
+      prisma.session.findUnique.mockReturnValue(
+        Promise.resolve(session({ refreshTokenHash: sha256(NEW), prevRefreshTokenHash: sha256(SECRET), rotatedAt: new Date() })),
+      );
+      prisma.session.updateMany.mockResolvedValue({ count: 1 });
+
+      const result = await service.refresh(`${SESSION_ID}.${SECRET}`);
+
+      expect(result.refreshToken.startsWith(`${SESSION_ID}.`)).toBe(true);
+      expect(prisma.session.updateMany).toHaveBeenCalledTimes(1);
+      expect(prisma.session.updateMany).not.toHaveBeenCalledWith(expect.objectContaining({ data: { revokedAt: expect.any(Date) } }));
+    });
+
+    it('oldingi token grace oynasidan keyin — qayta ishlatish: sessiya bekor qilinadi', async () => {
+      const NEW = 'c'.repeat(64);
+      prisma.session.findUnique.mockReturnValue(
+        Promise.resolve(
+          session({ refreshTokenHash: sha256(NEW), prevRefreshTokenHash: sha256(SECRET), rotatedAt: new Date(Date.now() - 2 * 60_000) }),
+        ),
+      );
+
+      await expect(service.refresh(`${SESSION_ID}.${SECRET}`)).rejects.toThrow(UnauthorizedException);
+      expect(prisma.session.updateMany).toHaveBeenCalledWith({
+        where: { id: SESSION_ID, revokedAt: null },
+        data: { revokedAt: expect.any(Date) },
+      });
+    });
+
+    it('parallel refresh poygasi yutqazilsa — qayta o‘qiladi va grace orqali o‘tadi (logout emas)', async () => {
+      const NEW = 'c'.repeat(64);
+      prisma.session.findUnique
+        .mockResolvedValueOnce(session())
+        .mockResolvedValueOnce(session({ refreshTokenHash: sha256(NEW), prevRefreshTokenHash: sha256(SECRET), rotatedAt: new Date() }));
+      prisma.session.updateMany.mockResolvedValueOnce({ count: 0 }).mockResolvedValueOnce({ count: 1 });
+
+      const result = await service.refresh(`${SESSION_ID}.${SECRET}`);
+
+      expect(result.accessToken).toBeTruthy();
+      expect(prisma.session.findUnique).toHaveBeenCalledTimes(2);
     });
   });
 

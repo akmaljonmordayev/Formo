@@ -382,6 +382,16 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
       await as(admin).patch(`/api/admin/promocodes/${promo.id}`, { isActive: false }).expect(200);
       await as(user).get('/api/cart?promocode=FREESHIP').expect(400);
     });
+
+    it('tahrirlashda sana null — olib tashlanadi (doimiy promokod); undefined — o‘zgarmaydi', async () => {
+      const promo = await prisma.promocode.findUniqueOrThrow({ where: { code: 'FREESHIP' } });
+      const ends = new Date(Date.now() + 86_400_000).toISOString();
+      await as(admin).patch(`/api/admin/promocodes/${promo.id}`, { endsAt: ends }).expect(200);
+      await as(admin).patch(`/api/admin/promocodes/${promo.id}`, { minSum: null }).expect(200);
+      expect((await prisma.promocode.findUniqueOrThrow({ where: { id: promo.id } })).endsAt?.toISOString()).toBe(ends);
+      await as(admin).patch(`/api/admin/promocodes/${promo.id}`, { endsAt: null }).expect(200);
+      expect((await prisma.promocode.findUniqueOrThrow({ where: { id: promo.id } })).endsAt).toBeNull();
+    });
   });
 
   // ---------------------------------------------------------------------------
@@ -537,6 +547,19 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
       // NEW → SENT_TO_WORKSHOP → ACCEPTED → PRINTING
       expect(order.body.timeline.filter((s: { done: boolean }) => s.done)).toHaveLength(4);
       await as(user).post(`/api/orders/${res.body.id}/cancel`).expect(409);
+    });
+
+    it('bekor qilish muddati (cancelWindowHours) o‘tgan buyurtmani mijoz bekor qila olmaydi', async () => {
+      await as(user).post('/api/cart/items', { kitId: awayKit, shirtSize: 'S' }).expect(201);
+      const res = await as(user).post('/api/orders/checkout', checkoutBody({ paymentMethod: 'CASH', promocode: undefined })).expect(201);
+      expect(res.body.canCancel).toBe(true);
+      // Standart muddat — 2 soat; buyurtma 3 soat oldin berilgan
+      await prisma.order.update({ where: { id: res.body.id }, data: { createdAt: new Date(Date.now() - 3 * 3_600_000) } });
+      expect((await as(user).get(`/api/orders/${res.body.id}`).expect(200)).body.canCancel).toBe(false);
+      const denied = await as(user).post(`/api/orders/${res.body.id}/cancel`).expect(409);
+      expect(denied.body.message).toMatch(/2 soat ichida/);
+      // Operator baribir bekor qila oladi
+      await as(admin).patch(`/api/admin/orders/${res.body.id}/status`, { status: 'CANCELLED' }).expect(200);
     });
 
     it("\"Boshqa usulni tanlash\": Click → Naqd darhol operatorga tushadi", async () => {

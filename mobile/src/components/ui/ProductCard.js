@@ -5,7 +5,7 @@ import { colors, fonts, radii, spacing } from '../../constants/theme';
 import { Badge, formatMoney } from './Common';
 import Kit360Thumb from './Kit360Thumb';
 
-export function ProductCard({ product, onPress, favorite, onFavorite, style }) {
+export function ProductCard({ product, onPress, favorite, onFavorite, favoriteLabel = 'Favorite', style }) {
   if (!product) return null;
 
   return (
@@ -25,7 +25,9 @@ export function ProductCard({ product, onPress, favorite, onFavorite, style }) {
             onPress={onFavorite}
             style={styles.heartButton}
             hitSlop={8}
-            accessibilityLabel="Favorite"
+            accessibilityRole="button"
+            accessibilityState={{ selected: Boolean(favorite) }}
+            accessibilityLabel={favoriteLabel}
           >
             <MaterialCommunityIcons
               name={favorite ? 'heart' : 'heart-outline'}
@@ -47,7 +49,8 @@ export function ProductCard({ product, onPress, favorite, onFavorite, style }) {
           {product.name}
         </Text>
         <View style={styles.priceRow}>
-          <Text style={styles.price}>{formatMoney(product.price)}</Text>
+          {/* Narx noma'lum (katalog hali yuklanmagan) — "0 so'm" ko'rsatilmaydi */}
+          <Text style={styles.price}>{product.price != null ? formatMoney(product.price) : ' '}</Text>
           <View style={styles.arrowIcon}>
             <MaterialCommunityIcons name="arrow-right" size={14} color={colors.accent} />
           </View>
