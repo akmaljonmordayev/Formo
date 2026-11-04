@@ -1,4 +1,4 @@
-import { KIT360_IDS, kit360IdFor, pickKit360Owners } from './kit360';
+import { KIT360_CATALOG, KIT360_IDS, kit360IdFor, pickKit360Owners } from './kit360';
 
 describe('kit360IdFor — klub nomi/kodi → Forma 360° id', () => {
   it.each([
@@ -12,6 +12,10 @@ describe('kit360IdFor — klub nomi/kodi → Forma 360° id', () => {
     ['mu', ['Manchester Yunayted', 'Манчестер Юнайтед', 'Manchester United']],
     ['psg', ['PSJ', 'ПСЖ', 'Paris Saint-Germain']],
     ['mci', ['Manchester Siti', 'Манчестер Сити', 'Manchester City']],
+    ['uz', ["O'zbekiston", 'O‘zbekiston', 'Узбекистан', 'Uzbekistan']],
+    ['lfc', ['Liverpul', 'Ливерпуль', 'Liverpool']],
+    ['ars', ['Arsenal', 'Арсенал']],
+    ['che', ['Chelsi', 'Челси', 'Chelsea']],
   ])('%s: lotin, kirill, inglizcha', (id, names) => {
     for (const name of names) expect(kit360IdFor(name)).toBe(id);
   });
@@ -28,8 +32,10 @@ describe('kit360IdFor — klub nomi/kodi → Forma 360° id', () => {
     expect(kit360IdFor(undefined)).toBeNull();
   });
 
-  it('10 ta id', () => {
-    expect(KIT360_IDS).toEqual(['es', 'ar', 'fr', 'en', 'pt', 'rm', 'fcb', 'mu', 'psg', 'mci']);
+  it("14 ta id, har biriga katalog ma'lumoti", () => {
+    expect(KIT360_IDS).toEqual(['es', 'ar', 'fr', 'en', 'pt', 'uz', 'rm', 'fcb', 'mu', 'psg', 'mci', 'lfc', 'ars', 'che']);
+    expect(KIT360_CATALOG.map((t) => t.id)).toEqual([...KIT360_IDS]);
+    for (const t of KIT360_CATALOG) expect(kit360IdFor(t.name, t.code)).toBe(t.id);
   });
 });
 

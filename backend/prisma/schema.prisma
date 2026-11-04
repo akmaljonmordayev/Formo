@@ -290,7 +290,7 @@ model Club {
   type       ClubType   @default(CLUB)
   continent  Continent? // type=NATIONAL bo'lsa majburiy (DTO darajasida tekshiriladi)
   isActive   Boolean    @default(true)
-  // Forma 360° suratlari to'plami (src/kits/kit360.ts: es|ar|fr|en|pt|rm|fcb|mu|psg|mci); null — 3D ko'rinish
+  // Forma 360° suratlari to'plami (src/kits/kit360.ts: KIT360_IDS); null — 3D ko'rinish
   kit360Id   String?    @unique
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
