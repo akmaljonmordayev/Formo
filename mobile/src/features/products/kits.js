@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../services/api';
 import { getCached, setCached } from '../../utils/memCache';
+import * as storage from '../../utils/storage';
 import { KIT360_TEAMS } from '../kit360';
 
 /**
@@ -84,27 +85,68 @@ export function useBestSellingKits(limit = 50) {
   return { kits, isFallback: !data?.length, isLoading: isLoading && !data, error, refetch };
 }
 
+/** Sevimli kalit: jamoa (Forma 360°) bo'yicha — server formasi ham, zaxira karta ham bir xil kalitga tushadi */
+export const favKey = (card) => {
+  if (card?.kit360Id) return `team:${card.kit360Id}`;
+  return card?.kitId ? `kit:${card.kitId}` : null;
+};
+
+const favStorageKey = (userId) => `formo_fav_kits_${userId ?? 'guest'}`;
+
+/** Ro'yxatlarni birlashtiradi (kalit bo'yicha bitta); kitId bor nusxa kitId'sizini to'ldiradi */
+export function mergeFavorites(...lists) {
+  const out = new Map();
+  for (const card of lists.flat()) {
+    const key = favKey(card);
+    if (!key) continue;
+    const prev = out.get(key);
+    if (!prev) out.set(key, card);
+    else if (!prev.kitId && card.kitId) out.set(key, { ...prev, ...card });
+  }
+  return [...out.values()];
+}
+
 /**
- * Yoqtirilgan formalar (server, forma bo'yicha). AppNavigator'da bir marta yaratiladi — bosh sahifa va
- * Studio bir xil yurakchalarni ko'radi. `toggle` optimistik; xato bo'lsa serverdagi holat qayta yuklanadi.
+ * Yoqtirilgan formalar. AppNavigator'da bir marta yaratiladi — bosh sahifa va Studio bir xil yurakchalarni ko'radi.
+ * Ro'yxat telefonda saqlanadi (foydalanuvchi bo'yicha) va forma serverda bo'lsa (kitId) server bilan sinxronlanadi —
+ * yurakcha tarmoq xatosida yoki katalog hali bo'sh bo'lsa ham ishlaydi.
  *
  * @param {boolean} enabled - faqat kirgan foydalanuvchi uchun
+ * @param {number|string} [userId] - telefondagi ro'yxat kaliti
  */
-export function useFavoriteKits(enabled) {
+export function useFavoriteKits(enabled, userId) {
   const [items, setItems] = useState([]);
   const itemsRef = useRef(items);
   itemsRef.current = items;
   const seq = useRef(0);
 
+  const persist = useCallback((list) => storage.setItem(favStorageKey(userId), JSON.stringify(list)), [userId]);
+
   const refetch = useCallback(async () => {
     const id = ++seq.current;
+    let local = [];
     try {
-      const rows = await api.catalog.favoriteKits();
-      if (id === seq.current) setItems(rows.map(toKitCard));
+      local = JSON.parse((await storage.getItem(favStorageKey(userId))) || '[]');
     } catch {
-      // Tarmoq xatosi — mavjud ro'yxat qoladi
+      local = [];
     }
-  }, []);
+    if (id !== seq.current) return;
+    setItems(mergeFavorites(local));
+    try {
+      const rows = (await api.catalog.favoriteKits()).map(toKitCard);
+      if (id !== seq.current) return;
+      const merged = mergeFavorites(local, rows);
+      setItems(merged);
+      persist(merged);
+      // Telefonda bor, serverda yo'q (oflayn bosilgan) — serverga ham yozamiz
+      const onServer = new Set(rows.map(favKey));
+      for (const card of merged) {
+        if (card.kitId && !onServer.has(favKey(card))) api.catalog.addFavoriteKit(card.kitId).catch(() => {});
+      }
+    } catch {
+      // Tarmoq xatosi — telefondagi ro'yxat qoladi
+    }
+  }, [userId, persist]);
 
   useEffect(() => {
     if (enabled) refetch();
@@ -114,23 +156,32 @@ export function useFavoriteKits(enabled) {
     }
   }, [enabled, refetch]);
 
-  const ids = useMemo(() => new Set(items.map((k) => k.kitId)), [items]);
+  const ids = useMemo(() => new Set(items.map(favKey)), [items]);
 
   const toggle = useCallback(
     async (card) => {
-      if (!card?.kitId) return;
-      const was = itemsRef.current.some((k) => k.kitId === card.kitId);
+      const key = favKey(card);
+      if (!key) return;
+      const existing = itemsRef.current.find((k) => favKey(k) === key);
+      const kitId = card.kitId ?? existing?.kitId ?? null;
       seq.current += 1; // optimistik holatni ustidan yozib yuboradigan eski javob qo'llanmasin
-      setItems((list) => (was ? list.filter((k) => k.kitId !== card.kitId) : [card, ...list]));
+      const next = existing ? itemsRef.current.filter((k) => favKey(k) !== key) : [card, ...itemsRef.current];
+      itemsRef.current = next;
+      setItems(next);
+      persist(next);
+      if (!kitId) return;
       try {
-        if (was) await api.catalog.removeFavoriteKit(card.kitId);
-        else await api.catalog.addFavoriteKit(card.kitId);
+        if (existing) await api.catalog.removeFavoriteKit(kitId);
+        else await api.catalog.addFavoriteKit(kitId);
       } catch {
-        refetch();
+        // Server xatosi — telefondagi holat qoladi, keyingi yuklashda qayta sinxronlanadi
       }
     },
-    [refetch],
+    [persist],
   );
 
-  return { items, ids, toggle, refetch };
+  /** Karta sevimlimi (bosh sahifa, Studio) */
+  const has = useCallback((card) => ids.has(favKey(card)), [ids]);
+
+  return { items, ids, has, toggle, refetch };
 }

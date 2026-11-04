@@ -69,7 +69,7 @@ export default function AppNavigator({ store, t, auth }) {
   // Server savati — barcha ekranlar uchun bitta (faqat kirgan foydalanuvchi)
   const cart = useCart(auth.isAuthenticated);
   // Yoqtirilgan formalar (yurakcha) — bosh sahifa va Studio bitta holatni ko'radi
-  const favorites = useFavoriteKits(auth.isAuthenticated);
+  const favorites = useFavoriteKits(auth.isAuthenticated, auth.user?.id);
   // GET /api/app/config — buyurtma qoidalari va aloqa (Superadmin sozlamalari)
   const config = useAppConfig();
   const { refresh: refreshConfig } = config;
@@ -226,6 +226,7 @@ export default function AppNavigator({ store, t, auth }) {
         rules={config.rules}
         cart={cart}
         onBack={() => navigate(kit360From)}
+        onAdded={() => openCart('kit360')}
       />
     ) : route === 'studio' && !studioKit ? (
       // Studio — Forma 360° katalogi (qidiruv, kategoriyalar, barcha formalar)
