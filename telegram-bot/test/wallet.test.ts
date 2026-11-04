@@ -55,9 +55,9 @@ describe('balans va to‘ldirish (bot)', () => {
     assert.equal((sent[2].options?.reply_markup as Inline).inline_keyboard[0][0].callback_data, 'tc:75000');
     // so'rov faqat tasdiqdan keyin ochiladi
     assert.equal(backend.calls.filter((c) => c.name === 'createTopUp').length, 0);
-    // kutish holati tugagan — oddiy matn yordamga ketadi
+    // kutish holati tugagan — oddiy matn menyu ko'rsatmasiga ketadi
     await handleUpdate(textUpdate('80000'), deps);
-    assert.match(sent[3].text, /Buyruqlar/);
+    assert.match(sent[3].text, /pastdagi tugmalardan/);
   });
 
   it('callback summasi chegaradan tashqarida — so‘rov ochilmaydi', async () => {

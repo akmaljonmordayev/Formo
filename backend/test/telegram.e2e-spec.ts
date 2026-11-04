@@ -222,9 +222,20 @@ describe('Telegram bot orqali kirish (e2e)', () => {
     }
 
     it('buyurtma holati ulangan mijozga navbatga qo‘yiladi; bot oladi va natijani qaytaradi', async () => {
+      // ilovaga kirgan har bir mijozga "kirdingiz" xabari pastki menyu bilan navbatda turibdi — avval ular yuboriladi
+      const logins = (await api(app).get('/api/internal/telegram/outbox?limit=50').set(bearer(INTERNAL)).expect(200)).body;
+      expect(logins).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({ chatId: tgUser, text: expect.stringContaining('Formo ilovasiga kirdingiz'), menuLang: 'uz' }),
+        ]),
+      );
+      for (const m of logins) await bot(`outbox/${m.id}/result`, { result: 'SENT' }).expect(200);
+
       const order = await placeOrder();
       const leased = await api(app).get('/api/internal/telegram/outbox?limit=10').set(bearer(INTERNAL)).expect(200);
-      expect(leased.body).toEqual([expect.objectContaining({ chatId: tgUser, text: `📦 ${order.code} buyurtmangiz holati: Buyurtma yuborildi` })]);
+      expect(leased.body).toEqual([
+        expect.objectContaining({ chatId: tgUser, text: `📦 ${order.code} buyurtmangiz holati: Buyurtma yuborildi`, menuLang: 'uz' }),
+      ]);
 
       // band qilingan xabar boshqa bot nusxasiga qayta berilmaydi
       expect((await api(app).get('/api/internal/telegram/outbox').set(bearer(INTERNAL)).expect(200)).body).toEqual([]);

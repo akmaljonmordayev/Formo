@@ -21,7 +21,7 @@ describe('TelegramOutboxService', () => {
       prisma.order.findUnique.mockResolvedValue({ code: 'FRM-000012', customerId: 5, customer: { telegram: { chatId: '42' } } });
       await service.enqueueOrderStatus(db, 12, OrderStatus.PRINTING, 77);
       expect(prisma.telegramOutbox.create).toHaveBeenCalledWith({
-        data: { userId: 5, chatId: '42', text: '📦 FRM-000012 buyurtmangiz holati: Buyurtma jarayonda', dedupeKey: 'order-status:77' },
+        data: { userId: 5, chatId: '42', text: '📦 FRM-000012 buyurtmangiz holati: Buyurtma jarayonda', dedupeKey: 'order-status:77', menuLang: 'uz' },
       });
     });
 

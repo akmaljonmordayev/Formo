@@ -5,6 +5,7 @@ import * as bcrypt from 'bcryptjs';
 import { createHash } from 'crypto';
 import { AuthService } from '../auth/auth.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { TelegramOutboxService } from './telegram-outbox.service';
 import {
   MAX_CHALLENGES_PER_PHONE_HOUR,
   MAX_CODE_ATTEMPTS,
@@ -45,11 +46,13 @@ describe('TelegramAuthService', () => {
     $transaction: jest.fn((fn: (t: typeof tx) => unknown) => fn(tx)),
   };
   const auth = { issueTokens: jest.fn() };
+  const outbox = { enqueueForUser: jest.fn() };
   const config = { get: jest.fn((k: string) => ENV[k]), getOrThrow: jest.fn((k: string) => ENV[k]) };
   const service = new TelegramAuthService(
     prisma as unknown as PrismaService,
     auth as unknown as AuthService,
     config as unknown as ConfigService,
+    outbox as unknown as TelegramOutboxService,
   );
 
   const challenge = (over: Partial<TelegramAuthChallenge> = {}): TelegramAuthChallenge => ({

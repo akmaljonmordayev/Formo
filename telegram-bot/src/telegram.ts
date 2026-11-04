@@ -60,6 +60,7 @@ export type ReplyMarkup =
       resize_keyboard?: boolean;
       one_time_keyboard?: boolean;
       is_persistent?: boolean;
+      input_field_placeholder?: string;
     }
   | { inline_keyboard: { text: string; callback_data: string }[][] }
   | { remove_keyboard: true };

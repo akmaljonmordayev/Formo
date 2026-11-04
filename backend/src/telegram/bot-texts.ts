@@ -26,6 +26,16 @@ export const topUpTexts = {
     })[lang],
 };
 
+/** Ilovaga Telegram orqali kirilgach — botda pastki menyu bilan birga keladi */
+export const loginTexts = {
+  linked: (lang: BotLang) =>
+    ({
+      uz: "✅ Formo ilovasiga kirdingiz!\n\nEndi shu yerda pastdagi tugmalar orqali:\n💰 balansni ko'rasiz\n➕ hisobni to'ldirasiz\n📦 buyurtmalaringizni kuzatasiz\n🌐 tilni o'zgartirasiz\n\nBuyurtma holati haqidagi xabarlar ham shu yerga keladi.",
+      ru: '✅ Вы вошли в приложение Formo!\n\nТеперь кнопками ниже вы можете:\n💰 смотреть баланс\n➕ пополнять счёт\n📦 следить за заказами\n🌐 менять язык\n\nУведомления о статусе заказов тоже придут сюда.',
+      en: '✅ You are signed in to Formo!\n\nUse the buttons below to:\n💰 check your balance\n➕ top up\n📦 track your orders\n🌐 change the language\n\nOrder status updates will arrive here too.',
+    })[lang],
+};
+
 /** Buyurtma holati — uz matni ilova bilan bir xil (STATUS_LABEL) */
 export const orderStatusLabel = (status: OrderStatus, lang: BotLang) =>
   lang === 'uz' ? STATUS_LABEL[status] : ORDER_STATUS[lang][status];
