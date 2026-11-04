@@ -4,6 +4,7 @@
 export default {
   "ar": require('../../../../assets/kit360/ar.jpg'),
   "ars": require('../../../../assets/kit360/ars.jpg'),
+  "che": require('../../../../assets/kit360/che.jpg'),
   "en": require('../../../../assets/kit360/en.jpg'),
   "es": require('../../../../assets/kit360/es.jpg'),
   "fcb": require('../../../../assets/kit360/fcb.jpg'),
