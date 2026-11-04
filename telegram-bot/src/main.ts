@@ -4,7 +4,7 @@ import { RecentIds } from './dedupe';
 import { handleUpdate } from './handlers';
 import { createLogger, errorMessage } from './log';
 import { startOutboxLoop } from './outbox';
-import { pollingStale, runPolling } from './polling';
+import { pollingConflicted, pollingStale, runPolling } from './polling';
 import { RateLimiter } from './ratelimit';
 import { createBotServer } from './server';
 import { UserSessions } from './session';
@@ -55,6 +55,16 @@ async function main() {
         if (!abort.signal.aborted) exitStale('polling tsikli tugadi');
       });
     setInterval(() => {
+      // 409 — boshqa bot nusxasi (yoki eskirgan webhook) getUpdates bilan bir vaqtda ishlayapti.
+      // Umumiy 5 daqiqalik "osilib qolish" tekshiruvidan oldin, aniq va baland ovozda to'xtaymiz —
+      // Railway loglarida/dashboard'da sabab darhol ko'rinadi, cheksiz tinch-sokin qayta urinish bo'lmaydi.
+      // ESLATMA: bu faqat reaktiv himoya (xato ro'y bergandan keyin tez to'xtash) — haqiqiy oldini olish
+      // Railway'ning `numReplicas: 1` sozlamasiga bog'liq (telegram-bot/railway.json); yangi DB/Redis asosidagi
+      // tarqatilgan lock bu o'zgarishga kiritilmagan (qo'shimcha infra kerak bo'lardi).
+      if (pollingConflicted()) {
+        exitStale('boshqa bot nusxasi (yoki webhook) ishlayapti — 409 xatosi 60s dan ortiq davom etdi');
+        return;
+      }
       if (pollingStale()) exitStale('getUpdates uzoq vaqt muvaffaqiyatsiz');
     }, 30_000).unref();
   }
