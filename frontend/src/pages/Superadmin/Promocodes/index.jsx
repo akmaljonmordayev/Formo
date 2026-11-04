@@ -157,6 +157,9 @@ function PromocodeForm({ promo, onClose, onSaved }) {
     setSaving(true);
     setError('');
     try {
+      if (form.type === 'PERCENT' && form.value !== '' && Number(form.value) > 100) {
+        throw new Error(t("Foiz qiymati 100 dan oshmasligi kerak"));
+      }
       const body = { code: form.code.trim().toUpperCase(), type: form.type };
       if (form.type !== 'FREE_SHIPPING' && form.value !== '') body.value = Number(form.value);
       if (form.minSum !== '') body.minSum = Number(form.minSum);
@@ -211,7 +214,7 @@ function PromocodeForm({ promo, onClose, onSaved }) {
           {form.type !== 'FREE_SHIPPING' && (
             <label className="field">
               <span>{form.type === 'PERCENT' ? t('Qiymat (%)') : t("Qiymat (so'm)")}</span>
-              <input type="number" min={0} value={form.value} onChange={set('value')} />
+              <input type="number" min={0} max={form.type === 'PERCENT' ? 100 : undefined} value={form.value} onChange={set('value')} />
             </label>
           )}
           <label className="field">

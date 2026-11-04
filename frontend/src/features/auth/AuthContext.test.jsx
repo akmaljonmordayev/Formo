@@ -56,6 +56,16 @@ describe('AuthProvider', () => {
     expect(screen.getByText('Dilshod Karimov (OPERATOR)')).toBeInTheDocument();
   });
 
+  it('/auth/me 401/403 bersa — lokal (tahrirlangan) role bilan qolmasdan chiqarib yuboriladi', async () => {
+    session.save({ ...tokens, user: { ...operator, role: 'SUPERADMIN' } });
+    fetchMe.mockRejectedValue(Object.assign(new Error('Ruxsat yo‘q'), { status: 403 }));
+
+    renderProvider();
+
+    await waitFor(() => expect(screen.getByText('mehmon')).toBeInTheDocument());
+    expect(session.accessToken).toBeNull();
+  });
+
   it('login: sessiya saqlanadi, onSuccess chaqiriladi', async () => {
     loginRequest.mockResolvedValue({ ...tokens, user: operator });
     const onSuccess = vi.fn();

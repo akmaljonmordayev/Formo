@@ -1,5 +1,11 @@
+// Excel/Sheets "=...", "+...", "-...", "@..." bilan boshlanuvchi katakni formula deb o'qiydi
+// (masalan mijoz ismiga yozilgan "=cmd|'/c calc'!A0") — formula/DDE injection'dan himoya uchun
+// bitta apostrof bilan oldini olamiz, Excel buni oddiy matn sifatida ko'rsatadi
+const FORMULA_PREFIX = /^[=+\-@]/;
+
 const escapeCell = (value) => {
-  const s = value === null || value === undefined ? '' : String(value);
+  const raw = value === null || value === undefined ? '' : String(value);
+  const s = FORMULA_PREFIX.test(raw.trim()) ? `'${raw}` : raw;
   return /[",;\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
 
