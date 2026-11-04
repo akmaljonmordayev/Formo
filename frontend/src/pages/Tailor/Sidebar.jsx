@@ -59,8 +59,6 @@ function SidebarContent({ onNavigate }) {
   }, [pathname]);
 
   const queueCount = orders?.filter((order) => order.status === 'yangi' || order.status === 'qabul').length ?? 0;
-  const shiftTotal = orders?.length ?? 0;
-  const shiftDone = orders?.filter((order) => order.status === 'tayyor').length ?? 0;
 
   const handleLogout = async () => {
     // serverdagi sessiya yopilguncha kutamiz, aks holda /login dan qaytib sakraydi
@@ -68,7 +66,6 @@ function SidebarContent({ onNavigate }) {
     navigate('/login', { replace: true });
   };
 
-  const percent = shiftTotal ? Math.round((shiftDone / shiftTotal) * 100) : 0;
   // Bazadagi tikuv sexi akkaunti: mas'ul shaxs va sex nomi
   const fullName = profile?.name || user?.fullName || t('nav.workshopFallback');
   const roleName = profile?.factory || user?.workshopName || t('nav.roleFallback');
@@ -119,26 +116,7 @@ function SidebarContent({ onNavigate }) {
         })}
       </nav>
 
-      <div className="mt-auto rounded-2xl border border-white/10 bg-[#121829] p-4">
-        <div className="flex items-center gap-2">
-          <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-400" />
-          <span className="text-xs font-semibold text-slate-300">{t('nav.shift')}</span>
-        </div>
-        <p className="mt-2 text-2xl font-black text-white">
-          {shiftDone} <span className="text-base font-semibold text-slate-500">/ {shiftTotal}</span>
-        </p>
-        <div className="mt-2.5 h-2 overflow-hidden rounded-full bg-white/10">
-          <div
-            className="h-full rounded-full bg-gradient-to-r from-teal-400 to-emerald-400 transition-all duration-500"
-            style={{ width: `${percent}%` }}
-          />
-        </div>
-        <p className="mt-2 text-[11px] font-medium text-slate-400">
-          {queueCount > 0 ? t('nav.ordersInQueue', { n: queueCount }) : t('nav.allDone')}
-        </p>
-      </div>
-
-      <div className="flex items-center justify-between rounded-2xl border border-white/10 bg-[#121829] p-3">
+      <div className="mt-auto flex items-center justify-between rounded-2xl border border-white/10 bg-[#121829] p-3">
         <div className="flex min-w-0 items-center gap-3">
           <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-500/20 text-xs font-black text-teal-300 ring-1 ring-inset ring-teal-500/40">
             {initialsOf(fullName)}

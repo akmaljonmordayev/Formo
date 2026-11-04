@@ -10,7 +10,7 @@ const __dirname = path.dirname(__filename);
 const IMPORT_DIR = path.join(__dirname, 'import');
 const GALLERY_SCRIPT = 'C:\\Users\\Victus\\.gemini\\antigravity\\brain\\69bb9df5-9fd2-4993-bfe2-542b24ae0a47\\scratch\\build_gallery_artifact.mjs';
 
-const teams = ['rm', 'fcb', 'mu', 'mci', 'psg', 'ar', 'es', 'fr', 'en', 'pt', 'lfc'];
+const teams = ['rm', 'fcb', 'mu', 'mci', 'psg', 'ar', 'es', 'fr', 'en', 'pt', 'uz', 'lfc', 'ars', 'che'];
 let processedCount = 0;
 
 for (const t of teams) {

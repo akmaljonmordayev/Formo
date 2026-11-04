@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { Clock, Search } from 'lucide-react';
 import { Card } from './ui';
 import { useT, orderSummary, orderTime } from './i18n';
@@ -9,8 +10,43 @@ const BADGE_STYLES = {
   tayyor: 'bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/40',
 };
 
+// Son 0 dan boshlab bittalab sanab chiqiladi (kamayganda darhol yangilanadi; "harakatni kamaytirish" yoqilgan bo'lsa — sanamasdan)
+function useCountUp(target) {
+  const [shown, setShown] = useState(0);
+  useEffect(() => {
+    if (shown === target) return undefined;
+    if (shown > target || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+      setShown(target);
+      return undefined;
+    }
+    // Jami ~600 ms ichida sanab bo'linadi: kam bo'lsa sekinroq, ko'p bo'lsa tezroq
+    const delay = Math.min(90, Math.max(25, 600 / (target - shown)));
+    const timer = setTimeout(() => setShown((n) => n + 1), delay);
+    return () => clearTimeout(timer);
+  }, [shown, target]);
+  return shown;
+}
+
+function Count({ value, className }) {
+  const n = useCountUp(value);
+  return <span className={cx('tabular-nums', className)}>{n}</span>;
+}
+
+function TabCount({ value, active }) {
+  return (
+    <Count
+      value={value}
+      className={cx(
+        'ml-1.5 inline-block min-w-[1.25rem] rounded-md px-1 text-center text-[11px] font-extrabold',
+        active ? 'bg-slate-950/15 text-slate-950' : 'bg-white/10 text-slate-300'
+      )}
+    />
+  );
+}
+
 export default function QueueList({
   orders,
+  counts = {},
   activeTab,
   onTabChange,
   query,
@@ -24,9 +60,7 @@ export default function QueueList({
 
   const tabs = [
     { key: 'barchasi', label: t('queue.tab.all') },
-    { key: 'yangi', label: t('queue.tab.yangi') },
     { key: 'qabul', label: t('queue.tab.qabul') },
-    { key: 'bosildi', label: t('queue.tab.bosildi') },
     { key: 'tayyor', label: t('queue.tab.tayyor') },
   ];
 
@@ -55,9 +89,16 @@ export default function QueueList({
                 )}
               >
                 {tab.label}
+                <TabCount value={counts[tab.key] ?? 0} active={activeTab === tab.key} />
               </button>
             ))}
           </div>
+        </div>
+
+        {/* O'rtada: tanlangan holat soni (masalan "Tayyor — 3") */}
+        <div className="mt-2 flex items-baseline justify-center gap-2 rounded-lg border border-teal-400/30 bg-teal-400/5 py-1" aria-live="polite">
+          <Count value={counts[activeTab] ?? 0} className="text-base font-extrabold leading-none text-teal-300" />
+          <span className="text-xs font-bold text-slate-300">{tabs.find((tb) => tb.key === activeTab)?.label}</span>
         </div>
 
         {/* Search Input */}
@@ -116,6 +157,23 @@ export default function QueueList({
             </div>
           );
         })}
+      </div>
+      {/* Pastda: har bir holatdagi buyurtmalar soni */}
+      <div className="grid grid-cols-2 gap-1.5 border-t border-white/10 p-2">
+        {tabs.filter((tb) => tb.key !== 'barchasi').map((tb) => (
+          <button
+            key={`s-${tb.key}`}
+            type="button"
+            onClick={() => onTabChange(tb.key)}
+            className={cx(
+              'rounded-lg px-1.5 py-1 text-center transition',
+              activeTab === tb.key ? 'bg-teal-400/15 ring-1 ring-teal-400/50' : 'bg-white/5 hover:bg-white/10'
+            )}
+          >
+            <Count value={counts[tb.key] ?? 0} className="block text-sm font-extrabold leading-none text-white" />
+            <span className="mt-0.5 block truncate text-[9px] font-bold uppercase tracking-wide text-slate-400">{tb.label}</span>
+          </button>
+        ))}
       </div>
     </Card>
   );

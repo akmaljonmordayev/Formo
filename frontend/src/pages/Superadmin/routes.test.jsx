@@ -4,10 +4,10 @@ import { superadminMenu, superadminRoutes } from './routes';
 import { TEAMS } from './Kit360';
 
 describe('Formalar — eski katalog o‘rniga Forma 360°', () => {
-  it("menyuda 'Katalog', klublar va kategoriyalar yo'q; Formalar guruhi Forma 360° dan boshlanadi", () => {
+  it("menyuda 'Katalog', klublar va kategoriyalar yo'q; Asosiy guruhi Forma 360° dan boshlanadi", () => {
     expect(superadminMenu.some((m) => m.group === 'Katalog')).toBe(false);
     expect(superadminMenu.some((m) => /\/(clubs|categories)$/.test(m.to))).toBe(false);
-    const forms = superadminMenu.filter((m) => m.group === 'Formalar');
+    const forms = superadminMenu.filter((m) => m.group === 'Asosiy');
     expect(forms[0]).toMatchObject({ to: '/superadmin/kit-360', label: 'Forma 360°' });
   });
 
@@ -19,10 +19,10 @@ describe('Formalar — eski katalog o‘rniga Forma 360°', () => {
     }
   });
 
-  it('har klub/terma jamoaga bitta forma: 5 terma jamoa va 6 klub', () => {
-    expect(TEAMS).toHaveLength(11);
-    expect(new Set(TEAMS.map((t) => t.id)).size).toBe(11);
-    expect(TEAMS.filter((t) => t.kind === 'national').map((t) => t.id)).toEqual(['es', 'ar', 'fr', 'en', 'pt']);
-    expect(TEAMS.filter((t) => t.kind === 'club').map((t) => t.id)).toEqual(['rm', 'fcb', 'mu', 'psg', 'mci', 'lfc']);
+  it('har klub/terma jamoaga bitta forma: 6 terma jamoa va 8 klub', () => {
+    expect(TEAMS).toHaveLength(14);
+    expect(new Set(TEAMS.map((t) => t.id)).size).toBe(14);
+    expect(TEAMS.filter((t) => t.kind === 'national').map((t) => t.id)).toEqual(['es', 'ar', 'fr', 'en', 'pt', 'uz']);
+    expect(TEAMS.filter((t) => t.kind === 'club').map((t) => t.id)).toEqual(['rm', 'fcb', 'mu', 'psg', 'mci', 'lfc', 'ars', 'che']);
   });
 });

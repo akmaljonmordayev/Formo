@@ -16,11 +16,15 @@ const TEAM_ALIASES = {
   fr: ['fransiya', 'франция', 'france'],
   en: ['angliya', 'англия', 'england'],
   pt: ['portugaliya', 'португалия', 'portugal'],
+  uz: ["o'zbekiston", 'ozbekiston', 'uzbekistan', 'узбекистан', 'ўзбекистон', 'uzb', 'uz'],
   rm: ['real madrid', 'реал мадрид', 'real', 'rma', 'rm'],
   fcb: ['barselona', 'барселона', 'barcelona', 'fc barcelona', 'fcb', 'bar'],
   mu: ['manchester yunayted', 'манчестер юнайтед', 'manchester united', 'man united', 'man utd', 'mu', 'mun'],
   psg: ['psj', 'псж', 'psg', 'paris saint-germain', 'paris saint germain', 'paris sg'],
   mci: ['manchester siti', 'манчестер сити', 'manchester city', 'man city', 'mci'],
+  lfc: ['liverpul', 'ливерпуль', 'liverpool', 'liverpool fc', 'lfc', 'liv'],
+  ars: ['arsenal', 'арсенал', 'arsenal fc', 'ars'],
+  che: ['chelsi', 'челси', 'chelsea', 'chelsea fc', 'che'],
 };
 const norm = (s) => String(s ?? '').toLowerCase().replace(/[‘’ʻʼ`]/g, "'").replace(/\s+/g, ' ').trim();
 export function teamForClub(clubName) {

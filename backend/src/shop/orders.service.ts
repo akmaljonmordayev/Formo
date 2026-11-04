@@ -31,6 +31,7 @@ import { dayLabel, DeliveryService, todayLocal } from './delivery.service';
 import { ChangePaymentMethodDto, CheckoutDto, MyOrdersQueryDto } from './dto/checkout.dto';
 import { summarize } from './pricing';
 import { RulesService } from './rules.service';
+import { inTashkentCity } from './tashkent';
 import { CUSTOM_TITLE, designSummary } from './studio';
 import { KIT_DESIGN_TITLE } from '../kits/kit-design';
 import { StudioService } from './studio.service';
@@ -216,6 +217,12 @@ export class ShopOrdersService {
     ]);
     const online = ONLINE.includes(dto.paymentMethod);
     const fromBalance = dto.paymentMethod === PaymentMethod.BALANCE;
+    // Naqd faqat Toshkent shahri ichiga; shahardan tashqariga — faqat shaxsiy hisobdan
+    if (dto.paymentMethod === PaymentMethod.CASH && !inTashkentCity(address.latitude, address.longitude)) {
+      throw new BadRequestException(
+        "Naqd to'lov faqat Toshkent shahri ichida. Shahardan tashqariga yetkazishda shaxsiy hisobdan to'lang",
+      );
+    }
 
     const orderId = await retrySerializable(() => this.prisma.$transaction(
       async (tx) => {

@@ -3,13 +3,17 @@
 /* eslint-disable global-require */
 export default {
   "ar": require('../../../../assets/kit360/ar.jpg'),
+  "ars": require('../../../../assets/kit360/ars.jpg'),
+  "che": require('../../../../assets/kit360/che.jpg'),
   "en": require('../../../../assets/kit360/en.jpg'),
   "es": require('../../../../assets/kit360/es.jpg'),
   "fcb": require('../../../../assets/kit360/fcb.jpg'),
   "fr": require('../../../../assets/kit360/fr.jpg'),
+  "lfc": require('../../../../assets/kit360/lfc.jpg'),
   "mci": require('../../../../assets/kit360/mci.jpg'),
   "mu": require('../../../../assets/kit360/mu.jpg'),
   "psg": require('../../../../assets/kit360/psg.jpg'),
   "pt": require('../../../../assets/kit360/pt.jpg'),
   "rm": require('../../../../assets/kit360/rm.jpg'),
+  "uz": require('../../../../assets/kit360/uz.jpg'),
 };

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Platform,
   Pressable,
   StyleSheet,
   Switch,
@@ -9,7 +10,8 @@ import {
   View,
 } from 'react-native';
 import { KeyboardAvoider, KeyboardAwareScrollView } from '../components/ui/KeyboardAware';
-import MapView from 'react-native-maps';
+import NativeMapView from 'react-native-maps';
+import LeafletMap from '../components/ui/LeafletMap';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton, ErrorNote, OutlineButton, authColors as c } from '../components/ui/AuthUi';
@@ -29,6 +31,10 @@ import {
 } from '../features/location';
 import { errorText } from '../utils/errors';
 import { DARK_MAP_STYLE } from '../constants/mapStyle';
+
+// Android'da react-native-maps Google Maps kalitisiz release build'da crash qiladi (ilova yopilib qoladi) —
+// u yerda kalit talab qilmaydigan Leaflet/OpenStreetMap xaritasi; iOS'da Apple Maps (kalit kerak emas)
+const MapView = Platform.OS === 'android' ? LeafletMap : NativeMapView;
 
 const LABEL_KEYS = ['addrLabelHome', 'addrLabelWork'];
 const GEOCODE_DELAY_MS = 600;

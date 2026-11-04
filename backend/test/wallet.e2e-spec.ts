@@ -32,7 +32,7 @@ describe('Balans, to‘ldirish va to‘lovlar (e2e)', () => {
     const phone = nextPhone();
     const res = await api(app).post('/api/auth/register').send({ phone, password: 'secret123', fullName: 'Balans Mijoz' }).expect(201);
     const token = res.body.accessToken as string;
-    const address = await as(token).post('/api/addresses', { label: 'Uy', address: 'Yunusobod 7' }).expect(201);
+    const address = await as(token).post('/api/addresses', { label: 'Uy', address: 'Yunusobod 7', latitude: 41.31, longitude: 69.28 }).expect(201);
     return { token, id: res.body.user.id as number, addressId: address.body.id as number };
   }
 

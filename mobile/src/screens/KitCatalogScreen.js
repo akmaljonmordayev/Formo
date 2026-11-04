@@ -70,7 +70,7 @@ export default function KitCatalogScreen({ t, favorites, onOpenKit }) {
             key={kit.key}
             kit={kit}
             t={t}
-            favorite={favorites.ids.has(kit.kitId)}
+            favorite={favorites.has(kit)}
             onFavorite={favorites.toggle}
             onPress={onOpenKit}
           />

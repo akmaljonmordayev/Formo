@@ -208,7 +208,7 @@ describe('Telegram bot orqali kirish (e2e)', () => {
         include: { kits: true },
       });
       kitId = club.kits[0].id;
-      addressId = (await api(app).post('/api/addresses').set(bearer(userToken)).send({ label: 'Uy', address: 'Chilonzor 9' }).expect(201)).body.id;
+      addressId = (await api(app).post('/api/addresses').set(bearer(userToken)).send({ label: 'Uy', address: 'Chilonzor 9', latitude: 41.31, longitude: 69.28 }).expect(201)).body.id;
     });
 
     async function placeOrder() {
