@@ -22,7 +22,12 @@ export interface WalletCtx {
 
 export const mainMenu = (lang: Lang): ReplyMarkup => {
   const m = T[lang].menu;
-  return { keyboard: [[{ text: m.balance }, { text: m.topup }], [{ text: m.orders }, { text: m.language }]], resize_keyboard: true, is_persistent: true };
+  return {
+    keyboard: [[{ text: m.balance }, { text: m.topup }], [{ text: m.orders }, { text: m.language }], [{ text: m.help }]],
+    resize_keyboard: true,
+    is_persistent: true,
+    input_field_placeholder: T[lang].menuPlaceholder,
+  };
 };
 
 export const languageKeyboard: ReplyMarkup = {

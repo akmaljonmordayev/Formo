@@ -18,7 +18,7 @@ const PROFILE = {
       '• Balansni ko‘rish va to‘ldirish\n' +
       '• Buyurtma holati haqida xabarlar\n\n' +
       `🌐 Sayt: ${SITE}\n📸 Instagram: ${INSTAGRAM}`,
-    commands: { start: 'Boshlash', balance: 'Balans', topup: 'Balansni to‘ldirish', orders: 'Buyurtmalar', language: 'Tilni o‘zgartirish', stop: 'Xabarlarni o‘chirish' },
+    commands: { start: 'Boshlash', balance: 'Balans', topup: 'Balansni to‘ldirish', orders: 'Buyurtmalar', language: 'Tilni o‘zgartirish', help: 'Yordam va menyu', stop: 'Xabarlarni o‘chirish' },
   },
   ru: {
     short: `Formo — футбольная форма ⚽️ Вход в приложение, баланс и заказы.\n🌐 ${SITE} · 📸 Instagram: ${INSTAGRAM}`,
@@ -28,7 +28,7 @@ const PROFILE = {
       '• Баланс и пополнение\n' +
       '• Уведомления о статусе заказов\n\n' +
       `🌐 Сайт: ${SITE}\n📸 Instagram: ${INSTAGRAM}`,
-    commands: { start: 'Начать', balance: 'Баланс', topup: 'Пополнить баланс', orders: 'Заказы', language: 'Сменить язык', stop: 'Отключить уведомления' },
+    commands: { start: 'Начать', balance: 'Баланс', topup: 'Пополнить баланс', orders: 'Заказы', language: 'Сменить язык', help: 'Помощь и меню', stop: 'Отключить уведомления' },
   },
   en: {
     short: `Formo — football kits ⚽️ App sign-in, balance and orders.\n🌐 ${SITE} · 📸 Instagram: ${INSTAGRAM}`,
@@ -38,7 +38,7 @@ const PROFILE = {
       '• Check and top up your balance\n' +
       '• Order status notifications\n\n' +
       `🌐 Website: ${SITE}\n📸 Instagram: ${INSTAGRAM}`,
-    commands: { start: 'Start', balance: 'Balance', topup: 'Top up balance', orders: 'Orders', language: 'Change language', stop: 'Turn off notifications' },
+    commands: { start: 'Start', balance: 'Balance', topup: 'Top up balance', orders: 'Orders', language: 'Change language', help: 'Help and menu', stop: 'Turn off notifications' },
   },
 };
 

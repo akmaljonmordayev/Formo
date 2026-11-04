@@ -15,6 +15,8 @@ export interface OutboxMessage {
   chatId: string;
   text: string;
   attempts: number;
+  /** Ulangan mijoz tili — xabarga shu tildagi pastki menyu biriktiriladi (null/yo'q — menyusiz) */
+  menuLang?: string | null;
 }
 
 export type OutboxResult = 'SENT' | 'RETRY' | 'BLOCKED' | 'FAILED';
@@ -43,7 +45,15 @@ export type MeResult = NotLinked | { linked: true; firstName: string | null; bal
 export type BalanceResult = NotLinked | { linked: true; balance: number; topUps: TopUpView[] };
 export type OrdersResult =
   | NotLinked
-  | { linked: true; orders: { id: number; code: string; statusLabel: string; totalSum: number; createdAt: string }[] };
+  | { linked: true; orders: OrderView[] };
+export interface OrderView {
+  id: number;
+  code: string;
+  status?: string;
+  statusLabel: string;
+  totalSum: number;
+  createdAt: string;
+}
 export interface TopUpMethods {
   limits: { min: number; max: number };
   methods: { method: string; enabled: boolean }[];

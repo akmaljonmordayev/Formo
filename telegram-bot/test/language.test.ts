@@ -60,7 +60,8 @@ describe('til: birinchi /start va barcha xabarlar bir tilda', () => {
 
     // backend'dan faqat bir marta so'raladi
     await handleUpdate(textUpdate('salom', { lang: 'ru' }), deps);
-    assert.equal(sent[1].text, T.uz.help);
-    assert.equal(backend.calls.filter((c) => c.name === 'me').length, 2); // langOf + startTopUp
+    assert.equal(sent[1].text, T.uz.menuHint);
+    // langOf (bir marta) + startTopUp + menyu (ulanganligini tekshirish)
+    assert.equal(backend.calls.filter((c) => c.name === 'me').length, 3);
   });
 });

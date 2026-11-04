@@ -34,8 +34,32 @@ export interface ManualInstructions {
   comment: string;
 }
 
+/** Buyurtma holati → belgi (mijoz 4 bosqichi: yuborildi → qabul qilindi → jarayonda → yetkazilmoqda) */
+export const ORDER_EMOJI: Record<string, string> = {
+  PENDING_PAYMENT: '💳',
+  NEW: '📨',
+  SENT_TO_WORKSHOP: '✅',
+  ACCEPTED: '🧵',
+  PRINTING: '🧵',
+  QUALITY_CHECK: '🧵',
+  READY: '🧵',
+  DELIVERING: '🚚',
+  DELIVERED: '🏁',
+  CANCELLED: '❌',
+  RETURNED: '↩️',
+};
+
+/** "2026-11-04T..." → "04.11.2026" */
+export const shortDate = (iso: string) => {
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '' : `${String(d.getUTCDate()).padStart(2, '0')}.${String(d.getUTCMonth() + 1).padStart(2, '0')}.${d.getUTCFullYear()}`;
+};
+
 interface Dict {
-  menu: { balance: string; topup: string; orders: string; language: string };
+  menu: { balance: string; topup: string; orders: string; language: string; help: string };
+  menuPlaceholder: string;
+  menuHint: string;
+  ordersHint: string;
   welcome: string;
   welcomeLinked: string;
   help: string;
@@ -72,7 +96,10 @@ interface Dict {
 }
 
 const uz: Dict = {
-  menu: { balance: '💰 Balans', topup: '➕ Balansni to‘ldirish', orders: '📦 Buyurtmalar', language: '🌐 Til' },
+  menu: { balance: '💰 Balans', topup: '➕ Balansni to‘ldirish', orders: '📦 Buyurtmalar', language: '🌐 Til', help: '❓ Yordam' },
+  menuPlaceholder: 'Pastdagi tugmalardan tanlang',
+  menuHint: 'Kerakli bo‘limni pastdagi tugmalardan tanlang 👇',
+  ordersHint: 'Batafsil holat va kuzatish — Formo ilovasida.',
   welcome:
     'Formo botiga xush kelibsiz! ⚽️\n\n' +
     'Ilovaga kirish uchun Formo ilovasida telefon raqamingizni kiriting va «Telegram orqali kirish» tugmasini bosing — ' +
@@ -82,13 +109,12 @@ const uz: Dict = {
     'Formo botiga xush kelibsiz! ⚽️\n\nAkkauntingiz ulangan — buyurtma holati haqidagi xabarlar shu yerga keladi. O‘chirish: /stop\n\n' +
     'Balansni ko‘rish va to‘ldirish — pastdagi menyuda.',
   help:
-    'Buyruqlar:\n' +
-    '/start — boshlash va xabarlarni yoqish\n' +
-    '/balance — balans\n' +
-    '/topup — balansni to‘ldirish\n' +
-    '/orders — buyurtmalar\n' +
-    '/language — til\n' +
-    '/stop — buyurtma xabarlarini o‘chirish\n\n' +
+    'Pastdagi tugmalar:\n' +
+    '💰 Balans — hisobingizdagi pul va so‘nggi to‘ldirishlar\n' +
+    '➕ Balansni to‘ldirish — summani tanlang, kartaga o‘tkazing va chekni shu yerga yuboring\n' +
+    '📦 Buyurtmalar — so‘nggi buyurtmalar va ularning holati\n' +
+    '🌐 Til — o‘zbekcha / русский / English\n\n' +
+    'Buyurtma holati o‘zgarsa, xabar shu yerga o‘zi keladi. Xabarlarni o‘chirish: /stop\n\n' +
     'Ilovaga kirish uchun Formo ilovasida «Telegram orqali kirish» tugmasini bosing.',
   failure: 'Texnik nosozlik yuz berdi. Birozdan keyin qayta urinib ko‘ring.',
   notLinked:
@@ -134,7 +160,10 @@ const uz: Dict = {
 };
 
 const ru: Dict = {
-  menu: { balance: '💰 Баланс', topup: '➕ Пополнить баланс', orders: '📦 Заказы', language: '🌐 Язык' },
+  menu: { balance: '💰 Баланс', topup: '➕ Пополнить баланс', orders: '📦 Заказы', language: '🌐 Язык', help: '❓ Помощь' },
+  menuPlaceholder: 'Выберите кнопку ниже',
+  menuHint: 'Выберите нужный раздел кнопками ниже 👇',
+  ordersHint: 'Подробный статус и отслеживание — в приложении Formo.',
   welcome:
     'Добро пожаловать в бот Formo! ⚽️\n\n' +
     'Чтобы войти в приложение, введите номер телефона в приложении Formo и нажмите «Войти через Telegram» — ' +
@@ -144,13 +173,12 @@ const ru: Dict = {
     'Добро пожаловать в бот Formo! ⚽️\n\nАккаунт подключён — уведомления о заказах будут приходить сюда. Отключить: /stop\n\n' +
     'Баланс и пополнение — в меню ниже.',
   help:
-    'Команды:\n' +
-    '/start — начать и включить уведомления\n' +
-    '/balance — баланс\n' +
-    '/topup — пополнить баланс\n' +
-    '/orders — заказы\n' +
-    '/language — язык\n' +
-    '/stop — отключить уведомления о заказах\n\n' +
+    'Кнопки внизу:\n' +
+    '💰 Баланс — деньги на счёте и последние пополнения\n' +
+    '➕ Пополнить баланс — выберите сумму, переведите на карту и отправьте чек сюда\n' +
+    '📦 Заказы — последние заказы и их статус\n' +
+    '🌐 Язык — o‘zbekcha / русский / English\n\n' +
+    'Когда статус заказа меняется, уведомление придёт сюда само. Отключить уведомления: /stop\n\n' +
     'Чтобы войти в приложение, нажмите «Войти через Telegram» в приложении Formo.',
   failure: 'Произошла техническая ошибка. Попробуйте чуть позже.',
   notLinked:
@@ -196,7 +224,10 @@ const ru: Dict = {
 };
 
 const en: Dict = {
-  menu: { balance: '💰 Balance', topup: '➕ Top up balance', orders: '📦 Orders', language: '🌐 Language' },
+  menu: { balance: '💰 Balance', topup: '➕ Top up balance', orders: '📦 Orders', language: '🌐 Language', help: '❓ Help' },
+  menuPlaceholder: 'Choose a button below',
+  menuHint: 'Choose a section with the buttons below 👇',
+  ordersHint: 'Detailed status and tracking are in the Formo app.',
   welcome:
     'Welcome to the Formo bot! ⚽️\n\n' +
     'To sign in, enter your phone number in the Formo app and tap “Sign in with Telegram” — the app will bring you here.\n\n' +
@@ -205,13 +236,12 @@ const en: Dict = {
     'Welcome to the Formo bot! ⚽️\n\nYour account is linked — order updates will be sent here. Turn off: /stop\n\n' +
     'Check and top up your balance from the menu below.',
   help:
-    'Commands:\n' +
-    '/start — start and enable notifications\n' +
-    '/balance — balance\n' +
-    '/topup — top up balance\n' +
-    '/orders — orders\n' +
-    '/language — language\n' +
-    '/stop — turn off order notifications\n\n' +
+    'Buttons below:\n' +
+    '💰 Balance — money on your account and recent top-ups\n' +
+    '➕ Top up balance — choose an amount, transfer to the card and send the receipt here\n' +
+    '📦 Orders — recent orders and their status\n' +
+    '🌐 Language — o‘zbekcha / русский / English\n\n' +
+    'When an order status changes, you get a message here automatically. Turn off: /stop\n\n' +
     'To sign in, tap “Sign in with Telegram” in the Formo app.',
   failure: 'A technical error occurred. Please try again later.',
   notLinked:

@@ -14,6 +14,8 @@ export interface LeasedMessage {
   chatId: string;
   text: string;
   attempts: number;
+  /** Ulangan mijoz tili — bot xabarga shu tildagi pastki menyuni biriktiradi */
+  menuLang: string | null;
 }
 
 /**
@@ -41,6 +43,7 @@ export class TelegramOutboxService {
         chatId: telegram.chatId,
         text: orderStatusText(asBotLang(telegram.language), order.code, status),
         dedupeKey: `order-status:${logId}`,
+        menuLang: asBotLang(telegram.language),
       },
     });
   }
@@ -57,10 +60,11 @@ export class TelegramOutboxService {
   ) {
     const account = await db.telegramAccount.findUnique({ where: { userId }, select: { chatId: true, language: true } });
     if (!account?.chatId) return;
-    const body = typeof text === 'function' ? text(asBotLang(account.language)) : text;
+    const lang = asBotLang(account.language);
+    const body = typeof text === 'function' ? text(lang) : text;
     await db.telegramOutbox.upsert({
       where: { dedupeKey },
-      create: { userId, chatId: account.chatId, text: body, dedupeKey },
+      create: { userId, chatId: account.chatId, text: body, dedupeKey, menuLang: lang },
       update: {},
     });
   }
@@ -78,7 +82,7 @@ export class TelegramOutboxService {
         LIMIT ${limit}
         FOR UPDATE SKIP LOCKED
       )
-      RETURNING "id", "chatId", "text", "attempts"`;
+      RETURNING "id", "chatId", "text", "attempts", "menuLang"`;
     return rows.sort((a, b) => a.id - b.id);
   }
 

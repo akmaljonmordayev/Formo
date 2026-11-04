@@ -12,6 +12,8 @@ import { createHmac, randomBytes, randomInt } from 'crypto';
 import { AuthService, ClientInfo, NEW_CUSTOMER_NAME, unusablePasswordHash } from '../auth/auth.service';
 import { normalizePhone } from '../common/utils/phone';
 import { PrismaService } from '../prisma/prisma.service';
+import { loginTexts } from './bot-texts';
+import { TelegramOutboxService } from './telegram-outbox.service';
 import { sha256Hex as sha256, timingSafeEqualHex } from '../common/utils/timing-safe.util';
 
 export const CHALLENGE_TTL_MS = 10 * 60 * 1000;
@@ -50,6 +52,7 @@ export class TelegramAuthService {
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
     private readonly config: ConfigService,
+    private readonly outbox: TelegramOutboxService,
   ) {}
 
   private get botUsername() {
@@ -174,6 +177,8 @@ export class TelegramAuthService {
       if (!result.user.isActive) throw new ForbiddenException('Akkauntingiz bloklangan. Administratorga murojaat qiling');
 
       await this.link(tx, result.user.id, challenge.telegramUserId!, challenge.chatId, challenge.language);
+      // Botda "kirdingiz" xabari pastki menyu bilan — mijoz "/" buyruqlarini yodlamasdan tugmalardan foydalanadi
+      await this.outbox.enqueueForUser(tx, result.user.id, (lang) => loginTexts.linked(lang), `login:${challenge.id}`);
       return result;
     });
 
