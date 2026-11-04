@@ -26,7 +26,8 @@ export default function SuperadminOrders() {
   const { t } = useLang();
   const [LIMIT] = useState(() => loadAdminPrefs().ordersPageSize || 20);
   const [tab, setTab] = useState(TABS[0]);
-  const [search, setSearch] = useState('');
+  // Dashboard / Ishlab chiqarish dan ?search=KOD bilan kelinsa — shu buyurtma darhol topiladi
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get('search') ?? '');
   const [page, setPage] = useState(1);
   const [data, setData] = useState({ items: [], total: 0, byStatus: {} });
   const [loading, setLoading] = useState(true);

@@ -1,12 +1,10 @@
 import { Suspense, lazy } from 'react';
 import {
   AlertTriangle,
-  BarChart3,
   CreditCard,
   Factory,
   History,
   LayoutDashboard,
-  Megaphone,
   Package,
   Rotate3d,
   Settings,
@@ -90,24 +88,23 @@ export const superadminRoutes = [
 // group bo'yicha sidebarda bo'limlarga ajratiladi (SuperadminLayout shuni o'qiydi)
 export const superadminMenu = [
   { to: BASE, label: 'Dashboard', end: true, icon: LayoutDashboard, group: 'Asosiy' },
-  { to: `${BASE}/orders`, label: 'Buyurtmalar', icon: ShoppingBag, group: 'Asosiy', badge: 2 },
-  { to: `${BASE}/production`, label: 'Ishlab chiqarish', icon: Factory, group: 'Asosiy', badge: 2 },
-  { to: `${BASE}/defects`, label: 'Nuqsonlar (brak)', icon: AlertTriangle, group: 'Asosiy' },
+  { to: `${BASE}/orders`, label: 'Buyurtmalar', icon: ShoppingBag, group: 'Asosiy' },
+  { to: `${BASE}/topups`, label: "Balans to'ldirish", icon: CreditCard, group: 'Asosiy' },
+  { to: `${BASE}/production`, label: 'Ishlab chiqarish', icon: Factory, group: 'Asosiy' },
 
   { to: `${BASE}/kit-360`, label: 'Forma 360°', icon: Rotate3d, group: 'Formalar' },
   { to: `${BASE}/inventory`, label: 'Zaxira', icon: Package, group: 'Formalar' },
   { to: `${BASE}/pricing`, label: 'Narxlar', icon: Tag, group: 'Formalar' },
 
-  { to: `${BASE}/users`, label: 'Mijozlar', icon: Users, group: 'Mijozlar' },
-  { to: `${BASE}/promocodes`, label: 'Promokodlar', icon: Ticket, group: 'Mijozlar' },
-  { to: `${BASE}/campaigns`, label: 'Kampaniyalar', icon: Megaphone, group: 'Mijozlar' },
+  { to: `${BASE}/factories`, label: 'Sexlar', icon: Factory, group: 'Sex va Sifat' },
+  { to: `${BASE}/defects`, label: 'Nuqsonlar (brak)', icon: AlertTriangle, group: 'Sex va Sifat' },
 
-  { to: `${BASE}/factories`, label: 'Sexlar', icon: Factory, group: 'Operatsiya' },
-  { to: `${BASE}/finance`, label: 'Moliya', icon: Wallet, group: 'Operatsiya' },
-  { to: `${BASE}/topups`, label: "Balans to'ldirish", icon: CreditCard, group: 'Operatsiya' },
-  { to: `${BASE}/reports`, label: 'Hisobotlar', icon: BarChart3, group: 'Operatsiya' },
+  { to: `${BASE}/finance`, label: 'Moliya', icon: Wallet, group: 'Moliya va Mijozlar' },
+  { to: `${BASE}/promocodes`, label: 'Promokodlar', icon: Ticket, group: 'Moliya va Mijozlar' },
+  { to: `${BASE}/users`, label: 'Mijozlar', icon: Users, group: 'Moliya va Mijozlar' },
 
-  { to: `${BASE}/operator`, label: 'Foydalanuvchilar va rollar', icon: ShieldCheck, group: 'Tizim' },
+  // Kampaniyalar va Hisobotlar menyudan yashirildi — marshrutlari superadminRoutes da qoladi
+  { to: `${BASE}/operator`, label: 'Operator akkaunti', icon: ShieldCheck, group: 'Tizim' },
   { to: `${BASE}/settings`, label: 'Sozlamalar', icon: Settings, group: 'Tizim' },
   { to: `${BASE}/audit-log`, label: 'Audit jurnali', icon: History, group: 'Tizim' },
 ];

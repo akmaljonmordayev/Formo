@@ -50,12 +50,10 @@ const RU = {
   Mijozlar: 'Клиенты',
   Promokodlar: 'Промокоды',
   Kampaniyalar: 'Кампании',
-  Operatsiya: 'Операции',
   Sexlar: 'Цеха',
   Moliya: 'Финансы',
   Hisobotlar: 'Отчёты',
   Tizim: 'Система',
-  'Foydalanuvchilar va rollar': 'Пользователи и роли',
   Sozlamalar: 'Настройки',
   'Audit jurnali': 'Журнал аудита',
   'Buyurtma raqami yoki telefon + Enter': 'Номер заказа или телефон + Enter',
@@ -128,7 +126,6 @@ const RU = {
   'CSV eksport': 'Экспорт CSV',
   '{name} — tahrirlash': '{name} — редактирование',
   "{name} ni o'chirish": 'Удалить {name}',
-  "Bu bo'lim hali ulanmagan.": 'Этот раздел пока не подключён.',
   Admin: 'Админ',
   Buyurtma: 'Заказ',
   Xabarlar: 'Сообщения',
@@ -168,17 +165,19 @@ const RU = {
   'muddatga 3 soatdan kam': 'до срока меньше 3 часов',
   "jami {total} · o'rtacha kuniga {avg}": 'всего {total} · в среднем {avg} в день',
   "Bu davrda buyurtma yo'q": 'За этот период заказов нет',
-  'Tizim holati': 'Состояние системы',
-  'Integratsiyalar →': 'Интеграции →',
-  "Integratsiya monitoringi (SMS, webhook, backup) hali ulanmagan — bu bo'lim keyingi bosqichda qo'shiladi.":
-    'Мониторинг интеграций (SMS, webhook, backup) пока не подключён — раздел появится на следующем этапе.',
+  'Boshlanish sanasi': 'Дата начала',
+  'Tugash sanasi': 'Дата окончания',
+  "Boshlanish sanasi tugash sanasidan keyin bo'lmasligi kerak": 'Дата начала не может быть позже даты окончания',
+  'Buyurtmalar soni': 'Количество заказов',
+  "Tushum (so'm)": 'Выручка (сум)',
+  "So'nggi buyurtmalar": 'Последние заказы',
+  'Barchasi →': 'Все →',
+  'Sex va Sifat': 'Цех и качество',
+  'Moliya va Mijozlar': 'Финансы и клиенты',
+  'Operator akkaunti': 'Аккаунт оператора',
   "So'nggi muhim amallar": 'Последние важные действия',
   'Audit jurnali →': 'Журнал аудита →',
   "To'liq ro'yxat Audit jurnali sahifasida.": 'Полный список — на странице «Журнал аудита».',
-  Xodimlar: 'Сотрудники',
-  'Boshqarish →': 'Управление →',
-  'Operator va tikuv sexi akkauntlari "Foydalanuvchilar" bo\'limida boshqariladi.':
-    'Аккаунты оператора и швейных цехов управляются в разделе «Пользователи».',
 
   // --- заказы ---
   'Barcha buyurtmalar. Qatorni bosib tafsilot va amallarni oching.': 'Все заказы. Нажмите на строку, чтобы открыть детали и действия.',
@@ -215,8 +214,8 @@ const RU = {
   Naqd: 'Наличные',
 
   // --- производство ---
-  "Bugungi bosma vazifalari: chapdan o'ngga 4 qadam. Kartochkani bosib bosma ma'lumotlarini oching.":
-    'Задачи печати на сегодня: 4 шага слева направо. Нажмите на карточку, чтобы открыть данные печати.',
+  "Bugungi bosma vazifalari: chapdan o'ngga 4 qadam. Kartochkani bosib buyurtmani oching.":
+    'Задачи печати на сегодня: 4 шага слева направо. Нажмите на карточку, чтобы открыть заказ.',
   "Hali faol tikuv sexi yo'q.": 'Активных швейных цехов пока нет.',
   '{n} faol vazifa': '{n} активных задач',
   'Bugungi yuk: {a} / {b} dona': 'Загрузка сегодня: {a} / {b} шт.',
@@ -594,7 +593,6 @@ const RU = {
   'Buyurtma qoidalari': 'Правила заказа',
   Bildirishnomalar: 'Уведомления',
   'Parol va sessiyalar': 'Пароль и сессии',
-  Integratsiyalar: 'Интеграции',
   Diagnostika: 'Диагностика',
   "Bu sozlamalar faqat shu brauzerda saqlanadi va boshqa adminlarga ta'sir qilmaydi.":
     'Эти настройки хранятся только в этом браузере и не влияют на других админов.',

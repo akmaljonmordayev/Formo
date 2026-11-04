@@ -43,7 +43,7 @@ export const FONTS = [
 ];
 export const FONTS_CSS = 'https://fonts.googleapis.com/css2?family=Sofia+Sans+Extra+Condensed:wght@800&family=Oswald:wght@700'
   + '&family=Alumni+Sans:wght@800&family=Tektur:wght@700&family=Alumni+Sans+Collegiate+One&family=Unbounded:wght@700&display=swap';
-export const FONT_SAMPLE = 'ISROIL ИСРОИЛ ЎҚҒҲ 10';
+export const FONT_SAMPLE = 'ISM ИСМ ЎҚҒҲ 10';
 export const fontCss = (f, size) => `${f.weight} ${size}px ${[f.family, f.companion, 'Oswald'].filter(Boolean).join(', ')}, sans-serif`;
 
 /* Tana sirti (ellips) bo'ylab yoy uzunligi: t — sirtdagi burchak (0 — orqa/old markazi), s(t) — markazdan px.

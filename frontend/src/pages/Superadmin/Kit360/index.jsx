@@ -320,7 +320,7 @@ export default function Kit360() {
 
           <label style={field}>
             <span className="sa-table__sub">{t('Ism')}</span>
-            <input className="sa-input" value={name} placeholder="ISROIL" onChange={onName} />
+            <input className="sa-input" value={name} placeholder="ISM" onChange={onName} />
             {bannedWord && <span role="alert" style={warn}>{t("Bu ismda taqiqlangan so'z bor: {word}", { word: bannedWord })}</span>}
           </label>
           <label style={field}>

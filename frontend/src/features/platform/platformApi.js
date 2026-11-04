@@ -8,7 +8,8 @@ const qs = (params = {}) => {
 };
 
 export const dashboardApi = {
-  get: (days) => api(`/admin/dashboard${qs({ days })}`),
+  // { days } yoki { from, to } (YYYY-MM-DD)
+  get: (params) => api(`/admin/dashboard${qs(params)}`),
 };
 
 export const financeApi = {
