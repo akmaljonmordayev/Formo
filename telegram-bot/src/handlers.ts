@@ -1,4 +1,4 @@
-import { Backend, CodeResult, TopUpMethods } from './backend';
+import { Backend, CodeResult, HelloResult, TopUpMethods } from './backend';
 import { RecentIds } from './dedupe';
 import { esc, FIRST_LANGUAGE_PROMPT, isLang, Lang, langFromCode, menuAction, money, ORDER_EMOJI, shortDate, T } from './i18n';
 import { errorMessage, Logger } from './log';
@@ -152,10 +152,9 @@ async function onStart(deps: Deps, from: TgUser, chatId: string, payload: string
   if (payload && payload !== 'topup' && !START_TOKEN.test(payload)) return send(deps, chatId, LOGIN[quickLang(deps, from)].invalidLink);
 
   let lang = deps.sessions.lang(userId);
-  let linked: boolean | undefined;
+  let hello: HelloResult | undefined;
   if (!payload || !lang) {
-    const hello = await guarded(deps, chatId, quickLang(deps, from), () => deps.backend.hello(userId, chatId));
-    linked = hello.linked;
+    hello = await guarded(deps, chatId, quickLang(deps, from), () => deps.backend.hello(userId, chatId));
     if (!lang && isLang(hello.language)) {
       lang = hello.language;
       deps.sessions.setLang(userId, lang);
@@ -165,13 +164,18 @@ async function onStart(deps: Deps, from: TgUser, chatId: string, payload: string
     deps.sessions.setPendingStart(userId, payload);
     return send(deps, chatId, FIRST_LANGUAGE_PROMPT, { reply_markup: languageKeyboard });
   }
-  return continueStart(deps, userId, chatId, lang, payload, linked);
+  return continueStart(deps, userId, chatId, lang, payload, hello);
 }
 
-async function continueStart(deps: Deps, userId: string, chatId: string, lang: Lang, payload: string, linked?: boolean) {
+async function continueStart(deps: Deps, userId: string, chatId: string, lang: Lang, payload: string, hello?: HelloResult) {
   if (!payload) {
-    if (linked === undefined) linked = (await guarded(deps, chatId, lang, () => deps.backend.hello(userId, chatId))).linked;
-    return linked
+    if (!hello) hello = await guarded(deps, chatId, lang, () => deps.backend.hello(userId, chatId));
+    // Ilovada "Telegram orqali kirish" bosilgan, lekin token botga yetmagan (oddiy /start, /stop dan keyin va h.k.) —
+    // ochiq so'rov bo'lsa raqam so'raladi va kod beriladi
+    if (hello.login) {
+      return send(deps, chatId, LOGIN[lang].askContact(hello.login.maskedPhone), { parse_mode: 'HTML', reply_markup: contactKeyboard(lang) });
+    }
+    return hello.linked
       ? send(deps, chatId, T[lang].welcomeLinked, { reply_markup: mainMenu(lang) })
       : send(deps, chatId, T[lang].welcome);
   }
@@ -239,7 +243,7 @@ async function onCallback(query: TgCallbackQuery, deps: Deps) {
     const { linked } = await guarded(deps, chatId, chosen, () => deps.backend.setLanguage(userId, chosen));
     // Birinchi /start til so'rash uchun to'xtatilgan bo'lsa — shu tilda davom etadi
     const pending = deps.sessions.takePendingStart(userId);
-    if (pending !== undefined) return continueStart(deps, userId, chatId, chosen, pending, linked);
+    if (pending !== undefined) return continueStart(deps, userId, chatId, chosen, pending);
     return send(deps, chatId, T[chosen].languageSaved, linked ? { reply_markup: mainMenu(chosen) } : undefined);
   }
 
