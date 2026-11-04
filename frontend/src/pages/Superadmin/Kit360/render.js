@@ -21,6 +21,7 @@ export const TEAMS = [
   { id: 'psg', kind: 'club', name: 'PSJ', ink: '#ffffff', outline: '#d6202f' },
   { id: 'mci', kind: 'club', name: 'Manchester Siti', ink: '#1b2450' },
   { id: 'lfc', kind: 'club', name: 'Liverpul', ink: '#ffffff' },
+  { id: 'ars', kind: 'club', name: 'Arsenal', ink: '#ffffff' },
 ];
 
 /* Bosma shriftlari — har biri lotin, kirill va o'zbek kirill (Ў Қ Ғ Ҳ) harflariga ega (Google Fonts: cyrillic-ext).
