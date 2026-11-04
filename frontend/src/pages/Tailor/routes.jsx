@@ -42,8 +42,8 @@ export const tailorRoutes = [
 ];
 
 export const tailorMenu = [
-  { to: BASE, label: 'Bugungi navbat', end: true },
-  { to: `${BASE}/partiyalar`, label: 'Partiyalar' },
+  { to: BASE, label: 'Faol buyurtmalar', end: true },
+  { to: `${BASE}/partiyalar`, label: 'Ishlab chiqarish' },
   { to: `${BASE}/statistika`, label: 'Statistika' },
   { to: `${BASE}/chat`, label: 'Chat' },
   { to: `${BASE}/profil`, label: 'Profil va sozlamalar' },
