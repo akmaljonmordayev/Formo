@@ -15,6 +15,7 @@ export const TEAMS = [
   { id: 'fr', kind: 'national', name: 'Fransiya', ink: '#ffffff', shortsInk: '#1f2a5c' },
   { id: 'en', kind: 'national', name: 'Angliya', ink: '#1b2450', shortsInk: '#ffffff' },
   { id: 'pt', kind: 'national', name: 'Portugaliya', ink: '#f3c74a' },
+  { id: 'uz', kind: 'national', name: "O'zbekiston", ink: '#ffffff' },
   { id: 'rm', kind: 'club', name: 'Real Madrid', ink: '#1b2450', outline: '#c9a13b' },
   { id: 'fcb', kind: 'club', name: 'Barselona', ink: '#f2c12e' },
   { id: 'mu', kind: 'club', name: 'Manchester Yunayted', ink: '#ffffff', shortsInk: '#111318' },

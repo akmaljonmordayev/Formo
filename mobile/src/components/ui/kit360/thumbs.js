@@ -14,4 +14,5 @@ export default {
   "psg": require('../../../../assets/kit360/psg.jpg'),
   "pt": require('../../../../assets/kit360/pt.jpg'),
   "rm": require('../../../../assets/kit360/rm.jpg'),
+  "uz": require('../../../../assets/kit360/uz.jpg'),
 };
