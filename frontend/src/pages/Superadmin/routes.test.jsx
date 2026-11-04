@@ -4,10 +4,10 @@ import { superadminMenu, superadminRoutes } from './routes';
 import { TEAMS } from './Kit360';
 
 describe('Formalar — eski katalog o‘rniga Forma 360°', () => {
-  it("menyuda 'Katalog', klublar va kategoriyalar yo'q; Formalar guruhi Forma 360° dan boshlanadi", () => {
+  it("menyuda 'Katalog', klublar va kategoriyalar yo'q; Asosiy guruhi Forma 360° dan boshlanadi", () => {
     expect(superadminMenu.some((m) => m.group === 'Katalog')).toBe(false);
     expect(superadminMenu.some((m) => /\/(clubs|categories)$/.test(m.to))).toBe(false);
-    const forms = superadminMenu.filter((m) => m.group === 'Formalar');
+    const forms = superadminMenu.filter((m) => m.group === 'Asosiy');
     expect(forms[0]).toMatchObject({ to: '/superadmin/kit-360', label: 'Forma 360°' });
   });
 
