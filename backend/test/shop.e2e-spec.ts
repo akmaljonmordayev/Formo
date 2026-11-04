@@ -398,7 +398,7 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
   describe('Manzillar', () => {
     it('birinchi manzil avtomatik asosiy', async () => {
       const res = await as(user)
-        .post('/api/addresses', { label: 'Uy', address: 'Yunusobod, Amir Temur 108', apartment: '45-xonadon' })
+        .post('/api/addresses', { label: 'Uy', address: 'Yunusobod, Amir Temur 108', apartment: '45-xonadon', latitude: 41.31, longitude: 69.28 })
         .expect(201);
       expect(res.body.isDefault).toBe(true);
       addressId = res.body.id;
@@ -460,7 +460,7 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
     });
 
     it('bo‘sh savat bilan buyurtma — 400', async () => {
-      const addr = await as(other).post('/api/addresses', { label: 'Uy', address: 'Sergeli 5, 12-uy' }).expect(201);
+      const addr = await as(other).post('/api/addresses', { label: 'Uy', address: 'Sergeli 5, 12-uy', latitude: 41.2234, longitude: 69.2219 }).expect(201);
       await as(other).post('/api/orders/checkout', checkoutBody({ addressId: addr.body.id })).expect(400);
     });
 
@@ -529,8 +529,19 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
       await as(user).post(`/api/orders/${orderId}/cancel`).expect(409);
     });
 
-    it('bosishga berilgan buyurtmani bekor qilib bo‘lmaydi', async () => {
+    it('naqd faqat Toshkent shahri ichida: shahardan tashqari manzilga — 400', async () => {
       await as(user).post('/api/cart/items', { kitId: awayKit, shirtSize: 'S' }).expect(201);
+      const far = await as(user)
+        .post('/api/addresses', { label: 'Dacha', address: 'Chirchiq, Amir Temur 5', latitude: 41.4689, longitude: 69.5822 })
+        .expect(201);
+      const res = await as(user)
+        .post('/api/orders/checkout', checkoutBody({ addressId: far.body.id, paymentMethod: 'CASH', promocode: undefined }))
+        .expect(400);
+      expect(res.body.message).toMatch(/Toshkent shahri/);
+      await as(user).delete(`/api/addresses/${far.body.id}`).expect(200);
+    });
+
+    it('bosishga berilgan buyurtmani bekor qilib bo‘lmaydi', async () => {
       const res = await as(user).post('/api/orders/checkout', checkoutBody({ paymentMethod: 'CASH', promocode: undefined })).expect(201);
       expect(res.body).toMatchObject({ status: 'NEW', paymentMethod: 'CASH', paymentStatus: 'PENDING', payment: { required: false } });
       expect(res.body.summary).toEqual({ subtotal: 159000, discount: 0, delivery: 15000, total: 174000 });
