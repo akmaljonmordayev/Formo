@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { BackHandler, StyleSheet, View } from 'react-native';
 import { BottomTabs } from '../components/ui/BottomTabs';
 import { CartContext } from '../components/ui/CartButton';
 import { colors } from '../constants/theme';
@@ -177,6 +177,53 @@ export default function AppNavigator({ store, t, auth }) {
     setRoute('notifications');
   };
 
+  // ─── Android hardware back: one centralized listener for the whole custom stack ──
+  // A screen can intercept back itself (e.g. block it while a save request is in
+  // flight) by setting `backInterceptRef.current` to a `() => boolean` — returning
+  // true consumes the press, false/undefined falls through to the stack pop below.
+  const backInterceptRef = useRef(null);
+  const setBackIntercept = useCallback((fn) => {
+    backInterceptRef.current = fn || null;
+  }, []);
+  // Stored in a ref and reassigned every render so the single, stable
+  // BackHandler subscription (added once below) always runs against the
+  // latest route/closures without having to re-subscribe on every change.
+  const handleBackRef = useRef(() => false);
+  handleBackRef.current = () => {
+    // Pre-auth (OtpLoginScreen) and the profile-completion survey are shown
+    // outside this route stack and already manage their own hardware back
+    // handling (wizard steps) — defer to them / the OS entirely.
+    if (auth.isLoading || !auth.isAuthenticated || needsSurvey || surveyOpen) return false;
+
+    if (backInterceptRef.current) {
+      const handled = backInterceptRef.current();
+      if (handled) return true;
+    }
+
+    if (route === 'home') return false; // at the root — let the OS exit the app
+
+    if (route === 'kit360' || route === 'catalog') { navigate(kit360From); return true; }
+    if (route === 'studio' && studioKit) { navigateTab('studio'); return true; }
+    if (route === 'cart') { navigate(cartFrom); return true; }
+    if (route === 'checkout') { navigate('cart'); return true; }
+    if (route === 'order') { navigate(orderFrom); return true; }
+    if (route === 'notifications') { navigate(notifFrom); return true; }
+    if (route === 'wallet') { navigate(walletFrom); return true; }
+    if (route === 'addresses') { navigate('profile'); return true; }
+    if (route === 'locationPicker') { navigate(pickerFrom); return true; }
+    if (route === 'settings' || route === 'support') { navigate('profile'); return true; }
+    if (route === 'product') { navigateTab('studio'); return true; }
+
+    // Any other screen (studio/orders/profile tab roots) — back to the home tab
+    navigateTab('home');
+    return true;
+  };
+
+  useEffect(() => {
+    const sub = BackHandler.addEventListener('hardwareBackPress', () => handleBackRef.current());
+    return () => sub.remove();
+  }, []);
+
   // Sarlavhalardagi savat tugmasi (Header cart) — soni va qaysi ekrandan ochilgani
   const cartValue = useMemo(
     () => ({ count: cart.count, open: () => openCart(route === 'cart' ? cartFrom : route), t }),
@@ -294,6 +341,7 @@ export default function AppNavigator({ store, t, auth }) {
       <LocationPickerScreen
         t={t}
         address={pickerAddress}
+        onBackIntercept={setBackIntercept}
         onCancel={() => navigate(pickerFrom)}
         onSaved={(saved) => {
           setAddressesKey((k) => k + 1);

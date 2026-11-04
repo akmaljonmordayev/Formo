@@ -18,18 +18,26 @@ export default function useAsync(asyncFn, deps = []) {
     fnRef.current = asyncFn;
   });
 
+  // Eski so'rov javobi unmount bo'lgan/yangi so'rov boshlangan componentga
+  // yozilmasin (boshqa hook'lardagi kabi — features/wallet, features/products)
+  const seq = useRef(0);
+
   const execute = useCallback(async () => {
+    const id = ++seq.current;
     setIsLoading(true);
     setError(null);
     try {
       const result = await fnRef.current();
-      setData(result);
+      if (id === seq.current) setData(result);
     } catch (err) {
-      setError(err instanceof Error ? err : new Error(String(err)));
+      if (id === seq.current) setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
-      setIsLoading(false);
+      if (id === seq.current) setIsLoading(false);
     }
   }, []); // intentionally stable — deps trigger the effect below
+
+  // Unmount bo'lganda ham eski javob yozilmasligi uchun seq'ni bir pog'ona oshiramiz
+  useEffect(() => () => { seq.current += 1; }, []);
 
   const reset = useCallback(() => {
     setData(null);
