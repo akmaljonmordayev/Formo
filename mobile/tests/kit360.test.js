@@ -47,7 +47,11 @@ test('xabarlar: update va javoblar formo-kit360 belgisi bilan, boshqa postMessag
 });
 
 test("viewer.html: 10 jamoaning 8 tadan kadri ichida (data: URL), tashqi skript yo'q", () => {
-  const frames = JSON.parse(viewerHtml.match(/window\.FORMO_FRAMES=(\{.*?\})<\/script>/s)[1]);
+  console.error('DEBUG viewerHtml.length=', viewerHtml.length);
+  const m = viewerHtml.match(/window\.FORMO_FRAMES=(\{.*?\})<\/script>/s);
+  console.error('DEBUG match index=', m.index, 'group1.length=', m[1].length);
+  const frames = JSON.parse(m[1]);
+  console.error('DEBUG keys=', JSON.stringify(Object.keys(frames).sort()));
   assert.deepEqual(Object.keys(frames).sort(), ['ar', 'en', 'es', 'fcb', 'fr', 'mci', 'mu', 'psg', 'pt', 'rm']);
   for (const list of Object.values(frames)) {
     assert.equal(list.length, 8);
