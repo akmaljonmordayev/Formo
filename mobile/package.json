@@ -15,7 +15,7 @@
     "ios": "expo start --ios",
     "web": "expo start --web",
     "lint": "eslint .",
-    "test": "node --test --require ./tests/setup/register.js \"tests/*.test.js\""
+    "test": "node --test --require ./tests/setup/register.js"
   },
   "dependencies": {
     "@expo-google-fonts/onest": "^0.4.2",
