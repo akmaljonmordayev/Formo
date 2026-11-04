@@ -1,8 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { BalanceTxType, TopUp, TopUpMethod, TopUpStatus } from '@prisma/client';
-import { createHash, timingSafeEqual } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { timingSafeEqualString } from '../common/utils/timing-safe.util';
 import { paymeConfig } from './payment-config';
 import { TopUpsService } from './topups.service';
 import { InsufficientBalanceError, WalletService } from './wallet.service';
@@ -42,7 +42,6 @@ interface RpcRequest {
 }
 
 const ms = (d: Date | null | undefined) => (d ? d.getTime() : 0);
-const digest = (v: string) => createHash('sha256').update(v).digest();
 
 @Injectable()
 export class PaymeService {
@@ -60,7 +59,7 @@ export class PaymeService {
     const payme = paymeConfig(this.config);
     if (!payme || !header?.startsWith('Basic ')) return false;
     const expected = Buffer.from(`Paycom:${payme.key}`).toString('base64');
-    return timingSafeEqual(digest(header.slice(6).trim()), digest(expected));
+    return timingSafeEqualString(header.slice(6).trim(), expected);
   }
 
   async handle(authHeader: string | undefined, body: RpcRequest) {

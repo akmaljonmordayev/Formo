@@ -3,10 +3,14 @@ import { AuditCategory, OrderStatus, Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditEntry, AuditService } from './audit.service';
 import { AssignWorkshopDto, ListOrdersQueryDto, UpdateOrderStatusDto } from './dto/order.dto';
+import { InventoryService } from './inventory.service';
 import { OrderHistoryService } from './order-history.service';
 import { WalletService } from '../wallet/wallet.service';
 
-const ACTIVE_STATUSES: OrderStatus[] = [
+/** Workshop hali faol ishlab chiqarish bosqichida bo'lgan buyurtmalarga biriktirilgan holatlar.
+ *  accounts.service.ts ham shu ro'yxatdan foydalanadi (workshop o'chirilganda tekshirish uchun) —
+ *  ikki joyda alohida saqlansa, bittasi yangilanib ikkinchisi unutilib qolishi mumkin. */
+export const ACTIVE_STATUSES: OrderStatus[] = [
   OrderStatus.SENT_TO_WORKSHOP,
   OrderStatus.ACCEPTED,
   OrderStatus.PRINTING,
@@ -14,14 +18,7 @@ const ACTIVE_STATUSES: OrderStatus[] = [
   OrderStatus.READY,
   OrderStatus.DELIVERING,
 ];
-const WORKSHOP_STAGES: OrderStatus[] = [
-  OrderStatus.SENT_TO_WORKSHOP,
-  OrderStatus.ACCEPTED,
-  OrderStatus.PRINTING,
-  OrderStatus.QUALITY_CHECK,
-  OrderStatus.READY,
-  OrderStatus.DELIVERING,
-];
+const WORKSHOP_STAGES: OrderStatus[] = ACTIVE_STATUSES;
 const REVENUE_STATUSES: OrderStatus[] = [
   OrderStatus.NEW,
   OrderStatus.SENT_TO_WORKSHOP,
@@ -55,6 +52,7 @@ export class OrdersService {
     private readonly audit: AuditService,
     private readonly history: OrderHistoryService,
     private readonly wallet: WalletService,
+    private readonly inventory: InventoryService,
   ) {}
 
   async list(query: ListOrdersQueryDto) {
@@ -173,6 +171,8 @@ export class OrdersService {
         }
         // Balansdan to'langan buyurtma bekor qilinsa yoki qaytarilsa — pul mijoz balansiga bir marta qaytadi
         if (dto.status === OrderStatus.CANCELLED || dto.status === OrderStatus.RETURNED) {
+          // checkout paytida kamaytirilgan zaxira endi orqaga qaytadi
+          await this.inventory.restore(tx, updated.items);
           if (await this.wallet.refundOrder(tx, id, actor?.id ?? null)) {
             return tx.order.findUniqueOrThrow({ where: { id }, include });
           }

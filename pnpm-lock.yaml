@@ -218,6 +218,9 @@ importers:
       '@react-native-async-storage/async-storage':
         specifier: 2.2.0
         version: 2.2.0(react-native@0.88.0)
+      '@react-native-community/netinfo':
+        specifier: 12.0.1
+        version: 12.0.1(react-native@0.88.0)(react@19.3.0)
       expo:
         specifier: ~58.0.0
         version: 58.0.17(@babel/core@7.29.7)(@expo/dom-webview@58.0.2)(react-dom@19.3.0)(react-native-web@0.21.4)(react-native-webview@14.0.1)(react-native@0.88.0)(react@19.3.0)(typescript@6.0.3)
@@ -236,6 +239,9 @@ importers:
       expo-location:
         specifier: ~58.0.18
         version: 58.0.18(expo@58.0.17)(react-native@0.88.0)(react@19.3.0)(typescript@6.0.3)
+      expo-secure-store:
+        specifier: ~58.0.2
+        version: 58.0.2(expo@58.0.17)
       expo-splash-screen:
         specifier: ~58.0.10
         version: 58.0.11(expo@58.0.17)(typescript@6.0.3)
@@ -3658,6 +3664,16 @@ packages:
       react-native: ^0.0.0-0 || >=0.65 <1.0
     dependencies:
       merge-options: 3.0.4
+      react-native: 0.88.0(@babel/core@7.29.7)(@types/react@19.3.0)(react@19.3.0)
+    dev: false
+
+  /@react-native-community/netinfo@12.0.1(react-native@0.88.0)(react@19.3.0):
+    resolution: {integrity: sha512-P/3caXIvfYSJG8AWJVefukg+ZGRPs+M4Lp3pNJtgcTYoJxCjWrKQGNnCkj/Cz//zWa/avGed0i/wzm0T8vV2IQ==}
+    peerDependencies:
+      react: '*'
+      react-native: '>=0.59'
+    dependencies:
+      react: 19.3.0
       react-native: 0.88.0(@babel/core@7.29.7)(@types/react@19.3.0)(react@19.3.0)
     dev: false
 
@@ -7275,6 +7291,14 @@ packages:
       '@expo/modules-macros-linux-x64': 0.22.0
       '@expo/modules-macros-win32-arm64': 0.22.0
       '@expo/modules-macros-win32-x64': 0.22.0
+
+  /expo-secure-store@58.0.2(expo@58.0.17):
+    resolution: {integrity: sha512-VupWWEuQF6IiQ06McSymtn7/tehs8ifThhFwAU4UK8poomZcaa2S0UVt/y7G2XozBdkI3xpiPSx+r0pS2zsuYQ==}
+    peerDependencies:
+      expo: '*'
+    dependencies:
+      expo: 58.0.17(@babel/core@7.29.7)(@expo/dom-webview@58.0.2)(react-dom@19.3.0)(react-native-web@0.21.4)(react-native-webview@14.0.1)(react-native@0.88.0)(react@19.3.0)(typescript@6.0.3)
+    dev: false
 
   /expo-server@58.0.5:
     resolution: {integrity: sha512-FHYecxfGOuAhacHcanR6qCN8Cln9S+FFulcYetLu3ddDg55ohuCsMZ9U4Egzwdm+A2o6N+MdSoJKquBC5F9NIg==}

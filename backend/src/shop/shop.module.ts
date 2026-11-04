@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuditService } from '../admin/audit.service';
+import { InventoryService } from '../admin/inventory.service';
 import { OrderHistoryService } from '../admin/order-history.service';
 import { AddressesController } from './addresses.controller';
 import { AddressesService } from './addresses.service';
@@ -28,6 +29,7 @@ import { ShopOrdersService } from './orders.service';
     ShopOrdersService,
     AuditService,
     OrderHistoryService,
+    InventoryService,
   ],
 })
 export class ShopModule {}

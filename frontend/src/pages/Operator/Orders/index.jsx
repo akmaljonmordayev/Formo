@@ -1,7 +1,8 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, ShoppingBag } from 'lucide-react';
 import { ordersApi } from '../../../features/platform/platformApi';
-import { prettyPhone, workshopsApi } from '../../../features/accounts/accountsApi';
+import { prettyPhone } from '../../../features/accounts/accountsApi';
+import { ASSIGNABLE_STATUSES as ASSIGNABLE, CLOSED_STATUSES as CLOSED, useActiveWorkshops } from '../../../features/orders/useOrderWorkflow';
 import { useDebounced } from '../../../hooks/useDebounced';
 import { useT } from '../i18n';
 
@@ -18,9 +19,6 @@ const STATUSES = [
   'DELIVERED',
   'CANCELLED',
 ];
-// Operator qayta yo'naltira oladigan holatlar (sex hali qabul qilmagan yoki buyurtma yangi)
-const ASSIGNABLE = ['NEW', 'SENT_TO_WORKSHOP'];
-const CLOSED = ['DELIVERED', 'CANCELLED', 'RETURNED'];
 
 function badgeClass(status) {
   if (status === 'DELIVERED') return 'is-ok';
@@ -170,7 +168,7 @@ function OrderActions({ order, workshops, onDone, onError }) {
 export default function OperatorOrders() {
   const t = useT();
   const [data, setData] = useState({ items: [], total: 0 });
-  const [workshops, setWorkshops] = useState([]);
+  const { workshops, error: workshopsError } = useActiveWorkshops();
   const [status, setStatus] = useState(STATUSES[0]);
   const [query, setQuery] = useState('');
   const [page, setPage] = useState(1);
@@ -203,11 +201,8 @@ export default function OperatorOrders() {
   useEffect(() => setPage(1), [debouncedQuery, status]);
 
   useEffect(() => {
-    workshopsApi
-      .list({ isActive: 'true', page: 1, limit: 100 })
-      .then((d) => setWorkshops(d.items))
-      .catch((err) => setError(err.message));
-  }, []);
+    if (workshopsError) setError(workshopsError);
+  }, [workshopsError]);
 
   const pages = Math.max(1, Math.ceil(data.total / LIMIT));
   const date = (iso) => new Date(iso).toLocaleDateString(t.locale, { day: '2-digit', month: '2-digit', year: 'numeric' });

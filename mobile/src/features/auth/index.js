@@ -69,6 +69,12 @@ export default function useAuth() {
 
     async function restoreSession() {
       try {
+        // Eski AsyncStorage tokenlarini (shifrlanmagan) SecureStore'ga bir
+        // martalik ko'chirish — token o'qishdan oldin, aks holda eski
+        // qurilmadagi foydalanuvchi sessiyasi "yo'qolgan" bo'lib ko'rinadi
+        await storage.migrateTokensToSecureStore();
+        if (cancelled) return;
+
         const token = await storage.getToken();
         if (!token) {
           if (!cancelled) setIsLoading(false);

@@ -10,7 +10,9 @@ import { Onest_600SemiBold } from '@expo-google-fonts/onest/600SemiBold';
 import { SairaExtraCondensed_700Bold } from '@expo-google-fonts/saira-extra-condensed/700Bold';
 import { SairaExtraCondensed_800ExtraBold } from '@expo-google-fonts/saira-extra-condensed/800ExtraBold';
 import BrandSplash from './components/ui/BrandSplash';
+import OfflineBanner from './components/ui/OfflineBanner';
 import { ToastProvider } from './components/ui/Toast';
+import ErrorBoundary from './components/ErrorBoundary';
 import useAuth from './features/auth';
 import { useTranslation } from './i18n';
 import AppNavigator from './navigation/AppNavigator';
@@ -39,9 +41,12 @@ export default function App() {
     <SafeAreaProvider>
       <StatusBar style="light" />
       {fontsReady ? (
-        <ToastProvider>
-          <AppNavigator store={store} t={t} auth={auth} />
-        </ToastProvider>
+        <ErrorBoundary>
+          <ToastProvider>
+            <OfflineBanner />
+            <AppNavigator store={store} t={t} auth={auth} />
+          </ToastProvider>
+        </ErrorBoundary>
       ) : null}
       {/* Faqat ishga tushishda: shriftlar yuklanib, sessiya tiklanguncha */}
       <BrandSplash ready={fontsReady && !auth.isLoading} />

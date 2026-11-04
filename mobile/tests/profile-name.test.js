@@ -63,7 +63,7 @@ test('updateUser faqat UpdateProfileDto maydonlarini yuboradi (fullName bor, add
 });
 
 test('PATCH /api/auth/me fullName bilan to\'g\'ri yo\'l va tanada yuboriladi', async () => {
-  global.__stubs.memory.formo_access_token = 'ACCESS';
+  global.__stubs.secureMemory.formo_access_token = 'ACCESS';
   const calls = mockFetch([{ status: 200, body: { id: 7, fullName: 'Aziz Rahimov', gender: 'MALE', age: 25 } }]);
   const updated = await api.auth.updateMe({ fullName: 'Aziz Rahimov', gender: 'MALE', age: 25 });
   assert.equal(calls[0].url, 'https://api.formo.uz/api/auth/me');

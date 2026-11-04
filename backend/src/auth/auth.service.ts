@@ -12,9 +12,10 @@ import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Role, User } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
-import { createHash, randomBytes, timingSafeEqual } from 'crypto';
+import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { toPublicUser } from '../common/utils/user.mapper';
+import { sha256Hex, timingSafeEqualHex } from '../common/utils/timing-safe.util';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { OtpLoginDto } from './dto/otp-login.dto';
@@ -335,12 +336,10 @@ export class AuthService {
   }
 
   private hash(value: string) {
-    return createHash('sha256').update(value).digest('hex');
+    return sha256Hex(value);
   }
 
   private hashMatches(value: string, expectedHash: string) {
-    const a = Buffer.from(this.hash(value));
-    const b = Buffer.from(expectedHash);
-    return a.length === b.length && timingSafeEqual(a, b);
+    return timingSafeEqualHex(this.hash(value), expectedHash);
   }
 }

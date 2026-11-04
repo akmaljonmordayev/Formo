@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  BackHandler,
   Platform,
   Pressable,
   StyleSheet,
@@ -47,9 +46,11 @@ const GEOCODE_DELAY_MS = 600;
  * Saqlash: POST /addresses (yangi) yoki PATCH /addresses/:id (tahrir) —
  * label, address, apartment, latitude, longitude, isDefault.
  *
- * Props: t, address (tahrirlanadigan manzil | null), onCancel, onSaved(savedAddress)
+ * Props: t, address (tahrirlanadigan manzil | null), onCancel, onSaved(savedAddress),
+ *        onBackIntercept — AppNavigator'ning markaziy hardware-back ref'ini
+ *        o'rnatish funksiyasi (saqlanayotganda orqaga qaytishni bloklash uchun)
  */
-export default function LocationPickerScreen({ t, address, onCancel, onSaved }) {
+export default function LocationPickerScreen({ t, address, onCancel, onSaved, onBackIntercept }) {
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const mapRef = useRef(null);
@@ -82,13 +83,16 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved }) 
   const device = useDeviceLocation();
   const geocoder = useReverseGeocode();
 
+  // Android "orqaga": AppNavigator'dagi yagona hardwareBackPress listener'ga
+  // o'z tekshiruvimizni beramiz — saqlanayotganda orqaga qaytilmaydi
   useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+    if (!onBackIntercept) return undefined;
+    onBackIntercept(() => {
       if (!saving) onCancel?.();
       return true;
     });
-    return () => sub.remove();
-  }, [onCancel, saving]);
+    return () => onBackIntercept(null);
+  }, [onBackIntercept, onCancel, saving]);
 
   useEffect(() => () => clearTimeout(geocodeTimer.current), []);
 

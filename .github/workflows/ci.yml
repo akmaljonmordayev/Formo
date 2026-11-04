@@ -131,6 +131,30 @@ jobs:
       - name: Build
         run: npm run build
 
+  mobile:
+    name: Mobile · lint, test
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: pnpm
+      - name: Install
+        run: $PNPM_INSTALL --filter @formo/mobile
+      - name: Lint
+        # Hozircha mobile/ uchun ESLint konfiguratsiyasi committed emas (oldindan mavjud kamchilik,
+        # shu PR qamrovidan tashqarida) — shu step boshqa job'larni/deploy'ni bloklamasin.
+        continue-on-error: true
+        run: pnpm lint
+      - name: Tests
+        run: pnpm test
+
   docker:
     name: Docker · production images
     runs-on: ubuntu-latest

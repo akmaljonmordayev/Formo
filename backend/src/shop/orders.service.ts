@@ -23,6 +23,7 @@ import { OrderHistoryService } from '../admin/order-history.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { NotifyService } from '../notify/notify.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { InventoryService } from '../admin/inventory.service';
 import { AddressesService, formatAddress } from './addresses.service';
 import { CartService, lineProblem, toCartItem } from './cart.service';
 import { STATUS_LABEL } from './order-status';
@@ -154,6 +155,7 @@ export class ShopOrdersService {
     private readonly notify: NotifyService,
     private readonly studio: StudioService,
     private readonly wallet: WalletService,
+    private readonly inventory: InventoryService,
   ) {}
 
   /** Muddati o'tgan to'lanmagan buyurtmalarni bekor qiladi (slot va promokod bo'shaydi) */
@@ -187,7 +189,15 @@ export class ShopOrdersService {
       await this.history.record({ orderId: id, from, to: OrderStatus.CANCELLED, actor, note }, tx);
       // Balansdan to'langan bo'lsa — pul shu tranzaksiyada (bir marta) qaytadi
       await this.wallet.refundOrder(tx, id, actor?.id ?? null);
-      const order = await tx.order.findUniqueOrThrow({ where: { id }, select: { promocodeId: true } });
+      const order = await tx.order.findUniqueOrThrow({
+        where: { id },
+        select: {
+          promocodeId: true,
+          items: { select: { kitId: true, shirtSize: true, shortsSize: true, withShorts: true, quantity: true } },
+        },
+      });
+      // checkout paytida kamaytirilgan zaxira endi orqaga qaytadi
+      await this.inventory.restore(tx, order.items);
       if (order.promocodeId) {
         await tx.promocode.updateMany({
           where: { id: order.promocodeId, usedCount: { gt: 0 } },
@@ -255,6 +265,19 @@ export class ShopOrdersService {
           });
           if (!count) throw new ConflictException("Promokod hozirgina o'zgardi, qayta urinib ko'ring");
         }
+
+        // Zaxira (ombor) shartli kamaytiriladi — yetarli bo'lmasa shu yerda xato, butun tranzaksiya qaytadi
+        await this.inventory.reserve(
+          tx,
+          items.map((i) => ({
+            kitId: i.kitId,
+            shirtSize: i.shirtSize,
+            shortsSize: i.shortsSize,
+            withShorts: i.withShorts,
+            quantity: i.quantity,
+            label: i.title,
+          })),
+        );
 
         const first = items[0];
         const order = await tx.order.create({
