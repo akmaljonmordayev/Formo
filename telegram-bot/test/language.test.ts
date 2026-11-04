@@ -24,7 +24,7 @@ describe('til: birinchi /start va barcha xabarlar bir tilda', () => {
     await handleUpdate(textUpdate('/start', { lang: 'ru' }), deps);
     await handleUpdate(callbackUpdate('lang:uz'), deps);
 
-    assert.deepEqual(backend.calls.at(-1), { name: 'setLanguage', args: [String(USER_ID), 'uz'] });
+    assert.deepEqual(backend.calls.find((c) => c.name === 'setLanguage'), { name: 'setLanguage', args: [String(USER_ID), 'uz'] });
     assert.equal(sent[1].text, T.uz.welcomeLinked);
     assert.equal((sent[1].options?.reply_markup as Reply).keyboard[0][0].text, T.uz.menu.balance);
 

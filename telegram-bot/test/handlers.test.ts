@@ -42,6 +42,17 @@ describe('handleUpdate', () => {
     assert.match(sent[0].text, /ulangan/);
   });
 
+  it('/start payloadsiz: ochiq kirish so‘rovi bo‘lsa raqam so‘raladi (token yetib kelmagan holat)', async () => {
+    const { deps, backend, sent } = fakeDeps();
+    backend.linked = true;
+    backend.language = 'uz';
+    backend.login = { maskedPhone: '+998 90 *** ** 67' };
+    await handleUpdate(textUpdate('/start'), deps);
+    assert.match(sent[0].text, /\+998 90 \*\*\* \*\* 67/);
+    const markup = sent[0].options?.reply_markup as { keyboard: { request_contact?: boolean }[][] };
+    assert.equal(markup.keyboard[0][0].request_contact, true);
+  });
+
   it('o‘z kontakti: kod HTML <code> ichida va "Yangi kod" tugmasi bilan', async () => {
     const { deps, backend, sent } = fakeDeps();
     chooseLang(deps, 'uz');

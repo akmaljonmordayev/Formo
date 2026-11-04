@@ -314,13 +314,44 @@ describe('TelegramAuthService', () => {
     expect(await service.stop(TG)).toEqual({ linked: true });
     expect(prisma.telegramAccount.updateMany).toHaveBeenLastCalledWith({ where: { telegramUserId: TG }, data: { chatId: null } });
     prisma.telegramAccount.updateMany.mockResolvedValue({ count: 0 });
-    expect(await service.hello(TG, CHAT)).toEqual({ linked: false, language: null });
+    prisma.telegramAuthChallenge.findFirst.mockResolvedValue(null);
+    expect(await service.hello(TG, CHAT)).toEqual({ linked: false, language: null, login: null });
   });
 
   it('hello: ulangan akkauntning saqlangan tilini qaytaradi', async () => {
     prisma.telegramAccount.updateMany.mockResolvedValue({ count: 1 });
-    prisma.telegramAccount.findUnique.mockResolvedValue({ language: 'ru' });
-    expect(await service.hello(TG, CHAT)).toEqual({ linked: true, language: 'ru' });
+    prisma.telegramAccount.findUnique.mockResolvedValue({ language: 'ru', user: { phone: PHONE } });
+    prisma.telegramAuthChallenge.findFirst.mockResolvedValue(null);
+    expect(await service.hello(TG, CHAT)).toEqual({ linked: true, language: 'ru', login: null });
     expect(prisma.telegramAccount.updateMany).toHaveBeenLastCalledWith({ where: { telegramUserId: TG }, data: { chatId: CHAT } });
+  });
+
+  it('hello: token kelmagan bo‘lsa ulangan hisob raqamidagi ochiq so‘rovni egallaydi', async () => {
+    prisma.telegramAccount.updateMany.mockResolvedValue({ count: 1 });
+    prisma.telegramAccount.findUnique.mockResolvedValue({ language: 'uz', user: { phone: PHONE } });
+    prisma.telegramAuthChallenge.findFirst
+      .mockResolvedValueOnce(null) // shu foydalanuvchi egallagan so'rov yo'q
+      .mockResolvedValueOnce(challenge({ telegramUserId: null }));
+    prisma.telegramAuthChallenge.updateMany.mockResolvedValue({ count: 1 });
+    prisma.telegramAuthChallenge.findUnique.mockResolvedValue(challenge());
+
+    expect(await service.hello(TG, CHAT)).toEqual({ linked: true, language: 'uz', login: { maskedPhone: maskPhone(PHONE) } });
+    expect(prisma.telegramAuthChallenge.updateMany).toHaveBeenLastCalledWith({
+      where: { id: ID, telegramUserId: null },
+      data: expect.objectContaining({ telegramUserId: TG, chatId: CHAT }),
+    });
+  });
+
+  it('contact: token kelmagan bo‘lsa Telegram tasdiqlagan raqam bo‘yicha so‘rov topiladi va kod beriladi', async () => {
+    prisma.telegramAuthChallenge.findFirst
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(challenge({ telegramUserId: null }));
+    prisma.telegramAuthChallenge.updateMany.mockResolvedValue({ count: 1 });
+    prisma.telegramAuthChallenge.findUnique.mockResolvedValue(challenge());
+    prisma.telegramAuthChallenge.update.mockResolvedValue({});
+
+    const res = await service.contact(TG, PHONE, CHAT);
+    expect(res.result).toBe('CODE');
+    expect(prisma.telegramAuthChallenge.findFirst.mock.calls[1][0].where).toMatchObject({ phone: PHONE, telegramUserId: null });
   });
 });

@@ -48,7 +48,7 @@ export class TelegramInternalController {
   @Post('contact')
   @HttpCode(HttpStatus.OK)
   contact(@Body() dto: TelegramContactDto) {
-    return this.auth.contact(dto.telegramUserId, dto.phone);
+    return this.auth.contact(dto.telegramUserId, dto.phone, dto.chatId);
   }
 
   @Post('resend')
