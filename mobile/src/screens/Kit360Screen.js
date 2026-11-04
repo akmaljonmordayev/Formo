@@ -38,7 +38,6 @@ const cleanPrintNumber = (s, max = 99) => {
 
 export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, onBack }) {
   const [selectedId, setSelectedId] = useState(initialTeam || 'rm');
-  const [category, setCategory] = useState('all'); // 'all' | 'national' | 'club'
   const [side, setSide] = useState('back');
   const [tab, setTab] = useState('size'); // 'size' | 'print' | 'shorts'
   const [name, setName] = useState('');
@@ -100,12 +99,6 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
 
   const totalPrice = prices.shirt + (withShorts ? prices.shorts : 0) + (hasPrint ? prices.print : 0);
   const paused = Boolean(rules && rules.acceptOrders === false);
-
-  const filteredTeams = useMemo(() => {
-    if (category === 'national') return KIT360_TEAMS.filter((t) => t.kind === 'national');
-    if (category === 'club') return KIT360_TEAMS.filter((t) => t.kind === 'club');
-    return KIT360_TEAMS;
-  }, [category]);
 
   const addToCart = async () => {
     // Tez ikki marta bosish — server bir xil qatorlarni birlashtirib miqdorni 2 qilib qo'yardi
@@ -177,28 +170,13 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
       >
         <Header cart title={t('forma360')} subtitle={t('forma360Sub')} onBack={onBack} />
 
-        {/* Guruh tanlash: Barchasi / Terma jamoalar / Klublar */}
-        <Segment
-          wide
-          style={styles.categorySwitch}
-          options={[t('all'), t('nationalTeams'), t('clubTeams')]}
-          value={
-            category === 'national' ? t('nationalTeams') : category === 'club' ? t('clubTeams') : t('all')
-          }
-          onChange={(val) => {
-            if (val === t('nationalTeams')) setCategory('national');
-            else if (val === t('clubTeams')) setCategory('club');
-            else setCategory('all');
-          }}
-        />
-
         {/* 10 ta jamoani tanlash lentasi */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.teamRail}
         >
-          {filteredTeams.map((item) => {
+          {KIT360_TEAMS.map((item) => {
             const isSelected = item.id === team.id;
             return (
               <Pressable
@@ -377,10 +355,6 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
 const styles = StyleSheet.create({
   keyboardWrap: { flex: 1, backgroundColor: colors.background },
   screenContent: { paddingBottom: 170 },
-  categorySwitch: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-  },
   teamRail: {
     paddingHorizontal: spacing.lg,
     gap: spacing.sm,
