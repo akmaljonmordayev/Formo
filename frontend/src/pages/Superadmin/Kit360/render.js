@@ -22,6 +22,7 @@ export const TEAMS = [
   { id: 'mu', kind: 'club', name: 'Manchester Yunayted', ink: '#ffffff', shortsInk: '#111318' },
   { id: 'psg', kind: 'club', name: 'PSJ', ink: '#ffffff', outline: '#d6202f' },
   { id: 'mci', kind: 'club', name: 'Manchester Siti', ink: '#1b2450' },
+  { id: 'lfc', kind: 'club', name: 'Liverpul', ink: '#ffffff' },
   { id: 'ars', kind: 'club', name: 'Arsenal', ink: '#ffffff', outline: '#1b2450' },
   { id: 'che', kind: 'club', name: 'Chelsi', ink: '#ffffff', outline: '#034694' },
   { id: 'juv', kind: 'club', name: 'Yuventus', ink: '#ffffff', outline: '#111318' },
@@ -163,6 +164,11 @@ function printFor(frame, img, backImg, scale) {
   const source = healedFor(frame, img, backImg)?.data ?? pixels(img).data;
   if (!byKey.has(key)) byKey.set(key, printLayout(frame, source, backImg && pixels(backImg).data, scale));
   return { zones: byKey.get(key), mask: pixels(img).mask };
+}
+
+/** Kadr pikseli, kiyim maskasi va yozuv joylashuvini oldindan hisoblab keshlaydi (aylantirishda qotmasin) */
+export function prepare(frame, img, backImg, scale = 1) {
+  if (ready(img)) printFor(frame, img, ready(backImg) ? backImg : null, scale);
 }
 
 /* Matnni tana sirtiga "kiyintirish" — teskari tanlov: buferning har ustuni uchun sirtdagi burchak t va yoy s topiladi,

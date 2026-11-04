@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import { describe, it } from 'node:test';
-import { processBatch } from '../src/polling';
+import { POLL_STALE_MS, pollingStale, pollingState, processBatch } from '../src/polling';
 import { TgUpdate } from '../src/telegram';
 import { fakeDeps } from './helpers';
 
@@ -44,5 +44,15 @@ describe('processBatch', () => {
       deps.log,
     );
     assert.deepEqual(done, [2]);
+  });
+});
+
+describe('pollingStale', () => {
+  it('oxirgi muvaffaqiyatli getUpdates 5 daqiqadan eski bo‘lsa — true', () => {
+    const saved = pollingState.lastOkAt;
+    pollingState.lastOkAt = 1_000_000;
+    assert.equal(pollingStale(1_000_000 + POLL_STALE_MS - 1), false);
+    assert.equal(pollingStale(1_000_000 + POLL_STALE_MS + 1), true);
+    pollingState.lastOkAt = saved;
   });
 });

@@ -46,9 +46,9 @@ export class PromocodesService {
       where: { id },
       data: {
         ...dto,
-        // null — muddat olib tashlanadi, undefined — o'zgarmaydi
-        startsAt: dto.startsAt === undefined ? undefined : dto.startsAt ? new Date(dto.startsAt) : null,
-        endsAt: dto.endsAt === undefined ? undefined : dto.endsAt ? new Date(dto.endsAt) : null,
+        // null — sana olib tashlanadi (doimiy promokod), undefined — o'zgarmaydi
+        startsAt: dto.startsAt === null ? null : dto.startsAt ? new Date(dto.startsAt) : undefined,
+        endsAt: dto.endsAt === null ? null : dto.endsAt ? new Date(dto.endsAt) : undefined,
       },
     });
 

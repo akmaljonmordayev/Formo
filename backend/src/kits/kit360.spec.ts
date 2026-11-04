@@ -12,6 +12,7 @@ describe('kit360IdFor — klub nomi/kodi → Forma 360° id', () => {
     ['mu', ['Manchester Yunayted', 'Манчестер Юнайтед', 'Manchester United']],
     ['psg', ['PSJ', 'ПСЖ', 'Paris Saint-Germain']],
     ['mci', ['Manchester Siti', 'Манчестер Сити', 'Manchester City']],
+    ['lfc', ['Liverpul', 'Ливерпуль', 'Liverpool FC']],
     ['uz', ["O'zbekiston", 'Oʻzbekiston', 'Ўзбекистон', 'Узбекистан', 'Uzbekistan']],
     ['de', ['Germaniya', 'Германия', 'Germany']],
     ['ars', ['Arsenal', 'Арсенал']],
@@ -35,10 +36,10 @@ describe('kit360IdFor — klub nomi/kodi → Forma 360° id', () => {
     expect(kit360IdFor(undefined)).toBeNull();
   });
 
-  it("17 ta id (7 terma, 10 klub); 'Real' va 'Atletiko Madrid' adashmaydi", () => {
+  it("18 ta id (7 terma, 11 klub); 'Real' va 'Atletiko Madrid' adashmaydi", () => {
     expect(KIT360_IDS).toEqual([
       'es', 'ar', 'fr', 'en', 'pt', 'uz', 'de',
-      'rm', 'fcb', 'mu', 'psg', 'mci', 'ars', 'che', 'juv', 'rom', 'atm',
+      'rm', 'fcb', 'mu', 'psg', 'mci', 'lfc', 'ars', 'che', 'juv', 'rom', 'atm',
     ]);
     expect(kit360IdFor('Atletiko Madrid')).toBe('atm');
     expect(kit360IdFor('Real Madrid')).toBe('rm');

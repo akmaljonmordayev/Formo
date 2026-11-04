@@ -22,6 +22,16 @@ import {
 import { WalletService } from './wallet.service';
 
 const OPEN: TopUpStatus[] = [TopUpStatus.PENDING, TopUpStatus.REVIEW];
+/**
+ * Click/Payme so'rovini mijoz Prepare'dan keyin bekor qila olmaydi, provayder esa tashlab ketilgan
+ * to'lovni yakunlamasligi mumkin. Shuncha vaqtdan eski bunday so'rovlar ochiq so'rovlar limitiga
+ * sanalmaydi (holati o'zgarmaydi — kech kelgan callback'ni provayder qoidalari hal qiladi).
+ * 12 soat — Payme tranzaksiyasining amal qilish muddati.
+ */
+const PROVIDER_PENDING_TTL_MS = 12 * 60 * 60 * 1000;
+const AUTOMATIC: TopUpMethod[] = [TopUpMethod.CLICK, TopUpMethod.PAYME];
+/** pg_advisory_xact_lock(ns, userId) nom maydoni — to'ldirish so'rovini ochish */
+const TOPUP_LOCK_NS = 7101;
 // Bir so'rovni bir vaqtda bir necha admin bossa, qolganlari birinchisining qatori qulfini kutadi —
 // standart 2 soniyalik maxWait'da ulanish olinmay 500 qaytardi; endi kutib, 409 oladi
 const REVIEW_TX = { maxWait: 10_000, timeout: 15_000 };
@@ -90,22 +100,32 @@ export class TopUpsService {
     const available = (await this.methods()).methods.find((m) => m.method === method);
     if (!available?.enabled) throw new BadRequestException("Bu to'lov usuli hozircha mavjud emas");
 
-    // Ikki marta bosish: yaqinda ochilgan xuddi shunday so'rov qaytariladi
-    const recent = await this.prisma.topUp.findFirst({
-      where: { userId, amount, method, status: TopUpStatus.PENDING, createdAt: { gte: new Date(Date.now() - TOPUP_DEDUPE_MS) } },
-      orderBy: { id: 'desc' },
-    });
-    if (recent) return this.withInstructions(recent);
-
-    const open = await this.prisma.topUp.count({ where: { userId, status: { in: OPEN } } });
-    if (open >= TOPUP_MAX_OPEN) {
-      throw new HttpException(
-        `Sizda ${open} ta ochiq so'rov bor. Avval ularni yakunlang yoki bekor qiling`,
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
-
+    // Tekshiruv va yaratish bitta tranzaksiyada, mijoz bo'yicha qulf ostida: parallel so'rovlar
+    // (ilova + bot, ikki marta bosish) limitni chetlab o'tib ko'p so'rov ocholmasin
     const topUp = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${TOPUP_LOCK_NS}::int, ${userId}::int)`;
+
+      // Ikki marta bosish: yaqinda ochilgan xuddi shunday so'rov qaytariladi
+      const recent = await tx.topUp.findFirst({
+        where: { userId, amount, method, status: TopUpStatus.PENDING, createdAt: { gte: new Date(Date.now() - TOPUP_DEDUPE_MS) } },
+        orderBy: { id: 'desc' },
+      });
+      if (recent) return recent;
+
+      const open = await tx.topUp.count({
+        where: {
+          userId,
+          status: { in: OPEN },
+          NOT: { method: { in: AUTOMATIC }, createdAt: { lt: new Date(Date.now() - PROVIDER_PENDING_TTL_MS) } },
+        },
+      });
+      if (open >= TOPUP_MAX_OPEN) {
+        throw new HttpException(
+          `Sizda ${open} ta ochiq so'rov bor. Avval ularni yakunlang yoki bekor qiling`,
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+
       const created = await tx.topUp.create({ data: { userId, amount, method, code: `TMP-${userId}-${Date.now()}` } });
       return tx.topUp.update({ where: { id: created.id }, data: { code: topUpCode(created.id) } });
     });
@@ -158,15 +178,22 @@ export class TopUpsService {
   }
 
   /**
-   * Bot: mijoz chek rasmini yubordi — oxirgi ochiq qo'lda so'rovga biriktiriladi (qayta yuborilsa almashtiriladi).
+   * Bot: mijoz chek rasmini yubordi — cheki hali yo'q (PENDING) eng oxirgi qo'lda so'rovga biriktiriladi.
+   * Tekshiruvdagi (REVIEW) chek hech qachon almashtirilmaydi: aks holda boshqa so'rovning cheki uning ustiga
+   * yozilib ketadi yoki bo'shatilgan chek ikkinchi so'rovga qayta ishlatiladi (bir o'tkazma — ikki to'ldirish).
    * Pul qo'shilmaydi. Xuddi shu rasm (file_unique_id) boshqa so'rovda ishlatilgan bo'lsa — DUPLICATE.
    */
   async attachReceipt(userId: number, receipt: { fileId: string; uniqueId?: string; telegramUserId: string }) {
     const topUp = await this.prisma.topUp.findFirst({
-      where: { userId, method: TopUpMethod.MANUAL_CARD, status: { in: OPEN } },
+      where: { userId, method: TopUpMethod.MANUAL_CARD, status: TopUpStatus.PENDING },
       orderBy: { id: 'desc' },
     });
-    if (!topUp) return { result: 'NO_OPEN_TOPUP' as const };
+    if (!topUp) {
+      const inReview = await this.prisma.topUp.count({
+        where: { userId, method: TopUpMethod.MANUAL_CARD, status: TopUpStatus.REVIEW },
+      });
+      return { result: inReview ? ('ALREADY_IN_REVIEW' as const) : ('NO_OPEN_TOPUP' as const) };
+    }
     if (receipt.uniqueId) {
       const used = await this.prisma.topUp.findUnique({ where: { receiptUniqueId: receipt.uniqueId }, select: { id: true } });
       if (used && used.id !== topUp.id) return { result: 'DUPLICATE_RECEIPT' as const };
@@ -174,7 +201,7 @@ export class TopUpsService {
     let count: number;
     try {
       ({ count } = await this.prisma.topUp.updateMany({
-        where: { id: topUp.id, status: { in: OPEN } },
+        where: { id: topUp.id, status: TopUpStatus.PENDING },
         data: {
           receiptFileId: receipt.fileId,
           receiptUniqueId: receipt.uniqueId ?? null,

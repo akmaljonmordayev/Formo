@@ -1,87 +1,56 @@
 import React from 'react';
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, fonts, radii, spacing } from '../constants/theme';
-import { EmptyState, Header, Screen, SectionTitle } from '../components/ui/Common';
+import { Badge, Button, Card, Header, Screen, SectionTitle } from '../components/ui/Common';
 import Kit360Thumb from '../components/ui/Kit360Thumb';
-import KitCarousel from '../components/ui/KitCarousel';
-import { ProductCard } from '../components/ui/ProductCard';
-import PromoCarousel from '../components/ui/PromoCarousel';
+import KitTile from '../components/ui/KitTile';
 import Skeleton from '../components/ui/Skeleton';
 import StatusPill, { statusTone } from '../components/ui/StatusPill';
 import { statusText, useActiveOrder } from '../features/orders';
-import { useCategories, usePopularClubs, usePopularProducts } from '../features/products';
+import { useBestSellingKits } from '../features/products/kits';
 import { displayName, nameInitial } from '../utils/userName';
-import { KIT360_TEAMS, kit360Team } from '../features/kit360';
 
-const FEATURED = 4;
-
-/** Aksiya kartasidagi Forma 360° surati (biroz qiyshaytirilgan) */
-const promoArt = (team) => (
-  <View style={styles.artTilt}>
-    <Kit360Thumb team={team} width={112} height={140} zoom={1.7} style={styles.artPhoto} />
-  </View>
-);
+const BEST_ON_HOME = 8;
 
 /**
- * Bosh sahifa: qotib turadigan sarlavha (savat bilan), qidiruv, aksiya swiper'i, faol buyurtma,
- * ligalar (kategoriyalar) lentasi, tavsiya formalar karuseli, mashhur klublar va modellar.
- * Formalar — Forma 360° suratlari (faqat kit360Id bog'langan klublar).
- * Ma'lumotlar: /orders/active, /catalog/categories, /catalog/clubs/popular (kit360=true).
+ * Bosh sahifa (26-oktabrgacha bo'lgan tuzilma, Forma 360° suratlari bilan): katta banner, faol buyurtma,
+ * tezkor bo'limlar, eng ko'p sotilgan formalar (buyurtmalardagi soni bo'yicha), yoqtirilgan formalar,
+ * Studio banneri va "Qanday ishlaydi".
+ *
+ * Props: t, onNavigate(route), onOrder(id), onNotifications, onOpenKit(kit), favorites (useFavoriteKits), rules, auth
  */
-export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotifications, onCategory, onSearch, rules, auth }) {
+export default function HomeScreen({ t, onNavigate, onOrder, onNotifications, onOpenKit, favorites, rules, auth }) {
   const { order } = useActiveOrder();
-  const { clubs: rawClubs, isLoading: clubsLoading } = usePopularClubs(8);
-  const clubs = rawClubs && rawClubs.length ? rawClubs : KIT360_TEAMS.map((t) => ({
-    id: t.id,
-    name: t.name,
-    code: t.code,
-    color: t.color,
-    accent: t.accent,
-    league: t.kind === 'national' ? t('nationalTeams') : t('clubTeams'),
-    kit360Id: t.id,
-  }));
-  const { categories } = useCategories();
-  const { products, isLoading: productsLoading } = usePopularProducts(8);
+  const { kits, isLoading } = useBestSellingKits();
+  const best = kits.slice(0, BEST_ON_HOME);
+  const heroTeam = best[0]?.kit360Id || 'rm';
 
   const name = displayName(auth?.user, t('hello'));
   const avatarInitial = nameInitial(auth?.user);
-  const featured = products.slice(0, FEATURED);
-  // Karuselda bo'lmaganlari; mahsulot kam bo'lsa hammasi
-  const popular = products.length > FEATURED ? products.slice(FEATURED) : products;
 
-  const slides = [
-    {
-      key: 'studio',
-      overline: t('promoStudioOver'),
-      title: t('promo360Title'),
-      sub: t('promo360Sub'),
-      cta: t('startShort'),
-      colors: ['#1D2F8C', '#0B1535'],
-      onPress: () => onNavigate('studio'),
-      art: promoArt('rm'),
-    },
-    {
-      key: 'clubs',
-      overline: t('forma360'),
-      title: t('forma360'),
-      sub: t('forma360Sub'),
-      cta: t('view360'),
-      colors: ['#0E7C66', '#08102C'],
-      onPress: () => onNavigate('kit360'),
-      art: promoArt(featured[0]?.kit360Id || 'ar'),
-    },
-    {
-      key: 'shorts',
-      overline: t('promoKitOver'),
-      title: t('promoKitTitle'),
-      sub: t('promoKitSub'),
-      cta: t('startShort'),
-      colors: ['#8E1F3F', '#0B1535'],
-      onPress: () => onNavigate('studio'),
-      art: promoArt('fcb'),
-    },
-  ];
+  const kitRail = (items, ranked) => (
+    <FlatList
+      horizontal
+      data={items}
+      keyExtractor={(k) => k.key}
+      showsHorizontalScrollIndicator={false}
+      snapToInterval={162}
+      decelerationRate="fast"
+      contentContainerStyle={styles.rail}
+      renderItem={({ item, index }) => (
+        <KitTile
+          kit={item}
+          t={t}
+          rank={ranked && item.soldCount > 0 ? index + 1 : undefined}
+          favorite={favorites.ids.has(item.kitId)}
+          onFavorite={favorites.toggle}
+          onPress={onOpenKit}
+          style={styles.railCard}
+        />
+      )}
+    />
+  );
 
   return (
     <Screen contentStyle={styles.content}>
@@ -108,15 +77,26 @@ export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotificat
         </View>
       ) : null}
 
-      <Pressable style={[styles.search, styles.padded]} onPress={onSearch} accessibilityRole="search">
-        <MaterialCommunityIcons name="magnify" size={20} color={colors.muted} />
-        <Text style={styles.searchText}>{t('searchClub')}</Text>
-        <View style={styles.searchKbd}>
-          <MaterialCommunityIcons name="tune-variant" size={16} color={colors.accent} />
+      {/* Katta banner: eng ko'p sotilgan forma surati bilan */}
+      <View style={[styles.heroCard, styles.padded]}>
+        <View style={styles.heroGlow} />
+        <View style={styles.heroCopy}>
+          <Badge label={t('promoClubsOver')} variant="orange" style={styles.heroBadge} />
+          <Text style={styles.heroTitle}>{t('heroTitle')}</Text>
+          <Text style={styles.heroSub}>{t('heroSub')}</Text>
+          <View style={styles.heroButtons}>
+            <Button small variant="primary" onPress={() => onNavigate('studio')}>
+              {t('startShort')}
+            </Button>
+            <Button small variant="secondary" onPress={() => onNavigate('studio')}>
+              {t('catalog')}
+            </Button>
+          </View>
         </View>
-      </Pressable>
-
-      <PromoCarousel slides={slides} />
+        <View style={styles.heroArt} pointerEvents="none">
+          <Kit360Thumb team={heroTeam} width={128} height={164} zoom={1.6} style={styles.heroPhoto} />
+        </View>
+      </View>
 
       {order ? (
         <Pressable
@@ -138,103 +118,77 @@ export default function HomeScreen({ t, onNavigate, onClub, onOrder, onNotificat
         </Pressable>
       ) : null}
 
-      {/* Ligalar: katalogni shu filtr bilan ochadi */}
-      <View style={styles.padded}>
-        <SectionTitle title={t('categoriesTitle')} eyebrow={t('eyebrowLeagues')} action={t('all')} onAction={() => onNavigate('kit360')} />
-      </View>
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.rail}>
-        <Pressable style={[styles.catTile, styles.catTileAccent]} onPress={() => onNavigate('studio')}>
-          <MaterialCommunityIcons name="rotate-3d-variant" size={22} color={colors.primaryDark} />
-          <Text style={[styles.catTitle, styles.catTitleAccent]} numberOfLines={1}>
-            {t('promo360Title')}
-          </Text>
+      {/* Tezkor bo'limlar */}
+      <View style={[styles.categoryRow, styles.padded]}>
+        <Pressable style={[styles.categoryTile, styles.categoryTileActive]} onPress={() => onNavigate('studio')}>
+          <MaterialCommunityIcons name="rotate-3d-variant" size={20} color={colors.accent} />
+          <Text style={styles.categoryTileTitle}>{t('customDesign')}</Text>
+          <Text style={styles.categoryTileSub}>{t('catalog')}</Text>
         </Pressable>
-        {categories.map((cat) => (
-          <Pressable key={cat.id} style={styles.catTile} onPress={() => onNavigate('kit360')}>
-            <MaterialCommunityIcons name="trophy-outline" size={22} color={colors.accent} />
-            <Text style={styles.catTitle} numberOfLines={1}>
-              {cat.name}
-            </Text>
-          </Pressable>
-        ))}
-      </ScrollView>
+        <Pressable style={styles.categoryTile} onPress={() => onNavigate('studio')}>
+          <MaterialCommunityIcons name="shield-star-outline" size={20} color={colors.tealLight} />
+          <Text style={styles.categoryTileTitle}>{t('clubKitTitle')}</Text>
+          <Text style={styles.categoryTileSub}>{t('allClubs')}</Text>
+        </Pressable>
+      </View>
 
+      {/* Eng ko'p sotilganlar — buyurtmalardagi soni bo'yicha, birinchisi eng ko'p */}
       <View style={styles.padded}>
-        <SectionTitle title={t('featuredKits')} eyebrow={t('eyebrowModels')} action={t('all')} onAction={() => onNavigate('kit360')} />
+        <SectionTitle title={t('bestSellers')} eyebrow={t('eyebrowBestSellers')} action={t('all')} onAction={() => onNavigate('studio')} />
       </View>
-      {productsLoading && !products.length ? (
-        <View style={styles.padded}>
-          <Skeleton height={300} radius={radii.xl} />
-        </View>
-      ) : featured.length ? (
-        <KitCarousel t={t} items={featured} onPress={(item) => onClub({ id: item.clubId, name: item.clubName }, item.kitId)} />
-      ) : (
-        <View style={styles.padded}>
-          <EmptyState icon="tshirt-crew-outline" title={t('catalogEmpty')} actionLabel={t('goStudio')} onAction={() => onNavigate('studio')} />
-        </View>
-      )}
-
-      <View style={[styles.padded, styles.sectionGap]}>
-        <SectionTitle title={t('popular')} eyebrow={t('eyebrowClubs')} action={t('all')} onAction={() => onNavigate('kit360')} />
-      </View>
-      {clubsLoading && !clubs.length ? (
+      {isLoading ? (
         <View style={styles.rail}>
-          {[0, 1, 2, 3].map((i) => (
-            <Skeleton key={i} width={92} height={118} />
+          {[0, 1, 2].map((i) => (
+            <Skeleton key={i} width={152} height={240} radius={radii.lg} />
           ))}
         </View>
       ) : (
-        <FlatList
-          horizontal
-          data={clubs}
-          keyExtractor={(c) => String(c.id)}
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.rail}
-          renderItem={({ item: club }) => (
-            <Pressable style={({ pressed }) => [styles.clubTile, pressed && styles.pressed]} onPress={() => onClub(club)} accessibilityRole="button">
-              <Kit360Thumb team={club.kit360Id} width={92} height={78} zoom={1.7} />
-              <Text style={styles.clubName} numberOfLines={1}>
-                {club.name}
-              </Text>
-              <Text style={styles.clubLeague} numberOfLines={1}>
-                {club.league || `${club.forms || 1} ${t('kitsWord')}`}
-              </Text>
-            </Pressable>
-          )}
-        />
+        kitRail(best, true)
       )}
 
-      {popular.length ? (
+      {/* Yoqtirilgan formalar (yurakcha) — bo'lsa */}
+      {favorites.items.length ? (
         <>
           <View style={[styles.padded, styles.sectionGap]}>
-            <SectionTitle title={t('popularModels')} eyebrow={t('eyebrowTrending')} action={t('all')} onAction={() => onNavigate('kit360')} />
+            <SectionTitle title={t('favorites')} eyebrow={t('eyebrowFavorites')} action={t('all')} onAction={() => onNavigate('studio')} />
           </View>
-          <FlatList
-            horizontal
-            data={popular}
-            keyExtractor={(p) => String(p.kitId)}
-            showsHorizontalScrollIndicator={false}
-            snapToInterval={162}
-            decelerationRate="fast"
-            contentContainerStyle={styles.rail}
-            renderItem={({ item }) => (
-              <ProductCard product={item} style={styles.railCard} onPress={() => onClub({ id: item.clubId, name: item.clubName }, item.kitId)} />
-            )}
-          />
+          {kitRail(favorites.items, false)}
         </>
       ) : null}
 
-      <View style={[styles.padded, styles.values]}>
+      {/* Studio banneri */}
+      <Card style={[styles.studioBanner, styles.padded]}>
+        <View style={styles.studioCopy}>
+          <Badge label="FORMO STUDIO" variant="teal" />
+          <Text style={styles.studioTitle}>{t('designStudio')}</Text>
+          <Text style={styles.studioSub}>{t('description')}</Text>
+          <Button small variant="primary" onPress={() => onNavigate('studio')} style={styles.studioBtn}>
+            {t('startShort')}
+          </Button>
+        </View>
+        <View style={styles.studioArt} pointerEvents="none">
+          <Kit360Thumb team={best[1]?.kit360Id || 'fcb'} width={104} height={132} zoom={1.6} style={styles.heroPhoto} />
+        </View>
+      </Card>
+
+      {/* Qanday ishlaydi */}
+      <View style={[styles.valueCard, styles.padded]}>
+        <SectionTitle title={t('howItWorks')} eyebrow={t('eyebrowQuality')} />
         {[
-          ['shield-check-outline', 'step1Sub'],
-          ['truck-fast-outline', 'step2'],
-          ['tshirt-crew-outline', 'step2Sub'],
-        ].map(([icon, key]) => (
-          <View key={key} style={styles.value}>
-            <MaterialCommunityIcons name={icon} size={18} color={colors.accent} />
-            <Text style={styles.valueText} numberOfLines={2}>
-              {t(key)}
-            </Text>
+          ['1', 'step1', 'step1Sub'],
+          ['2', 'step2', 'step2Sub'],
+        ].map(([n, title, sub], i) => (
+          <View key={n}>
+            {i ? <View style={styles.stepDivider} /> : null}
+            <View style={styles.stepRow}>
+              <View style={styles.stepBadge}>
+                <Text style={styles.stepNumber}>{n}</Text>
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.stepHeading}>{t(title)}</Text>
+                <Text style={styles.stepSub}>{t(sub)}</Text>
+              </View>
+            </View>
           </View>
         ))}
       </View>
@@ -246,8 +200,7 @@ const styles = StyleSheet.create({
   // Lentalar ekran chetigacha; matnli bloklar `padded`
   content: { paddingHorizontal: 0 },
   padded: { marginHorizontal: spacing.lg },
-  sectionGap: { marginTop: spacing.xl },
-  pressed: { opacity: 0.85, transform: [{ scale: 0.98 }] },
+  sectionGap: { marginTop: spacing.lg },
   iconCircle: {
     width: 42,
     height: 42,
@@ -281,81 +234,95 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   pausedText: { flex: 1, color: '#F5A398', fontSize: 12, lineHeight: 18, fontWeight: '600' },
-  search: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-    height: 48,
-    paddingLeft: 14,
-    paddingRight: 6,
-    borderRadius: radii.md,
+  heroCard: {
     backgroundColor: colors.surface,
+    borderRadius: radii.xl,
     borderWidth: 1,
-    borderColor: colors.border,
+    borderColor: colors.borderLight,
+    padding: spacing.xl,
     marginBottom: spacing.lg,
+    overflow: 'hidden',
+    minHeight: 205,
+    justifyContent: 'center',
   },
-  searchText: { flex: 1, color: colors.dim, fontSize: 14, fontFamily: fonts.body },
-  searchKbd: { width: 36, height: 36, borderRadius: 10, backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' },
-  artTilt: { transform: [{ rotate: '8deg' }] },
-  artPhoto: { borderRadius: radii.lg, borderWidth: 2, borderColor: 'rgba(255,255,255,0.35)' },
+  heroGlow: {
+    position: 'absolute',
+    top: -40,
+    right: -40,
+    width: 190,
+    height: 190,
+    borderRadius: 95,
+    backgroundColor: 'rgba(242, 163, 58, 0.15)',
+  },
+  heroCopy: { width: '60%', zIndex: 2 },
+  heroBadge: { marginBottom: 8, alignSelf: 'flex-start' },
+  heroTitle: { color: colors.text, fontSize: 21, lineHeight: 26, fontFamily: fonts.display, letterSpacing: -0.3 },
+  heroSub: { color: colors.textSecondary, fontSize: 12, lineHeight: 17, marginTop: 6, marginBottom: 14 },
+  heroButtons: { flexDirection: 'row', alignItems: 'center', gap: 8, flexWrap: 'wrap' },
+  heroArt: { position: 'absolute', right: -8, bottom: -14, transform: [{ rotate: '8deg' }], zIndex: 1 },
+  heroPhoto: { borderRadius: radii.lg, borderWidth: 2, borderColor: 'rgba(255,255,255,0.35)' },
   trackerCard: {
-    marginTop: spacing.lg,
+    marginBottom: spacing.lg,
     backgroundColor: colors.surfaceRaised,
     borderRadius: radii.lg,
     borderWidth: 1,
-    borderColor: 'rgba(242,163,58,0.5)',
     padding: spacing.md,
     flexDirection: 'row',
     alignItems: 'center',
     gap: spacing.md,
   },
-  trackerIconBox: { width: 42, height: 42, borderRadius: 12, backgroundColor: colors.accentGlow, alignItems: 'center', justifyContent: 'center' },
+  trackerIconBox: { width: 42, height: 42, borderRadius: 12, alignItems: 'center', justifyContent: 'center' },
   trackerOverline: { color: colors.accent, fontSize: 10, fontWeight: '900', letterSpacing: 0.8 },
-  trackerStatus: { color: colors.text, fontSize: 14, fontWeight: '800', marginTop: 2 },
   trackerPill: { marginTop: 6 },
   trackerAction: { color: colors.accent, fontSize: 12, fontWeight: '800' },
-  rail: { paddingHorizontal: spacing.lg, gap: 10, flexDirection: 'row' },
-  catTile: {
-    minWidth: 104,
-    height: 74,
-    paddingHorizontal: 14,
-    borderRadius: radii.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    justifyContent: 'center',
-    gap: 6,
-  },
-  catTileAccent: { backgroundColor: colors.accent, borderColor: colors.accent },
-  catTitle: { color: colors.text, fontSize: 12, fontFamily: fonts.bodySemi, maxWidth: 140 },
-  catTitleAccent: { color: colors.primaryDark },
-  clubTile: {
-    width: 92,
-    height: 118,
-    overflow: 'hidden',
-    borderRadius: radii.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-  },
-  clubName: { color: colors.text, fontSize: 11, fontFamily: fonts.bodySemi, marginTop: 6, paddingHorizontal: 6, textAlign: 'center' },
-  clubLeague: { color: colors.muted, fontSize: 10, marginTop: 1, paddingHorizontal: 6, textAlign: 'center' },
-  railCard: { width: 152, marginBottom: 0 },
-  values: {
-    flexDirection: 'row',
-    gap: spacing.sm,
-    marginTop: spacing.xl,
-    marginBottom: spacing.lg,
-  },
-  value: {
+  categoryRow: { flexDirection: 'row', gap: 12, marginBottom: spacing.lg },
+  categoryTile: {
     flex: 1,
-    padding: spacing.md,
-    gap: 6,
+    backgroundColor: colors.surface,
     borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.md,
+  },
+  categoryTileActive: { backgroundColor: colors.surfaceRaised, borderColor: 'rgba(242, 163, 58, 0.4)' },
+  categoryTileTitle: { color: colors.text, fontSize: 13, fontFamily: fonts.bodySemi, marginTop: 8 },
+  categoryTileSub: { color: colors.muted, fontSize: 11, marginTop: 2 },
+  rail: { paddingHorizontal: spacing.lg, gap: 10, flexDirection: 'row' },
+  railCard: { width: 152, marginBottom: 0 },
+  studioBanner: {
+    marginTop: spacing.xl,
+    flexDirection: 'row',
+    alignItems: 'center',
+    overflow: 'hidden',
+    minHeight: 170,
+  },
+  studioCopy: { width: '62%', gap: 6 },
+  studioTitle: { color: colors.text, fontSize: 18, fontFamily: fonts.display, marginTop: 4 },
+  studioSub: { color: colors.textSecondary, fontSize: 12, lineHeight: 17 },
+  studioBtn: { alignSelf: 'flex-start', marginTop: 6 },
+  studioArt: { position: 'absolute', right: 6, bottom: -10, transform: [{ rotate: '-7deg' }] },
+  valueCard: {
+    marginTop: spacing.lg,
+    marginBottom: spacing.lg,
+    padding: spacing.lg,
+    borderRadius: radii.lg,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
   },
-  valueText: { color: colors.textSecondary, fontSize: 11, lineHeight: 15 },
+  stepRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  stepBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: colors.accentGlow,
+    borderWidth: 1,
+    borderColor: 'rgba(242, 163, 58, 0.45)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  stepNumber: { color: colors.accent, fontFamily: fonts.numeric, fontSize: 18 },
+  stepHeading: { color: colors.text, fontSize: 13, fontFamily: fonts.bodySemi },
+  stepSub: { color: colors.muted, fontSize: 11, marginTop: 2 },
+  stepDivider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.md, marginLeft: 46 },
 });

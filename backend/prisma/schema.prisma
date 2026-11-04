@@ -52,6 +52,7 @@ model User {
   cartItems     CartItem[]
   addresses     Address[]
   favoriteClubs FavoriteClub[]
+  favoriteKits  FavoriteKit[]
 
   ordersAsCustomer Order[] @relation("OrderCustomer")
   ordersAsWorkshop Order[] @relation("OrderWorkshop")
@@ -76,16 +77,19 @@ model User {
 // Har bir login = bitta sessiya. Logout sessiyani bekor qiladi,
 // shuning uchun access token ham darhol ishlamay qoladi.
 model Session {
-  id               String    @id @default(uuid())
-  userId           Int
-  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  refreshTokenHash String
-  userAgent        String?
-  ip               String?
-  expiresAt        DateTime
-  revokedAt        DateTime?
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
+  id                   String    @id @default(uuid())
+  userId               Int
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  refreshTokenHash     String
+  /// Rotatsiyadan oldingi xesh — qisqa grace oynasida qabul qilinadi (javob yo'qolsa / parallel yangilash)
+  prevRefreshTokenHash String?
+  rotatedAt            DateTime?
+  userAgent            String?
+  ip                   String?
+  expiresAt            DateTime
+  revokedAt            DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
 
   @@index([userId])
 }
@@ -286,7 +290,7 @@ model Club {
   type       ClubType   @default(CLUB)
   continent  Continent? // type=NATIONAL bo'lsa majburiy (DTO darajasida tekshiriladi)
   isActive   Boolean    @default(true)
-  // Forma 360° suratlari to'plami (src/kits/kit360.ts → KIT360_IDS, 17 ta); null — 3D ko'rinish
+  // Forma 360° suratlari to'plami (src/kits/kit360.ts → KIT360_IDS, 18 ta); null — 3D ko'rinish
   kit360Id   String?    @unique
   createdAt  DateTime   @default(now())
   updatedAt  DateTime   @updatedAt
@@ -322,6 +326,7 @@ model Kit {
   cartItems      CartItem[]
   orderItems     OrderItem[]
   inventoryItems InventoryItem[]
+  favorites      FavoriteKit[]
 
   @@index([clubId])
 }
@@ -361,6 +366,18 @@ model FavoriteClub {
   createdAt DateTime @default(now())
 
   @@id([userId, clubId])
+}
+
+// Mijoz yoqtirgan forma (yurakcha) — klub emas, aniq forma (uy/mehmon/uchinchi)
+model FavoriteKit {
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kitId     Int
+  kit       Kit      @relation(fields: [kitId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@id([userId, kitId])
+  @@index([kitId])
 }
 
 // ---------------------------------------------------------------------------

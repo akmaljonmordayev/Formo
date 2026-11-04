@@ -30,6 +30,14 @@ describe('TelegramApi', () => {
     assert.equal(calls.length, 1);
   });
 
+  it('sendMessage javob kutish vaqti tugasa qayta yuborilmaydi (xabar ikki marta kelmasin)', async () => {
+    const timeout = Object.assign(new Error('The operation was aborted due to timeout'), { name: 'TimeoutError' });
+    const { impl, calls } = scriptedFetch([timeout, json(200, { ok: true, result: true })]);
+    const err = await new TelegramApi(TOKEN, 'https://tg.test', impl, noSleep).sendMessage(1, 'x').catch((e) => e);
+    assert.ok(err instanceof TelegramError && err.code === 0);
+    assert.equal(calls.length, 1);
+  });
+
   it('xato matnida bot tokeni bo‘lmaydi', async () => {
     const { impl } = scriptedFetch([new TypeError(`fetch failed https://tg.test/bot${TOKEN}/sendMessage`)]);
     const err = await new TelegramApi(TOKEN, 'https://tg.test', impl, noSleep).sendMessage(1, 'x', {}, 0).catch((e) => e);

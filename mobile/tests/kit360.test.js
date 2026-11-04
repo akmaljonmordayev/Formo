@@ -35,6 +35,8 @@ test('xabarlar: update va javoblar formo-kit360 belgisi bilan, boshqa postMessag
   const msg = JSON.parse(kit360Message({ team: 'rm', name: 'ISROIL', number: 10, side: 'front' }));
   assert.deepEqual(msg, { source: KIT360_SOURCE, type: 'update', team: 'rm', name: 'ISROIL', number: '10', side: 'front' });
   assert.equal(JSON.parse(kit360Message({ team: 'rm' })).side, 'back');
+  // Yonga burilgan (viewer 'side' xabar qilgan) — tomon buyrug'i yo'q, keyingi "Old" bosilishi holatni o'zgartiradi
+  assert.equal(JSON.parse(kit360Message({ team: 'rm', side: 'side' })).side, null);
   assert.deepEqual(parseKit360Message(JSON.stringify({ source: KIT360_SOURCE, type: 'face', view: 'front' })), {
     source: KIT360_SOURCE,
     type: 'face',
@@ -54,14 +56,14 @@ test("viewer.html: har jamoaning (KIT360_IDS) 8 tadan kadri ichida (data: URL), 
   assert.ok(!/<script[^>]+src=/i.test(viewerHtml));
 });
 
-test("KIT360_TEAMS: 17 ta jamoa (7 terma jamoa, 10 klub), to'liq ma'lumotlar bilan", () => {
-  assert.equal(KIT360_TEAMS.length, 17);
+test("KIT360_TEAMS: 18 ta jamoa (7 terma jamoa, 11 klub), to'liq ma'lumotlar bilan", () => {
+  assert.equal(KIT360_TEAMS.length, 18);
   const ids = KIT360_TEAMS.map((t) => t.id).sort();
-  assert.deepEqual(ids, ['ar', 'ars', 'atm', 'che', 'de', 'en', 'es', 'fcb', 'fr', 'juv', 'mci', 'mu', 'psg', 'pt', 'rm', 'rom', 'uz']);
+  assert.deepEqual(ids, ['ar', 'ars', 'atm', 'che', 'de', 'en', 'es', 'fcb', 'fr', 'juv', 'lfc', 'mci', 'mu', 'psg', 'pt', 'rm', 'rom', 'uz']);
   const nationals = KIT360_TEAMS.filter((t) => t.kind === 'national');
   const clubs = KIT360_TEAMS.filter((t) => t.kind === 'club');
   assert.equal(nationals.length, 7);
-  assert.equal(clubs.length, 10);
+  assert.equal(clubs.length, 11);
   assert.deepEqual([...KIT360_IDS].sort(), ids); // aliaslar va ro'yxat bir xil
   assert.equal(findKit360Team('rm').name, 'Real Madrid');
   assert.equal(findKit360Team('fcb').name, 'Barselona');

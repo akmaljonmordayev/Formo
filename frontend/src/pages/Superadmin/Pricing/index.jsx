@@ -16,7 +16,7 @@ async function fetchKit360Clubs() {
     out.push(...(d.items ?? []));
     if (out.length >= (d.total ?? 0) || (d.items ?? []).length < 100) break;
   }
-  // Bitta jamoaga bitta forma — Forma 360° bilan bir xil 17 ta jamoa, o'sha tartibda
+  // Bitta jamoaga bitta forma — Forma 360° bilan bir xil 18 ta jamoa, o'sha tartibda
   return out
     .filter((c) => c.kit360Id)
     .map((c) => ({ ...c, kit: [...(c.kits ?? [])].sort((a, b) => a.sortOrder - b.sortOrder)[0] }))
@@ -157,17 +157,17 @@ export default function SuperadminPricing() {
       return d?.shirtPrice !== s?.shirtPrice || d?.shortsPrice !== s?.shortsPrice || d?.printPrice !== s?.printPrice;
     });
     const failed = [];
-    const ok = {};
+    const succeeded = {};
     for (const r of dirtyRows) {
       try {
         await clubsApi.updateKit(r.kitId, draft360[r.kitId]);
-        ok[r.kitId] = draft360[r.kitId];
+        succeeded[r.kitId] = draft360[r.kitId];
       } catch {
         failed.push(r.clubName);
       }
     }
-    // Faqat saqlanganlari "saqlangan" bo'ladi — xato bergan qatorlar o'zgargan holicha qoladi va qayta saqlanadi
-    setSaved360((prev) => ({ ...prev, ...ok }));
+    // Faqat saqlanganlari "saqlangan" deb belgilanadi — xato bo'lganlari o'zgargan bo'lib qoladi va qayta yuboriladi
+    setSaved360((s) => ({ ...s, ...succeeded }));
     setSaving360(false);
     if (failed.length) setError360(t('{n} ta formani yangilab bo‘lmadi: {list}', { n: failed.length, list: failed.join(', ') }));
     else setNotice360(t('{n} ta forma narxi yangilandi', { n: dirtyRows.length }));

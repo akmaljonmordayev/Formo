@@ -8,7 +8,7 @@ import { useKeyboard } from './KeyboardAware';
 
 const TABS = [
   { key: 'home', label: 'home', icon: 'home-variant-outline', iconActive: 'home-variant' },
-  { key: 'kit360', label: 'forma360', icon: 'rotate-3d-variant', iconActive: 'rotate-3d-variant' },
+  // Studio = Forma 360° katalogi (alohida "Forma 360°" tabi yo'q)
   { key: 'studio', label: 'studio', icon: 'tshirt-crew-outline', iconActive: 'tshirt-crew' },
   { key: 'orders', label: 'orders', icon: 'clipboard-text-outline', iconActive: 'clipboard-text' },
   { key: 'profile', label: 'profile', icon: 'account-circle-outline', iconActive: 'account-circle' },
@@ -50,33 +50,6 @@ const TabItem = memo(function TabItem({ tab, active, label, onPress }) {
   );
 });
 
-/** Markazdagi "Studiya" — ko'tarilgan oltin tugma */
-const StudioItem = memo(function StudioItem({ tab, active, label, onPress }) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [styles.studioItem, pressed && styles.studioPressed]}
-      accessibilityRole="tab"
-      accessibilityState={{ selected: active }}
-      accessibilityLabel={label}
-    >
-      <View style={[styles.studioRing, active && styles.studioRingActive]}>
-        <LinearGradient
-          colors={active ? ['#FFD08A', '#F2A33A'] : ['#F7C27A', '#E08A1E']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={styles.studioButton}
-        >
-          <MaterialCommunityIcons name={active ? tab.iconActive : tab.icon} size={26} color={colors.primaryDark} />
-        </LinearGradient>
-      </View>
-      <Text style={[styles.label, styles.studioLabel, active && styles.labelActive]} numberOfLines={1}>
-        {label}
-      </Text>
-    </Pressable>
-  );
-});
-
 export const BottomTabs = memo(function BottomTabs({ active, onChange, t }) {
   const insets = useSafeAreaInsets();
   const kb = useKeyboard();
@@ -93,8 +66,7 @@ export const BottomTabs = memo(function BottomTabs({ active, onChange, t }) {
       >
         {TABS.map((tab) => {
           const isActive = active === tab.key;
-          const Item = tab.key === 'studio' ? StudioItem : TabItem;
-          return <Item key={tab.key} tab={tab} active={isActive} label={t(tab.label)} onPress={() => onChange(tab.key)} />;
+          return <TabItem key={tab.key} tab={tab} active={isActive} label={t(tab.label)} onPress={() => onChange(tab.key)} />;
         })}
       </LinearGradient>
     </View>
@@ -146,42 +118,6 @@ const styles = StyleSheet.create({
   },
   labelActive: {
     color: colors.accent,
-    fontWeight: '800',
-  },
-  studioItem: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    height: '100%',
-    paddingBottom: 9,
-  },
-  studioPressed: { transform: [{ scale: 0.95 }] },
-  studioRing: {
-    position: 'absolute',
-    top: -22,
-    padding: 4,
-    borderRadius: 34,
-    backgroundColor: colors.background,
-    borderWidth: 1,
-    borderColor: 'rgba(242, 163, 58, 0.22)',
-  },
-  studioRingActive: {
-    borderColor: colors.accent,
-  },
-  studioButton: {
-    width: 54,
-    height: 54,
-    borderRadius: 27,
-    alignItems: 'center',
-    justifyContent: 'center',
-    shadowColor: colors.accent,
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-    elevation: 10,
-  },
-  studioLabel: {
-    color: colors.accentLight,
     fontWeight: '800',
   },
 });

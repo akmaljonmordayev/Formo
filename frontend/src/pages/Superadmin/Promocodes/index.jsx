@@ -133,12 +133,8 @@ export default function SuperadminPromocodes() {
   );
 }
 
-// ISO -> <input type="date"> qiymati (Toshkent kuni); kun -> ISO: boshlanishi kun boshidan, tugashi kun oxirigacha
-// (aks holda "30-noyabrgacha" kodi 30-noyabr soat 05:00 da — UTC yarim tunda — o'chib qolardi)
-const TZ = 'Asia/Tashkent';
-const toDateInput = (iso) => (iso ? new Date(iso).toLocaleDateString('sv-SE', { timeZone: TZ }) : '');
-const dayStart = (day) => `${day}T00:00:00+05:00`;
-const dayEnd = (day) => `${day}T23:59:59+05:00`;
+// ISO -> <input type="date"> qiymati
+const toDateInput = (iso) => (iso ? new Date(iso).toLocaleDateString('sv-SE') : '');
 
 function PromocodeForm({ promo, onClose, onSaved }) {
   const t = useT();
@@ -165,10 +161,12 @@ function PromocodeForm({ promo, onClose, onSaved }) {
       if (form.type !== 'FREE_SHIPPING' && form.value !== '') body.value = Number(form.value);
       if (form.minSum !== '') body.minSum = Number(form.minSum);
       if (form.usageCap !== '') body.usageCap = Number(form.usageCap);
-      if (form.startsAt) body.startsAt = dayStart(form.startsAt);
-      if (form.endsAt) body.endsAt = dayEnd(form.endsAt);
+      // Mahalliy kun boshi/oxiri: `new Date('YYYY-MM-DD')` UTC yarim tun (Toshkentda 05:00) bo'lib,
+      // promokod oxirgi kunining 05:00 da to'xtab qolardi
+      if (form.startsAt) body.startsAt = new Date(`${form.startsAt}T00:00:00`).toISOString();
+      if (form.endsAt) body.endsAt = new Date(`${form.endsAt}T23:59:59.999`).toISOString();
       if (isEdit) {
-        // Tahrirlashda bo'shatilgan limitlar va muddatlar serverda ham olib tashlanadi
+        // Tahrirlashda bo'shatilgan limitlar va sanalar serverda ham olib tashlanadi
         if (form.minSum === '') body.minSum = null;
         if (form.usageCap === '') body.usageCap = null;
         if (!form.startsAt) body.startsAt = null;

@@ -10,6 +10,7 @@ import CartScreen from '../screens/CartScreen';
 import Kit360Screen from '../screens/Kit360Screen';
 import CheckoutScreen from '../screens/CheckoutScreen';
 import HomeScreen from '../screens/HomeScreen';
+import KitCatalogScreen from '../screens/KitCatalogScreen';
 import LocationPickerScreen from '../screens/LocationPickerScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import OrderDetailScreen from '../screens/OrderDetailScreen';
@@ -23,6 +24,7 @@ import WalletScreen from '../screens/WalletScreen';
 import useAppConfig from '../features/config';
 import useCart from '../features/cart';
 import { kit360Team } from '../features/kit360';
+import { useFavoriteKits } from '../features/products/kits';
 import { clearCache } from '../utils/memCache';
 import * as storage from '../utils/storage';
 import { profileGaps } from '../utils/userName';
@@ -46,8 +48,9 @@ export default function AppNavigator({ store, t, auth }) {
   const [orderFrom, setOrderFrom] = useState('orders');
   const [notifFrom, setNotifFrom] = useState('home');
   const [walletFrom, setWalletFrom] = useState('profile');
-  // Bosh sahifadan katalogga: liga filtri yoki qidiruvga fokus
+  // Forma 360° ko'ruvchisi: qaysi jamoa va qaysi ekrandan ochilgani (orqaga qaytish)
   const [kit360TeamId, setKit360TeamId] = useState(null);
+  const [kit360From, setKit360From] = useState('studio');
 
   // ─── Cart origin (to return where the user came from) ────────────────────────
   const [cartFrom, setCartFrom] = useState('home');
@@ -65,6 +68,8 @@ export default function AppNavigator({ store, t, auth }) {
 
   // Server savati — barcha ekranlar uchun bitta (faqat kirgan foydalanuvchi)
   const cart = useCart(auth.isAuthenticated);
+  // Yoqtirilgan formalar (yurakcha) — bosh sahifa va Studio bitta holatni ko'radi
+  const favorites = useFavoriteKits(auth.isAuthenticated);
   // GET /api/app/config — buyurtma qoidalari va aloqa (Superadmin sozlamalari)
   const config = useAppConfig();
   const { refresh: refreshConfig } = config;
@@ -91,6 +96,21 @@ export default function AppNavigator({ store, t, auth }) {
     clearCache();
   }
 
+  // Ekran holati ham: sessiya tugab boshqa mijoz kirsa, oldingisining buyurtmasi/manzili ochilib qolmasin
+  const navOwner = useRef(userId);
+  useEffect(() => {
+    if (navOwner.current === userId) return;
+    navOwner.current = userId;
+    setRoute('home');
+    setSelectedClub(null);
+    setStudioKit(null);
+    setOrderId(null);
+    setKit360TeamId(null);
+    setKit360From('studio');
+    setPickerAddress(null);
+    setCheckoutAddressId(null);
+  }, [userId]);
+
   useEffect(() => {
     let cancelled = false;
     if (!userId) {
@@ -109,29 +129,34 @@ export default function AppNavigator({ store, t, auth }) {
   }, [route, refreshConfig]);
 
   const navigate = (next) => setRoute(next);
-  // Tab/bosh sahifadan studiyaga kirilsa — Forma 360° jamoalari ro'yxati (forma klub sahifasidan tanlanadi)
+  // Tab/bosh sahifadan Studio'ga — Forma 360° katalogi (alohida "Forma 360°" tabi yo'q: katalog shu yerda)
   const navigateTab = (next) => {
-    if (next === 'studio') setStudioKit(null);
-    if (next === 'kit360' || next === 'catalog') setKit360TeamId(null);
-    setRoute(next === 'catalog' ? 'kit360' : next);
+    const target = next === 'catalog' || next === 'kit360' ? 'studio' : next;
+    if (target === 'studio') setStudioKit(null);
+    setRoute(target);
   };
   const openCart = (from) => {
     setCartFrom(from);
     setRoute('cart');
   };
+  const openKit360 = (teamId) => {
+    setKit360TeamId(teamId || null);
+    setKit360From(route === 'kit360' ? kit360From : route);
+    setRoute('kit360');
+  };
   const openClub = (club, kitId) => {
     const tId = club?.kit360Id || (club && kit360Team(club));
     if (tId) {
-      setKit360TeamId(tId);
-      setRoute('kit360');
+      openKit360(tId);
       return;
     }
     setSelectedClub({ clubId: club.id, kitId });
     setRoute('product');
   };
-  const openKit360 = (teamId) => {
-    setKit360TeamId(teamId || null);
-    setRoute('kit360');
+  // Katalog/bosh sahifadagi forma kartasi: Forma 360° jamoasi bo'lsa — 360° ko'ruvchi, aks holda klub sahifasi
+  const openKit = (kit) => {
+    if (kit.kit360Id) openKit360(kit.kit360Id);
+    else if (kit.clubId) openClub({ id: kit.clubId, name: kit.name }, kit.kitId);
   };
   const openOrder = (id, from = route) => {
     setOrderId(id);
@@ -187,12 +212,10 @@ export default function AppNavigator({ store, t, auth }) {
       <HomeScreen
         t={t}
         onNavigate={navigateTab}
-        onClub={openClub}
         onOrder={(id) => openOrder(id, 'home')}
         onNotifications={() => openNotifications('home')}
-        onCategory={() => openKit360()}
-        onSearch={() => openKit360()}
-        onTeam={openKit360}
+        onOpenKit={openKit}
+        favorites={favorites}
         rules={config.rules}
         auth={auth}
       />
@@ -202,7 +225,11 @@ export default function AppNavigator({ store, t, auth }) {
         initialTeam={kit360TeamId}
         rules={config.rules}
         cart={cart}
+        onBack={() => navigate(kit360From)}
       />
+    ) : route === 'studio' && !studioKit ? (
+      // Studio — Forma 360° katalogi (qidiruv, kategoriyalar, barcha formalar)
+      <KitCatalogScreen t={t} favorites={favorites} onOpenKit={openKit} />
     ) : route === 'studio' ? (
       <StudioScreen
         t={t}
@@ -211,8 +238,8 @@ export default function AppNavigator({ store, t, auth }) {
         rules={config.rules}
         onOpenCart={() => openCart('studio')}
         onClub={openClub}
-        onPickKit={() => navigate('kit360')}
-        onBack={() => navigate('home')}
+        onPickKit={() => navigateTab('studio')}
+        onBack={() => navigateTab('studio')}
       />
     ) : route === 'cart' ? (
       <CartScreen
@@ -228,7 +255,10 @@ export default function AppNavigator({ store, t, auth }) {
         cart={cart}
         rules={config.rules}
         onBack={() => navigate('cart')}
-        onPlaced={(order) => openOrder(order.id, 'orders')}
+        onPlaced={(order) => {
+          setCheckoutAddressId(null); // keyingi buyurtmada yana asosiy manzil oldindan tanlansin
+          openOrder(order.id, 'orders');
+        }}
         onPickOnMap={() => openPicker(null, 'checkout')}
         onWallet={() => openWallet('checkout')}
         initialAddressId={checkoutAddressId}
@@ -287,7 +317,7 @@ export default function AppNavigator({ store, t, auth }) {
         clubId={selectedClub?.clubId}
         kitId={selectedClub?.kitId}
         rules={config.rules}
-        onBack={() => navigate('kit360')}
+        onBack={() => navigateTab('studio')}
         onCustomize={(product) => {
           setStudioKit(product);
           navigate('studio');
@@ -303,7 +333,8 @@ export default function AppNavigator({ store, t, auth }) {
     <CartContext.Provider value={cartValue}>
       {content}
       {!hideTabs && (
-        <BottomTabs active={route} onChange={navigateTab} t={t} />
+        // Forma 360° ko'ruvchisi Studio katalogidan ochiladi — tab paneli Studio'ni faol ko'rsatadi
+        <BottomTabs active={route === 'kit360' || route === 'catalog' ? 'studio' : route} onChange={navigateTab} t={t} />
       )}
     </CartContext.Provider>
   );

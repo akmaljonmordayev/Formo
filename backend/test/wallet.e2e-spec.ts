@@ -136,6 +136,32 @@ describe('Balans, to‘ldirish va to‘lovlar (e2e)', () => {
       await as(c.token).post('/api/wallet/topups', { amount: 95000, method: 'MANUAL_CARD' }).expect(429);
     });
 
+    it('parallel so‘rovlar ochiq so‘rovlar limitini chetlab o‘tolmaydi', async () => {
+      const c = await customer();
+      const results = await Promise.all(
+        [21000, 22000, 23000, 24000, 25000, 26000].map((amount) => as(c.token).post('/api/wallet/topups', { amount, method: 'MANUAL_CARD' })),
+      );
+      expect(results.filter((r) => r.status === 201)).toHaveLength(3);
+      expect(results.filter((r) => r.status === 429)).toHaveLength(3);
+      expect(await prisma.topUp.count({ where: { userId: c.id } })).toBe(3);
+    });
+
+    it('tashlab ketilgan Click so‘rovlari (12 soatdan eski) yangi to‘ldirishni bloklamaydi', async () => {
+      const c = await customer();
+      for (const amount of [11000, 12000, 13000]) {
+        await as(c.token).post('/api/wallet/topups', { amount, method: 'CLICK' }).expect(201);
+      }
+      await as(c.token).post('/api/wallet/topups', { amount: 14000, method: 'CLICK' }).expect(429);
+      // Prepare bo'lgan (mijoz endi bekor qila olmaydi), lekin Complete hech qachon kelmagan
+      for (const t of await prisma.topUp.findMany({ where: { userId: c.id } })) {
+        await prisma.topUp.update({
+          where: { id: t.id },
+          data: { createdAt: new Date(Date.now() - 13 * 60 * 60 * 1000), providerTransId: `click-abandoned-${t.id}` },
+        });
+      }
+      await as(c.token).post('/api/wallet/topups', { amount: 14000, method: 'CLICK' }).expect(201);
+    });
+
     it('chek (bot) → tekshiruv → admin tasdig‘i: balans bir marta oshadi; parallel tasdiq — bittasi o‘tadi', async () => {
       const c = await customer();
       const t = await as(c.token).post('/api/wallet/topups', { amount: 120000, method: 'MANUAL_CARD' }).expect(201);
@@ -171,7 +197,7 @@ describe('Balans, to‘ldirish va to‘lovlar (e2e)', () => {
       expect((await as(admin).get(`/api/admin/topups/${t.body.id}`).expect(200)).body.status).toBe('REVIEW');
     });
 
-    it('bir xil chek boshqa so‘rovga qayta yuborilsa — DUPLICATE_RECEIPT; o‘sha so‘rovga qayta — almashtiriladi', async () => {
+    it('bir xil chek boshqa so‘rovga qayta yuborilsa — DUPLICATE_RECEIPT; tekshiruvdagi chek almashtirilmaydi', async () => {
       const a = await customer();
       const b = await customer();
       const tgA = await linkTelegram(a.id);
@@ -179,11 +205,29 @@ describe('Balans, to‘ldirish va to‘lovlar (e2e)', () => {
       await as(a.token).post('/api/wallet/topups', { amount: 50000, method: 'MANUAL_CARD' }).expect(201);
       await as(b.token).post('/api/wallet/topups', { amount: 50000, method: 'MANUAL_CARD' }).expect(201);
       expect((await sendReceipt(tgA, 'AgACAgIAAxkBdupA1', 'AQADdupuniq1').expect(200)).body.result).toBe('OK');
-      expect((await sendReceipt(tgA, 'AgACAgIAAxkBdupA2', 'AQADdupuniq1').expect(200)).body.result).toBe('OK');
+      expect((await sendReceipt(tgA, 'AgACAgIAAxkBdupA2', 'AQADdupuniq2').expect(200)).body.result).toBe('ALREADY_IN_REVIEW');
+      const reviewed = await prisma.topUp.findFirstOrThrow({ where: { userId: a.id } });
+      expect(reviewed.receiptUniqueId).toBe('AQADdupuniq1');
       expect((await sendReceipt(tgB, 'AgACAgIAAxkBdupB1', 'AQADdupuniq1').expect(200)).body.result).toBe('DUPLICATE_RECEIPT');
       // B mijozning so'rovi chekni olmadi — tekshiruvga o'tmaydi
       const open = await prisma.topUp.findFirstOrThrow({ where: { userId: b.id } });
       expect(open.status).toBe('PENDING');
+    });
+
+    it('bir nechta ochiq so‘rov: ikkinchi chek tekshiruvdagisini almashtirmaydi, kutayotgan so‘rovga tushadi', async () => {
+      const c = await customer();
+      const tg = await linkTelegram(c.id);
+      const first = await as(c.token).post('/api/wallet/topups', { amount: 50000, method: 'MANUAL_CARD' }).expect(201);
+      const second = await as(c.token).post('/api/wallet/topups', { amount: 100000, method: 'MANUAL_CARD' }).expect(201);
+      const r1 = await sendReceipt(tg, 'AgACAgIAAxkBmulti01', 'AQADmulti01').expect(200);
+      expect(r1.body).toMatchObject({ result: 'OK', topUp: { id: second.body.id } });
+      const r2 = await sendReceipt(tg, 'AgACAgIAAxkBmulti02', 'AQADmulti02').expect(200);
+      expect(r2.body).toMatchObject({ result: 'OK', topUp: { id: first.body.id } });
+      const rows = await prisma.topUp.findMany({ where: { userId: c.id }, orderBy: { id: 'asc' } });
+      expect(rows.map((r) => [r.status, r.receiptUniqueId])).toEqual([
+        ['REVIEW', 'AQADmulti02'],
+        ['REVIEW', 'AQADmulti01'],
+      ]);
     });
 
     it('ulanmagan Telegram akkaunti chek yubora olmaydi — hech kimga biriktirilmaydi', async () => {
@@ -271,6 +315,34 @@ describe('Balans, to‘ldirish va to‘lovlar (e2e)', () => {
       await api(app).patch(`/api/admin/orders/${order.body.id}/status`).set(bearer(admin)).send({ status: 'CANCELLED' });
       expect(await balanceOf(c.id)).toBe(300000);
       expect(await prisma.balanceTransaction.count({ where: { orderId: order.body.id, type: 'ORDER_REFUND' } })).toBe(1);
+    });
+
+    it('to‘langan buyurtmani PENDING_PAYMENT ga qaytarib bo‘lmaydi; to‘lov usuli keyin o‘zgarsa ham pul qaytadi', async () => {
+      const c = await customer();
+      await fund(c, 300000);
+      const order = await checkout(c, 'BALANCE');
+      const status = (body: object) => api(app).patch(`/api/admin/orders/${order.body.id}/status`).set(bearer(admin)).send(body);
+      await status({ status: 'PENDING_PAYMENT' }).expect(409);
+      // Sexsiz qoldirish (null) va to'g'ridan-to'g'ri sex bosqichiga sexni almashtirish — rad
+      await status({ status: 'PRINTING', workshopId: null }).expect(400);
+      // Qaytarish qarori faqat to'lov yozuviga qarab — paymentMethod o'zgargan bo'lsa ham
+      await prisma.order.update({ where: { id: order.body.id }, data: { paymentMethod: 'CLICK' } });
+      await status({ status: 'CANCELLED' }).expect(200);
+      expect(await balanceOf(c.id)).toBe(300000);
+    });
+
+    it('CLICK↔PAYME almashtirish to‘lov muddatini uzaytirmaydi; to‘lanmagan onlayn buyurtmalar soni cheklangan', async () => {
+      const c = await customer();
+      const order = await checkout(c, 'CLICK');
+      const before = (await prisma.order.findUniqueOrThrow({ where: { id: order.body.id } })).paymentExpiresAt;
+      await api(app).patch(`/api/orders/${order.body.id}/payment-method`).set(bearer(c.token)).send({ paymentMethod: 'PAYME' }).expect(200);
+      const after = (await prisma.order.findUniqueOrThrow({ where: { id: order.body.id } })).paymentExpiresAt;
+      expect(after?.getTime()).toBe(before?.getTime());
+
+      await checkout(c, 'CLICK');
+      await checkout(c, 'PAYME');
+      const res = await checkout(c, 'CLICK', 429);
+      expect(res.body.message).toMatch(/To'lanmagan buyurtmalaringiz ko'p/);
     });
 
     it('to‘lov kutayotgan (Click) buyurtmani balansdan to‘lash: parallel bosish — bir marta yechiladi', async () => {

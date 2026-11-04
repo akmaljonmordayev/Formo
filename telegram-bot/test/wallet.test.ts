@@ -85,6 +85,10 @@ describe('balans va to‘ldirish (bot)', () => {
     backend.receiptResult = { result: 'DUPLICATE_RECEIPT' };
     await handleUpdate(photoUpdate(['large_file_id_333']), deps);
     assert.match(sent[2].text, /avval boshqa so‘rov/);
+
+    backend.receiptResult = { result: 'ALREADY_IN_REVIEW' };
+    await handleUpdate(photoUpdate(['large_file_id_444']), deps);
+    assert.match(sent[3].text, /allaqachon tekshiruvda/);
   });
 
   it('ilovadan /start topup — summa tanlash ochiladi', async () => {

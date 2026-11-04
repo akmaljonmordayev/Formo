@@ -86,6 +86,16 @@ export default function useCart(enabled) {
     setCart(await api.cart.view());
   }, []);
 
+  /**
+   * Buyurtma berilgandan keyin: server savatni tozaladi, promokod ham unutiladi — aks holda bo'sh
+   * savatga qayta qo'llanib xato ko'rsatardi yoki mijozga bildirmasdan keyingi buyurtmaga o'tib ketardi
+   */
+  const afterOrder = useCallback(() => {
+    promoRef.current = null;
+    setPromoError(null);
+    return refresh();
+  }, [refresh]);
+
   return {
     cart,
     items: cart.items,
@@ -102,5 +112,6 @@ export default function useCart(enabled) {
     clear,
     applyPromocode,
     removePromocode,
+    afterOrder,
   };
 }

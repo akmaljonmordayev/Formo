@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { settingsApi, topupsApi } from '../../../features/platform/platformApi';
 import Modal from '../../../components/ui/Modal';
 import { useLang, useMoney, useT } from '../i18n';
@@ -50,16 +50,20 @@ export default function SuperadminTopUps() {
   const [error, setError] = useState('');
   const [selected, setSelected] = useState(null);
 
+  // Faqat oxirgi so'rov javobi qo'llanadi — tez tab almashganda eski tab ro'yxati ko'rinib qolmasin
+  const lastReq = useRef(0);
   const load = useCallback(() => {
+    const req = ++lastReq.current;
     setLoading(true);
     return topupsApi
       .list({ status: tab || undefined, limit: 50 })
       .then((d) => {
+        if (req !== lastReq.current) return;
         setData(d);
         setError('');
       })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
+      .catch((e) => req === lastReq.current && setError(e.message))
+      .finally(() => req === lastReq.current && setLoading(false));
   }, [tab]);
 
   useEffect(() => {

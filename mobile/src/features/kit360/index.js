@@ -1,5 +1,5 @@
 /**
- * Forma 360° (admin paneldagi Superadmin → Forma 360° bilan bir xil): 17 klub/terma jamoaning haqiqiy
+ * Forma 360° (admin paneldagi Superadmin → Forma 360° bilan bir xil): 18 klub/terma jamoaning haqiqiy
  * 8 burchakli fotosuratlari. Katalogdagi klub shu ro'yxatda bo'lsa — studiyada 3D o'rniga foto-360° ko'rsatiladi.
  */
 export const KIT360_SOURCE = 'formo-kit360';
@@ -18,6 +18,7 @@ const ALIASES = {
   mci: ['manchester siti', 'манчестер сити', 'manchester city', 'man city', 'mci'],
   uz: ["o'zbekiston", 'ozbekiston', 'ўзбекистон', 'узбекистан', 'uzbekistan', 'uzb'],
   de: ['germaniya', 'германия', 'germany', 'deutschland', 'ger'],
+  lfc: ['liverpul', 'ливерпуль', 'liverpool', 'liverpool fc', 'lfc', 'liv'],
   ars: ['arsenal', 'арсенал', 'arsenal fc', 'ars'],
   che: ['chelsi', 'челси', 'chelsea', 'chelsea fc', 'che'],
   juv: ['yuventus', 'ювентус', 'juventus', 'juve', 'juv'],
@@ -29,7 +30,7 @@ const norm = (s) => String(s ?? '').toLowerCase().replace(/[‘’ʻʼ`]/g, "'")
 
 export const KIT360_IDS = Object.keys(ALIASES);
 
-/** 17 ta Forma 360° jamoalari — admin paneldagi Superadmin → Forma 360° bilan bir xil */
+/** 18 ta Forma 360° jamoalari — admin paneldagi Superadmin → Forma 360° bilan bir xil */
 export const KIT360_TEAMS = [
   { id: 'es', kind: 'national', name: 'Ispaniya', code: 'ESP', color: '#c60b1e', accent: '#f6c23e', colorsLabel: 'Qizil / sariq' },
   { id: 'ar', kind: 'national', name: 'Argentina', code: 'ARG', color: '#75aadb', accent: '#111318', colorsLabel: 'Oq / havorang' },
@@ -43,6 +44,7 @@ export const KIT360_TEAMS = [
   { id: 'mu', kind: 'club', name: 'Manchester Yunayted', code: 'MU', color: '#da291c', accent: '#ffffff', colorsLabel: 'Qizil / oq' },
   { id: 'psg', kind: 'club', name: 'PSJ', code: 'PSG', color: '#1b2450', accent: '#ffffff', colorsLabel: "To'q ko'k / qizil" },
   { id: 'mci', kind: 'club', name: 'Manchester Siti', code: 'MCI', color: '#6cabdd', accent: '#1b2450', colorsLabel: 'Havorang / oq' },
+  { id: 'lfc', kind: 'club', name: 'Liverpul', code: 'LFC', color: '#c8102e', accent: '#ffffff', colorsLabel: 'Qizil / oq' },
   { id: 'ars', kind: 'club', name: 'Arsenal', code: 'ARS', color: '#db0007', accent: '#ffffff', colorsLabel: 'Qizil / oq' },
   { id: 'che', kind: 'club', name: 'Chelsi', code: 'CHE', color: '#034694', accent: '#ffffff', colorsLabel: "Ko'k / oq" },
   { id: 'juv', kind: 'club', name: 'Yuventus', code: 'JUV', color: '#111318', accent: '#ffffff', colorsLabel: 'Qora / oq' },
@@ -81,7 +83,8 @@ export function kit360Message({ team, name, number, side }) {
     team,
     name: String(name ?? ''),
     number: String(number ?? ''),
-    side: side === 'front' ? 'front' : 'back',
+    // 'side' — viewer o'zi yonga burilgan (90°/270°): tomon buyrug'i yuborilmaydi, forma joyida qoladi
+    side: side === 'front' ? 'front' : side === 'side' ? null : 'back',
   });
 }
 

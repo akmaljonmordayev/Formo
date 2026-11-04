@@ -55,6 +55,7 @@ export type ReceiptResult =
   | { result: 'OK'; topUp: TopUpView }
   | { result: 'NOT_LINKED' }
   | { result: 'NO_OPEN_TOPUP' }
+  | { result: 'ALREADY_IN_REVIEW' }
   | { result: 'DUPLICATE_RECEIPT' };
 export type CancelTopUpResult = { result: 'OK'; topUp: TopUpView } | { result: 'NOT_LINKED' } | { result: 'NOT_CANCELLABLE' };
 

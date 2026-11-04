@@ -1,5 +1,5 @@
 /**
- * Forma 360° — 17 klub/terma jamoaning (7 terma, 10 klub) haqiqiy 8 burchakli fotosuratlari (admin: Superadmin → Forma 360°,
+ * Forma 360° — 18 klub/terma jamoaning (7 terma, 11 klub) haqiqiy 8 burchakli fotosuratlari (admin: Superadmin → Forma 360°,
  * mobil: "Klub formasi" studiyasi). `Club.kit360Id` klubni aynan shu suratlar to'plamiga bog'laydi.
  *
  * Bu ro'yxat yagona manba: backfill skripti, katalog importi, admin DTO va testlar shundan oladi.
@@ -7,7 +7,7 @@
  */
 export const KIT360_IDS = [
   'es', 'ar', 'fr', 'en', 'pt', 'uz', 'de',
-  'rm', 'fcb', 'mu', 'psg', 'mci', 'ars', 'che', 'juv', 'rom', 'atm',
+  'rm', 'fcb', 'mu', 'psg', 'mci', 'lfc', 'ars', 'che', 'juv', 'rom', 'atm',
 ] as const;
 export type Kit360Id = (typeof KIT360_IDS)[number];
 
@@ -25,6 +25,7 @@ export const KIT360_ALIASES: Record<Kit360Id, readonly string[]> = {
   mu: ['manchester yunayted', 'манчестер юнайтед', 'manchester united', 'man united', 'man utd', 'mu', 'mun'],
   psg: ['psj', 'псж', 'psg', 'paris saint-germain', 'paris saint germain', 'paris sg'],
   mci: ['manchester siti', 'манчестер сити', 'manchester city', 'man city', 'mci'],
+  lfc: ['liverpul', 'ливерпуль', 'liverpool', 'liverpool fc', 'lfc', 'liv'],
   ars: ['arsenal', 'арсенал', 'arsenal fc', 'ars'],
   che: ['chelsi', 'челси', 'chelsea', 'chelsea fc', 'che'],
   juv: ['yuventus', 'ювентус', 'juventus', 'juve', 'juv'],

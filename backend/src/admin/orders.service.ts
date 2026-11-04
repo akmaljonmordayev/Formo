@@ -164,6 +164,13 @@ export class OrdersService {
       const updated = await tx.order.findUniqueOrThrow({ where: { id }, include });
       if (current.status !== dto.status) {
         await this.history.record({ orderId: id, from: current.status, to: dto.status, actor, note: dto.note }, tx);
+        // Bekor qilingan buyurtmaning promokod ishlatilishi qaytadi (mijoz bekor qilgandagi kabi)
+        if (dto.status === OrderStatus.CANCELLED && current.promocodeId) {
+          await tx.promocode.updateMany({
+            where: { id: current.promocodeId, usedCount: { gt: 0 } },
+            data: { usedCount: { decrement: 1 } },
+          });
+        }
         // Balansdan to'langan buyurtma bekor qilinsa yoki qaytarilsa — pul mijoz balansiga bir marta qaytadi
         if (dto.status === OrderStatus.CANCELLED || dto.status === OrderStatus.RETURNED) {
           if (await this.wallet.refundOrder(tx, id, actor?.id ?? null)) {
@@ -187,7 +194,18 @@ export class OrdersService {
 
   /** Yakuniy holatdan qaytib bo'lmaydi; DELIVERED faqat yetkazishdan keyin; sex bosqichlari sexsiz bo'lmaydi */
   private assertTransition(current: { status: OrderStatus; workshopId: number | null }, dto: UpdateOrderStatusDto) {
+    // Sexni almashtirish faqat sexga yuborish bosqichida (assign qoidalari bilan bir xil): to'lanmagan buyurtma
+    // sexga bog'lanmasin, tikilayotgan buyurtma esa tarixsiz va sexga xabarsiz boshqa sexga o'tib ketmasin
+    if (dto.workshopId !== undefined && dto.workshopId !== current.workshopId) {
+      if (!ASSIGNABLE.includes(current.status) || dto.status !== OrderStatus.SENT_TO_WORKSHOP) {
+        throw new ConflictException('Sexni faqat NEW yoki SENT_TO_WORKSHOP holatidagi buyurtmada, sexga yuborish orqali almashtirish mumkin');
+      }
+    }
     if (dto.status === current.status) return;
+    // To'lov kutish holatiga qaytarish mumkin emas: to'langan buyurtma muddati o'tib bekor bo'lishi mumkin edi
+    if (dto.status === OrderStatus.PENDING_PAYMENT) {
+      throw new ConflictException("Buyurtmani to'lov kutish holatiga qaytarib bo'lmaydi");
+    }
     // To'lanmagan onlayn buyurtma ishlab chiqarishga o'tib ketmasin (faqat bekor qilish mumkin)
     if (current.status === OrderStatus.PENDING_PAYMENT && dto.status !== OrderStatus.CANCELLED) {
       throw new ConflictException("Buyurtma hali to'lanmagan — faqat bekor qilish mumkin");

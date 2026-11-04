@@ -13,7 +13,7 @@ import { Public } from '../common/decorators/public.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
 import { ParseIdPipe } from '../common/pipes/parse-id.pipe';
 import { CatalogService } from './catalog.service';
-import { Kit360FilterDto, ListCatalogClubsQueryDto, PopularClubsQueryDto } from './dto/catalog.dto';
+import { BestSellingKitsQueryDto, Kit360FilterDto, ListCatalogClubsQueryDto, PopularClubsQueryDto } from './dto/catalog.dto';
 
 @ApiTags('Mobil · Katalog')
 @Controller('catalog')
@@ -51,6 +51,18 @@ export class CatalogController {
     return this.catalog.club(id);
   }
 
+  // kits/:id dan oldin — aks holda "best-selling" id sifatida o'qiladi
+  @Public()
+  @Get('kits/best-selling')
+  @ApiOperation({
+    summary: 'Eng ko‘p sotilgan formalar',
+    description: 'Buyurtmalardagi sotilgan soni bo‘yicha (bekor qilingan/qaytarilgan/to‘lanmaganlar sanalmaydi). kit360=true — har klubdan bitta forma.',
+  })
+  @ApiOkResponse({ description: '[{ id, clubId, label, title, price, priceBreakdown, sizes, club: { id, name, code, kit360Id, category }, soldCount }]' })
+  bestSelling(@Query() query: BestSellingKitsQueryDto) {
+    return this.catalog.bestSellingKits(query.limit, query.kit360);
+  }
+
   @Public()
   @Get('kits/:id')
   @ApiOperation({
@@ -85,5 +97,31 @@ export class CatalogController {
   @ApiOperation({ summary: 'Klubni sevimlilardan olib tashlash' })
   removeFavorite(@Param('id', ParseIdPipe) id: number, @CurrentUser() user: AuthUser) {
     return this.catalog.removeFavorite(user.id, id);
+  }
+
+  @ApiBearerAuth()
+  @Roles(Role.USER)
+  @ApiForbiddenResponse({ description: 'Faqat mobil ilova foydalanuvchisi' })
+  @Get('favorite-kits')
+  @ApiOperation({ summary: 'Yoqtirgan formalarim (yurakcha)' })
+  favoriteKits(@CurrentUser() user: AuthUser) {
+    return this.catalog.favoriteKits(user.id);
+  }
+
+  @ApiBearerAuth()
+  @Roles(Role.USER)
+  @Put('kits/:id/favorite')
+  @ApiOperation({ summary: 'Formani yoqtirganlarga qo‘shish (♥)' })
+  @ApiNotFoundResponse({ description: 'Forma topilmadi' })
+  addFavoriteKit(@Param('id', ParseIdPipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.catalog.addFavoriteKit(user.id, id);
+  }
+
+  @ApiBearerAuth()
+  @Roles(Role.USER)
+  @Delete('kits/:id/favorite')
+  @ApiOperation({ summary: 'Formani yoqtirganlardan olib tashlash' })
+  removeFavoriteKit(@Param('id', ParseIdPipe) id: number, @CurrentUser() user: AuthUser) {
+    return this.catalog.removeFavoriteKit(user.id, id);
   }
 }

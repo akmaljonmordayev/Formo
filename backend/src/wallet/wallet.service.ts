@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
-import { BalanceTxType, PaymentMethod, PaymentStatus, Prisma } from '@prisma/client';
+import { BalanceTxType, PaymentStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 export class InsufficientBalanceError extends BadRequestException {
@@ -57,14 +57,13 @@ export class WalletService {
 
   /**
    * Balansdan to'langan buyurtma bekor qilinsa/qaytarilsa — pul bir marta qaytadi.
-   * To'lov yozuvi bo'lmasa (naqd, to'lanmagan) hech narsa qilinmaydi. Qaytarilgan summa yoki null.
+   * Qaror faqat to'lov yozuviga (ORDER_PAYMENT) qarab: buyurtmaning hozirgi `paymentMethod`i keyin
+   * o'zgargan bo'lishi mumkin, lekin yechilgan pul baribir qaytishi shart. Yozuv bo'lmasa (naqd,
+   * to'lanmagan) hech narsa qilinmaydi. Qaytarilgan summa yoki null.
    */
   async refundOrder(db: Prisma.TransactionClient, orderId: number, actorId?: number | null) {
-    const order = await db.order.findUnique({
-      where: { id: orderId },
-      select: { customerId: true, paymentMethod: true, code: true },
-    });
-    if (!order || order.paymentMethod !== PaymentMethod.BALANCE) return null;
+    const order = await db.order.findUnique({ where: { id: orderId }, select: { code: true } });
+    if (!order) return null;
     const paid = await db.balanceTransaction.findUnique({
       where: { type_orderId: { type: BalanceTxType.ORDER_PAYMENT, orderId } },
     });

@@ -137,7 +137,9 @@ export default function Navbat() {
           onSelect={handleSelect}
         />
         <div className={`${mobileView === 'detail' ? 'block' : 'hidden'} xl:block`}>
+          {/* key: boshqa buyurtma tanlanganda ochiq "rad etish" paneli va sababi yangi buyurtmaga o'tib ketmasin */}
           <OrderDetail
+            key={selected?.id ?? 'none'}
             order={selected}
             onStartPress={handleStartPress}
             onReject={handleReject}

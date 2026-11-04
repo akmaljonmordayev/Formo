@@ -135,3 +135,15 @@ test('GPS: ruxsat faqat locate() da so\'raladi; rad etish/bloklash/GPS o\'chiq h
     internals.H = null;
   }
 });
+
+test('saveAddress keshdagi manzillar ro‘yxatini yangilaydi (checkout yangi manzilni ko‘radi)', async () => {
+  const cache = require(src('utils/memCache.js'));
+  cache.setCached('addresses', [{ id: 1, label: 'Uy', isDefault: true }]);
+  mockFetch([{ status: 201, body: { id: 9, label: 'Ish', isDefault: true } }]);
+  await saveAddress({ label: 'Ish', address: 'Chilonzor 12 kvartal', coords: { latitude: 41.28, longitude: 69.2 }, isDefault: true });
+  assert.deepEqual(cache.getCached('addresses'), [
+    { id: 1, label: 'Uy', isDefault: false },
+    { id: 9, label: 'Ish', isDefault: true },
+  ]);
+  cache.clearCache();
+});

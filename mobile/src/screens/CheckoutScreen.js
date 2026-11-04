@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
@@ -44,6 +44,7 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
   const wallet = useWallet();
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const inFlight = useRef(false);
   const [submitError, setSubmitError] = useState(null);
 
   // Asosiy usul — balansdan to'lash. Naqd faqat Superadmin yoqib qo'ygan bo'lsa (allowCash).
@@ -101,6 +102,8 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
   };
 
   const submit = async () => {
+    // Tez ikki marta bosish: `submitting` holati keyingi render'gacha o'zgarmaydi — ref darhol
+    if (inFlight.current) return;
     if (!methods.includes(paymentMethod)) {
       setSubmitError(t('payNoMethods'));
       return;
@@ -111,6 +114,7 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
       return;
     }
 
+    inFlight.current = true;
     setSubmitting(true);
     setSubmitError(null);
     try {
@@ -122,8 +126,8 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
         ...(cart.promocode ? { promocode: cart.promocode } : {}),
         ...(comment.trim() ? { comment: comment.trim() } : {}),
       });
-      // Server savatni tozaladi — lokal holatni ham yangilaymiz
-      cart.refresh();
+      // Server savatni tozaladi — lokal holat va promokod ham tozalanadi
+      cart.afterOrder();
       wallet.refetch({ silent: true });
       onPlaced(order);
     } catch (err) {
@@ -132,6 +136,7 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
       // Slot band bo'lib qolgan (409) — bo'sh joylarni qayta yuklaymiz
       if (err instanceof ApiError && err.status === 409) refetchSlots();
     } finally {
+      inFlight.current = false;
       setSubmitting(false);
     }
   };

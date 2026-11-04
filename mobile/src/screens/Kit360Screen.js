@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -16,7 +16,7 @@ import { Button, Header, Overline, Screen, Segment, formatMoney } from '../compo
 import Kit360Viewer from '../components/ui/Kit360Viewer';
 import { visibleSizes } from '../features/config';
 import { KIT360_TEAMS, findKit360Team, kit360Team } from '../features/kit360';
-import { useClubs } from '../features/products';
+import { useClub, useClubs } from '../features/products';
 import { errorText } from '../utils/errors';
 
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL', '3XL'];
@@ -38,7 +38,6 @@ const cleanPrintNumber = (s, max = 99) => {
 
 export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, onBack }) {
   const [selectedId, setSelectedId] = useState(initialTeam || 'rm');
-  const [category, setCategory] = useState('all'); // 'all' | 'national' | 'club'
   const [side, setSide] = useState('back');
   const [tab, setTab] = useState('size'); // 'size' | 'print' | 'shorts'
   const [name, setName] = useState('');
@@ -49,6 +48,7 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
   const [numberOnShorts, setNumberOnShorts] = useState(false);
   const [shortsNumber, setShortsNumber] = useState('');
   const [adding, setAdding] = useState(false);
+  const addingRef = useRef(false);
   const [feedback, setFeedback] = useState(null);
 
   // Backend klublarini yuklaymiz (aniq kitId va narxlar uchun)
@@ -68,19 +68,19 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
     return clubs.find((c) => kit360Team(c) === team.id || c.kit360Id === team.id) || null;
   }, [clubs, team.id]);
 
-  const matchedKit = matchedClub?.kits?.[0] || matchedClub;
-  const kitId = matchedKit?.id ?? matchedClub?.id ?? 1;
+  // Klublar ro'yxatida formalar yo'q (faqat kitsCount) — haqiqiy kit id, narx va o'lchamlar klub sahifasidan
+  const { products: clubKits, isLoading: kitLoading } = useClub(matchedClub?.id);
+  const matchedKit = clubKits[0] || null;
+  const kitId = matchedKit?.kitId ?? null;
 
   const prices = useMemo(() => {
-    const shirt = matchedKit?.shirtPrice || matchedClub?.priceBreakdown?.shirt || 99000;
-    const shorts = matchedKit?.shortsPrice || matchedClub?.priceBreakdown?.shorts || 60000;
-    const print = matchedKit?.printPrice || matchedClub?.priceBreakdown?.print || 30000;
-    return { shirt, shorts, print };
-  }, [matchedKit, matchedClub]);
+    const pb = matchedKit?.priceBreakdown || {};
+    return { shirt: pb.shirt ?? 99000, shorts: pb.shorts ?? 60000, print: pb.print ?? 30000 };
+  }, [matchedKit]);
 
   const availableSizes = useMemo(() => {
     const raw = matchedKit?.sizes || SIZES;
-    const sizeObjects = raw.map((s) => ({ size: typeof s === 'string' ? s : s.size, available: true }));
+    const sizeObjects = raw.map((s) => (typeof s === 'string' ? { size: s, available: true } : { size: s.size, available: s.available !== false }));
     return visibleSizes(sizeObjects, rules).filter((s) => s.available).map((s) => s.size);
   }, [matchedKit, rules]);
 
@@ -100,14 +100,14 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
   const totalPrice = prices.shirt + (withShorts ? prices.shorts : 0) + (hasPrint ? prices.print : 0);
   const paused = Boolean(rules && rules.acceptOrders === false);
 
-  const filteredTeams = useMemo(() => {
-    if (category === 'national') return KIT360_TEAMS.filter((t) => t.kind === 'national');
-    if (category === 'club') return KIT360_TEAMS.filter((t) => t.kind === 'club');
-    return KIT360_TEAMS;
-  }, [category]);
-
   const addToCart = async () => {
-    if (!shirtSize || !cart) return;
+    // Tez ikki marta bosish — server bir xil qatorlarni birlashtirib miqdorni 2 qilib qo'yardi
+    if (!shirtSize || !cart || addingRef.current) return;
+    if (!kitId) {
+      setFeedback({ ok: false, text: t('noKits') });
+      return;
+    }
+    addingRef.current = true;
     setAdding(true);
     setFeedback(null);
     try {
@@ -119,13 +119,14 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
         withShorts,
         shortsSize: withShorts ? shortsSize || shirtSize : undefined,
         numberOnShorts: withShorts ? numberOnShorts : false,
-        shortsNumber: withShorts && numberOnShorts ? (shortsNumber || printNum || null) : null,
+        shortsNumber: withShorts && numberOnShorts ? (cleanPrintNumber(shortsNumber, rules.printNumberMax || 99) || printNum || null) : null,
       });
       setFeedback({ ok: true, text: t('added') });
       setTimeout(() => setFeedback(null), 2500);
     } catch (err) {
       setFeedback({ ok: false, text: errorText(err, t) });
     } finally {
+      addingRef.current = false;
       setAdding(false);
     }
   };
@@ -160,7 +161,7 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
                   {feedback.text}
                 </Text>
               ) : null}
-              <Button disabled={paused || adding || !shirtSize} onPress={addToCart}>
+              <Button disabled={paused || adding || !shirtSize || (kitLoading && !kitId)} onPress={addToCart}>
                 {adding ? t('adding') : t('addToCart')}
               </Button>
             </View>
@@ -169,28 +170,13 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
       >
         <Header cart title={t('forma360')} subtitle={t('forma360Sub')} onBack={onBack} />
 
-        {/* Guruh tanlash: Barchasi / Terma jamoalar / Klublar */}
-        <Segment
-          wide
-          style={styles.categorySwitch}
-          options={[t('all'), t('nationalTeams'), t('clubTeams')]}
-          value={
-            category === 'national' ? t('nationalTeams') : category === 'club' ? t('clubTeams') : t('all')
-          }
-          onChange={(val) => {
-            if (val === t('nationalTeams')) setCategory('national');
-            else if (val === t('clubTeams')) setCategory('club');
-            else setCategory('all');
-          }}
-        />
-
-        {/* Jamoalarni tanlash lentasi (17 ta) */}
+        {/* Jamoalarni tanlash lentasi */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
           contentContainerStyle={styles.teamRail}
         >
-          {filteredTeams.map((item) => {
+          {KIT360_TEAMS.map((item) => {
             const isSelected = item.id === team.id;
             return (
               <Pressable
@@ -213,18 +199,19 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
         <View style={styles.previewBox}>
           <View style={styles.glow} />
           <Kit360Viewer
+            t={t}
             team={team.id}
             name={printName}
             number={printNum}
-            side={side}
-            onSideChange={setSide}
-            style={styles.viewer}
+            view={side}
+            onViewChange={setSide}
+            height={350}
           />
           {/* Old / Orqa tomon tugmasi */}
           <View style={styles.previewSide}>
             <Segment
               options={[t('front'), t('rear')]}
-              value={side === 'front' ? t('front') : t('rear')}
+              value={side === 'front' ? t('front') : side === 'back' ? t('rear') : null}
               onChange={(value) => setSide(value === t('front') ? 'front' : 'back')}
             />
           </View>
@@ -368,10 +355,6 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
 const styles = StyleSheet.create({
   keyboardWrap: { flex: 1, backgroundColor: colors.background },
   screenContent: { paddingBottom: 170 },
-  categorySwitch: {
-    marginHorizontal: spacing.lg,
-    marginBottom: spacing.md,
-  },
   teamRail: {
     paddingHorizontal: spacing.lg,
     gap: spacing.sm,
@@ -418,10 +401,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
     marginTop: spacing.xs,
-  },
-  viewer: {
-    width: '100%',
-    height: '100%',
   },
   glow: {
     position: 'absolute',

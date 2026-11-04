@@ -19,12 +19,12 @@ describe('Formalar — eski katalog o‘rniga Forma 360°', () => {
     }
   });
 
-  it('har klub/terma jamoaga bitta forma: 7 terma jamoa va 10 klub', () => {
-    expect(TEAMS).toHaveLength(17);
-    expect(new Set(TEAMS.map((t) => t.id)).size).toBe(17);
+  it('har klub/terma jamoaga bitta forma: 7 terma jamoa va 11 klub', () => {
+    expect(TEAMS).toHaveLength(18);
+    expect(new Set(TEAMS.map((t) => t.id)).size).toBe(18);
     expect(TEAMS.filter((t) => t.kind === 'national').map((t) => t.id)).toEqual(['es', 'ar', 'fr', 'en', 'pt', 'uz', 'de']);
     expect(TEAMS.filter((t) => t.kind === 'club').map((t) => t.id)).toEqual(
-      ['rm', 'fcb', 'mu', 'psg', 'mci', 'ars', 'che', 'juv', 'rom', 'atm'],
+      ['rm', 'fcb', 'mu', 'psg', 'mci', 'lfc', 'ars', 'che', 'juv', 'rom', 'atm'],
     );
   });
 });

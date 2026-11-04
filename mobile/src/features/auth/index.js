@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { api } from '../../services/api';
+import { api, AuthError } from '../../services/api';
 import * as storage from '../../utils/storage';
 import { isValidChallenge } from './telegram';
 
@@ -12,6 +12,26 @@ export function pickProfileFields(fields) {
     if (fields?.[key] !== undefined) body[key] = fields[key];
   });
   return body;
+}
+
+const RESTORE_RETRY_DELAYS_MS = [1000, 2500];
+
+/** Sessiya yaroqsizligi aniq (refresh rad etildi yoki hisob bloklangan) — tarmoq/server xatosi emas */
+export function isSessionInvalid(err) {
+  return err instanceof AuthError || err?.status === 401 || err?.status === 403;
+}
+
+/** GET /auth/me; vaqtinchalik xatoda (tarmoq, 5xx, 429) qisqa pauza bilan qayta uriniladi */
+export async function meWithRetry(isCancelled = () => false, delays = RESTORE_RETRY_DELAYS_MS) {
+  for (let attempt = 0; ; attempt++) {
+    try {
+      return await api.auth.me();
+    } catch (err) {
+      if (isSessionInvalid(err) || attempt >= delays.length || isCancelled()) throw err;
+      await new Promise((resolve) => setTimeout(resolve, delays[attempt]));
+      if (isCancelled()) return null;
+    }
+  }
 }
 
 /**
@@ -55,16 +75,19 @@ export default function useAuth() {
           return;
         }
 
-        // Validate token against the server
-        const me = await api.auth.me();
-        if (!cancelled) {
+        // Validate token against the server. Tarmoq/server xatosida bir necha marta qayta urinamiz
+        const me = await meWithRetry(() => cancelled);
+        if (!cancelled && me) {
           setUser(me);
           setIsAuthenticated(true);
         }
-      } catch {
-        // Token invalid / expired / network failure — clear credentials and stay unauthenticated
-        await storage.removeToken();
-        await storage.removeRefreshToken();
+      } catch (err) {
+        // Faqat sessiya haqiqatan yaroqsiz bo'lsa (401/403) tokenlar o'chiriladi. Internet yo'q yoki backend
+        // vaqtincha ishlamasa tokenlar saqlanadi — keyingi ochilishda sessiya tiklanadi, qayta kirish shart emas
+        if (isSessionInvalid(err)) {
+          await storage.removeToken();
+          await storage.removeRefreshToken();
+        }
       } finally {
         if (!cancelled) setIsLoading(false);
       }

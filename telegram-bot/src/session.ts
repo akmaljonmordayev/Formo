@@ -25,11 +25,14 @@ export class UserSessions {
 
   private entry(userId: string) {
     let e = this.map.get(userId);
-    if (!e) {
+    if (e) {
+      // Map tartibi = oxirgi faollik (LRU): to'lganda faol foydalanuvchining holati o'chib ketmasin
+      this.map.delete(userId);
+    } else {
       if (this.map.size >= MAX_USERS) this.prune();
       e = { touched: this.now() };
-      this.map.set(userId, e);
     }
+    this.map.set(userId, e);
     e.touched = this.now();
     return e;
   }

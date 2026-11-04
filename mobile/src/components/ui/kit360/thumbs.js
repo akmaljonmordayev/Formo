@@ -12,6 +12,7 @@ export default {
   "fcb": require('../../../../assets/kit360/fcb.jpg'),
   "fr": require('../../../../assets/kit360/fr.jpg'),
   "juv": require('../../../../assets/kit360/juv.jpg'),
+  "lfc": require('../../../../assets/kit360/lfc.jpg'),
   "mci": require('../../../../assets/kit360/mci.jpg'),
   "mu": require('../../../../assets/kit360/mu.jpg'),
   "psg": require('../../../../assets/kit360/psg.jpg'),
