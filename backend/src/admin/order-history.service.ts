@@ -3,6 +3,7 @@ import { OrderStatus, Prisma } from '@prisma/client';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { TelegramOutboxService } from '../telegram/telegram-outbox.service';
+import { customerStageChanged } from '../shop/order-status';
 import { ROLE_LABEL } from './audit.service';
 
 export interface StatusChange {
@@ -40,7 +41,10 @@ export class OrderHistoryService {
         note: change.note || null,
       },
     });
-    // Mijoz botga ulangan bo'lsa — holat xabari shu tranzaksiyada navbatga qo'yiladi
-    await this.telegram.enqueueOrderStatus(db, change.orderId, change.to, log.id);
+    // Mijoz botga ulangan bo'lsa — holat xabari shu tranzaksiyada navbatga qo'yiladi. Mijoz faqat o'z
+    // bosqichlarini ko'radi: ichki sex qadamlari (masalan qabul → tayyor, ikkalasi "jarayonda") xabarsiz
+    if (customerStageChanged(change.from, change.to)) {
+      await this.telegram.enqueueOrderStatus(db, change.orderId, change.to, log.id);
+    }
   }
 }

@@ -6,12 +6,13 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 // Backend OrderStatus (prisma/schema.prisma) bilan bir xil kalitlar.
 const TONES = {
   PENDING_PAYMENT: { color: '#F5A55E', icon: 'credit-card-clock-outline' },
-  NEW: { color: '#7B93FF', icon: 'check-circle-outline' },
-  SENT_TO_WORKSHOP: { color: '#A68BFF', icon: 'send-outline' },
-  ACCEPTED: { color: '#A68BFF', icon: 'clipboard-check-outline' },
-  PRINTING: { color: '#F2A33A', icon: 'printer-outline' },
-  QUALITY_CHECK: { color: '#F2A33A', icon: 'shield-check-outline' },
-  READY: { color: '#3FD9B7', icon: 'package-variant-closed' },
+  // Mijoz 4 bosqichni ko'radi: yuborildi → qabul qilindi → jarayonda (sex holatlari) → yetkazilmoqda
+  NEW: { color: '#7B93FF', icon: 'send-check-outline' },
+  SENT_TO_WORKSHOP: { color: '#A68BFF', icon: 'clipboard-check-outline' },
+  ACCEPTED: { color: '#F2A33A', icon: 'tshirt-crew-outline' },
+  PRINTING: { color: '#F2A33A', icon: 'tshirt-crew-outline' },
+  QUALITY_CHECK: { color: '#F2A33A', icon: 'tshirt-crew-outline' },
+  READY: { color: '#F2A33A', icon: 'tshirt-crew-outline' },
   DELIVERING: { color: '#4FC3FF', icon: 'truck-fast-outline' },
   DELIVERED: { color: '#3FD98A', icon: 'check-decagram' },
   CANCELLED: { color: '#FF6B57', icon: 'close-circle-outline' },
@@ -56,19 +57,22 @@ const styles = StyleSheet.create({
   textLarge: { fontSize: 13, fontWeight: '900' },
 });
 
-// ─── 4 bosqichli kuzatish: Qabul qilindi → Tayyorlanmoqda → Yetkazilmoqda → Yetkazildi ───
+// ─── 4 bosqichli kuzatish: Yuborildi → Qabul qilindi → Jarayonda → Yetkazilmoqda (yetkazildi — hammasi ✓) ───
 
 const STAGES = [
-  { key: 'stageAccepted', icon: 'check-circle-outline', statuses: ['PENDING_PAYMENT', 'NEW'] },
-  { key: 'stagePreparing', icon: 'tshirt-crew-outline', statuses: ['SENT_TO_WORKSHOP', 'ACCEPTED', 'PRINTING', 'QUALITY_CHECK', 'READY'] },
+  { key: 'stageSent', icon: 'send-check-outline', statuses: ['PENDING_PAYMENT', 'NEW'] },
+  { key: 'stageAccepted', icon: 'clipboard-check-outline', statuses: ['SENT_TO_WORKSHOP'] },
+  { key: 'stageInProgress', icon: 'tshirt-crew-outline', statuses: ['ACCEPTED', 'PRINTING', 'QUALITY_CHECK', 'READY'] },
   { key: 'stageDelivering', icon: 'truck-fast-outline', statuses: ['DELIVERING'] },
-  { key: 'stageDelivered', icon: 'home-check-outline', statuses: ['DELIVERED'] },
 ];
 
-/** Holat → bosqich indeksi (0..3); bekor/qaytarilgan — -1 */
+/** Holat → bosqich indeksi (0..3); yetkazildi — 4 (hammasi bajarilgan); bekor/qaytarilgan — -1 */
 export function stageOf(status) {
+  if (status === 'DELIVERED') return STAGES.length;
   return STAGES.findIndex((stage) => stage.statuses.includes(status));
 }
+
+export const STAGE_COUNT = STAGES.length;
 
 export function OrderStepper({ t, status }) {
   const current = stageOf(status);

@@ -273,7 +273,7 @@ export default function AppNavigator({ store, t, auth }) {
         rules={config.rules}
         cart={cart}
         onBack={() => navigate(kit360From)}
-        onAdded={() => openCart('kit360')}
+        onOpenCart={() => openCart('kit360')}
       />
     ) : route === 'studio' && !studioKit ? (
       // Studio — Forma 360° katalogi (qidiruv, kategoriyalar, barcha formalar)

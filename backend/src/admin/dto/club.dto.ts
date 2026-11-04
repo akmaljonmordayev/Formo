@@ -64,14 +64,14 @@ export class KitDto {
   @MaxLength(500)
   description?: string;
 
-  @ApiPropertyOptional({ example: 99000, description: "Futbolka narxi, so'm" })
+  @ApiPropertyOptional({ example: 159000, description: "Komplekt (futbolka + shortik) narxi, so'm" })
   @IsOptional()
   @IsInt()
   @Min(0)
   @Max(MAX_PRICE)
   shirtPrice?: number;
 
-  @ApiPropertyOptional({ example: 60000, description: "Shortik narxi, so'm" })
+  @ApiPropertyOptional({ example: 0, description: "Eskirgan: shortik komplekt narxi ichida — 0 yuboring" })
   @IsOptional()
   @IsInt()
   @Min(0)

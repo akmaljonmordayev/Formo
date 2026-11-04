@@ -56,9 +56,10 @@ export class OrdersService {
   ) {}
 
   async list(query: ListOrdersQueryDto) {
-    const { search, status, paymentStatus, workshopId, page = 1, limit = 20 } = query;
+    const { search, status, statuses, paymentStatus, workshopId, page = 1, limit = 20 } = query;
     const where: Prisma.OrderWhereInput = {};
     if (status) where.status = status;
+    else if (statuses?.length) where.status = { in: statuses };
     if (workshopId) where.workshopId = workshopId;
     if (paymentStatus) where.paymentStatus = paymentStatus;
     if (search) {

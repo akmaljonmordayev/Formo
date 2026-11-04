@@ -121,8 +121,8 @@ async function main() {
             textColor: kit.textColor,
             colorsLabel: kit.colorsLabel,
             description: kit.description,
-            shirtPrice: kit.priceBreakdown.shirt,
-            shortsPrice: kit.priceBreakdown.shorts,
+            shirtPrice: kit.priceBreakdown.shirt + (kit.priceBreakdown.shorts ?? 0), // komplekt narxi
+            shortsPrice: 0,
             printPrice: kit.priceBreakdown.print,
             sizes: kit.sizes.filter((s) => s.available).map((s) => s.size),
             sortOrder: i,

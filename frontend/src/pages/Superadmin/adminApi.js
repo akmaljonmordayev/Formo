@@ -7,9 +7,9 @@ import { pricingApi, settingsApi } from '../../features/platform/platformApi';
  * shuning uchun yangi forma narxi jadvaldan to'ldiriladi va "Barcha formalarga qo'llash" mavjud.
  */
 
+// Forma komplekt (futbolka + shortik) bitta narx: 'club.tshirt' — komplekt narxi. 'club.shorts' endi yo'q.
 export const PRICE_KEYS = {
   shirt: 'club.tshirt',
-  shorts: 'club.shorts',
   print: 'club.print',
   // Maxsus dizayn (studiya) narxlari — backend/src/shop/studio.ts STUDIO_PRICE_KEYS bilan bir xil
   studio: 'studio.custom',
@@ -20,12 +20,11 @@ export const PRICE_KEYS = {
 
 // Jadval bo'sh bo'lsa (yangi baza) — shu standart qatorlar bilan yaratish taklif qilinadi
 export const DEFAULT_PRICING = [
-  { key: PRICE_KEYS.shirt, section: 'Komplekt', step: 1, label: 'Futbolka', sub: "Alohida ham sotiladi. Barcha o'lchamlar: 2-13 yosh va S-3XL", price: 99000 },
-  { key: PRICE_KEYS.shorts, section: 'Komplekt', step: 1, label: 'Shortik', sub: "Futbolkaga qo'shimcha", price: 60000 },
+  { key: PRICE_KEYS.shirt, section: 'Komplekt', step: 1, label: 'Komplekt (futbolka + shortik)', sub: 'Bitta forma komplekti narxi', price: 159000 },
   { key: PRICE_KEYS.print, section: 'Komplekt', step: 1, label: 'Ism + raqam', sub: 'DTF bosma, orqa tomonda', price: 30000 },
 ];
 
-export const FALLBACK_PRICES = { shirt: 99000, shorts: 60000, print: 30000 };
+export const FALLBACK_PRICES = { shirt: 159000, print: 30000 };
 
 /** Narx jadvali ro'yxatidan kalit bo'yicha narx (topilmasa fallback) */
 export const priceOf = (items, key, fallback = 0) => {
@@ -39,11 +38,11 @@ export async function loadKitPrices() {
     const items = await pricingApi.list();
     return {
       shirtPrice: priceOf(items, PRICE_KEYS.shirt, FALLBACK_PRICES.shirt),
-      shortsPrice: priceOf(items, PRICE_KEYS.shorts, FALLBACK_PRICES.shorts),
+      shortsPrice: 0,
       printPrice: priceOf(items, PRICE_KEYS.print, FALLBACK_PRICES.print),
     };
   } catch {
-    return { shirtPrice: FALLBACK_PRICES.shirt, shortsPrice: FALLBACK_PRICES.shorts, printPrice: FALLBACK_PRICES.print };
+    return { shirtPrice: FALLBACK_PRICES.shirt, shortsPrice: 0, printPrice: FALLBACK_PRICES.print };
   }
 }
 

@@ -56,7 +56,7 @@ describe('InventoryService — reserve/restore (checkout va bekor qilish)', () =
       expect(tx.inventoryItem.updateMany).not.toHaveBeenCalled();
     });
 
-    it('shortik tanlangan bo‘lsa — futbolka va shortik alohida kamaytiriladi', async () => {
+    it('komplekt (futbolka + shortik) — bitta qoldiq kamayadi, alohida shortik qoldig‘i yo‘q', async () => {
       tx.inventoryItem.findUnique.mockResolvedValue({ id: 1, qty: 10 });
       tx.inventoryItem.updateMany.mockResolvedValue({ count: 1 });
 
@@ -65,10 +65,7 @@ describe('InventoryService — reserve/restore (checkout va bekor qilish)', () =
       expect(tx.inventoryItem.updateMany).toHaveBeenCalledWith(
         expect.objectContaining({ where: expect.objectContaining({ productType: InventoryProductType.TSHIRT, size: 'M' }) }),
       );
-      expect(tx.inventoryItem.updateMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ productType: InventoryProductType.SHORTS, size: 'L' }) }),
-      );
-      expect(tx.inventoryItem.updateMany).toHaveBeenCalledTimes(2);
+      expect(tx.inventoryItem.updateMany).toHaveBeenCalledTimes(1);
     });
 
     it('kitId yo‘q qator (maxsus dizayn/3D dizayn) — ombor bilan bog‘lanmaydi', async () => {
@@ -89,14 +86,14 @@ describe('InventoryService — reserve/restore (checkout va bekor qilish)', () =
       });
     });
 
-    it('shortik bilan buyurtma bekor qilinsa — ikkala o‘lcham ham qaytadi', async () => {
+    it('komplekt bekor qilinsa — bitta komplekt qoldig‘i qaytadi', async () => {
       tx.inventoryItem.updateMany.mockResolvedValue({ count: 1 });
 
       await service.restore(tx as never, [tshirtLine({ withShorts: true, shortsSize: 'L' })]);
 
-      expect(tx.inventoryItem.updateMany).toHaveBeenCalledTimes(2);
+      expect(tx.inventoryItem.updateMany).toHaveBeenCalledTimes(1);
       expect(tx.inventoryItem.updateMany).toHaveBeenCalledWith(
-        expect.objectContaining({ where: expect.objectContaining({ productType: InventoryProductType.SHORTS, size: 'L' }) }),
+        expect.objectContaining({ where: expect.objectContaining({ productType: InventoryProductType.TSHIRT, size: 'M' }) }),
       );
     });
 

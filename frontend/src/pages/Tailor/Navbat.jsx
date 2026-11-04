@@ -31,7 +31,7 @@ export default function Navbat() {
     if (!processOrder) return;
     try {
       await processOrder(order);
-      const nextStatus = { yangi: 'qabul', qabul: 'bosildi', bosildi: 'tayyor', tayyor: 'yetkazishda' }[order.status];
+      const nextStatus = { yangi: 'qabul', qabul: 'tayyor' }[order.status];
       showToast(t('navbat.statusToast', { id: order.id, status: t(`status.${nextStatus}`) }));
     } catch (requestError) {
       showToast(requestError.message, true);
@@ -55,7 +55,6 @@ export default function Navbat() {
       barchasi: orders.length,
       yangi: orders.filter((o) => o.status === 'yangi').length,
       qabul: orders.filter((o) => o.status === 'qabul').length,
-      bosildi: orders.filter((o) => o.status === 'bosildi').length,
       tayyor: orders.filter((o) => o.status === 'tayyor').length,
     }),
     [orders]

@@ -1,7 +1,20 @@
 import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { OrderStatus, PaymentStatus } from '@prisma/client';
-import { IsEnum, IsIn, IsInt, IsNotEmpty, IsOptional, IsString, Max, MaxLength, Min, ValidateIf } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsEnum,
+  IsIn,
+  IsInt,
+  IsNotEmpty,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  ValidateIf,
+} from 'class-validator';
 import { CleanText } from '../../common/utils/no-html';
 
 export class ListOrdersQueryDto {
@@ -16,6 +29,17 @@ export class ListOrdersQueryDto {
   @IsOptional()
   @IsEnum(OrderStatus)
   status?: OrderStatus;
+
+  @ApiPropertyOptional({
+    description: "Bir nechta holat, vergul bilan (masalan operator «Sexdagi buyurtmalar»: SENT_TO_WORKSHOP,ACCEPTED)",
+    example: 'SENT_TO_WORKSHOP,ACCEPTED',
+  })
+  @IsOptional()
+  @Transform(({ value }) => (typeof value === 'string' ? value.split(',').map((s) => s.trim()).filter(Boolean) : value))
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsEnum(OrderStatus, { each: true })
+  statuses?: OrderStatus[];
 
   @ApiPropertyOptional({ enum: PaymentStatus, description: "To'lov holati bo'yicha filtr (operator To'lovlar sahifasi)" })
   @IsOptional()
@@ -105,8 +129,8 @@ export class WorkshopStatusDto {
   @ApiProperty({
     enum: WORKSHOP_STATUSES,
     description:
-      '`PRINTING` — bosilmoqda, `QUALITY_CHECK` — sifat nazorati, `READY` — tayyor bo‘ldi, ' +
-      '`DELIVERING` — yetkazishga (kuryerga) berildi',
+      'Sex faqat `READY` (tayyor) qo‘yadi; qolganlari 409. Yetkazishga (`DELIVERING`) operator chiqaradi. ' +
+      '`PRINTING`/`QUALITY_CHECK` — eski holatlar, endi ishlatilmaydi',
   })
   @IsIn(WORKSHOP_STATUSES)
   status: WorkshopStatus;

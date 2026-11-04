@@ -5,7 +5,7 @@ import { api, bearer, createApp, login, nextPhone, SUPERADMIN } from './helpers'
 
 /**
  * Buyurtma oqimi: mobil ilova → operator/superadmin (NEW) → tikuv sexiga yuborish (SENT_TO_WORKSHOP) →
- * sex tasdiqlaydi (ACCEPTED) → PRINTING → READY → DELIVERING → operator DELIVERED.
+ * sex tasdiqlaydi (ACCEPTED) → sex READY → operator DELIVERING → operator DELIVERED.
  */
 describe('Buyurtma oqimi: operator → tikuv sexi (e2e)', () => {
   let app: INestApplication;
@@ -122,7 +122,7 @@ describe('Buyurtma oqimi: operator → tikuv sexi (e2e)', () => {
     sexB.token = (await login(app, (await prisma.user.findUniqueOrThrow({ where: { id: sexB.id } })).phone, 'tailor123')).accessToken;
   });
 
-  it('operator sexga yuboradi → SENT_TO_WORKSHOP, mijozda "Sexga yuborildi"', async () => {
+  it('operator sexga yuboradi → SENT_TO_WORKSHOP, mijozda "Buyurtma qabul qilindi"', async () => {
     const res = await as(operator)
       .post(`/api/admin/orders/${orderId}/assign`, { workshopId: sexA.id, note: 'Ertaga tayyor bo‘lsin' })
       .expect(200);
@@ -130,7 +130,7 @@ describe('Buyurtma oqimi: operator → tikuv sexi (e2e)', () => {
     expect(res.body.statusLogs.at(-1)).toMatchObject({ toStatus: 'SENT_TO_WORKSHOP', note: 'Ertaga tayyor bo‘lsin', actorRole: 'Operator' });
 
     const mine = await as(user).get(`/api/orders/${orderId}`).expect(200);
-    expect(mine.body).toMatchObject({ status: 'SENT_TO_WORKSHOP', statusLabel: 'Sexga yuborildi', canCancel: true });
+    expect(mine.body).toMatchObject({ status: 'SENT_TO_WORKSHOP', statusLabel: 'Buyurtma qabul qilindi', canCancel: true });
   });
 
   it('sex o‘z ro‘yxatida ko‘radi; boshqa sex ko‘rmaydi', async () => {
@@ -170,31 +170,32 @@ describe('Buyurtma oqimi: operator → tikuv sexi (e2e)', () => {
     await as(user).post(`/api/orders/${orderId}/cancel`).expect(409);
   });
 
-  it('sex holatni oldinga suradi: bosilmoqda → tayyor → yetkazishga berildi', async () => {
+  it('sex faqat «tayyor» qiladi; yetkazishga operator chiqaradi', async () => {
     const path = `/api/workshop/orders/${orderId}/status`;
-    // READY dan oldin yetkazishga berib bo'lmaydi; sex DELIVERED/CANCELLED qo'ya olmaydi
+    // sex yetkazishga bera olmaydi, oraliq (eski) holatlar yopiq; DELIVERED/CANCELLED — DTO darajasida 400
     await as(sexB.token).patch(path, { status: 'DELIVERING' }).expect(409);
+    await as(sexB.token).patch(path, { status: 'PRINTING' }).expect(409);
     await as(sexB.token).patch(path, { status: 'DELIVERED' }).expect(400);
     await as(sexB.token).patch(path, { status: 'CANCELLED' }).expect(400);
 
-    await as(sexB.token).patch(path, { status: 'PRINTING' }).expect(200);
-    await as(sexB.token).patch(path, { status: 'PRINTING' }).expect(409); // orqaga/joyida emas
     const ready = await as(sexB.token).patch(path, { status: 'READY', note: 'Qadoqlandi' }).expect(200);
     expect(ready.body.status).toBe('READY');
-    await as(sexB.token).patch(path, { status: 'QUALITY_CHECK' }).expect(409);
+    await as(sexB.token).patch(path, { status: 'READY' }).expect(409); // joyida emas
+    await as(sexB.token).patch(path, { status: 'DELIVERING' }).expect(409);
 
+    // mijoz ichki bosqichni ko'rmaydi — "jarayonda"
     const mine = await as(user).get(`/api/orders/${orderId}`).expect(200);
-    expect(mine.body).toMatchObject({ status: 'READY', statusLabel: 'Tayyor' });
+    expect(mine.body).toMatchObject({ status: 'READY', statusLabel: 'Buyurtma jarayonda' });
 
-    const delivering = await as(sexB.token).patch(path, { status: 'DELIVERING' }).expect(200);
+    const delivering = await as(operator).patch(`/api/admin/orders/${orderId}/status`, { status: 'DELIVERING' }).expect(200);
     expect(delivering.body.status).toBe('DELIVERING');
-    expect(delivering.body.statusLogs.map((l: { toStatus: string }) => l.toStatus)).toEqual([
+    const detail = await as(operator).get(`/api/admin/orders/${orderId}`).expect(200);
+    expect(detail.body.statusLogs.map((l: { toStatus: string }) => l.toStatus)).toEqual([
       'NEW',
       'SENT_TO_WORKSHOP',
       'NEW',
       'SENT_TO_WORKSHOP',
       'ACCEPTED',
-      'PRINTING',
       'READY',
       'DELIVERING',
     ]);
@@ -204,8 +205,15 @@ describe('Buyurtma oqimi: operator → tikuv sexi (e2e)', () => {
     await as(operator).patch(`/api/admin/orders/${orderId}/status`, { status: 'DELIVERED' }).expect(200);
     const mine = await as(user).get(`/api/orders/${orderId}`).expect(200);
     expect(mine.body.status).toBe('DELIVERED');
-    const skipped = mine.body.timeline.find((s: { status: string }) => s.status === 'QUALITY_CHECK');
-    expect(skipped).toMatchObject({ done: true, at: null }); // sex bu bosqichni o'tkazib yubordi
+    // mijozga 4 bosqich + yetkazildi: yuborildi → qabul qilindi → jarayonda → yetkazilmoqda → yetkazildi
+    expect(mine.body.timeline.map((s: { status: string }) => s.status)).toEqual([
+      'NEW',
+      'SENT_TO_WORKSHOP',
+      'ACCEPTED',
+      'DELIVERING',
+      'DELIVERED',
+    ]);
+    expect(mine.body.timeline.every((s: { done: boolean; at: string | null }) => s.done && s.at)).toBe(true);
     expect(mine.body.timeline.at(-1)).toMatchObject({ status: 'DELIVERED', current: true });
     expect(mine.body.timeline.at(-1).at).toBeTruthy();
 
@@ -225,7 +233,7 @@ describe('Buyurtma oqimi: operator → tikuv sexi (e2e)', () => {
     const res = await as(admin).get('/api/admin/audit-log?search=Sex').expect(200);
     const actions = res.body.items.map((i: { action: string }) => i.action);
     expect(actions).toEqual(
-      expect.arrayContaining(['Sex buyurtmani qabul qildi', 'Sex buyurtmani rad etdi', 'Sex: yetkazishga berildi']),
+      expect.arrayContaining(['Sex buyurtmani qabul qildi', 'Sex buyurtmani rad etdi', 'Sex: buyurtma tayyor']),
     );
   });
   it('sex paneli: production/stats faqat o‘z buyurtmalarini ko‘rsatadi; zaxira umumiy; /admin ga TAILOR kira olmaydi', async () => {
@@ -265,9 +273,8 @@ describe('Buyurtma oqimi: operator → tikuv sexi (e2e)', () => {
     await as(sexA.token).post(`/api/workshop/orders/${id}/accept`).expect(200);
 
     await as(operator).patch(`/api/admin/orders/${id}/status`, { status: 'DELIVERED' }).expect(409);
-    for (const status of ['READY', 'DELIVERING']) {
-      await as(sexA.token).patch(`/api/workshop/orders/${id}/status`, { status }).expect(200);
-    }
+    await as(sexA.token).patch(`/api/workshop/orders/${id}/status`, { status: 'READY' }).expect(200);
+    await as(operator).patch(`/api/admin/orders/${id}/status`, { status: 'DELIVERING' }).expect(200);
     await as(operator).patch(`/api/admin/orders/${id}/status`, { status: 'DELIVERED' }).expect(200);
     await as(operator).patch(`/api/admin/orders/${id}/status`, { status: 'PRINTING' }).expect(409);
     await as(operator).patch(`/api/admin/orders/${id}/status`, { status: 'RETURNED' }).expect(200);

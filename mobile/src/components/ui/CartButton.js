@@ -1,5 +1,5 @@
-import React, { createContext, useContext } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import React, { createContext, useContext, useEffect, useRef } from 'react';
+import { Animated, Easing, Pressable, StyleSheet, Text } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors } from '../../constants/theme';
 
@@ -13,7 +13,28 @@ export function HeaderCart() {
   return <CartButton count={cart.count} onPress={cart.open} t={cart.t} />;
 }
 
+/** Soni oshganda (savatga qo'shildi) savat "sakraydi", nishon esa kattalashib qaytadi */
+function useBump(count) {
+  const bump = useRef(new Animated.Value(0)).current;
+  const prev = useRef(count);
+  useEffect(() => {
+    if (count > prev.current) {
+      bump.setValue(0);
+      Animated.sequence([
+        Animated.timing(bump, { toValue: 1, duration: 160, easing: Easing.out(Easing.quad), useNativeDriver: true }),
+        Animated.spring(bump, { toValue: 0, friction: 3, tension: 160, useNativeDriver: true }),
+      ]).start();
+    }
+    prev.current = count;
+  }, [count, bump]);
+  return bump;
+}
+
 export default function CartButton({ count = 0, onPress, t }) {
+  const bump = useBump(count);
+  const scale = bump.interpolate({ inputRange: [0, 1], outputRange: [1, 1.22] });
+  const rotate = bump.interpolate({ inputRange: [0, 1], outputRange: ['0deg', '-12deg'] });
+  const badgeScale = bump.interpolate({ inputRange: [0, 1], outputRange: [1, 1.5] });
   return (
     <Pressable
       onPress={onPress}
@@ -22,11 +43,13 @@ export default function CartButton({ count = 0, onPress, t }) {
       hitSlop={6}
       style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
     >
-      <MaterialCommunityIcons name="cart-outline" size={21} color={colors.accent} />
+      <Animated.View style={{ transform: [{ scale }, { rotate }] }}>
+        <MaterialCommunityIcons name="cart-outline" size={21} color={colors.accent} />
+      </Animated.View>
       {count > 0 ? (
-        <View style={styles.badge}>
+        <Animated.View style={[styles.badge, { transform: [{ scale: badgeScale }] }]}>
           <Text style={styles.badgeText}>{count > 99 ? '99+' : count}</Text>
-        </View>
+        </Animated.View>
       ) : null}
     </Pressable>
   );
