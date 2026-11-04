@@ -5,6 +5,7 @@ import { AuthService, BCRYPT_ROUNDS } from '../auth/auth.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { toPublicUser } from '../common/utils/user.mapper';
 import { ListQueryDto } from './dto/account.dto';
+import { ACTIVE_STATUSES as ACTIVE_WORKSHOP_STATUSES } from './orders.service';
 
 type AccountInput = {
   phone?: string;
@@ -121,6 +122,18 @@ export class AccountsService {
 
   async remove(role: Role, id: number) {
     await this.findOne(role, id);
+
+    if (role === Role.TAILOR) {
+      const activeOrders = await this.prisma.order.count({
+        where: { workshopId: id, status: { in: ACTIVE_WORKSHOP_STATUSES } },
+      });
+      if (activeOrders > 0) {
+        throw new ConflictException(
+          "Bu tikuv sexida jarayondagi buyurtmalar bor, uni o'chirib bo'lmaydi. Avval buyurtmalarni boshqa sexga o'tkazing yoki yakunlang",
+        );
+      }
+    }
+
     try {
       await this.prisma.user.delete({ where: { id } }); // sessiyalar cascade bilan o'chadi
     } catch (e) {

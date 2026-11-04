@@ -31,6 +31,9 @@ describe('AccountsService', () => {
       update: jest.fn(),
       delete: jest.fn(),
     },
+    order: {
+      count: jest.fn(),
+    },
     $transaction: jest.fn(),
   };
   const auth = { revokeAllSessions: jest.fn() };
@@ -229,14 +232,52 @@ describe('AccountsService', () => {
 
     it('rol mos kelsa o‘chiradi', async () => {
       prisma.user.findFirst.mockResolvedValue(tailor());
+      prisma.order.count.mockResolvedValue(0);
       await expect(service.remove(Role.TAILOR, 3)).resolves.toEqual({ message: expect.any(String) });
       expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 3 } });
     });
 
     it('hamyon tarixi bo‘lsa (FK) — 409', async () => {
       prisma.user.findFirst.mockResolvedValue(tailor());
+      prisma.order.count.mockResolvedValue(0);
       prisma.user.delete.mockRejectedValue(prismaError('P2003'));
       await expect(service.remove(Role.TAILOR, 3)).rejects.toThrow(ConflictException);
+    });
+
+    it('TAILOR emas (masalan OPERATOR) bo‘lsa — faol buyurtma tekshirilmaydi', async () => {
+      prisma.user.findFirst.mockResolvedValue(tailor({ role: Role.OPERATOR }));
+      await expect(service.remove(Role.OPERATOR, 3)).resolves.toEqual({ message: expect.any(String) });
+      expect(prisma.order.count).not.toHaveBeenCalled();
+      expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 3 } });
+    });
+
+    it('workshopda jarayondagi (masalan PRINTING) buyurtma bo‘lsa — 409, o‘chirilmaydi', async () => {
+      prisma.user.findFirst.mockResolvedValue(tailor());
+      prisma.order.count.mockResolvedValue(2);
+      await expect(service.remove(Role.TAILOR, 3)).rejects.toThrow(ConflictException);
+      expect(prisma.order.count).toHaveBeenCalledWith({
+        where: {
+          workshopId: 3,
+          status: {
+            in: [
+              'SENT_TO_WORKSHOP',
+              'ACCEPTED',
+              'PRINTING',
+              'QUALITY_CHECK',
+              'READY',
+              'DELIVERING',
+            ],
+          },
+        },
+      });
+      expect(prisma.user.delete).not.toHaveBeenCalled();
+    });
+
+    it('workshopda faol buyurtma bo‘lmasa (masalan faqat DELIVERED/CANCELLED) — o‘chirishga ruxsat', async () => {
+      prisma.user.findFirst.mockResolvedValue(tailor());
+      prisma.order.count.mockResolvedValue(0);
+      await expect(service.remove(Role.TAILOR, 3)).resolves.toEqual({ message: expect.any(String) });
+      expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 3 } });
     });
   });
 });

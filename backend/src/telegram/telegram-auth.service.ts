@@ -8,10 +8,11 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma, Role, TelegramAuthChallenge, User } from '@prisma/client';
-import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'crypto';
+import { createHmac, randomBytes, randomInt } from 'crypto';
 import { AuthService, ClientInfo, NEW_CUSTOMER_NAME, unusablePasswordHash } from '../auth/auth.service';
 import { normalizePhone } from '../common/utils/phone';
 import { PrismaService } from '../prisma/prisma.service';
+import { sha256Hex as sha256, timingSafeEqualHex } from '../common/utils/timing-safe.util';
 
 export const CHALLENGE_TTL_MS = 10 * 60 * 1000;
 export const CODE_TTL_MS = 5 * 60 * 1000;
@@ -29,8 +30,6 @@ export type CodeResult =
   | { result: 'CODE'; code: string; expiresInSec: number; maskedPhone: string }
   | { result: 'COOLDOWN'; retryAfterSec: number }
   | { result: 'LIMIT' | 'NO_CHALLENGE' | 'CONTACT_REQUIRED' | 'PHONE_MISMATCH' };
-
-const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 
 /** "+998901234567" -> "+998 90 *** ** 67" — botda qaysi raqam uchun so'rov ekanini ko'rsatish uchun */
 export function maskPhone(phone: string) {
@@ -273,8 +272,6 @@ export class TelegramAuthService {
   }
 
   private hashMatches(actual: string, expected: string) {
-    const a = Buffer.from(actual);
-    const b = Buffer.from(expected);
-    return a.length === b.length && timingSafeEqual(a, b);
+    return timingSafeEqualHex(actual, expected);
   }
 }

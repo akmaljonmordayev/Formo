@@ -1,10 +1,21 @@
-import { Injectable } from '@nestjs/common';
-import { AuditCategory } from '@prisma/client';
+import { BadRequestException, Injectable } from '@nestjs/common';
+import { AuditCategory, InventoryProductType, Prisma } from '@prisma/client';
 import { KIT360_IDS } from '../kits/kit360';
 import { LOW_STOCK_THRESHOLD, NotifyService } from '../notify/notify.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditEntry, AuditService } from './audit.service';
 import { ListInventoryQueryDto, UpsertInventoryDto } from './dto/inventory.dto';
+
+/** Checkout/bekor qilish oqimlarida zaxira bilan bog'lanadigan qator — faqat klub formasi (kitId bor) */
+export interface InventoryOrderLine {
+  kitId: number | null;
+  shirtSize: string;
+  shortsSize: string | null;
+  withShorts: boolean;
+  quantity: number;
+  /** Faqat reserve() uchun — zaxira yetmasa xato xabarida ko'rsatiladi */
+  label?: string;
+}
 
 @Injectable()
 export class InventoryService {
@@ -81,5 +92,65 @@ export class InventoryService {
     }
 
     return this.list({});
+  }
+
+  /**
+   * Checkout tranzaksiyasi ichida chaqiriladi: har bir klub formasi (kitId bor) qatori uchun
+   * futbolka va (shortik tanlangan bo'lsa) shortik zaxirasini shartli kamaytiradi — `qty >= so'ralgan`
+   * bo'lgandagina (conditional update, wallet.debit bilan bir xil uslub). Yetarli bo'lmasa butun
+   * tranzaksiya (va shu bilan oldingi decrementlar) qaytishi uchun shu yerda xato tashlanadi.
+   *
+   * `InventoryItem` yozuvi umuman yo'q o'lcham — hali hech kim shu forma uchun ombor kiritmagan,
+   * "kuzatilmagan" deb hisoblanadi va cheklovsiz o'tkaziladi (oldin bu funksiya umuman ishlamagan,
+   * demak hozircha kuzatilmagan narsalarni to'satdan bloklash noto'g'ri bo'lardi).
+   */
+  async reserve(tx: Prisma.TransactionClient, lines: InventoryOrderLine[]) {
+    for (const line of lines) {
+      if (line.kitId == null) continue; // faqat klub formasi (CLUB_KIT) ombor bilan kuzatiladi
+      await this.decrementOne(tx, line.kitId, line.shirtSize, InventoryProductType.TSHIRT, line.quantity, line.label);
+      if (line.withShorts && line.shortsSize) {
+        await this.decrementOne(tx, line.kitId, line.shortsSize, InventoryProductType.SHORTS, line.quantity, line.label);
+      }
+    }
+  }
+
+  private async decrementOne(
+    tx: Prisma.TransactionClient,
+    kitId: number,
+    size: string,
+    productType: InventoryProductType,
+    qty: number,
+    label?: string,
+  ) {
+    const existing = await tx.inventoryItem.findUnique({ where: { productType_kitId_size: { productType, kitId, size } } });
+    if (!existing) return; // kuzatilmagan — cheklov yo'q
+    const { count } = await tx.inventoryItem.updateMany({
+      where: { productType, kitId, size, qty: { gte: qty } },
+      data: { qty: { decrement: qty } },
+    });
+    if (!count) {
+      throw new BadRequestException(`${label ?? `Kit #${kitId}`}: ${size} o'lchami uchun zaxira yetarli emas`);
+    }
+  }
+
+  /**
+   * Buyurtma bekor qilinganda/qaytarilganda `reserve()` da kamaytirilgan zaxirani orqaga qaytaradi.
+   * Faqat hozir ham kuzatilayotgan (InventoryItem yozuvi mavjud) o'lchamlar uchun — `reserve()` bilan
+   * bir xil siyosat, aks holda keyin qo'shilgan kuzatuv yozuvini asossiz oshirib qo'yish mumkin edi.
+   */
+  async restore(tx: Prisma.TransactionClient, lines: InventoryOrderLine[]) {
+    for (const line of lines) {
+      if (line.kitId == null) continue;
+      await tx.inventoryItem.updateMany({
+        where: { productType: InventoryProductType.TSHIRT, kitId: line.kitId, size: line.shirtSize },
+        data: { qty: { increment: line.quantity } },
+      });
+      if (line.withShorts && line.shortsSize) {
+        await tx.inventoryItem.updateMany({
+          where: { productType: InventoryProductType.SHORTS, kitId: line.kitId, size: line.shortsSize },
+          data: { qty: { increment: line.quantity } },
+        });
+      }
+    }
   }
 }

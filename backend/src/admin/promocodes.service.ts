@@ -1,8 +1,18 @@
-import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
-import { AuditCategory } from '@prisma/client';
+import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
+import { AuditCategory, PromocodeType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditEntry, AuditService } from './audit.service';
 import { CreatePromocodeDto, UpdatePromocodeDto } from './dto/promocode.dto';
+
+/** DTO'da `value` PERCENT (0-100) va FIXED (so'm, yuqori chegarasiz) uchun bitta maydon —
+ *  shuning uchun 100% chegarasini class-validator darajasida emas, shu yerda (yakuniy
+ *  type+value holatini bilib) tekshiramiz. pricing.ts checkout paytida 100%ga clamp qiladi,
+ *  lekin shu tekshiruv bo'lmasa admin UI/DB'da "500%" kabi chalkash qiymat saqlanib qolaveradi. */
+function assertValidValue(type: PromocodeType, value: number | undefined | null) {
+  if (type === PromocodeType.PERCENT && value != null && value > 100) {
+    throw new BadRequestException("PERCENT turidagi promokod qiymati 100 dan oshmasligi kerak");
+  }
+}
 
 @Injectable()
 export class PromocodesService {
@@ -16,6 +26,8 @@ export class PromocodesService {
   }
 
   async create(dto: CreatePromocodeDto, actor: AuditEntry['actor'], ip?: string) {
+    assertValidValue(dto.type, dto.value);
+
     const exists = await this.prisma.promocode.findUnique({ where: { code: dto.code } });
     if (exists) throw new ConflictException('Bu kod allaqachon mavjud');
 
@@ -41,6 +53,8 @@ export class PromocodesService {
   async update(id: number, dto: UpdatePromocodeDto, actor: AuditEntry['actor'], ip?: string) {
     const current = await this.prisma.promocode.findUnique({ where: { id } });
     if (!current) throw new NotFoundException('Promokod topilmadi');
+
+    assertValidValue(dto.type ?? current.type, dto.value ?? current.value);
 
     const promo = await this.prisma.promocode.update({
       where: { id },

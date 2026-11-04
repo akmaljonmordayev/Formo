@@ -1,8 +1,17 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { AuditCategory } from '@prisma/client';
+import { AuditCategory, Campaign } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditEntry, AuditService } from './audit.service';
 import { CreateCampaignDto, UpdateCampaignDto } from './dto/campaign.dto';
+
+/**
+ * `sentCount`/`openedCount`/`orderCount`/`revenue` — hech qanday real SMS/push yuborish yoki
+ * yetkazish integratsiyasi yo'q (bunday integratsiya umuman mavjud emas), shuning uchun bu
+ * ustunlar faqat qo'lda kiritiladi. `isManualEntry: true` admin panelga (va boshqa iste'molchiga)
+ * bu raqamlar haqiqiy hisoblangan analitika emasligini ochiq ko'rsatadi — qo'shimcha, orqaga
+ * mos (eski maydonlar o'zgarmaydi/olib tashlanmaydi).
+ */
+const toCampaignView = (c: Campaign) => ({ ...c, isManualEntry: true });
 
 @Injectable()
 export class CampaignsService {
@@ -22,7 +31,8 @@ export class CampaignsService {
       }),
       { sent: 0, opened: 0, orders: 0, revenue: 0 },
     );
-    return { items: campaigns, totals };
+    // Statistika qo'lda kiritilgan — haqiqiy yuborish/yetkazish integratsiyasi yo'q
+    return { items: campaigns.map(toCampaignView), totals, isManualEntry: true };
   }
 
   async create(dto: CreateCampaignDto, actor: AuditEntry['actor'], ip?: string) {
@@ -38,7 +48,7 @@ export class CampaignsService {
       ip,
     });
 
-    return campaign;
+    return toCampaignView(campaign);
   }
 
   async update(id: number, dto: UpdateCampaignDto, actor: AuditEntry['actor'], ip?: string) {
@@ -58,6 +68,6 @@ export class CampaignsService {
       ip,
     });
 
-    return campaign;
+    return toCampaignView(campaign);
   }
 }

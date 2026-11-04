@@ -1,9 +1,5 @@
-import { createHash, timingSafeEqual } from 'crypto';
 import { NextFunction, Request, Response } from 'express';
-
-// Uzunlik farqi ham vaqt orqali oshkor bo'lmasligi uchun xeshlar solishtiriladi
-const safeEqual = (a: string, b: string) =>
-  timingSafeEqual(createHash('sha256').update(a).digest(), createHash('sha256').update(b).digest());
+import { timingSafeEqualString as safeEqual } from '../utils/timing-safe.util';
 
 /** HTTP Basic auth: brauzer login/parol oynasini o'zi chiqaradi (Swagger sahifasini yopish uchun) */
 export function basicAuth(username: string, password: string, realm = 'Formo API docs') {
