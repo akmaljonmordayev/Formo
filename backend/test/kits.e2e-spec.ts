@@ -191,7 +191,7 @@ describe('3D forma dizaynlari (e2e)', () => {
     });
 
     it("buyurtma: KIT_DESIGN, OrderItem'da kitDesignId va dizayn nusxasi; admin ko'radi", async () => {
-      const addr = await as(user).post('/api/addresses', { label: 'Uy', address: 'Yunusobod, Amir Temur 108' }).expect(201);
+      const addr = await as(user).post('/api/addresses', { label: 'Uy', address: 'Yunusobod, Amir Temur 108', latitude: 41.31, longitude: 69.28 }).expect(201);
       addressId = addr.body.id;
       const order = await as(user)
         .post('/api/orders/checkout', {

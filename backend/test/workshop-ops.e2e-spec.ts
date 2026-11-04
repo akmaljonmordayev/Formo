@@ -73,7 +73,7 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
       include: { kits: true },
     });
     kitId = club.kits[0].id;
-    addressId = (await as(user).post('/api/addresses', { label: 'Uy', address: 'Yunusobod 4' }).expect(201)).body.id;
+    addressId = (await as(user).post('/api/addresses', { label: 'Uy', address: 'Yunusobod 4', latitude: 41.31, longitude: 69.28 }).expect(201)).body.id;
   });
 
   afterAll(async () => {

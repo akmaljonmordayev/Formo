@@ -23,7 +23,7 @@ export function ProductCard({ product, onPress, favorite, onFavorite, favoriteLa
         {onFavorite ? (
           <Pressable
             onPress={onFavorite}
-            style={styles.heartButton}
+            style={[styles.heartButton, favorite && styles.heartButtonActive]}
             hitSlop={8}
             accessibilityRole="button"
             accessibilityState={{ selected: Boolean(favorite) }}
@@ -32,7 +32,7 @@ export function ProductCard({ product, onPress, favorite, onFavorite, favoriteLa
             <MaterialCommunityIcons
               name={favorite ? 'heart' : 'heart-outline'}
               size={20}
-              color={favorite ? colors.accent : colors.muted}
+              color={favorite ? colors.danger : '#ffffff'}
             />
           </Pressable>
         ) : null}
@@ -95,6 +95,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  heartButtonActive: { backgroundColor: 'rgba(255, 255, 255, 0.92)' },
   info: {
     paddingTop: 10,
     paddingHorizontal: 2,

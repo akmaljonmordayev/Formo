@@ -6,6 +6,7 @@ import { Button, Card, Header, Overline, Screen, formatMoney } from '../componen
 import ErrorView from '../components/ui/ErrorView';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { placeOrder, useAddresses, useDeliverySlots } from '../features/checkout';
+import { inTashkentCity } from '../features/location/tashkent';
 import { CHECKOUT_METHODS, paymentText } from '../features/orders';
 import useWallet, { canPayFromBalance } from '../features/wallet';
 import { ApiError } from '../services/api';
@@ -47,9 +48,13 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
   const inFlight = useRef(false);
   const [submitError, setSubmitError] = useState(null);
 
-  // Asosiy usul — balansdan to'lash. Naqd faqat Superadmin yoqib qo'ygan bo'lsa (allowCash).
+  // Asosiy usul — balansdan to'lash. Naqd faqat Superadmin yoqib qo'ygan bo'lsa (allowCash) va manzil
+  // Toshkent shahri ichida bo'lsa; shahardan tashqariga — faqat shaxsiy hisobdan (server ham tekshiradi).
   // Click/Payme mijozga ko'rsatilmaydi: balans Telegram bot orqali to'ldiriladi.
-  const methods = CHECKOUT_METHODS.filter((method) => method !== 'CASH' || rules.allowCash);
+  const selectedAddress = addresses.find((a) => a.id === addressId) || null;
+  const cityDelivery = Boolean(selectedAddress && inTashkentCity(selectedAddress.latitude, selectedAddress.longitude));
+  const cashOutside = Boolean(rules.allowCash && selectedAddress && !cityDelivery);
+  const methods = CHECKOUT_METHODS.filter((method) => method !== 'CASH' || (rules.allowCash && cityDelivery));
   useEffect(() => {
     if (!methods.includes(paymentMethod)) setPaymentMethod(methods[0]);
   }, [methods, paymentMethod]);
@@ -286,6 +291,7 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
           />
         ))}
       </View>
+      {cashOutside ? <Text style={styles.note}>{t('cashCityOnly')}</Text> : null}
       {balanceShort ? (
         <View style={styles.short}>
           <Text style={styles.shortText}>

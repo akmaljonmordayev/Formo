@@ -1,11 +1,11 @@
 /**
- * Forma 360° — 10 klub/terma jamoaning haqiqiy 8 burchakli fotosuratlari (admin: Superadmin → Forma 360°,
+ * Forma 360° — 14 klub/terma jamoaning haqiqiy 8 burchakli fotosuratlari (admin: Superadmin → Forma 360°,
  * mobil: "Klub formasi" studiyasi). `Club.kit360Id` klubni aynan shu suratlar to'plamiga bog'laydi.
  *
  * Bu ro'yxat yagona manba: backfill skripti, katalog importi, admin DTO va testlar shundan oladi.
  * Mobil ilovadagi zaxira moslash (mobile/src/features/kit360) ham shu variantlar bilan bir xil.
  */
-export const KIT360_IDS = ['es', 'ar', 'fr', 'en', 'pt', 'rm', 'fcb', 'mu', 'psg', 'mci'] as const;
+export const KIT360_IDS = ['es', 'ar', 'fr', 'en', 'pt', 'uz', 'rm', 'fcb', 'mu', 'psg', 'mci', 'lfc', 'ars', 'che'] as const;
 export type Kit360Id = (typeof KIT360_IDS)[number];
 
 /** id → klub nomi/kodining variantlari (kichik harfda: lotin, kirill, inglizcha, qisqa kod) */
@@ -15,12 +15,57 @@ export const KIT360_ALIASES: Record<Kit360Id, readonly string[]> = {
   fr: ['fransiya', 'франция', 'france'],
   en: ['angliya', 'англия', 'england'],
   pt: ['portugaliya', 'португалия', 'portugal'],
+  uz: ["o'zbekiston", 'ozbekiston', 'uzbekistan', 'узбекистан', 'ўзбекистон', 'uzb', 'uz'],
   rm: ['real madrid', 'реал мадрид', 'real', 'rma', 'rm'],
   fcb: ['barselona', 'барселона', 'barcelona', 'fc barcelona', 'fcb', 'bar'],
   mu: ['manchester yunayted', 'манчестер юнайтед', 'manchester united', 'man united', 'man utd', 'mu', 'mun'],
   psg: ['psj', 'псж', 'psg', 'paris saint-germain', 'paris saint germain', 'paris sg'],
   mci: ['manchester siti', 'манчестер сити', 'manchester city', 'man city', 'mci'],
+  lfc: ['liverpul', 'ливерпуль', 'liverpool', 'liverpool fc', 'lfc', 'liv'],
+  ars: ['arsenal', 'арсенал', 'arsenal fc', 'ars'],
+  che: ['chelsi', 'челси', 'chelsea', 'chelsea fc', 'che'],
 };
+
+/**
+ * Katalogda Forma 360° jamoasi umuman bo'lmasa — ilova ishga tushganda shu ma'lumot bilan klub va "Uy" formasi
+ * yaratiladi (src/kits/kit360-catalog.seed.ts). Narxlar Kit modeli standartlari; admin keyin o'zgartira oladi.
+ */
+export interface Kit360CatalogTeam {
+  id: Kit360Id;
+  name: string;
+  code: string;
+  national: boolean;
+  continent?: 'EUROPE' | 'ASIA' | 'AMERICA';
+  category: { name: string; slug: string };
+  markColor: string;
+  bgColor: string;
+  textColor: string;
+  colorsLabel: string;
+}
+
+const NATIONAL_EU = { name: 'Yevropa terma jamoalari', slug: 'yevropa-terma-jamoalari' };
+const NATIONAL_AM = { name: 'Amerika terma jamoalari', slug: 'amerika-terma-jamoalari' };
+const NATIONAL_AS = { name: 'Osiyo terma jamoalari', slug: 'osiyo-terma-jamoalari' };
+const LALIGA = { name: 'LaLiga', slug: 'laliga' };
+const EPL = { name: 'Premier League', slug: 'premier-league' };
+const LIGUE1 = { name: 'Ligue 1', slug: 'ligue-1' };
+
+export const KIT360_CATALOG: readonly Kit360CatalogTeam[] = [
+  { id: 'es', name: 'Ispaniya', code: 'ES', national: true, continent: 'EUROPE', category: NATIONAL_EU, markColor: '#c60b1e', bgColor: '#c60b1e', textColor: '#f6c23e', colorsLabel: 'Qizil / sariq' },
+  { id: 'ar', name: 'Argentina', code: 'AR', national: true, continent: 'AMERICA', category: NATIONAL_AM, markColor: '#75aadb', bgColor: '#75aadb', textColor: '#111318', colorsLabel: 'Oq / havorang' },
+  { id: 'fr', name: 'Fransiya', code: 'FR', national: true, continent: 'EUROPE', category: NATIONAL_EU, markColor: '#1f2a5c', bgColor: '#1f2a5c', textColor: '#ffffff', colorsLabel: "To'q ko'k / oq" },
+  { id: 'en', name: 'Angliya', code: 'EN', national: true, continent: 'EUROPE', category: NATIONAL_EU, markColor: '#1b2450', bgColor: '#ffffff', textColor: '#1b2450', colorsLabel: "Oq / to'q ko'k" },
+  { id: 'pt', name: 'Portugaliya', code: 'PT', national: true, continent: 'EUROPE', category: NATIONAL_EU, markColor: '#a6192e', bgColor: '#a6192e', textColor: '#f3c74a', colorsLabel: 'Qizil / yashil' },
+  { id: 'uz', name: "O'zbekiston", code: 'UZ', national: true, continent: 'ASIA', category: NATIONAL_AS, markColor: '#0072ce', bgColor: '#ffffff', textColor: '#0072ce', colorsLabel: "Oq / ko'k" },
+  { id: 'rm', name: 'Real Madrid', code: 'RM', national: false, category: LALIGA, markColor: '#1b2450', bgColor: '#ffffff', textColor: '#1b2450', colorsLabel: "Oq / to'q ko'k" },
+  { id: 'fcb', name: 'Barselona', code: 'FCB', national: false, category: LALIGA, markColor: '#a50044', bgColor: '#1d3f8f', textColor: '#f2c12e', colorsLabel: "Ko'k / to'q qizil" },
+  { id: 'mu', name: 'Manchester Yunayted', code: 'MU', national: false, category: EPL, markColor: '#da291c', bgColor: '#da291c', textColor: '#ffffff', colorsLabel: 'Qizil / oq' },
+  { id: 'psg', name: 'PSJ', code: 'PSG', national: false, category: LIGUE1, markColor: '#004170', bgColor: '#1b2450', textColor: '#ffffff', colorsLabel: "To'q ko'k / qizil" },
+  { id: 'mci', name: 'Manchester Siti', code: 'MCI', national: false, category: EPL, markColor: '#6cabdd', bgColor: '#6cabdd', textColor: '#1b2450', colorsLabel: 'Havorang / oq' },
+  { id: 'lfc', name: 'Liverpul', code: 'LFC', national: false, category: EPL, markColor: '#c8102e', bgColor: '#c8102e', textColor: '#ffffff', colorsLabel: 'Qizil / oq' },
+  { id: 'ars', name: 'Arsenal', code: 'ARS', national: false, category: EPL, markColor: '#ef0107', bgColor: '#ef0107', textColor: '#ffffff', colorsLabel: 'Qizil / oq' },
+  { id: 'che', name: 'Chelsi', code: 'CHE', national: false, category: EPL, markColor: '#034694', bgColor: '#034694', textColor: '#ffffff', colorsLabel: "Ko'k / oq" },
+];
 
 const norm = (s: string | null | undefined) =>
   String(s ?? '')

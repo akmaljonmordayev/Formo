@@ -43,7 +43,7 @@ export default function HomeScreen({ t, onNavigate, onOrder, onNotifications, on
           kit={item}
           t={t}
           rank={ranked && item.soldCount > 0 ? index + 1 : undefined}
-          favorite={favorites.ids.has(item.kitId)}
+          favorite={favorites.has(item)}
           onFavorite={favorites.toggle}
           onPress={onOpenKit}
           style={styles.railCard}
