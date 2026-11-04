@@ -29,24 +29,21 @@ const uz = {
 
 
   // ---------- sidebar ----------
-  'nav.queue': 'Bugungi navbat',
-  'nav.batches': 'Partiyalar',
+  'nav.queue': 'Faol buyurtmalar',
+  'nav.batches': 'Ishlab chiqarish',
   'nav.stock': 'Zaxira',
   'nav.stats': 'Statistika',
   'nav.workshops': 'Tikuv sexlari',
   'nav.chat': 'Operator bilan chat',
   'nav.profile': 'Profil va sozlamalar',
-  'nav.shift': 'Bugungi smena',
-  'nav.ordersInQueue': '{n} ta buyurtma navbatda',
-  'nav.allDone': 'Navbat bo‘sh',
   'nav.logout': 'Chiqish',
   'nav.workshopFallback': 'Tikuv sexi',
   'nav.roleFallback': 'Mas’ul shaxs',
 
   // ---------- routes ----------
-  'route.queue.title': 'Bugungi navbat',
+  'route.queue.title': 'Faol buyurtmalar',
   'route.queue.sub': 'Bugungi buyurtmalar va bosma navbati',
-  'route.batches.title': 'Partiyalar',
+  'route.batches.title': 'Ishlab chiqarish',
   'route.batches.sub': "Model bo'yicha bosma partiyalari",
   'route.stock.title': 'Zaxira',
   'route.stock.sub': "Mato va material qoldig'i",
@@ -165,8 +162,6 @@ const uz = {
   'stat.apiOrdersHint': 'tanlangan davrda',
   'stat.apiActive': 'Faol buyurtmalar',
   'stat.apiActiveHint': 'ishlab chiqarishda',
-  'stat.apiLate': 'Kechikkan buyurtmalar',
-  'stat.apiLateHint': 'muddatidan o‘tgan',
   'stat.apiLoad': 'Sex yuklamasi',
   'stat.apiCapacity': 'Kunlik quvvat: {n}',
   'stat.workshops': 'Sexlar yuklamasi',
@@ -190,8 +185,8 @@ const uz = {
   'stat.stage.PRINTING': 'Bosilmoqda',
   'stat.stage.QUALITY_CHECK': 'Sifat nazorati',
   'stat.stage.READY': 'Tayyor',
-  'stat.volumeChart': 'Bosma hajmi dinamika grafigi',
-  'stat.volumeChartHint': "Tanlangan davr ({period}) bo'yicha ishlab chiqarish egri grafigi",
+  'stat.volumeChart': 'Kunlik buyurtmalar soni',
+  'stat.volumeChartHint': "Tanlangan davr ({period}) bo'yicha har kungi buyurtmalar",
 
   // ---------- chat ----------
   'chat.title': 'Operator bilan Chat',
@@ -476,24 +471,21 @@ const ru = {
 
 
   // ---------- sidebar ----------
-  'nav.queue': 'Очередь на сегодня',
-  'nav.batches': 'Партии',
+  'nav.queue': 'Активные заказы',
+  'nav.batches': 'Производство',
   'nav.stock': 'Запас',
   'nav.stats': 'Статистика',
   'nav.workshops': 'Швейные цеха',
   'nav.chat': 'Чат с оператором',
   'nav.profile': 'Профиль и настройки',
-  'nav.shift': 'Смена на сегодня',
-  'nav.ordersInQueue': 'В очереди {n} заказов',
-  'nav.allDone': 'Очередь пуста',
   'nav.logout': 'Выйти',
   'nav.workshopFallback': 'Швейный цех',
   'nav.roleFallback': 'Ответственное лицо',
 
   // ---------- routes ----------
-  'route.queue.title': 'Очередь на сегодня',
+  'route.queue.title': 'Активные заказы',
   'route.queue.sub': 'Заказы на сегодня и очередь печати',
-  'route.batches.title': 'Партии',
+  'route.batches.title': 'Производство',
   'route.batches.sub': 'Партии печати по моделям',
   'route.stock.title': 'Запас',
   'route.stock.sub': 'Остаток ткани и материалов',
@@ -612,8 +604,6 @@ const ru = {
   'stat.apiOrdersHint': 'за выбранный период',
   'stat.apiActive': 'Активные заказы',
   'stat.apiActiveHint': 'в производстве',
-  'stat.apiLate': 'Просроченные заказы',
-  'stat.apiLateHint': 'с истёкшим сроком',
   'stat.apiLoad': 'Загрузка цехов',
   'stat.apiCapacity': 'Дневная мощность: {n}',
   'stat.workshops': 'Загрузка цехов',
@@ -637,8 +627,8 @@ const ru = {
   'stat.stage.PRINTING': 'Печатается',
   'stat.stage.QUALITY_CHECK': 'Контроль качества',
   'stat.stage.READY': 'Готов',
-  'stat.volumeChart': 'График динамики объёма печати',
-  'stat.volumeChartHint': 'Кривая производства за выбранный период ({period})',
+  'stat.volumeChart': 'Заказы по дням',
+  'stat.volumeChartHint': 'Количество заказов по дням за выбранный период ({period})',
 
   // ---------- chat ----------
   'chat.title': 'Чат с оператором',
