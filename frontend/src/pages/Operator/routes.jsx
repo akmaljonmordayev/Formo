@@ -5,7 +5,9 @@ import {
   Factory,
   LayoutDashboard,
   MessagesSquare,
+  PackageCheck,
   Settings,
+  Scissors,
   ShoppingBag,
   UserRound,
   Wallet,
@@ -19,6 +21,8 @@ import Notifications from './Notifications';
 import Orders from './Orders';
 import Payments from './Payments';
 import Profile from './Profile';
+import ReadyOrders from './Ready';
+import WorkshopOrders from './Workshop';
 import Reports from './Reports';
 import OperatorSettings from './Settings';
 
@@ -29,6 +33,8 @@ export const operatorLayout = OperatorShell;
 export const operatorRoutes = [
   { path: '', element: <Dashboard /> },
   { path: 'orders', element: <Orders /> },
+  { path: 'workshop-orders', element: <WorkshopOrders /> },
+  { path: 'ready-orders', element: <ReadyOrders /> },
   { path: 'defects', element: <Defects /> },
   { path: 'factories', element: <Factories /> },
   { path: 'messages', element: <Messages /> },
@@ -43,6 +49,8 @@ export const operatorRoutes = [
 export const operatorMenu = [
   { to: BASE, label: 'menu.dashboard', end: true, icon: LayoutDashboard },
   { to: `${BASE}/orders`, label: 'menu.orders', icon: ShoppingBag, group: 'group.ops' },
+  { to: `${BASE}/workshop-orders`, label: 'menu.workshopOrders', icon: Scissors, group: 'group.ops' },
+  { to: `${BASE}/ready-orders`, label: 'menu.readyOrders', icon: PackageCheck, group: 'group.ops' },
   { to: `${BASE}/defects`, label: 'menu.defects', icon: AlertTriangle, group: 'group.ops' },
   { to: `${BASE}/factories`, label: 'menu.factories', icon: Factory, group: 'group.ops' },
   { to: `${BASE}/messages`, label: 'menu.messages', icon: MessagesSquare, group: 'group.comm' },

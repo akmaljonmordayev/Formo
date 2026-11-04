@@ -52,7 +52,8 @@ describe('KitDesignsService — mobil uchun faqat nashr qilinganlar', () => {
     });
     expect(list[0]).toMatchObject({ id: 1, name: 'Oqim', design: { designVersion: 1, pattern: 'fade', sponsorText: 'KARVON' } });
     // jadvalda bor kalit — jadvaldan, yo'qlari — standart qiymat
-    expect(list[0].prices).toEqual({ shirt: 120000, shorts: 60000, print: 30000 });
+    // shortik komplekt narxi ichida — alohida narxi doim 0
+    expect(list[0].prices).toEqual({ shirt: 120000, shorts: 0, print: 30000 });
     // ichki maydonlar (isActive, sortOrder, vaqtlar) ochiq javobga chiqmaydi
     expect(list[0]).not.toHaveProperty('isActive');
   });

@@ -12,8 +12,7 @@ const STATUSES = [
   'NEW',
   'SENT_TO_WORKSHOP',
   'ACCEPTED',
-  'PRINTING',
-  'QUALITY_CHECK',
+  // PRINTING / QUALITY_CHECK endi ishlatilmaydi: sex faqat "qabul qildi" → "tayyor" qiladi
   'READY',
   'DELIVERING',
   'DELIVERED',
@@ -40,7 +39,7 @@ function designSummary(design, t) {
   return parts.join(' · ');
 }
 
-function OrderDetails({ order, t, date }) {
+export function OrderDetails({ order, t, date }) {
   const lines = order.items ?? [];
   const delivery = [order.deliveryAddress, order.deliveryDate && date(order.deliveryDate), order.deliverySlot].filter(Boolean).join(' · ');
   return (

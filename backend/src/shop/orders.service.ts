@@ -26,7 +26,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { InventoryService } from '../admin/inventory.service';
 import { AddressesService, formatAddress } from './addresses.service';
 import { CartService, lineProblem, toCartItem } from './cart.service';
-import { STATUS_LABEL } from './order-status';
+import { CUSTOMER_STAGES, customerStageOf, STATUS_LABEL } from './order-status';
 import { dayLabel, DeliveryService, todayLocal } from './delivery.service';
 import { ChangePaymentMethodDto, CheckoutDto, MyOrdersQueryDto } from './dto/checkout.dto';
 import { summarize } from './pricing';
@@ -48,17 +48,6 @@ const FINAL: OrderStatus[] = [OrderStatus.DELIVERED, OrderStatus.CANCELLED, Orde
 const CANCELLABLE: OrderStatus[] = [OrderStatus.PENDING_PAYMENT, OrderStatus.NEW, OrderStatus.SENT_TO_WORKSHOP];
 
 export { STATUS_LABEL };
-
-const TIMELINE: OrderStatus[] = [
-  OrderStatus.NEW,
-  OrderStatus.SENT_TO_WORKSHOP,
-  OrderStatus.ACCEPTED,
-  OrderStatus.PRINTING,
-  OrderStatus.QUALITY_CHECK,
-  OrderStatus.READY,
-  OrderStatus.DELIVERING,
-  OrderStatus.DELIVERED,
-];
 
 const include = {
   items: { orderBy: { id: 'asc' }, include: { kit: { select: { bgColor: true, textColor: true } } } },
@@ -106,7 +95,7 @@ export function customerCanCancel(o: { status: OrderStatus; createdAt: Date }, w
 
 export function toOrderView(o: OrderRow, cancelWindowHours?: number) {
   const date = o.deliveryDate?.toISOString().slice(0, 10) ?? null;
-  const current = TIMELINE.indexOf(o.status);
+  const current = customerStageOf(o.status);
   // Tarix tartib bilan o'qiladi — keyingi yozuv oldingisini bosadi
   const reached = new Map(o.statusLogs.map((l) => [l.toStatus, l.createdAt]));
   return {
@@ -129,14 +118,20 @@ export function toOrderView(o: OrderRow, cancelWindowHours?: number) {
     comment: o.comment,
     itemsCount: o.items.reduce((s, i) => s + i.quantity, 0),
     items: o.items.map(({ kit, orderId: _o, ...i }) => ({ ...i, bgColor: kit?.bgColor ?? null, textColor: kit?.textColor ?? null })),
-    timeline: TIMELINE.map((status, i) => ({
-      status,
-      label: STATUS_LABEL[status],
-      done: current >= 0 && i <= current,
-      current: i === current,
-      // shu bosqichga oxirgi marta qachon o'tilgan (sex rad etib qayta yuborilsa ham to'g'ri chiqadi)
-      at: current >= 0 && i <= current ? (reached.get(status) ?? null) : null,
-    })),
+    // Mijoz 4 bosqichni ko'radi (+ yetkazildi): ichki sex holatlari (bosish, sifat nazorati, tayyor) "jarayonda"
+    timeline: CUSTOMER_STAGES.map(({ status, statuses }, i) => {
+      // bosqichga oxirgi marta qachon kirilgan (sex rad etib qayta yuborilsa ham to'g'ri chiqadi) — bosqich
+      // ichidagi holatlardan eng birinchisi
+      const times = statuses.map((s) => reached.get(s)).filter((d): d is Date => Boolean(d));
+      const at = times.length ? times.reduce((a, b) => (a < b ? a : b)) : null;
+      return {
+        status,
+        label: STATUS_LABEL[status],
+        done: current >= 0 && i <= current,
+        current: i === current,
+        at: current >= 0 && i <= current ? at : null,
+      };
+    }),
     canCancel: customerCanCancel(o, cancelWindowHours),
     createdAt: o.createdAt,
   };

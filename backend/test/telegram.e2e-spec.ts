@@ -224,7 +224,7 @@ describe('Telegram bot orqali kirish (e2e)', () => {
     it('buyurtma holati ulangan mijozga navbatga qo‘yiladi; bot oladi va natijani qaytaradi', async () => {
       const order = await placeOrder();
       const leased = await api(app).get('/api/internal/telegram/outbox?limit=10').set(bearer(INTERNAL)).expect(200);
-      expect(leased.body).toEqual([expect.objectContaining({ chatId: tgUser, text: `📦 ${order.code} buyurtmangiz holati: Qabul qilindi` })]);
+      expect(leased.body).toEqual([expect.objectContaining({ chatId: tgUser, text: `📦 ${order.code} buyurtmangiz holati: Buyurtma yuborildi` })]);
 
       // band qilingan xabar boshqa bot nusxasiga qayta berilmaydi
       expect((await api(app).get('/api/internal/telegram/outbox').set(bearer(INTERNAL)).expect(200)).body).toEqual([]);
@@ -254,7 +254,7 @@ describe('Telegram bot orqali kirish (e2e)', () => {
       expect((await bot('hello', { telegramUserId: tgUser, chatId: tgUser }).expect(200)).body).toEqual({ linked: true, language: 'ru' });
       const order = await placeOrder();
       const leased = await api(app).get('/api/internal/telegram/outbox?limit=10').set(bearer(INTERNAL)).expect(200);
-      expect(leased.body).toEqual([expect.objectContaining({ text: `📦 Статус заказа ${order.code}: Принят` })]);
+      expect(leased.body).toEqual([expect.objectContaining({ text: `📦 Статус заказа ${order.code}: Заказ отправлен` })]);
       await bot(`outbox/${leased.body[0].id}/result`, { result: 'SENT' }).expect(200);
     });
 

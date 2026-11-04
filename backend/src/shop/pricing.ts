@@ -19,7 +19,10 @@ export interface ItemOptions {
 
 export const hasPrint = (o: Pick<ItemOptions, 'printName' | 'printNumber'>) => Boolean(o.printName || o.printNumber);
 
-/** Bitta to'plam narxi: futbolka + (shortik) + (ism/raqam bosmasi) */
+/**
+ * Bitta komplekt narxi: komplekt (futbolka + shortik bitta narx — `shirtPrice`) + (ism/raqam bosmasi).
+ * `shortsPrice` eskirgan: 2026-11-04 migratsiyasi uni komplekt narxiga qo'shib 0 qildi.
+ */
 export function unitPrice(kit: KitPrices, o: ItemOptions) {
   return kit.shirtPrice + (o.withShorts ? kit.shortsPrice : 0) + (hasPrint(o) ? kit.printPrice : 0);
 }
@@ -29,7 +32,8 @@ export function unitPrice(kit: KitPrices, o: ItemOptions) {
  * Superadmin "Narxlar" sahifasida o'zgartiriladi, mijoz yuborgan narx hech qachon ishlatilmaydi.
  */
 export const KIT_DESIGN_PRICE_KEYS = { shirt: 'club.tshirt', shorts: 'club.shorts', print: 'club.print' } as const;
-export const DEFAULT_KIT_DESIGN_PRICES: KitPrices = { shirtPrice: 99000, shortsPrice: 60000, printPrice: 30000 };
+// "club.tshirt" — komplekt narxi; "club.shorts" kaliti endi yo'q (shortik komplekt ichida)
+export const DEFAULT_KIT_DESIGN_PRICES: KitPrices = { shirtPrice: 159000, shortsPrice: 0, printPrice: 30000 };
 
 type PriceDb = { pricingItem: { findMany(args: { where: { key: { in: string[] } } }): Promise<{ key: string; price: number }[]> } };
 

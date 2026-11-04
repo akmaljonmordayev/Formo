@@ -96,7 +96,7 @@ export class InventoryService {
 
   /**
    * Checkout tranzaksiyasi ichida chaqiriladi: har bir klub formasi (kitId bor) qatori uchun
-   * futbolka va (shortik tanlangan bo'lsa) shortik zaxirasini shartli kamaytiradi — `qty >= so'ralgan`
+   * komplekt zaxirasini (TSHIRT qatori) shartli kamaytiradi — `qty >= so'ralgan`
    * bo'lgandagina (conditional update, wallet.debit bilan bir xil uslub). Yetarli bo'lmasa butun
    * tranzaksiya (va shu bilan oldingi decrementlar) qaytishi uchun shu yerda xato tashlanadi.
    *
@@ -107,10 +107,8 @@ export class InventoryService {
   async reserve(tx: Prisma.TransactionClient, lines: InventoryOrderLine[]) {
     for (const line of lines) {
       if (line.kitId == null) continue; // faqat klub formasi (CLUB_KIT) ombor bilan kuzatiladi
+      // Komplekt (futbolka + shortik) bitta qoldiq — o'lcham futbolka o'lchami bo'yicha
       await this.decrementOne(tx, line.kitId, line.shirtSize, InventoryProductType.TSHIRT, line.quantity, line.label);
-      if (line.withShorts && line.shortsSize) {
-        await this.decrementOne(tx, line.kitId, line.shortsSize, InventoryProductType.SHORTS, line.quantity, line.label);
-      }
     }
   }
 
@@ -145,12 +143,6 @@ export class InventoryService {
         where: { productType: InventoryProductType.TSHIRT, kitId: line.kitId, size: line.shirtSize },
         data: { qty: { increment: line.quantity } },
       });
-      if (line.withShorts && line.shortsSize) {
-        await tx.inventoryItem.updateMany({
-          where: { productType: InventoryProductType.SHORTS, kitId: line.kitId, size: line.shortsSize },
-          data: { qty: { increment: line.quantity } },
-        });
-      }
     }
   }
 }

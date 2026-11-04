@@ -368,7 +368,7 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
       await as(user).post('/api/cart/items', { design: { ...design, patch: 'bayroq' }, shirtSize: 'XL', printName: 'Ali', printNumber: '9' }).expect(201);
       await as(user).post('/api/cart/items', { kitId, shirtSize: 'M' }).expect(201); // aralash savat
       const res = await checkout(2).expect(201);
-      expect(res.body.summary.subtotal).toBe(150000 + 10000 + (99000 + 60000 + 0));
+      expect(res.body.summary.subtotal).toBe(150000 + 10000 + 159000); // komplekt (futbolka + shortik) bitta narx
       const id = res.body.id;
 
       const detail = await as(operator).get(`/api/admin/orders/${id}`).expect(200);

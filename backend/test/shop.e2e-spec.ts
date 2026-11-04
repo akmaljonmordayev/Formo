@@ -84,13 +84,14 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
               sizes: ['S', 'M', 'L', 'XL', '3XL', '8-9'],
             },
             { label: 'Mehmon', bgColor: '#1b1f45', textColor: '#ffffff', colorsLabel: "To'q ko'k / oq" },
-            { label: 'Uchinchi', bgColor: '#2b2e7a', textColor: '#f5a55e', shirtPrice: 109000 },
+            { label: 'Uchinchi', bgColor: '#2b2e7a', textColor: '#f5a55e', shirtPrice: 169000 },
           ],
         })
         .expect(201);
       expect(res.body).toMatchObject({ league: 'LaLiga', categoryId: laliga.id, category: { slug: 'laliga' } });
       expect(res.body.kits).toHaveLength(3);
-      expect(res.body.kits[0]).toMatchObject({ shirtPrice: 99000, shortsPrice: 60000, printPrice: 30000 });
+      // komplekt (futbolka + shortik) bitta narx — shortik alohida 0
+      expect(res.body.kits[0]).toMatchObject({ shirtPrice: 159000, shortsPrice: 0, printPrice: 30000 });
       real = res.body;
       homeKit = real.kits[0].id;
       awayKit = real.kits[1].id;
@@ -198,7 +199,7 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
 
     it("forma tafsiloti: narx tarkibi, o'lchamlar (XXL tugagan), boshqa formalar", async () => {
       const res = await api(app).get(`/api/catalog/kits/${homeKit}`).expect(200);
-      expect(res.body.priceBreakdown).toEqual({ shirt: 99000, shorts: 60000, print: 30000 });
+      expect(res.body.priceBreakdown).toEqual({ shirt: 159000, shorts: 0, print: 30000 });
       expect(res.body.club).toMatchObject({ name: 'Real Madrid', season: '2026/27' });
       expect(res.body.siblings.map((k: { label: string }) => k.label)).toEqual(['Uy', 'Mehmon', 'Uchinchi']);
       expect(res.body.sizes).toEqual(
@@ -313,7 +314,7 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
       const id = cart.body.items[1].id;
 
       const res = await as(user).patch(`/api/cart/items/${id}`, { quantity: 3, withShorts: false }).expect(200);
-      expect(res.body.items[1]).toMatchObject({ quantity: 3, withShorts: false, shortsSize: null, unitPrice: 99000 });
+      expect(res.body.items[1]).toMatchObject({ quantity: 3, withShorts: false, shortsSize: null, unitPrice: 159000 });
 
       await as(user).patch(`/api/cart/items/${id}`, { quantity: 0 }).expect(400);
       await as(other).patch(`/api/cart/items/${id}`, { quantity: 1 }).expect(404);
@@ -554,9 +555,9 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
       await as(admin).post(`/api/admin/orders/${res.body.id}/assign`, { workshopId: workshop.body.id }).expect(200);
       await as(admin).patch(`/api/admin/orders/${res.body.id}/status`, { status: 'PRINTING' }).expect(200);
       const order = await as(user).get(`/api/orders/${res.body.id}`).expect(200);
-      expect(order.body).toMatchObject({ statusLabel: 'Bosilmoqda', canCancel: false });
-      // NEW → SENT_TO_WORKSHOP → ACCEPTED → PRINTING
-      expect(order.body.timeline.filter((s: { done: boolean }) => s.done)).toHaveLength(4);
+      expect(order.body).toMatchObject({ statusLabel: 'Buyurtma jarayonda', canCancel: false });
+      // yuborildi → qabul qilindi → jarayonda (PRINTING mijozga "jarayonda")
+      expect(order.body.timeline.filter((s: { done: boolean }) => s.done)).toHaveLength(3);
       await as(user).post(`/api/orders/${res.body.id}/cancel`).expect(409);
     });
 
