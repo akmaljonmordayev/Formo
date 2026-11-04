@@ -10,7 +10,8 @@ const __dirname = path.dirname(__filename);
 const IMPORT_DIR = path.join(__dirname, 'import');
 const GALLERY_SCRIPT = 'C:\\Users\\Victus\\.gemini\\antigravity\\brain\\69bb9df5-9fd2-4993-bfe2-542b24ae0a47\\scratch\\build_gallery_artifact.mjs';
 
-const teams = ['rm', 'fcb', 'mu', 'mci', 'psg', 'ar', 'es', 'fr', 'en', 'pt'];
+// render.js dagi TEAMS bilan bir xil (render.js Node'da import qilinmaydi — kengaytmasiz import); import/<id>/ bo'lmasa o'tkaziladi
+const teams = ['rm', 'fcb', 'mu', 'mci', 'psg', 'ar', 'es', 'fr', 'en', 'pt', 'uz', 'de', 'ars', 'che', 'juv', 'rom', 'atm'];
 let processedCount = 0;
 
 for (const t of teams) {

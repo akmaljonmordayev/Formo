@@ -184,7 +184,7 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
           }}
         />
 
-        {/* 10 ta jamoani tanlash lentasi */}
+        {/* Jamoalarni tanlash lentasi (17 ta) */}
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}

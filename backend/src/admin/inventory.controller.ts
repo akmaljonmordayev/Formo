@@ -1,10 +1,11 @@
-import { Body, Controller, Get, Put, Query, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Put, Query, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiForbiddenResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { Request } from 'express';
 import { CurrentUser, AuthUser } from '../common/decorators/current-user.decorator';
 import { Roles } from '../common/decorators/roles.decorator';
-import { ListInventoryQueryDto, UpsertInventoryDto } from './dto/inventory.dto';
+import { ParseIdPipe } from '../common/pipes/parse-id.pipe';
+import { ListInventoryQueryDto, RemoveInventoryQueryDto, UpsertInventoryDto } from './dto/inventory.dto';
 import { InventoryService } from './inventory.service';
 
 @ApiTags('Admin · Zaxira')
@@ -32,5 +33,16 @@ export class InventoryController {
   @ApiOperation({ summary: "Zaxira qoldiqlarini saqlash (bir nechta yozuv birdan)" })
   upsert(@Body() dto: UpsertInventoryDto, @CurrentUser() user: AuthUser, @Req() req: Request) {
     return this.inventory.upsert(dto, user, req.ip);
+  }
+
+  @Delete('kit/:kitId')
+  @ApiOperation({ summary: "Formaning futbolka yoki shortik qoldig'ini o'chirish (barcha o'lchamlar)" })
+  removeKit(
+    @Param('kitId', ParseIdPipe) kitId: number,
+    @Query() query: RemoveInventoryQueryDto,
+    @CurrentUser() user: AuthUser,
+    @Req() req: Request,
+  ) {
+    return this.inventory.removeKit(kitId, query.productType, user, req.ip);
   }
 }

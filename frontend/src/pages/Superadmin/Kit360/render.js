@@ -15,11 +15,18 @@ export const TEAMS = [
   { id: 'fr', kind: 'national', name: 'Fransiya', ink: '#ffffff', shortsInk: '#1f2a5c' },
   { id: 'en', kind: 'national', name: 'Angliya', ink: '#1b2450', shortsInk: '#ffffff' },
   { id: 'pt', kind: 'national', name: 'Portugaliya', ink: '#f3c74a' },
+  { id: 'uz', kind: 'national', name: "O'zbekiston", ink: '#ffffff', shortsInk: '#1e3a8a' },
+  { id: 'de', kind: 'national', name: 'Germaniya', ink: '#111318', shortsInk: '#ffffff' },
   { id: 'rm', kind: 'club', name: 'Real Madrid', ink: '#1b2450', outline: '#c9a13b' },
   { id: 'fcb', kind: 'club', name: 'Barselona', ink: '#f2c12e' },
   { id: 'mu', kind: 'club', name: 'Manchester Yunayted', ink: '#ffffff', shortsInk: '#111318' },
   { id: 'psg', kind: 'club', name: 'PSJ', ink: '#ffffff', outline: '#d6202f' },
   { id: 'mci', kind: 'club', name: 'Manchester Siti', ink: '#1b2450' },
+  { id: 'ars', kind: 'club', name: 'Arsenal', ink: '#ffffff', outline: '#1b2450' },
+  { id: 'che', kind: 'club', name: 'Chelsi', ink: '#ffffff', outline: '#034694' },
+  { id: 'juv', kind: 'club', name: 'Yuventus', ink: '#ffffff', outline: '#111318' },
+  { id: 'rom', kind: 'club', name: 'Roma', ink: '#f7b731', outline: '#8e1f2f' },
+  { id: 'atm', kind: 'club', name: 'Atletiko Madrid', ink: '#ffffff', outline: '#cb3524' },
 ];
 
 /* Bosma shriftlari — har biri lotin, kirill va o'zbek kirill (Ў Қ Ғ Ҳ) harflariga ega (Google Fonts: cyrillic-ext).

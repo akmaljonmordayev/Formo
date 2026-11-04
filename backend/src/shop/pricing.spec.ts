@@ -1,6 +1,6 @@
 import { PromocodeType } from '@prisma/client';
 import { addDays, dayLabel, todayLocal } from './delivery.service';
-import { fullSetPrice, promoError, PromoCheck, summarize, unitPrice } from './pricing';
+import { DEFAULT_KIT_DESIGN_PRICES, fullSetPrice, loadKitDesignPrices, promoError, PromoCheck, summarize, unitPrice } from './pricing';
 
 const kit = { shirtPrice: 99000, shortsPrice: 60000, printPrice: 30000 };
 
@@ -48,6 +48,32 @@ describe('summarize', () => {
   it("PERCENT 100 dan oshsa ham manfiy summa bo'lmaydi", () => {
     expect(summarize(1000, 0, { type: PromocodeType.PERCENT, value: 150 }).total).toBe(0);
   });
+
+  it('PERCENT yaxlitlanadi: 333 dan 15% = 49.95 → 50; FREE_SHIPPING chegirma bermaydi', () => {
+    expect(summarize(333, 0, { type: PromocodeType.PERCENT, value: 15 })).toMatchObject({ discount: 50, total: 283 });
+    expect(summarize(189000, 15000, { type: PromocodeType.FREE_SHIPPING, value: 50 })).toMatchObject({ discount: 0 });
+  });
+
+  it("FIXED summadan kichik bo'lsa to'liq ayiriladi, yetkazish saqlanadi", () => {
+    expect(summarize(189000, 15000, { type: PromocodeType.FIXED, value: 20000 })).toEqual({
+      subtotal: 189000,
+      discount: 20000,
+      delivery: 15000,
+      total: 184000,
+    });
+  });
+});
+
+describe('loadKitDesignPrices', () => {
+  const db = (rows: { key: string; price: number }[]) => ({ pricingItem: { findMany: async () => rows } });
+
+  it("jadvalda yo'q kalit — standart narx; bori — jadvaldagi narx", async () => {
+    await expect(loadKitDesignPrices(db([]))).resolves.toEqual(DEFAULT_KIT_DESIGN_PRICES);
+    await expect(loadKitDesignPrices(db([{ key: 'club.shorts', price: 70000 }, { key: 'other', price: 1 }]))).resolves.toEqual({
+      ...DEFAULT_KIT_DESIGN_PRICES,
+      shortsPrice: 70000,
+    });
+  });
 });
 
 describe('promoError', () => {
@@ -70,6 +96,12 @@ describe('promoError', () => {
   it('boshlanmagan', () => expect(promoError({ ...base, startsAt: new Date('2026-11-01') }, 1, now)).toMatch(/boshlanmagan/));
   it('tugagan', () => expect(promoError({ ...base, endsAt: new Date('2026-10-01') }, 1, now)).toMatch(/tugagan/));
   it('limit', () => expect(promoError({ ...base, usageCap: 5, usedCount: 5 }, 1, now)).toMatch(/limiti/));
+  it("chegaralar: boshlanish/tugash aynan hozir, limitdan bitta kam — yaroqli", () => {
+    expect(promoError({ ...base, startsAt: now, endsAt: now, usageCap: 5, usedCount: 4 }, 1, now)).toBeNull();
+  });
+  it('nofaol kod boshqa sabablardan oldin aytiladi', () => {
+    expect(promoError({ ...base, isActive: false, endsAt: new Date('2026-10-01') }, 1, now)).toBe('Promokod topilmadi yoki faol emas');
+  });
   it('minimal summa', () => {
     expect(promoError({ ...base, minSum: 200000 }, 199999, now)).toBe("Promokod 200 000 so'mdan yuqori buyurtmalar uchun");
     expect(promoError({ ...base, minSum: 200000 }, 200000, now)).toBeNull();

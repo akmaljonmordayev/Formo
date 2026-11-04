@@ -382,6 +382,21 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
       await as(admin).patch(`/api/admin/promocodes/${promo.id}`, { isActive: false }).expect(200);
       await as(user).get('/api/cart?promocode=FREESHIP').expect(400);
     });
+
+    it("muddat: tugash kuni oxirigacha amal qiladi, tugagani — 400, null bilan muddat olib tashlanadi", async () => {
+      const promo = await prisma.promocode.findUniqueOrThrow({ where: { code: 'FORMO10' } });
+      const tomorrow = new Date(Date.now() + 86_400_000).toLocaleDateString('sv-SE', { timeZone: 'Asia/Tashkent' });
+      await as(admin).patch(`/api/admin/promocodes/${promo.id}`, { endsAt: `${tomorrow}T23:59:59+05:00` }).expect(200);
+      await as(user).get('/api/cart?promocode=FORMO10').expect(200);
+
+      await as(admin).patch(`/api/admin/promocodes/${promo.id}`, { endsAt: '2020-01-01T23:59:59+05:00' }).expect(200);
+      const expired = await as(user).get('/api/cart?promocode=FORMO10').expect(400);
+      expect(expired.body.message).toBe('Promokod muddati tugagan');
+
+      const cleared = await as(admin).patch(`/api/admin/promocodes/${promo.id}`, { endsAt: null, minSum: null }).expect(200);
+      expect(cleared.body).toMatchObject({ endsAt: null, minSum: null });
+      await as(user).get('/api/cart?promocode=FORMO10').expect(200);
+    });
   });
 
   // ---------------------------------------------------------------------------

@@ -133,8 +133,12 @@ export default function SuperadminPromocodes() {
   );
 }
 
-// ISO -> <input type="date"> qiymati
-const toDateInput = (iso) => (iso ? new Date(iso).toLocaleDateString('sv-SE') : '');
+// ISO -> <input type="date"> qiymati (Toshkent kuni); kun -> ISO: boshlanishi kun boshidan, tugashi kun oxirigacha
+// (aks holda "30-noyabrgacha" kodi 30-noyabr soat 05:00 da — UTC yarim tunda — o'chib qolardi)
+const TZ = 'Asia/Tashkent';
+const toDateInput = (iso) => (iso ? new Date(iso).toLocaleDateString('sv-SE', { timeZone: TZ }) : '');
+const dayStart = (day) => `${day}T00:00:00+05:00`;
+const dayEnd = (day) => `${day}T23:59:59+05:00`;
 
 function PromocodeForm({ promo, onClose, onSaved }) {
   const t = useT();
@@ -161,12 +165,14 @@ function PromocodeForm({ promo, onClose, onSaved }) {
       if (form.type !== 'FREE_SHIPPING' && form.value !== '') body.value = Number(form.value);
       if (form.minSum !== '') body.minSum = Number(form.minSum);
       if (form.usageCap !== '') body.usageCap = Number(form.usageCap);
-      if (form.startsAt) body.startsAt = new Date(form.startsAt).toISOString();
-      if (form.endsAt) body.endsAt = new Date(form.endsAt).toISOString();
+      if (form.startsAt) body.startsAt = dayStart(form.startsAt);
+      if (form.endsAt) body.endsAt = dayEnd(form.endsAt);
       if (isEdit) {
-        // Tahrirlashda bo'shatilgan limitlar serverda ham olib tashlanadi
+        // Tahrirlashda bo'shatilgan limitlar va muddatlar serverda ham olib tashlanadi
         if (form.minSum === '') body.minSum = null;
         if (form.usageCap === '') body.usageCap = null;
+        if (!form.startsAt) body.startsAt = null;
+        if (!form.endsAt) body.endsAt = null;
         await promocodesApi.update(promo.id, body);
       } else {
         await promocodesApi.create(body);
@@ -207,7 +213,7 @@ function PromocodeForm({ promo, onClose, onSaved }) {
           {form.type !== 'FREE_SHIPPING' && (
             <label className="field">
               <span>{form.type === 'PERCENT' ? t('Qiymat (%)') : t("Qiymat (so'm)")}</span>
-              <input type="number" min={0} value={form.value} onChange={set('value')} />
+              <input type="number" min={0} max={form.type === 'PERCENT' ? 100 : undefined} value={form.value} onChange={set('value')} />
             </label>
           )}
           <label className="field">
