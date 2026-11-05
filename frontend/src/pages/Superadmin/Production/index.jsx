@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { productionApi } from '../../../features/platform/platformApi';
 import { useT } from '../i18n';
 
@@ -11,6 +12,8 @@ const COLUMNS = [
 
 export default function SuperadminProduction() {
   const t = useT();
+  const navigate = useNavigate();
+  const openOrder = (code) => navigate(`/superadmin/orders?search=${encodeURIComponent(code)}`);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -35,7 +38,7 @@ export default function SuperadminProduction() {
       <div className="sa-head">
         <div>
           <h1>{t("Ishlab chiqarish")}</h1>
-          <p>{t("Bugungi bosma vazifalari: chapdan o'ngga 4 qadam. Kartochkani bosib bosma ma'lumotlarini oching.")}</p>
+          <p>{t("Bugungi bosma vazifalari: chapdan o'ngga 4 qadam. Kartochkani bosib buyurtmani oching.")}</p>
         </div>
       </div>
 
@@ -98,7 +101,15 @@ export default function SuperadminProduction() {
                   {jobs.map((j) => {
                     const late = col.key !== 'READY' && new Date(j.createdAt) < new Date(Date.now() - 21 * 60 * 60 * 1000);
                     return (
-                      <div key={j.id} className="sa-kjob">
+                      <div
+                        key={j.id}
+                        className="sa-kjob"
+                        role="link"
+                        tabIndex={0}
+                        style={{ cursor: 'pointer' }}
+                        onClick={() => openOrder(j.code)}
+                        onKeyDown={(e) => e.key === 'Enter' && openOrder(j.code)}
+                      >
                         <div className="sa-kjob__tag">
                           <span>{j.code}</span>
                           {late && <span className="sa-badge sa-badge--red">{t("Kechikmoqda")}</span>}

@@ -599,6 +599,69 @@
   background: var(--sa-accent);
 }
 
+/* Dashboard grafigi: ustun + hover tooltip + X o'qidagi sanalar */
+.sa-bars__item {
+  position: relative;
+  flex: 1;
+  min-width: 4px;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+}
+
+.sa-bars__item .sa-bars__col {
+  width: 100%;
+}
+
+.sa-bars__item:hover .sa-bars__col {
+  filter: brightness(1.25);
+}
+
+.sa-bars__tip {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  left: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--sa-line);
+  background: var(--sa-surface-2);
+  color: var(--sa-ink);
+  font-size: 12px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.sa-bars__tip.is-left {
+  left: auto;
+  right: 0;
+}
+
+.sa-bars__tip span {
+  color: var(--sa-mu);
+}
+
+.sa-bars__axis {
+  display: flex;
+  gap: 4px;
+  font-size: 10.5px;
+  color: var(--sa-mu-2);
+}
+
+.sa-bars__axis span {
+  flex: 1;
+  min-width: 4px;
+  overflow: visible;
+  white-space: nowrap;
+}
+
+.sa-input[type='date'] {
+  color-scheme: dark;
+}
+
 /* Jadval */
 .sa-table-wrap {
   overflow-x: auto;

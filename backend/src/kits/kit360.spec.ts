@@ -1,4 +1,4 @@
-import { KIT360_CATALOG, KIT360_IDS, kit360IdFor, pickKit360Owners } from './kit360';
+import { KIT360_ALIASES, KIT360_CATALOG, KIT360_IDS, kit360IdFor, pickKit360Owners } from './kit360';
 
 describe('kit360IdFor — klub nomi/kodi → Forma 360° id', () => {
   it.each([
@@ -12,10 +12,14 @@ describe('kit360IdFor — klub nomi/kodi → Forma 360° id', () => {
     ['mu', ['Manchester Yunayted', 'Манчестер Юнайтед', 'Manchester United']],
     ['psg', ['PSJ', 'ПСЖ', 'Paris Saint-Germain']],
     ['mci', ['Manchester Siti', 'Манчестер Сити', 'Manchester City']],
-    ['uz', ["O'zbekiston", 'O‘zbekiston', 'Узбекистан', 'Uzbekistan']],
-    ['lfc', ['Liverpul', 'Ливерпуль', 'Liverpool']],
+    ['lfc', ['Liverpul', 'Ливерпуль', 'Liverpool FC']],
+    ['uz', ["O'zbekiston", 'Oʻzbekiston', 'Ўзбекистон', 'Узбекистан', 'Uzbekistan']],
+    ['de', ['Germaniya', 'Германия', 'Germany']],
     ['ars', ['Arsenal', 'Арсенал']],
     ['che', ['Chelsi', 'Челси', 'Chelsea']],
+    ['juv', ['Yuventus', 'Ювентус', 'Juventus']],
+    ['rom', ['Roma', 'Рома', 'AS Roma']],
+    ['atm', ['Atletiko Madrid', 'Атлетико Мадрид', 'Atlético Madrid']],
   ])('%s: lotin, kirill, inglizcha', (id, names) => {
     for (const name of names) expect(kit360IdFor(name)).toBe(id);
   });
@@ -32,8 +36,21 @@ describe('kit360IdFor — klub nomi/kodi → Forma 360° id', () => {
     expect(kit360IdFor(undefined)).toBeNull();
   });
 
-  it("14 ta id, har biriga katalog ma'lumoti", () => {
-    expect(KIT360_IDS).toEqual(['es', 'ar', 'fr', 'en', 'pt', 'uz', 'rm', 'fcb', 'mu', 'psg', 'mci', 'lfc', 'ars', 'che']);
+  it("18 ta id (7 terma, 11 klub); 'Real' va 'Atletiko Madrid' adashmaydi", () => {
+    expect(KIT360_IDS).toEqual([
+      'es', 'ar', 'fr', 'en', 'pt', 'uz', 'de',
+      'rm', 'fcb', 'mu', 'psg', 'mci', 'lfc', 'ars', 'che', 'juv', 'rom', 'atm',
+    ]);
+    expect(kit360IdFor('Atletiko Madrid')).toBe('atm');
+    expect(kit360IdFor('Real Madrid')).toBe('rm');
+  });
+
+  it("bitta nom ikki jamoaga tegishli emas", () => {
+    const all = Object.values(KIT360_ALIASES).flat();
+    expect(new Set(all).size).toBe(all.length);
+  });
+
+  it("18 ta id, har biriga katalog ma'lumoti", () => {
     expect(KIT360_CATALOG.map((t) => t.id)).toEqual([...KIT360_IDS]);
     for (const t of KIT360_CATALOG) expect(kit360IdFor(t.name, t.code)).toBe(t.id);
   });

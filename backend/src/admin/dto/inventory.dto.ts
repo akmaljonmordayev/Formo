@@ -32,6 +32,12 @@ export class UpsertInventoryDto {
   items: InventoryItemInput[];
 }
 
+export class RemoveInventoryQueryDto {
+  @ApiProperty({ enum: InventoryProductType })
+  @IsEnum(InventoryProductType)
+  productType: InventoryProductType;
+}
+
 export class ListInventoryQueryDto {
   @ApiPropertyOptional({ enum: InventoryProductType })
   @IsOptional()

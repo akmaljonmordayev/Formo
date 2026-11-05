@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const path = require('path');
 
 const src = (p) => path.join(__dirname, '..', 'src', p);
-const { kit360Team, kit360Message, parseKit360Message, KIT360_SOURCE, KIT360_TEAMS, findKit360Team } = require(src('features/kit360/index.js'));
+const { kit360Team, kit360Message, parseKit360Message, KIT360_SOURCE, KIT360_TEAMS, KIT360_IDS, findKit360Team } = require(src('features/kit360/index.js'));
 const viewerHtml = require(src('components/ui/kit360/viewerHtml.js')).default;
 
 test("kit360Team: katalogdagi klub nomi/kodi → foto-360° jamoasi (lotin, kirill, inglizcha)", () => {
@@ -50,9 +50,9 @@ test('xabarlar: update va javoblar formo-kit360 belgisi bilan, boshqa postMessag
   assert.equal(parseKit360Message('not json'), null);
 });
 
-test("viewer.html: 14 jamoaning 8 tadan kadri ichida (data: URL), tashqi skript yo'q", () => {
+test("viewer.html: har jamoaning (KIT360_IDS) 8 tadan kadri ichida (data: URL), tashqi skript yo'q", () => {
   const frames = JSON.parse(viewerHtml.match(/window\.FORMO_FRAMES=(\{.*?\})<\/script>/s)[1]);
-  assert.deepEqual(Object.keys(frames).sort(), ['ar', 'ars', 'che', 'en', 'es', 'fcb', 'fr', 'lfc', 'mci', 'mu', 'psg', 'pt', 'rm', 'uz']);
+  assert.deepEqual(Object.keys(frames).sort(), [...KIT360_IDS].sort());
   for (const list of Object.values(frames)) {
     assert.equal(list.length, 8);
     for (const url of list) assert.ok(url.startsWith('data:image/jpeg;base64,'));
@@ -60,14 +60,15 @@ test("viewer.html: 14 jamoaning 8 tadan kadri ichida (data: URL), tashqi skript 
   assert.ok(!/<script[^>]+src=/i.test(viewerHtml));
 });
 
-test("KIT360_TEAMS: 14 ta jamoa (6 terma jamoa, 8 klub), to'liq ma'lumotlar bilan", () => {
-  assert.equal(KIT360_TEAMS.length, 14);
+test("KIT360_TEAMS: 18 ta jamoa (7 terma jamoa, 11 klub), to'liq ma'lumotlar bilan", () => {
+  assert.equal(KIT360_TEAMS.length, 18);
   const ids = KIT360_TEAMS.map((t) => t.id).sort();
-  assert.deepEqual(ids, ['ar', 'ars', 'che', 'en', 'es', 'fcb', 'fr', 'lfc', 'mci', 'mu', 'psg', 'pt', 'rm', 'uz']);
+  assert.deepEqual(ids, ['ar', 'ars', 'atm', 'che', 'de', 'en', 'es', 'fcb', 'fr', 'juv', 'lfc', 'mci', 'mu', 'psg', 'pt', 'rm', 'rom', 'uz']);
   const nationals = KIT360_TEAMS.filter((t) => t.kind === 'national');
   const clubs = KIT360_TEAMS.filter((t) => t.kind === 'club');
-  assert.equal(nationals.length, 6);
-  assert.equal(clubs.length, 8);
+  assert.equal(nationals.length, 7);
+  assert.equal(clubs.length, 11);
+  assert.deepEqual([...KIT360_IDS].sort(), ids); // aliaslar va ro'yxat bir xil
   assert.equal(findKit360Team('rm').name, 'Real Madrid');
   assert.equal(findKit360Team('fcb').name, 'Barselona');
   assert.ok(findKit360Team('unknown')); // fallback

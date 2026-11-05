@@ -403,4 +403,29 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
       await as(admin).put('/api/admin/inventory', { items: [{ productType: 'TSHIRT', kitId, size: 'M', qty: 1 }] }).expect(200);
     });
   });
+
+  // ---------------------------------------------------------------------------
+  describe("Zaxira qoldig'ini o'chirish", () => {
+    it("formaning faqat tanlangan turi o'chiriladi, auditga yoziladi; operator va noto'g'ri tur — rad", async () => {
+      await as(admin)
+        .put('/api/admin/inventory', {
+          items: [
+            { productType: 'TSHIRT', kitId, size: 'L', qty: 4 },
+            { productType: 'SHORTS', kitId, size: 'L', qty: 6 },
+          ],
+        })
+        .expect(200);
+      await as(operator).delete(`/api/admin/inventory/kit/${kitId}?productType=TSHIRT`).expect(403);
+      await as(admin).delete(`/api/admin/inventory/kit/${kitId}?productType=HAT`).expect(400);
+
+      const res = await as(admin).delete(`/api/admin/inventory/kit/${kitId}?productType=TSHIRT`).expect(200);
+      expect(res.body.deleted).toBeGreaterThan(0);
+      const left = (await as(admin).get('/api/admin/inventory').expect(200)).body.filter((i: { kitId: number }) => i.kitId === kitId);
+      expect(left.map((i: { productType: string }) => i.productType)).toEqual(['SHORTS']);
+      expect((await as(admin).delete(`/api/admin/inventory/kit/${kitId}?productType=TSHIRT`).expect(200)).body).toEqual({ deleted: 0 });
+
+      const audit = await prisma.auditLog.findFirst({ where: { action: "Zaxira qoldig'i o'chirildi" }, orderBy: { id: 'desc' } });
+      expect(audit?.context).toContain(`#${kitId}`);
+    });
+  });
 });

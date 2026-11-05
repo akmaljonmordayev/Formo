@@ -18,7 +18,7 @@ export class InsightsController {
   @ApiOperation({ summary: "Bosh sahifa statistikasi" })
   @ApiOkResponse()
   dashboard(@Query() query: RangeQueryDto) {
-    return this.orders.dashboardStats(query.days ?? 30);
+    return this.orders.dashboardStats(query);
   }
 
   @Get('finance')

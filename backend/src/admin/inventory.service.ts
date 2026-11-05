@@ -94,6 +94,21 @@ export class InventoryService {
     return this.list({});
   }
 
+  /** Bitta formaning shu turdagi (futbolka/shortik) barcha o'lchamlari qoldig'ini o'chiradi */
+  async removeKit(kitId: number, productType: InventoryProductType, actor: AuditEntry['actor'], ip?: string) {
+    const { count } = await this.prisma.inventoryItem.deleteMany({ where: { kitId, productType } });
+    if (count) {
+      await this.audit.log({
+        actor,
+        action: "Zaxira qoldig'i o'chirildi",
+        category: AuditCategory.CATALOG,
+        context: `forma #${kitId}, ${productType}: ${count} ta o'lcham`,
+        ip,
+      });
+    }
+    return { deleted: count };
+  }
+
   /**
    * Checkout tranzaksiyasi ichida chaqiriladi: har bir klub formasi (kitId bor) qatori uchun
    * komplekt zaxirasini (TSHIRT qatori) shartli kamaytiradi — `qty >= so'ralgan`

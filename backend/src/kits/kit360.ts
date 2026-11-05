@@ -1,11 +1,14 @@
 /**
- * Forma 360° — 14 klub/terma jamoaning haqiqiy 8 burchakli fotosuratlari (admin: Superadmin → Forma 360°,
+ * Forma 360° — 18 klub/terma jamoaning (7 terma, 11 klub) haqiqiy 8 burchakli fotosuratlari (admin: Superadmin → Forma 360°,
  * mobil: "Klub formasi" studiyasi). `Club.kit360Id` klubni aynan shu suratlar to'plamiga bog'laydi.
  *
  * Bu ro'yxat yagona manba: backfill skripti, katalog importi, admin DTO va testlar shundan oladi.
  * Mobil ilovadagi zaxira moslash (mobile/src/features/kit360) ham shu variantlar bilan bir xil.
  */
-export const KIT360_IDS = ['es', 'ar', 'fr', 'en', 'pt', 'uz', 'rm', 'fcb', 'mu', 'psg', 'mci', 'lfc', 'ars', 'che'] as const;
+export const KIT360_IDS = [
+  'es', 'ar', 'fr', 'en', 'pt', 'uz', 'de',
+  'rm', 'fcb', 'mu', 'psg', 'mci', 'lfc', 'ars', 'che', 'juv', 'rom', 'atm',
+] as const;
 export type Kit360Id = (typeof KIT360_IDS)[number];
 
 /** id → klub nomi/kodining variantlari (kichik harfda: lotin, kirill, inglizcha, qisqa kod) */
@@ -16,6 +19,7 @@ export const KIT360_ALIASES: Record<Kit360Id, readonly string[]> = {
   en: ['angliya', 'англия', 'england'],
   pt: ['portugaliya', 'португалия', 'portugal'],
   uz: ["o'zbekiston", 'ozbekiston', 'uzbekistan', 'узбекистан', 'ўзбекистон', 'uzb', 'uz'],
+  de: ['germaniya', 'германия', 'germany', 'deutschland', 'ger'],
   rm: ['real madrid', 'реал мадрид', 'real', 'rma', 'rm'],
   fcb: ['barselona', 'барселона', 'barcelona', 'fc barcelona', 'fcb', 'bar'],
   mu: ['manchester yunayted', 'манчестер юнайтед', 'manchester united', 'man united', 'man utd', 'mu', 'mun'],
@@ -24,6 +28,9 @@ export const KIT360_ALIASES: Record<Kit360Id, readonly string[]> = {
   lfc: ['liverpul', 'ливерпуль', 'liverpool', 'liverpool fc', 'lfc', 'liv'],
   ars: ['arsenal', 'арсенал', 'arsenal fc', 'ars'],
   che: ['chelsi', 'челси', 'chelsea', 'chelsea fc', 'che'],
+  juv: ['yuventus', 'ювентус', 'juventus', 'juve', 'juv'],
+  rom: ['roma', 'рома', 'as roma', 'rom'],
+  atm: ['atletiko madrid', 'атлетико мадрид', 'atletico madrid', 'atlético madrid', 'atletico', 'atm'],
 };
 
 /**
@@ -49,6 +56,7 @@ const NATIONAL_AS = { name: 'Osiyo terma jamoalari', slug: 'osiyo-terma-jamoalar
 const LALIGA = { name: 'LaLiga', slug: 'laliga' };
 const EPL = { name: 'Premier League', slug: 'premier-league' };
 const LIGUE1 = { name: 'Ligue 1', slug: 'ligue-1' };
+const SERIEA = { name: 'Serie A', slug: 'serie-a' };
 
 export const KIT360_CATALOG: readonly Kit360CatalogTeam[] = [
   { id: 'es', name: 'Ispaniya', code: 'ES', national: true, continent: 'EUROPE', category: NATIONAL_EU, markColor: '#c60b1e', bgColor: '#c60b1e', textColor: '#f6c23e', colorsLabel: 'Qizil / sariq' },
@@ -57,6 +65,7 @@ export const KIT360_CATALOG: readonly Kit360CatalogTeam[] = [
   { id: 'en', name: 'Angliya', code: 'EN', national: true, continent: 'EUROPE', category: NATIONAL_EU, markColor: '#1b2450', bgColor: '#ffffff', textColor: '#1b2450', colorsLabel: "Oq / to'q ko'k" },
   { id: 'pt', name: 'Portugaliya', code: 'PT', national: true, continent: 'EUROPE', category: NATIONAL_EU, markColor: '#a6192e', bgColor: '#a6192e', textColor: '#f3c74a', colorsLabel: 'Qizil / yashil' },
   { id: 'uz', name: "O'zbekiston", code: 'UZ', national: true, continent: 'ASIA', category: NATIONAL_AS, markColor: '#0072ce', bgColor: '#ffffff', textColor: '#0072ce', colorsLabel: "Oq / ko'k" },
+  { id: 'de', name: 'Germaniya', code: 'DE', national: true, continent: 'EUROPE', category: NATIONAL_EU, markColor: '#111318', bgColor: '#ffffff', textColor: '#111318', colorsLabel: 'Oq / qora' },
   { id: 'rm', name: 'Real Madrid', code: 'RM', national: false, category: LALIGA, markColor: '#1b2450', bgColor: '#ffffff', textColor: '#1b2450', colorsLabel: "Oq / to'q ko'k" },
   { id: 'fcb', name: 'Barselona', code: 'FCB', national: false, category: LALIGA, markColor: '#a50044', bgColor: '#1d3f8f', textColor: '#f2c12e', colorsLabel: "Ko'k / to'q qizil" },
   { id: 'mu', name: 'Manchester Yunayted', code: 'MU', national: false, category: EPL, markColor: '#da291c', bgColor: '#da291c', textColor: '#ffffff', colorsLabel: 'Qizil / oq' },
@@ -65,6 +74,9 @@ export const KIT360_CATALOG: readonly Kit360CatalogTeam[] = [
   { id: 'lfc', name: 'Liverpul', code: 'LFC', national: false, category: EPL, markColor: '#c8102e', bgColor: '#c8102e', textColor: '#ffffff', colorsLabel: 'Qizil / oq' },
   { id: 'ars', name: 'Arsenal', code: 'ARS', national: false, category: EPL, markColor: '#ef0107', bgColor: '#ef0107', textColor: '#ffffff', colorsLabel: 'Qizil / oq' },
   { id: 'che', name: 'Chelsi', code: 'CHE', national: false, category: EPL, markColor: '#034694', bgColor: '#034694', textColor: '#ffffff', colorsLabel: "Ko'k / oq" },
+  { id: 'juv', name: 'Yuventus', code: 'JUV', national: false, category: SERIEA, markColor: '#111318', bgColor: '#111318', textColor: '#ffffff', colorsLabel: 'Qora / oq' },
+  { id: 'rom', name: 'Roma', code: 'ROM', national: false, category: SERIEA, markColor: '#8e1f2f', bgColor: '#8e1f2f', textColor: '#f7b731', colorsLabel: "To'q qizil / sariq" },
+  { id: 'atm', name: 'Atletiko Madrid', code: 'ATM', national: false, category: LALIGA, markColor: '#cb3524', bgColor: '#cb3524', textColor: '#ffffff', colorsLabel: 'Qizil / oq' },
 ];
 
 const norm = (s: string | null | undefined) =>

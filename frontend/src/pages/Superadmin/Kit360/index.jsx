@@ -37,6 +37,7 @@ export function bannedWordIn(name, words) {
 }
 
 
+const DEFAULT_TEAM = TEAMS.find((tm) => tm.id === 'rm');
 const defaultStyle = (team, font = FONTS[0], scale = 1) => ({ font, scale, nameColor: team.ink, numberColor: team.ink });
 const dprNow = () => Math.min(window.devicePixelRatio || 1, 2);
 
@@ -47,11 +48,11 @@ export default function Kit360() {
   const lastPaint = useRef({ team: null, frame: null });
   const cache = useRef({});
   const drag = useRef(null);
-  const [team, setTeam] = useState(TEAMS[5]);
+  const [team, setTeam] = useState(DEFAULT_TEAM);
   const [frame, setFrame] = useState(0);
   const [name, setName] = useState('');
   const [number, setNumber] = useState('');
-  const [style, setStyle] = useState(() => defaultStyle(TEAMS[5]));
+  const [style, setStyle] = useState(() => defaultStyle(DEFAULT_TEAM));
   const [rules, setRules] = useState(DEFAULT_ORDER_RULES);
   const [banned, setBanned] = useState([]);
   const [dpr, setDpr] = useState(dprNow);
@@ -75,7 +76,9 @@ export default function Kit360() {
         im.failed = true;
         repaintIfShown(im);
       };
-      im.src = frameUrl(id, i);
+      // Suratlari hali qo'shilmagan jamoa — so'rov yubormaymiz (404 o'rniga "tayyorlanmoqda" holati)
+      if (frameUrl(id, i)) im.src = frameUrl(id, i);
+      else im.failed = true;
       cache.current[key] = im;
     }
     return cache.current[key];
@@ -287,7 +290,7 @@ export default function Kit360() {
                 background: 'linear-gradient(180deg, #c4c4c5 0%, #a9a9aa 100%)', color: '#2a2f3d', fontSize: 13, fontWeight: 600,
               }}
             >
-              {status === 'error' ? t('Surat yuklanmadi') : t('Yuklanmoqda...')}
+              {!frameUrl(team.id, 0) ? t('Bu jamoa suratlari tayyorlanmoqda') : status === 'error' ? t('Surat yuklanmadi') : t('Yuklanmoqda...')}
             </div>
           )}
         </div>
@@ -317,7 +320,7 @@ export default function Kit360() {
 
           <label style={field}>
             <span className="sa-table__sub">{t('Ism')}</span>
-            <input className="sa-input" value={name} placeholder="ISROIL" onChange={onName} />
+            <input className="sa-input" value={name} placeholder="ISM" onChange={onName} />
             {bannedWord && <span role="alert" style={warn}>{t("Bu ismda taqiqlangan so'z bor: {word}", { word: bannedWord })}</span>}
           </label>
           <label style={field}>

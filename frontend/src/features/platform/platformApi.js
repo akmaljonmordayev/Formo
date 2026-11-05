@@ -8,7 +8,8 @@ const qs = (params = {}) => {
 };
 
 export const dashboardApi = {
-  get: (days) => api(`/admin/dashboard${qs({ days })}`),
+  // { days } yoki { from, to } (YYYY-MM-DD)
+  get: (params) => api(`/admin/dashboard${qs(params)}`),
 };
 
 export const financeApi = {
@@ -48,6 +49,7 @@ export const inventoryApi = {
   list: (params) => api(`/admin/inventory${qs(params)}`),
   save: (items) => api('/admin/inventory', { method: 'PUT', body: { items } }),
   kits: () => api('/admin/inventory/kits'),
+  removeKit: (kitId, productType) => api(`/admin/inventory/kit/${kitId}${qs({ productType })}`, { method: 'DELETE' }),
 };
 
 export const pricingApi = {

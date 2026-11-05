@@ -1,4 +1,4 @@
-import { Suspense, lazy, useEffect, useState } from 'react';
+import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { ordersApi, ORDER_STATUS, paymentLabel, formatDateTime } from '../../../features/platform/platformApi';
 import { prettyPhone } from '../../../features/accounts/accountsApi';
 import { useActiveWorkshops } from '../../../features/orders/useOrderWorkflow';
@@ -13,6 +13,7 @@ const KitOrderPreview = lazy(() => import('../KitDesigns/KitOrderPreview'));
 
 const TABS = [
   { label: 'Barchasi', status: undefined },
+  { label: 'Yangi', status: 'NEW' }, // naqd/balans buyurtmalari shu holatda keladi
   { label: "To'lov kutilmoqda", status: 'PENDING_PAYMENT' },
   { label: 'Qabul qilindi', status: 'ACCEPTED' },
   { label: 'Ishlab chiqarishda', status: 'PRINTING' },
@@ -27,7 +28,8 @@ export default function SuperadminOrders() {
   const { t } = useLang();
   const [LIMIT] = useState(() => loadAdminPrefs().ordersPageSize || 20);
   const [tab, setTab] = useState(TABS[0]);
-  const [search, setSearch] = useState('');
+  // Dashboard / Ishlab chiqarish dan ?search=KOD bilan kelinsa — shu buyurtma darhol topiladi
+  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get('search') ?? '');
   const [page, setPage] = useState(1);
   const [data, setData] = useState({ items: [], total: 0, byStatus: {} });
   const [loading, setLoading] = useState(true);
@@ -38,9 +40,21 @@ export default function SuperadminOrders() {
 
   useEffect(() => setPage(1), [debouncedSearch, tab]);
 
+  // Yangi buyurtmalar sahifani yangilamasdan ko'rinsin: 30 s da bir jim yangilash (yashirin vkladkada va ochiq modalda — yo'q)
+  const [poll, setPoll] = useState(0);
+  const lastPoll = useRef(0);
+  useEffect(() => {
+    const id = setInterval(() => {
+      if (document.visibilityState === 'visible' && !selected) setPoll((n) => n + 1);
+    }, 30_000);
+    return () => clearInterval(id);
+  }, [selected]);
+
   useEffect(() => {
     let active = true;
-    setLoading(true);
+    const silent = poll !== lastPoll.current;
+    lastPoll.current = poll;
+    if (!silent) setLoading(true);
     setError('');
     ordersApi
       .list({ search: debouncedSearch, status: tab.status, page, limit: LIMIT })
@@ -50,7 +64,7 @@ export default function SuperadminOrders() {
     return () => {
       active = false;
     };
-  }, [debouncedSearch, tab, page, reload, LIMIT]);
+  }, [debouncedSearch, tab, page, reload, LIMIT, poll]);
 
   const pages = Math.max(1, Math.ceil(data.total / LIMIT));
 

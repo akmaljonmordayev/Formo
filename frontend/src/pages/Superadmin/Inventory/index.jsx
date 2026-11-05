@@ -14,7 +14,7 @@ const LOW = 5;
 
 export default function SuperadminInventory() {
   const t = useT();
-  const [kits, setKits] = useState([]); // Forma 360° bilan bir xil 10 ta klub/terma jamoa
+  const [kits, setKits] = useState([]); // Forma 360° bilan bir xil 18 ta klub/terma jamoa
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -90,6 +90,18 @@ export default function SuperadminInventory() {
     }
   };
 
+  const clearKit = async (kit) => {
+    if (!window.confirm(t("{club} qoldig'i o'chirilsinmi? Barcha o'lchamlar tozalanadi.", { club: kit.clubName }))) return;
+    setError('');
+    setSaved(false);
+    try {
+      await inventoryApi.removeKit(kit.kitId, PRODUCT);
+      setItems((list) => list.filter((i) => i.kitId !== kit.kitId));
+    } catch (e) {
+      setError(e.message);
+    }
+  };
+
   return (
     <>
       <div className="sa-head">
@@ -138,6 +150,7 @@ export default function SuperadminInventory() {
                   <th key={s} style={{ textAlign: 'center' }}>{s}</th>
                 ))}
                 <th style={{ textAlign: 'right' }}>{t("Jami")}</th>
+                <th aria-label={t("O'chirish")} />
               </tr>
             </thead>
             <tbody>
@@ -181,6 +194,19 @@ export default function SuperadminInventory() {
                       );
                     })}
                     <td style={{ textAlign: 'right' }}><b>{total}</b></td>
+                    <td style={{ textAlign: 'center' }}>
+                      <button
+                        type="button"
+                        className="sa-btn sa-btn--ghost"
+                        style={{ padding: '4px 8px' }}
+                        title={t("Qoldiqni o'chirish")}
+                        aria-label={t("Qoldiqni o'chirish")}
+                        disabled={!items.some((i) => i.kitId === kit.kitId)}
+                        onClick={() => clearKit(kit)}
+                      >
+                        🗑
+                      </button>
+                    </td>
                   </tr>
                 );
               })}

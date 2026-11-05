@@ -19,7 +19,7 @@ const GROUPS = [
   { title: 'Buyurtma', items: [['orderRules', 'Buyurtma qoidalari'], ['banned', "Taqiqlangan so'zlar"]] },
   { title: 'Xabarlar', items: [['notifications', 'Bildirishnomalar']] },
   { title: 'Hisob', items: [['password', 'Parol va sessiyalar']] },
-  { title: 'Texnik', items: [['integrations', 'Integratsiyalar'], ['diagnostics', 'Diagnostika']] },
+  { title: 'Texnik', items: [['diagnostics', 'Diagnostika']] },
 ];
 const TITLES = Object.fromEntries(GROUPS.flatMap((g) => g.items));
 
@@ -91,8 +91,6 @@ export default function SuperadminSettings() {
             <SecuritySection />
           ) : active === 'diagnostics' ? (
             <DiagnosticsSection />
-          ) : active === 'integrations' ? (
-            <p className="sa-table__sub">{t("Bu bo'lim hali ulanmagan.")}</p>
           ) : settings === null ? (
             error ? (
               <button type="button" className="sa-btn" onClick={() => setReloadKey((k) => k + 1)}>

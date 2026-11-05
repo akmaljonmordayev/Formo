@@ -16,7 +16,7 @@ async function fetchKit360Clubs() {
     out.push(...(d.items ?? []));
     if (out.length >= (d.total ?? 0) || (d.items ?? []).length < 100) break;
   }
-  // Bitta jamoaga bitta forma — Forma 360° bilan bir xil 10 ta jamoa, o'sha tartibda
+  // Bitta jamoaga bitta forma — Forma 360° bilan bir xil 18 ta jamoa, o'sha tartibda
   return out
     .filter((c) => c.kit360Id)
     .map((c) => ({ ...c, kit: [...(c.kits ?? [])].sort((a, b) => a.sortOrder - b.sortOrder)[0] }))

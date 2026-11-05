@@ -226,9 +226,9 @@ export class OrdersService {
   }
 
   /** Dashboard/hisobotlar uchun berilgan davr bo'yicha xom buyurtmalar — aggregatsiya shu ustida hisoblanadi */
-  private ordersSince(from: Date) {
+  private ordersSince(from: Date, to?: Date) {
     return this.prisma.order.findMany({
-      where: { createdAt: { gte: from } },
+      where: { createdAt: { gte: from, ...(to && { lte: to }) } },
       select: {
         id: true,
         totalSum: true,
@@ -242,14 +242,14 @@ export class OrdersService {
     });
   }
 
-  async dashboardStats(days: number) {
-    const from = new Date();
-    from.setDate(from.getDate() - days);
-    const prevFrom = new Date(from);
-    prevFrom.setDate(prevFrom.getDate() - days);
+  /** `from`+`to` (YYYY-MM-DD, UTC kunlari, ikkalasi ham kiradi) yoki oxirgi `days` kun */
+  async dashboardStats(range: { days?: number; from?: string; to?: string }) {
+    const { from, to, dayKeys } = resolveRange(range);
+    // oldingi davr — xuddi shu uzunlikdagi, darhol undan oldingi oraliq
+    const prevFrom = new Date(from.getTime() - ((to ?? new Date()).getTime() - from.getTime()));
 
     const [current, previous, lateCount] = await Promise.all([
-      this.ordersSince(from),
+      this.ordersSince(from, to),
       this.prisma.order.findMany({
         where: { createdAt: { gte: prevFrom, lt: from } },
         select: { totalSum: true, status: true },
@@ -275,7 +275,7 @@ export class OrdersService {
       this.prisma.user.aggregate({ where: { role: 'TAILOR', isActive: true }, _sum: { dailyCapacity: true } }),
     ]);
     const capacity = capacityAgg._sum.dailyCapacity ?? 0;
-    const dailyTrend = this.groupByDay(current, days);
+    const dailyTrend = this.groupByDay(current, dayKeys);
 
     return {
       ordersCount,
@@ -404,21 +404,44 @@ export class OrdersService {
     };
   }
 
-  private groupByDay(orders: { totalSum: number; status: OrderStatus; createdAt: Date }[], days: number) {
-    const buckets = new Map<string, number>();
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      buckets.set(d.toISOString().slice(0, 10), 0);
-    }
+  /** Har kun uchun: buyurtmalar soni (bekor qilinganlarsiz) va tushum (REVENUE_STATUSES — yuqoridagi "Tushum" bilan bir xil) */
+  private groupByDay(orders: { totalSum: number; status: OrderStatus; createdAt: Date }[], dayKeys: string[]) {
+    const buckets = new Map(dayKeys.map((k) => [k, { date: k, count: 0, revenue: 0 }]));
     for (const o of orders) {
-      if (o.status === OrderStatus.CANCELLED) continue;
-      const key = o.createdAt.toISOString().slice(0, 10);
-      if (buckets.has(key)) buckets.set(key, (buckets.get(key) ?? 0) + 1);
+      const b = buckets.get(o.createdAt.toISOString().slice(0, 10));
+      if (!b) continue;
+      if (o.status !== OrderStatus.CANCELLED) b.count++;
+      if (REVENUE_STATUSES.includes(o.status)) b.revenue += o.totalSum;
     }
-    return Array.from(buckets.entries()).map(([date, count]) => ({ date, count }));
+    return Array.from(buckets.values());
   }
 }
+
+const DAY_MS = 24 * 60 * 60 * 1000;
+const MAX_RANGE_DAYS = 366;
+
+/** Dashboard davri: from/to bo'lsa — shu oraliq, aks holda oxirgi `days` kun (bugun ham kiradi) */
+export function resolveRange(range: { days?: number; from?: string; to?: string }) {
+  if (range.from || range.to) {
+    if (!range.from || !range.to) throw new BadRequestException("from va to birga yuborilishi kerak");
+    const from = new Date(`${range.from}T00:00:00.000Z`);
+    const toStart = new Date(`${range.to}T00:00:00.000Z`);
+    // 2026-02-31 kabi sanalar JS'da jimgina 03-03 ga o'tib ketadi — qaytib solishtirib ushlaymiz
+    const valid = (d: Date, s: string) => !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+    if (!valid(from, range.from) || !valid(toStart, range.to)) throw new BadRequestException("Sana noto'g'ri");
+    const count = Math.round((toStart.getTime() - from.getTime()) / DAY_MS) + 1;
+    if (count < 1) throw new BadRequestException("from sanasi to dan keyin bo'lmasligi kerak");
+    if (count > MAX_RANGE_DAYS) throw new BadRequestException(`Davr ${MAX_RANGE_DAYS} kundan oshmasligi kerak`);
+    return { from, to: new Date(toStart.getTime() + DAY_MS - 1), dayKeys: dayKeysFrom(from, count) };
+  }
+  const days = range.days ?? 30;
+  const from = new Date();
+  from.setDate(from.getDate() - days);
+  return { from, to: undefined, dayKeys: dayKeysFrom(new Date(Date.now() - (days - 1) * DAY_MS), days) };
+}
+
+const dayKeysFrom = (start: Date, count: number) =>
+  Array.from({ length: count }, (_, i) => new Date(start.getTime() + i * DAY_MS).toISOString().slice(0, 10));
 
 function pctDelta(current: number, previous: number) {
   if (!previous) return current ? 100 : 0;
