@@ -49,8 +49,7 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
   const [number, setNumber] = useState('');
   const [shirtSize, setShirtSize] = useState(null);
   const [shortsOn, setShortsOn] = useState(false);
-  const [shortsNumber, setShortsNumber] = useState('');
-  // Mijoz shortik raqamiga o'zi tegmaguncha u formadagi raqamga ergashadi
+  // Mijoz toggle'ga o'zi tegmaguncha: formada raqam bo'lsa shortikda ham bor
   const shortsTouched = useRef(false);
   const [adding, setAdding] = useState(false);
   const addingRef = useRef(false);
@@ -65,6 +64,20 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
       setSelectedId(initialTeam);
     }
   }, [initialTeam]);
+
+  // Lentada faqat backend'da formasi bor (buyurtma beriladigan) jamoalar; klublar yuklanmagan yoki birortasi ham
+  // bog'lanmagan bo'lsa — butun ro'yxat (aks holda lenta bo'sh qolardi)
+  const teams = useMemo(() => {
+    if (!clubs || !clubs.length) return KIT360_TEAMS;
+    const ids = new Set(clubs.filter((c) => c.forms > 0).map((c) => c.kit360Id || kit360Team(c)).filter(Boolean));
+    const list = KIT360_TEAMS.filter((tm) => ids.has(tm.id));
+    return list.length ? list : KIT360_TEAMS;
+  }, [clubs]);
+
+  // Tanlangan jamoa bazada yo'q bo'lsa (masalan standart 'rm') — birinchi mavjud jamoaga o'tamiz
+  useEffect(() => {
+    if (!teams.some((tm) => tm.id === selectedId)) setSelectedId(teams[0].id);
+  }, [teams, selectedId]);
 
   const team = useMemo(() => findKit360Team(selectedId), [selectedId]);
 
@@ -106,13 +119,12 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
   const printName = cleanPrintName(name, rules.printNameMaxLength || 30);
   const printNum = cleanPrintNumber(number, maxNumber);
   const hasPrint = Boolean(printName.trim() || printNum);
-  const shortsNum = cleanPrintNumber(shortsNumber, maxNumber);
+  // Shortik raqami — formaning orqasidagi raqamning o'zi
+  const shortsNum = printNum;
   const numberOnShorts = shortsOn && Boolean(shortsNum);
 
-  // Shortik raqami formaning orqasidagi raqamga ergashadi (mijoz o'zi o'zgartirmaguncha)
   useEffect(() => {
     if (shortsTouched.current) return;
-    setShortsNumber(printNum);
     setShortsOn(Boolean(printNum));
   }, [printNum]);
 
@@ -144,7 +156,6 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
     setStep(1);
     setSide('back');
     shortsTouched.current = false;
-    setShortsNumber(printNum);
     setShortsOn(Boolean(printNum));
   };
 
@@ -241,7 +252,7 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
 
         {/* Jamoani tanlash lentasi */}
         <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.teamRail}>
-          {KIT360_TEAMS.map((item) => {
+          {teams.map((item) => {
             const isSelected = item.id === team.id;
             return (
               <Pressable
@@ -263,7 +274,7 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
         {/* 360° ko'rinish */}
         <View style={styles.previewBox}>
           <View style={styles.glow} />
-          <Kit360Viewer t={t} team={team.id} name={printName} number={printNum} view={side} onViewChange={setSide} height={340} />
+          <Kit360Viewer t={t} team={team.id} name={printName} number={printNum} shortsNumber={numberOnShorts ? shortsNum : ''} view={side} onViewChange={setSide} height={340} />
           <View style={styles.previewSide}>
             <Segment
               options={[t('front'), t('rear')]}
@@ -368,18 +379,8 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
             <ShortsNumberStep
               t={t}
               enabled={shortsOn}
-              onToggle={(on) =>
-                touchShorts(() => {
-                  setShortsOn(on);
-                  if (on && !shortsNumber) setShortsNumber(printNum);
-                })
-              }
-              value={shortsNumber}
-              onDigit={(d) => touchShorts(() => setShortsNumber((v) => cleanPrintNumber(`${v}${d}`.slice(0, 2), maxNumber)))}
-              onErase={() => touchShorts(() => setShortsNumber((v) => v.slice(0, -1)))}
-              onClear={() => touchShorts(() => setShortsNumber(''))}
-              backNumber={printNum}
-              onUseBack={() => touchShorts(() => setShortsNumber(printNum))}
+              onToggle={(on) => touchShorts(() => setShortsOn(on))}
+              number={printNum}
             />
           )}
 

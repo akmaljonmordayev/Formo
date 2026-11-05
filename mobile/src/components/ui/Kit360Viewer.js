@@ -22,7 +22,7 @@ try {
  * Forma 360°: admin paneldagi bilan bir xil foto-360° (Superadmin/Kit360 → viewer.html), ilova ichidagi lokal HTML
  * (kadrlar ichida, tarmoq URL'i yo'q). Barmoq bilan aylantiriladi; "Old/Orqa" — `view`.
  *
- * Props: team (features/kit360 → kit360Team), name, number, view, onViewChange, height, fallback, t
+ * Props: team (features/kit360 → kit360Team), name, number, shortsNumber?, view, onViewChange, height, fallback, t
  */
 export default function Kit360Viewer({ height = 360, fallback = null, t = (k) => k, ...props }) {
   const ref = useRef(null);

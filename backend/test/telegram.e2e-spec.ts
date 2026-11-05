@@ -255,14 +255,14 @@ describe('Telegram bot orqali kirish (e2e)', () => {
       await placeOrder();
       expect((await api(app).get('/api/internal/telegram/outbox').set(bearer(INTERNAL)).expect(200)).body).toEqual([]);
 
-      expect((await bot('hello', { telegramUserId: tgUser, chatId: tgUser }).expect(200)).body).toEqual({ linked: true, language: null });
+      expect((await bot('hello', { telegramUserId: tgUser, chatId: tgUser }).expect(200)).body).toEqual({ linked: true, language: null, login: null });
       await placeOrder();
       expect((await api(app).get('/api/internal/telegram/outbox').set(bearer(INTERNAL)).expect(200)).body).toHaveLength(1);
     });
 
     it('botda tanlangan til: buyurtma xabari shu tilda, hello tilni qaytaradi', async () => {
       await bot('language', { telegramUserId: tgUser, language: 'ru' }).expect(200);
-      expect((await bot('hello', { telegramUserId: tgUser, chatId: tgUser }).expect(200)).body).toEqual({ linked: true, language: 'ru' });
+      expect((await bot('hello', { telegramUserId: tgUser, chatId: tgUser }).expect(200)).body).toEqual({ linked: true, language: 'ru', login: null });
       const order = await placeOrder();
       const leased = await api(app).get('/api/internal/telegram/outbox?limit=10').set(bearer(INTERNAL)).expect(200);
       expect(leased.body).toEqual([expect.objectContaining({ text: `📦 Статус заказа ${order.code}: Заказ отправлен` })]);

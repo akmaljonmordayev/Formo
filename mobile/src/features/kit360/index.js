@@ -68,13 +68,15 @@ export function itemKit360(item) {
 }
 
 /** Ilova → viewer xabari (WebView.postMessage va iframe uchun matn) */
-export function kit360Message({ team, name, number, side }) {
+export function kit360Message({ team, name, number, shortsNumber, side }) {
   return JSON.stringify({
     source: KIT360_SOURCE,
     type: 'update',
     team,
     name: String(name ?? ''),
     number: String(number ?? ''),
+    // Berilmasa (undefined) — viewer shortikka orqadagi raqamni chizadi; '' — shortik raqamsiz
+    ...(shortsNumber !== undefined && shortsNumber !== null && { shortsNumber: String(shortsNumber) }),
     // 'side' — viewer o'zi yonga burilgan (90°/270°): tomon buyrug'i yuborilmaydi, forma joyida qoladi
     side: side === 'front' ? 'front' : side === 'side' ? null : 'back',
   });
