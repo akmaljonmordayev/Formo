@@ -199,6 +199,7 @@ const RU = {
   Mahsulotlar: 'Товары',
   'Tikuv sexi': 'Швейный цех',
   '— Biriktirilmagan —': '— Не назначен —',
+  Yangi: 'Новые',
   "To'lov kutilmoqda": 'Ожидает оплаты',
   'Qabul qilindi': 'Принят',
   'Ishlab chiqarishda': 'В производстве',
