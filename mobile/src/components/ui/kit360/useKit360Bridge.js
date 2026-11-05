@@ -7,21 +7,21 @@ const DEBOUNCE_MS = 80;
  * Ilova ↔ Forma 360° viewer ko'prigi (native WebView va web iframe uchun bir xil): "ready" deguncha kutadi,
  * keyin ism/raqam/tomon o'zgarganda ~80 ms debounce bilan "update" yuboradi.
  */
-export default function useKit360Bridge({ team, name, number, view, onViewChange }, post) {
+export default function useKit360Bridge({ team, name, number, shortsNumber, view, onViewChange }, post) {
   const [ready, setReady] = useState(false);
   const [error, setError] = useState(null);
   const timer = useRef(null);
   const onViewChangeRef = useRef(onViewChange);
   onViewChangeRef.current = onViewChange;
   const latest = useRef('');
-  latest.current = kit360Message({ team, name, number, side: view });
+  latest.current = kit360Message({ team, name, number, shortsNumber, side: view });
 
   useEffect(() => {
     if (!ready) return undefined;
     clearTimeout(timer.current);
     timer.current = setTimeout(() => post(latest.current), DEBOUNCE_MS);
     return () => clearTimeout(timer.current);
-  }, [ready, team, name, number, view, post]);
+  }, [ready, team, name, number, shortsNumber, view, post]);
 
   const onMessage = useCallback(
     (raw) => {

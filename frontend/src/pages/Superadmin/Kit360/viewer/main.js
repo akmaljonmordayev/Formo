@@ -1,7 +1,8 @@
 /* Mobil ilova uchun Forma 360° — admin sahifasidagi bilan bir xil chizish (render.js), WebView ichidagi lokal HTML.
    Kadrlar HTML ichida (data: URL, tarmoq kerak emas); shriftlar Google Fonts'dan, internet bo'lmasa — tizim shrifti.
 
-   Ilova → viewer:  { source, type: 'update', team, name, number, side?: 'front' | 'back', font?: id }
+   Ilova → viewer:  { source, type: 'update', team, name, number, shortsNumber?, side?: 'front' | 'back', font?: id }
+                    shortsNumber berilsa (bo'sh qator — shortik raqamsiz) shortikka alohida; berilmasa — orqadagi raqam
    Viewer → ilova:  { source, type: 'ready' } · { source, type: 'face', view: 'front' | 'back' | 'side' } · { source, type: 'error', message } */
 import { BACK_FRAMES, FRONT_FRAMES } from '../measure';
 import { FONTS, FONTS_CSS, FONT_SAMPLE, H, N, TEAMS, W, fontCss, layerCache, paint, prepare, ready } from '../render';
@@ -14,7 +15,7 @@ const dpr = Math.min(window.devicePixelRatio || 1, 2);
 canvas.width = Math.round(W * dpr);
 canvas.height = Math.round(H * dpr);
 
-const state = { team: TEAMS[0], frame: 4, name: '', number: '', font: FONTS[0] };
+const state = { team: TEAMS[0], frame: 4, name: '', number: '', shortsNumber: undefined, font: FONTS[0] };
 const images = {};
 let face = null;
 
@@ -81,6 +82,7 @@ function draw() {
     {
       name: state.name.trim().replace(/\s+/g, ' '),
       number: state.number,
+      shortsNumber: state.shortsNumber,
       team,
       style: { font: state.font, scale: 1, nameColor: team.ink, numberColor: team.ink },
     },
@@ -102,6 +104,7 @@ function update(msg) {
   state.team = team;
   state.name = String(msg.name ?? '');
   state.number = String(msg.number ?? '');
+  state.shortsNumber = msg.shortsNumber === undefined || msg.shortsNumber === null ? undefined : String(msg.shortsNumber);
   state.font = FONTS.find((f) => f.id === msg.font) ?? state.font;
   // Ilova tomonni almashtirsa (Old/Orqa yoki ism maydoniga bosilsa) — o'sha tomonga buriladi; aylantirilgan burchak saqlanadi
   if (msg.side === 'back' && !(state.frame in BACK_FRAMES)) state.frame = 4;
