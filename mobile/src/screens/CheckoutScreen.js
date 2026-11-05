@@ -2,10 +2,11 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing } from '../constants/theme';
-import { Button, Card, Header, Overline, Screen, formatMoney } from '../components/ui/Common';
+import { Button, Card, Header, Screen, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { placeOrder, useAddresses, useDeliverySlots } from '../features/checkout';
+import { inTashkentCity } from '../features/location/tashkent';
 import { CHECKOUT_METHODS, paymentText } from '../features/orders';
 import useWallet, { canPayFromBalance } from '../features/wallet';
 import { ApiError } from '../services/api';
@@ -22,20 +23,17 @@ export function dayText(t, day, index) {
 const formatAddress = (a) => [a.address, a.apartment].filter(Boolean).join(', ');
 
 /**
- * Rasmiylashtirish: manzil (GET/POST /api/addresses) -> yetkazish kuni va vaqti
+ * Rasmiylashtirish: manzil (saqlanganlardan yoki xaritadan — qo'lda yozish yo'q, kuryer aniq nuqtani oladi)
+ * -> yetkazish kuni va vaqti
  * (GET /api/checkout/delivery-slots) -> to'lov usuli -> POST /api/orders/checkout.
  * Narx serverda qayta hisoblanadi; savatdagi promokod buyurtmaga uzatiladi.
  */
 export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPickOnMap, onWallet, initialAddressId }) {
-  const { addresses, isLoading: addrLoading, error: addrError, refetch: refetchAddresses, create } = useAddresses();
+  const { addresses, isLoading: addrLoading, error: addrError, refetch: refetchAddresses } = useAddresses();
   const { days, isLoading: slotsLoading, error: slotsError, refetch: refetchSlots } = useDeliverySlots(3);
 
   // Xaritadan yangi manzil saqlab qaytilganda — o'sha manzil tanlanadi
   const [addressId, setAddressId] = useState(initialAddressId ?? null);
-  const [formOpen, setFormOpen] = useState(false);
-  const [form, setForm] = useState({ label: '', address: '', apartment: '' });
-  const [formError, setFormError] = useState(null);
-  const [savingAddress, setSavingAddress] = useState(false);
 
   const [date, setDate] = useState(null);
   const [slot, setSlot] = useState(null);
@@ -47,20 +45,20 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
   const inFlight = useRef(false);
   const [submitError, setSubmitError] = useState(null);
 
-  // Asosiy usul — balansdan to'lash. Naqd faqat Superadmin yoqib qo'ygan bo'lsa (allowCash).
+  // Asosiy usul — balansdan to'lash. Naqd faqat Superadmin yoqib qo'ygan bo'lsa (allowCash) va manzil
+  // Toshkent shahri ichida bo'lsa; shahardan tashqariga — faqat shaxsiy hisobdan (server ham tekshiradi).
   // Click/Payme mijozga ko'rsatilmaydi: balans Telegram bot orqali to'ldiriladi.
-  const methods = CHECKOUT_METHODS.filter((method) => method !== 'CASH' || rules.allowCash);
+  const selectedAddress = addresses.find((a) => a.id === addressId) || null;
+  const cityDelivery = Boolean(selectedAddress && inTashkentCity(selectedAddress.latitude, selectedAddress.longitude));
+  const cashOutside = Boolean(rules.allowCash && selectedAddress && !cityDelivery);
+  const methods = CHECKOUT_METHODS.filter((method) => method !== 'CASH' || (rules.allowCash && cityDelivery));
   useEffect(() => {
     if (!methods.includes(paymentMethod)) setPaymentMethod(methods[0]);
   }, [methods, paymentMethod]);
 
-  // Asosiy manzil oldindan tanlanadi; manzil yo'q bo'lsa forma ochiladi
+  // Asosiy manzil oldindan tanlanadi; manzil yo'q bo'lsa — xaritadan qo'shish kartasi
   useEffect(() => {
-    if (addrLoading) return;
-    if (!addresses.length) {
-      setFormOpen(true);
-      return;
-    }
+    if (addrLoading || !addresses.length) return;
     if (!addresses.some((a) => a.id === addressId)) {
       setAddressId((addresses.find((a) => a.isDefault) || addresses[0]).id);
     }
@@ -81,25 +79,6 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
       setSlot(selectedDay.slots.find((s) => s.available)?.slot || null);
     }
   }, [selectedDay, slot]);
-
-  const saveAddress = async () => {
-    setSavingAddress(true);
-    setFormError(null);
-    try {
-      const created = await create({
-        label: form.label.trim() || t('addrDefaultLabel'),
-        address: form.address.trim(),
-        ...(form.apartment.trim() ? { apartment: form.apartment.trim() } : {}),
-      });
-      setAddressId(created.id);
-      setForm({ label: '', address: '', apartment: '' });
-      setFormOpen(false);
-    } catch (err) {
-      setFormError(errorText(err, t));
-    } finally {
-      setSavingAddress(false);
-    }
-  };
 
   const submit = async () => {
     // Tez ikki marta bosish: `submitting` holati keyingi render'gacha o'zgarmaydi — ref darhol
@@ -168,8 +147,8 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
     >
       <Header title={t('checkoutTitle')} onBack={onBack} />
 
-      {/* ── Manzil ── */}
-      <Overline>{t('deliveryAddress')}</Overline>
+      {/* ── 1. Manzil: saqlanganlar + xaritadan qo'shish (qo'lda yozish yo'q) ── */}
+      <StepHead n={1} title={t('checkoutStepAddress')} done={Boolean(selectedAddress)} />
       {addrError ? (
         <ErrorView message={errorText(addrError, t)} onRetry={refetchAddresses} retryLabel={t('retry')} />
       ) : addrLoading && !addresses.length ? (
@@ -179,68 +158,19 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
           {addresses.map((a) => (
             <Option
               key={a.id}
+              icon="map-marker"
               selected={a.id === addressId}
               title={a.label}
               sub={formatAddress(a)}
               onPress={() => setAddressId(a.id)}
             />
           ))}
+          {onPickOnMap ? <MapCta t={t} big={!addresses.length} onPress={onPickOnMap} /> : null}
         </View>
       )}
 
-      {formOpen ? (
-        <Card style={styles.form}>
-          <TextInput
-            value={form.label}
-            onChangeText={(label) => setForm((f) => ({ ...f, label }))}
-            placeholder={t('addrLabelPlaceholder')}
-            placeholderTextColor={colors.muted}
-            maxLength={30}
-            style={styles.input}
-          />
-          <TextInput
-            value={form.address}
-            onChangeText={(address) => setForm((f) => ({ ...f, address }))}
-            placeholder={t('addrPlaceholder')}
-            placeholderTextColor={colors.muted}
-            maxLength={200}
-            style={styles.input}
-          />
-          <TextInput
-            value={form.apartment}
-            onChangeText={(apartment) => setForm((f) => ({ ...f, apartment }))}
-            placeholder={t('addrApartmentPlaceholder')}
-            placeholderTextColor={colors.muted}
-            maxLength={60}
-            style={styles.input}
-          />
-          {formError ? <Text style={styles.error}>{formError}</Text> : null}
-          <View style={styles.formActions}>
-            {addresses.length ? (
-              <Button small variant="secondary" onPress={() => setFormOpen(false)}>{t('back')}</Button>
-            ) : null}
-            <Button small disabled={savingAddress || form.address.trim().length < 5} onPress={saveAddress}>
-              {savingAddress ? t('saving') : t('save')}
-            </Button>
-          </View>
-        </Card>
-      ) : (
-        <View style={styles.addLinks}>
-          <Pressable style={styles.addLink} onPress={() => setFormOpen(true)}>
-            <MaterialCommunityIcons name="plus" size={16} color={colors.accent} />
-            <Text style={styles.addLinkText}>{t('addAddress')}</Text>
-          </Pressable>
-          {onPickOnMap ? (
-            <Pressable style={styles.addLink} onPress={onPickOnMap}>
-              <MaterialCommunityIcons name="map-marker-radius-outline" size={16} color={colors.accent} />
-              <Text style={styles.addLinkText}>{t('pickOnMap')}</Text>
-            </Pressable>
-          ) : null}
-        </View>
-      )}
-
-      {/* ── Yetkazish vaqti ── */}
-      <Overline style={styles.sectionGap}>{t('deliveryTime')}</Overline>
+      {/* ── 2. Yetkazish vaqti ── */}
+      <StepHead n={2} title={t('checkoutStepTime')} done={Boolean(date && slot)} style={styles.sectionGap} />
       {slotsError ? (
         <ErrorView message={errorText(slotsError, t)} onRetry={refetchSlots} retryLabel={t('retry')} />
       ) : slotsLoading && !days.length ? (
@@ -267,12 +197,13 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
         </>
       )}
 
-      {/* ── To'lov usuli ── */}
-      <Overline style={styles.sectionGap}>{t('paymentMethod')}</Overline>
+      {/* ── 3. To'lov usuli ── */}
+      <StepHead n={3} title={t('checkoutStepPay')} done={Boolean(paymentMethod) && !balanceShort} style={styles.sectionGap} />
       <View style={styles.options}>
         {methods.map((method) => (
           <Option
             key={method}
+            icon={method === 'CASH' ? 'cash' : 'wallet-outline'}
             selected={method === paymentMethod}
             title={paymentText(t, method)}
             sub={
@@ -286,6 +217,7 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
           />
         ))}
       </View>
+      {cashOutside ? <Text style={styles.note}>{t('cashCityOnly')}</Text> : null}
       {balanceShort ? (
         <View style={styles.short}>
           <Text style={styles.shortText}>
@@ -325,7 +257,43 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
   );
 }
 
-function Option({ selected, title, sub, onPress, disabled = false }) {
+/** Bo'lim sarlavhasi: raqamli doira (bajarilsa ✓) + savol */
+function StepHead({ n, title, done, style }) {
+  return (
+    <View style={[styles.stepHead, style]}>
+      <View style={[styles.stepDot, done && styles.stepDotDone]}>
+        {done ? (
+          <MaterialCommunityIcons name="check" size={14} color={colors.primaryDark} />
+        ) : (
+          <Text style={styles.stepNum}>{n}</Text>
+        )}
+      </View>
+      <Text style={styles.stepTitle}>{title}</Text>
+    </View>
+  );
+}
+
+/** Xaritadan manzil qo'shish: manzil yo'q bo'lsa katta karta, bor bo'lsa — kengligi bo'yicha tugma */
+function MapCta({ t, big, onPress }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      style={({ pressed }) => [styles.mapCta, big && styles.mapCtaBig, pressed && styles.mapCtaPressed]}
+    >
+      <View style={[styles.mapIcon, big && styles.mapIconBig]}>
+        <MaterialCommunityIcons name="map-marker-radius" size={big ? 30 : 22} color={colors.primaryDark} />
+      </View>
+      <View style={{ flex: 1 }}>
+        <Text style={[styles.mapTitle, big && styles.mapTitleBig]}>{big ? t('mapAddTitle') : t('mapAddAnother')}</Text>
+        <Text style={styles.mapSub}>{t('mapAddSub')}</Text>
+      </View>
+      <MaterialCommunityIcons name="chevron-right" size={22} color={colors.accent} />
+    </Pressable>
+  );
+}
+
+function Option({ selected, title, sub, onPress, icon, disabled = false }) {
   return (
     <Pressable
       onPress={disabled ? undefined : onPress}
@@ -334,15 +302,20 @@ function Option({ selected, title, sub, onPress, disabled = false }) {
       accessibilityState={{ selected: !!selected, disabled }}
       style={[styles.option, selected && styles.optionActive, disabled && styles.optionDisabled]}
     >
-      <MaterialCommunityIcons
-        name={selected ? 'radiobox-marked' : 'radiobox-blank'}
-        size={20}
-        color={selected ? colors.accent : colors.muted}
-      />
+      {icon ? (
+        <View style={[styles.optionIcon, selected && styles.optionIconOn]}>
+          <MaterialCommunityIcons name={icon} size={18} color={selected ? colors.primaryDark : colors.muted} />
+        </View>
+      ) : null}
       <View style={{ flex: 1 }}>
         <Text style={[styles.optionTitle, disabled && styles.optionTitleDisabled]}>{title}</Text>
         {sub ? <Text style={styles.optionSub} numberOfLines={2}>{sub}</Text> : null}
       </View>
+      <MaterialCommunityIcons
+        name={selected ? 'check-circle' : 'circle-outline'}
+        size={22}
+        color={selected ? colors.accent : colors.border}
+      />
     </Pressable>
   );
 }
@@ -397,7 +370,6 @@ const styles = StyleSheet.create({
   optionTitle: { color: colors.text, fontSize: 14, fontWeight: '800' },
   optionTitleDisabled: { color: colors.muted },
   optionSub: { color: colors.textSecondary, fontSize: 12, marginTop: 3 },
-  form: { gap: spacing.sm, marginTop: spacing.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
   input: {
     minHeight: 50,
     borderRadius: radii.md,
@@ -409,11 +381,47 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  formActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: spacing.sm, marginTop: spacing.xs },
-  addLinks: { flexDirection: 'row', flexWrap: 'wrap', columnGap: spacing.xl },
-  addLink: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingVertical: spacing.md },
-  addLinkText: { color: colors.accent, fontSize: 13, fontWeight: '800' },
   sectionGap: { marginTop: spacing.xl },
+  stepHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm, marginBottom: spacing.md },
+  stepDot: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: colors.accent,
+  },
+  stepDotDone: { backgroundColor: colors.accent },
+  stepNum: { color: colors.accent, fontSize: 13, fontWeight: '900' },
+  stepTitle: { color: colors.text, fontSize: 16, fontWeight: '900' },
+  optionIcon: {
+    width: 36,
+    height: 36,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.surfaceRaised,
+  },
+  optionIconOn: { backgroundColor: colors.accent },
+  mapCta: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    padding: spacing.md,
+    borderRadius: radii.lg,
+    borderWidth: 1.5,
+    borderStyle: 'dashed',
+    borderColor: colors.accent,
+    backgroundColor: colors.accentGlow,
+  },
+  mapCtaBig: { paddingVertical: spacing.xl, borderStyle: 'solid' },
+  mapCtaPressed: { opacity: 0.85, transform: [{ scale: 0.99 }] },
+  mapIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
+  mapIconBig: { width: 60, height: 60, borderRadius: 20 },
+  mapTitle: { color: colors.text, fontSize: 14, fontWeight: '900' },
+  mapTitleBig: { fontSize: 17 },
+  mapSub: { color: colors.textSecondary, fontSize: 12, marginTop: 3, lineHeight: 16 },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   slotChips: { marginTop: spacing.md },
   chip: {

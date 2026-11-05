@@ -26,6 +26,16 @@ export const topUpTexts = {
     })[lang],
 };
 
+/** Ilovaga Telegram orqali kirilgach — botda pastki menyu bilan birga keladi */
+export const loginTexts = {
+  linked: (lang: BotLang) =>
+    ({
+      uz: "✅ Formo ilovasiga kirdingiz!\n\nEndi shu yerda pastdagi tugmalar orqali:\n💰 balansni ko'rasiz\n➕ hisobni to'ldirasiz\n📦 buyurtmalaringizni kuzatasiz\n🌐 tilni o'zgartirasiz\n\nBuyurtma holati haqidagi xabarlar ham shu yerga keladi.",
+      ru: '✅ Вы вошли в приложение Formo!\n\nТеперь кнопками ниже вы можете:\n💰 смотреть баланс\n➕ пополнять счёт\n📦 следить за заказами\n🌐 менять язык\n\nУведомления о статусе заказов тоже придут сюда.',
+      en: '✅ You are signed in to Formo!\n\nUse the buttons below to:\n💰 check your balance\n➕ top up\n📦 track your orders\n🌐 change the language\n\nOrder status updates will arrive here too.',
+    })[lang],
+};
+
 /** Buyurtma holati — uz matni ilova bilan bir xil (STATUS_LABEL) */
 export const orderStatusLabel = (status: OrderStatus, lang: BotLang) =>
   lang === 'uz' ? STATUS_LABEL[status] : ORDER_STATUS[lang][status];
@@ -33,12 +43,12 @@ export const orderStatusLabel = (status: OrderStatus, lang: BotLang) =>
 const ORDER_STATUS: Record<Exclude<BotLang, 'uz'>, Record<OrderStatus, string>> = {
   ru: {
     PENDING_PAYMENT: 'Ожидает оплаты',
-    NEW: 'Принят',
-    SENT_TO_WORKSHOP: 'Отправлен в цех',
-    ACCEPTED: 'Цех принял',
-    PRINTING: 'Печатается',
-    QUALITY_CHECK: 'Контроль качества',
-    READY: 'Готов',
+    NEW: 'Заказ отправлен',
+    SENT_TO_WORKSHOP: 'Заказ принят',
+    ACCEPTED: 'Заказ в работе',
+    PRINTING: 'Заказ в работе',
+    QUALITY_CHECK: 'Заказ в работе',
+    READY: 'Заказ в работе',
     DELIVERING: 'Доставляется',
     DELIVERED: 'Доставлен',
     CANCELLED: 'Отменён',
@@ -46,12 +56,12 @@ const ORDER_STATUS: Record<Exclude<BotLang, 'uz'>, Record<OrderStatus, string>> 
   },
   en: {
     PENDING_PAYMENT: 'Awaiting payment',
-    NEW: 'Accepted',
-    SENT_TO_WORKSHOP: 'Sent to workshop',
-    ACCEPTED: 'Workshop accepted',
-    PRINTING: 'Printing',
-    QUALITY_CHECK: 'Quality check',
-    READY: 'Ready',
+    NEW: 'Order sent',
+    SENT_TO_WORKSHOP: 'Order accepted',
+    ACCEPTED: 'Order in progress',
+    PRINTING: 'Order in progress',
+    QUALITY_CHECK: 'Order in progress',
+    READY: 'Order in progress',
     DELIVERING: 'Out for delivery',
     DELIVERED: 'Delivered',
     CANCELLED: 'Cancelled',

@@ -35,6 +35,9 @@ const FLOW: OrderStatus[] = [
   OrderStatus.DELIVERING,
 ];
 
+/** Sex qabul qilgan, hali tayyor emas — shu holatlardan "Tayyor" ga o'tadi */
+const IN_WORK: OrderStatus[] = [OrderStatus.ACCEPTED, OrderStatus.PRINTING, OrderStatus.QUALITY_CHECK];
+
 const PRODUCTION_COLUMNS: OrderStatus[] = [
   OrderStatus.ACCEPTED,
   OrderStatus.PRINTING,
@@ -178,18 +181,20 @@ export class WorkshopOrdersService {
     return { id, code: order.code, status: OrderStatus.NEW };
   }
 
-  /** Bosilmoqda → sifat nazorati → tayyor → yetkazishga berildi */
+  /**
+   * Sexda ikki holat: qabul qilindi (accept) → tayyor. Yetkazishga chiqarishni operator qiladi ("Tayyor
+   * buyurtmalar" sahifasi). Eski oraliq holatlardagi (bosilmoqda, sifat nazorati) buyurtmalar ham tayyor bo'ladi.
+   */
   async updateStatus(workshop: AuthUser, id: number, dto: WorkshopStatusDto, ip?: string) {
     const order = await this.get(workshop, id);
-    const from = FLOW.indexOf(order.status);
-    const to = FLOW.indexOf(dto.status);
     if (order.status === OrderStatus.SENT_TO_WORKSHOP) {
       throw new ConflictException('Avval buyurtmani qabul qiling (POST /workshop/orders/{id}/accept)');
     }
-    if (from < 0) throw new ConflictException(`Buyurtma ${order.status} holatida — o'zgartirib bo'lmaydi`);
-    if (to <= from) throw new ConflictException('Holatni faqat oldinga o‘zgartirish mumkin');
-    if (dto.status === OrderStatus.DELIVERING && order.status !== OrderStatus.READY) {
-      throw new ConflictException('Yetkazishga faqat tayyor (READY) buyurtma beriladi');
+    if (dto.status !== OrderStatus.READY) {
+      throw new ConflictException('Sex buyurtmani faqat «Tayyor» deb belgilaydi — yetkazishga operator chiqaradi');
+    }
+    if (!IN_WORK.includes(order.status)) {
+      throw new ConflictException(`Buyurtma ${order.status} holatida — o'zgartirib bo'lmaydi`);
     }
     return this.move(workshop, order, dto.status, ACTION[dto.status]!, ip, dto.note);
   }

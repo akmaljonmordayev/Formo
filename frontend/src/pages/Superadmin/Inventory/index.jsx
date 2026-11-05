@@ -7,11 +7,14 @@ const ADULT_SIZES = ['S', 'M', 'L', 'XL', 'XXL', '3XL'];
 const SIZES = [...KID_SIZES, ...ADULT_SIZES];
 
 const cellKey = (kitId, size) => `${kitId}::${size}`;
+// Forma komplekt (futbolka + shortik) bitta mahsulot — zaxira komplekt bo'yicha (API'da TSHIRT qatori).
+// Alohida shortik qoldig'i yuritilmaydi: shortik o'lchami doim futbolka o'lchami bilan bir xil.
+const PRODUCT = 'TSHIRT';
+const LOW = 5;
 
 export default function SuperadminInventory() {
   const t = useT();
-  const [tab, setTab] = useState('TSHIRT');
-  const [kits, setKits] = useState([]); // Forma 360° bilan bir xil klub/terma jamoalar (18 ta)
+  const [kits, setKits] = useState([]); // Forma 360° bilan bir xil 18 ta klub/terma jamoa
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -24,10 +27,9 @@ export default function SuperadminInventory() {
     setLoading(true);
     setError('');
     setSaved(false);
-    // Oldingi tab qoldiqlari yangi tab nomi bilan saqlanib ketmasin (yuklash tugamasa/xato bo'lsa ham)
     setItems([]);
     setLoadFailed(false);
-    Promise.all([inventoryApi.kits(), inventoryApi.list({ productType: tab })])
+    Promise.all([inventoryApi.kits(), inventoryApi.list({ productType: PRODUCT })])
       .then(([kitList, invItems]) => {
         if (!active) return;
         setKits(kitList);
@@ -42,13 +44,14 @@ export default function SuperadminInventory() {
     return () => {
       active = false;
     };
-  }, [tab]);
+  }, []);
 
   const qtyMap = useMemo(() => Object.fromEntries(items.map((i) => [cellKey(i.kitId, i.size), String(i.qty)])), [items]);
   const [draft, setDraft] = useState({});
   useEffect(() => setDraft(qtyMap), [qtyMap]);
 
   const valueOf = (kitId, size) => (draft[cellKey(kitId, size)] ?? '');
+  const grandTotal = kits.reduce((sum, k) => sum + SIZES.reduce((s, size) => s + (Number(valueOf(k.kitId, size)) || 0), 0), 0);
 
   const setQty = (kitId, size, value) => {
     // 6 xonagacha: kattaroq son bazadagi int chegarasidan oshib server 500 qaytarardi
@@ -66,10 +69,10 @@ export default function SuperadminInventory() {
         const raw = draft[key];
         // Serverda qoldig'i bor katak tozalansa — 0 yuboriladi (aks holda eski son qaytib chiqardi)
         if (raw === '' || raw === undefined) {
-          if (qtyMap[key] !== undefined) payload.push({ productType: tab, kitId: k.kitId, size, qty: 0 });
+          if (qtyMap[key] !== undefined) payload.push({ productType: PRODUCT, kitId: k.kitId, size, qty: 0 });
           return;
         }
-        payload.push({ productType: tab, kitId: k.kitId, size, qty: Number(raw) });
+        payload.push({ productType: PRODUCT, kitId: k.kitId, size, qty: Number(raw) });
       });
     });
     if (!payload.length) return;
@@ -77,7 +80,7 @@ export default function SuperadminInventory() {
     setError('');
     setSaved(false);
     try {
-      const fresh = (await inventoryApi.save(payload)).filter((i) => i.productType === tab);
+      const fresh = (await inventoryApi.save(payload)).filter((i) => i.productType === PRODUCT);
       setItems(fresh);
       setSaved(true);
     } catch (e) {
@@ -92,7 +95,7 @@ export default function SuperadminInventory() {
     setError('');
     setSaved(false);
     try {
-      await inventoryApi.removeKit(kit.kitId, tab);
+      await inventoryApi.removeKit(kit.kitId, PRODUCT);
       setItems((list) => list.filter((i) => i.kitId !== kit.kitId));
     } catch (e) {
       setError(e.message);
@@ -104,7 +107,7 @@ export default function SuperadminInventory() {
       <div className="sa-head">
         <div>
           <h1>{t('Zaxira')}</h1>
-          <p>{t("Forma 360°dagi klub va terma jamoalar bo'yicha tayyor qoldiq. 0 bo'lsa, bu variant mijozga ko'rinmaydi.")}</p>
+          <p>{t("Forma komplektlari (futbolka + shortik) qoldig'i — har bir jamoa va o'lcham bo'yicha. Buyurtma berilganda avtomatik kamayadi.")}</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {saved && <span className="sa-table__sub" style={{ color: 'var(--sa-teal)' }}>{t("Saqlandi ✓")}</span>}
@@ -115,12 +118,13 @@ export default function SuperadminInventory() {
       </div>
 
       <div className="sa-tabs" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {[{ key: 'TSHIRT', label: 'Futbolka' }, { key: 'SHORTS', label: 'Shortik' }].map((pt) => (
-            <button key={pt.key} type="button" className={`sa-tab${tab === pt.key ? ' is-active' : ''}`} onClick={() => setTab(pt.key)}>
-              {t(pt.label)}
-            </button>
-          ))}
+        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          <span className="sa-tab is-active" aria-current="true">{t('Komplekt (futbolka + shortik)')}</span>
+          {!loading && kits.length > 0 && (
+            <span className="sa-table__sub" style={{ marginTop: 0 }}>
+              {t('Jami: {n} ta komplekt', { n: grandTotal })}
+            </span>
+          )}
         </div>
         <span className="sa-table__sub" style={{ marginTop: 0, display: 'flex', gap: 14 }}>
           <span><span style={{ color: 'var(--sa-accent)' }}>●</span> {t('kam qoldi (5 dan kam)')}</span>
@@ -141,7 +145,7 @@ export default function SuperadminInventory() {
           <table className="sa-table">
             <thead>
               <tr>
-                <th>{t('Klub formasi')}</th>
+                <th>{t('Komplekt')}</th>
                 {SIZES.map((s) => (
                   <th key={s} style={{ textAlign: 'center' }}>{s}</th>
                 ))}
@@ -170,7 +174,7 @@ export default function SuperadminInventory() {
                       const raw = valueOf(kit.kitId, s);
                       const v = raw === '' ? null : Number(raw);
                       total += v ?? 0;
-                      const low = v !== null && v > 0 && v < 5;
+                      const low = v !== null && v > 0 && v < LOW;
                       const out = v === 0;
                       return (
                         <td key={s} style={{ textAlign: 'center' }}>

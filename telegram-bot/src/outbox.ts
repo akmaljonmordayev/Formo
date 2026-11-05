@@ -1,6 +1,8 @@
 import { Backend, OutboxResult } from './backend';
 import { errorMessage, Logger } from './log';
+import { isLang } from './i18n';
 import { TelegramError } from './telegram';
+import { mainMenu } from './wallet';
 
 export interface OutboxSender {
   sendMessage(chatId: string, text: string, options?: object, retries?: number): Promise<unknown>;
@@ -23,7 +25,8 @@ export async function drainOutbox(backend: Backend, tg: OutboxSender, log: Logge
     let result: OutboxResult = 'SENT';
     let error: string | undefined;
     try {
-      await tg.sendMessage(msg.chatId, msg.text, {}, 1);
+      // Har bir xabarnoma pastki menyuni qayta ko'rsatadi — mijoz "/" buyruqlarsiz tugmalardan foydalanadi
+      await tg.sendMessage(msg.chatId, msg.text, isLang(msg.menuLang) ? { reply_markup: mainMenu(msg.menuLang) } : {}, 1);
     } catch (err) {
       result = classify(err);
       error = err instanceof TelegramError ? `${err.code} ${err.description}` : errorMessage(err);

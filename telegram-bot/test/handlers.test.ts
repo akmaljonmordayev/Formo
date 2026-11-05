@@ -42,6 +42,17 @@ describe('handleUpdate', () => {
     assert.match(sent[0].text, /ulangan/);
   });
 
+  it('/start payloadsiz: ochiq kirish so‘rovi bo‘lsa raqam so‘raladi (token yetib kelmagan holat)', async () => {
+    const { deps, backend, sent } = fakeDeps();
+    backend.linked = true;
+    backend.language = 'uz';
+    backend.login = { maskedPhone: '+998 90 *** ** 67' };
+    await handleUpdate(textUpdate('/start'), deps);
+    assert.match(sent[0].text, /\+998 90 \*\*\* \*\* 67/);
+    const markup = sent[0].options?.reply_markup as { keyboard: { request_contact?: boolean }[][] };
+    assert.equal(markup.keyboard[0][0].request_contact, true);
+  });
+
   it('o‘z kontakti: kod HTML <code> ichida va "Yangi kod" tugmasi bilan', async () => {
     const { deps, backend, sent } = fakeDeps();
     chooseLang(deps, 'uz');
@@ -132,9 +143,36 @@ describe('handleUpdate', () => {
     assert.match(sent[0].text, /o‘chirildi/);
   });
 
-  it('boshqa matn — yordam', async () => {
-    const { deps, sent } = fakeDeps();
+  it('boshqa matn: ulangan mijozga — pastki menyu, ulanmaganga — qanday kirish', async () => {
+    const { deps, backend, sent } = fakeDeps();
     await handleUpdate(textUpdate('salom'), deps);
-    assert.match(sent[0].text, /Buyruqlar/);
+    assert.match(sent[0].text, /pastdagi tugmalardan/);
+    const kb = (sent[0].options?.reply_markup as { keyboard: { text: string }[][] }).keyboard;
+    assert.deepEqual(kb.flat().map((b) => b.text), ['💰 Balans', '➕ Balansni to‘ldirish', '📦 Buyurtmalar', '🌐 Til', '❓ Yordam']);
+
+    backend.meResult = { linked: false };
+    await handleUpdate(textUpdate('salom2'), deps);
+    assert.match(sent[1].text, /Telegram orqali kirish/);
+    assert.equal(sent[1].options?.reply_markup, undefined);
+  });
+
+  it('buyurtmalar: holat belgisi, summa, sana va menyu', async () => {
+    const { deps, backend, sent } = fakeDeps();
+    backend.ordersResult = {
+      linked: true,
+      orders: [{ id: 1, code: 'FRM-000012', status: 'DELIVERING', statusLabel: 'Yetkazilmoqda', totalSum: 189000, createdAt: '2026-11-04T10:00:00Z' }],
+    };
+    await handleUpdate(textUpdate('📦 Buyurtmalar'), deps);
+    assert.match(sent[0].text, /🚚 <b>FRM-000012<\/b> — Yetkazilmoqda/);
+    assert.match(sent[0].text, /04\.11\.2026/);
+    assert.equal(sent[0].options?.parse_mode, 'HTML');
+    assert.ok((sent[0].options?.reply_markup as { keyboard: unknown[] }).keyboard);
+  });
+
+  it('«❓ Yordam» tugmasi — tugmalar tavsifi menyu bilan', async () => {
+    const { deps, sent } = fakeDeps();
+    await handleUpdate(textUpdate('❓ Yordam'), deps);
+    assert.match(sent[0].text, /Pastdagi tugmalar/);
+    assert.ok((sent[0].options?.reply_markup as { keyboard: unknown[] }).keyboard);
   });
 });

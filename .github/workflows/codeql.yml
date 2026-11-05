@@ -1,0 +1,42 @@
+name: CodeQL
+
+# Diqqat: bu ATAYLAB ci.yml'dan ALOHIDA workflow fayli. Railway'ning "Wait for CI" sozlamasi
+# faqat "CI" workflow'ining (ci.yml) holatini kutadi — shu fayl boshqa workflow, shuning uchun
+# bu yerdagi topilma/xato hech qachon backend/frontend/telegram-bot deploy'ini bloklamaydi.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    # Har dushanba ertalab (UTC) — push/PR orasida ham eski zaifliklarni muntazam qayta tekshiradi
+    - cron: "0 3 * * 1"
+  workflow_dispatch:
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  security-events: write
+  actions: read
+
+jobs:
+  analyze:
+    name: Analyze (javascript-typescript)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@v3
+        with:
+          languages: javascript-typescript
+
+      - name: Perform CodeQL analysis
+        uses: github/codeql-action/analyze@v3
+        with:
+          category: "/language:javascript-typescript"

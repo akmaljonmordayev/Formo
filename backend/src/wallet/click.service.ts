@@ -1,10 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { TopUpMethod, TopUpStatus } from '@prisma/client';
-import { createHash, timingSafeEqual } from 'crypto';
+import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { clickConfig } from './payment-config';
 import { TopUpsService } from './topups.service';
+import { timingSafeEqualHex } from '../common/utils/timing-safe.util';
 
 /**
  * CLICK SHOP API (Prepare / Complete) — balans to'ldirish uchun.
@@ -30,11 +31,7 @@ type ClickError = (typeof CLICK_ERRORS)[keyof typeof CLICK_ERRORS];
 export type ClickParams = Record<string, string | undefined>;
 
 const md5 = (v: string) => createHash('md5').update(v).digest('hex');
-const safeEqual = (a: string, b: string) => {
-  const x = Buffer.from(a.toLowerCase());
-  const y = Buffer.from(b.toLowerCase());
-  return x.length === y.length && timingSafeEqual(x, y);
-};
+const safeEqual = (a: string, b: string) => timingSafeEqualHex(a.toLowerCase(), b.toLowerCase());
 const REQUIRED = ['click_trans_id', 'service_id', 'merchant_trans_id', 'amount', 'action', 'sign_time', 'sign_string'];
 
 @Injectable()

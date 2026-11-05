@@ -114,10 +114,22 @@ export async function apiBlobUrl(path) {
   const load = () =>
     fetch(`${BASE_URL}/api${path}`, {
       headers: session.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {},
+      // Server osilib qolsa spinner abadiy aylanmasin — request()dagi bilan bir xil timeout
+      signal: typeof AbortSignal !== 'undefined' && AbortSignal.timeout ? AbortSignal.timeout(20_000) : undefined,
     });
   const refreshBefore = session.refreshToken;
-  let res = await load();
-  if (res.status === 401 && session.refreshToken && (await refreshTokens(refreshBefore))) res = await load();
+  const safeLoad = async () => {
+    try {
+      return await load();
+    } catch (err) {
+      if (err?.name === 'TimeoutError' || err?.name === 'AbortError') {
+        throw new ApiError("Server javob bermayapti. Birozdan so'ng qayta urinib ko'ring", 0);
+      }
+      throw new ApiError("Internetga ulanib bo'lmadi. Tarmoqni tekshiring", 0);
+    }
+  };
+  let res = await safeLoad();
+  if (res.status === 401 && session.refreshToken && (await refreshTokens(refreshBefore))) res = await safeLoad();
   if (!res.ok) {
     const data = await res.json().catch(() => null);
     throw new ApiError(errorMessage(data), res.status);

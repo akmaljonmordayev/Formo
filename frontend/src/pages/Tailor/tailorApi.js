@@ -2,20 +2,21 @@ import { api } from '../../services/api';
 
 const PAGE_LIMIT = 100;
 
-// SENT_TO_WORKSHOP — operator yubordi, sex hali qabul qilmagan. DELIVERING sexning ishi tugagan, ro'yxatda yo'q.
+// Sexda ikki holat: qabul qilindi → tayyor. SENT_TO_WORKSHOP — operator yubordi, sex hali qabul qilmagan.
+// Yetkazishga chiqarishni operator qiladi (DELIVERING sex ro'yxatida yo'q). PRINTING/QUALITY_CHECK — eski
+// buyurtmalar uchun, "qabul qilindi" sifatida ko'rsatiladi.
 export const TAILOR_ORDER_STATUS = {
   SENT_TO_WORKSHOP: 'yangi',
   ACCEPTED: 'qabul',
-  PRINTING: 'bosildi',
-  QUALITY_CHECK: 'bosildi',
+  PRINTING: 'qabul',
+  QUALITY_CHECK: 'qabul',
   READY: 'tayyor',
 };
 
 export const TAILOR_NEXT_STATUS = {
-  ACCEPTED: 'PRINTING',
-  PRINTING: 'QUALITY_CHECK',
+  ACCEPTED: 'READY',
+  PRINTING: 'READY',
   QUALITY_CHECK: 'READY',
-  READY: 'DELIVERING',
 };
 
 const orderToQueueItem = (order) => {
@@ -54,7 +55,7 @@ const orderToQueueItem = (order) => {
     jerseyColorName: '',
     location: '',
     status,
-    stage: status === 'yangi' ? 0 : status === 'qabul' ? 1 : status === 'tayyor' ? 3 : 2,
+    stage: status === 'yangi' ? 0 : status === 'qabul' ? 1 : 2,
     createdAt: order.createdAt,
     deliveryTime,
     deadline: order.deliverySlot

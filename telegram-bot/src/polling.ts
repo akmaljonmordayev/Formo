@@ -34,11 +34,21 @@ export async function processBatch(updates: TgUpdate[], process: (u: TgUpdate) =
  * Tarmoq uzilsa to'xtamaydi: kutish vaqti oshib boradi (5s → 60s) va ulanish tiklanganda davom etadi.
  */
 /** Oxirgi muvaffaqiyatli getUpdates vaqti — watchdog va /health uchun */
-export const pollingState = { lastOkAt: Date.now() };
+export const pollingState: { lastOkAt: number; conflictSince: number | null } = { lastOkAt: Date.now(), conflictSince: null };
 
 /** Polling shuncha vaqt muvaffaqiyatsiz/osilgan bo'lsa — jarayon o'zini o'ldiradi, Railway qayta ishga tushiradi */
 export const POLL_STALE_MS = 5 * 60_000;
 export const pollingStale = (now = Date.now()) => now - pollingState.lastOkAt > POLL_STALE_MS;
+
+/**
+ * 409 (boshqa bot nusxasi/webhook getUpdates bilan bir vaqtda ishlayapti) uzoq davom etsa — bu faqat
+ * tarmoq blipi emas, balki numReplicas>1 yoki Railow tashqarisida qo'lda ishga tushirilgan ikkinchi nusxa.
+ * Shu holatni umumiy 5 daqiqalik "osilib qolish" kutish vaqtidan ancha oldin, aniq sababi bilan aniqlaymiz —
+ * jarayon tezroq va tushunarli xato bilan to'xtaydi, Railway/dashboard'da sabab ko'rinadi.
+ */
+export const CONFLICT_STALE_MS = 60_000;
+export const pollingConflicted = (now = Date.now()) =>
+  pollingState.conflictSince !== null && now - pollingState.conflictSince > CONFLICT_STALE_MS;
 
 export async function runPolling(api: TelegramApi, process: (u: TgUpdate) => Promise<void>, log: Logger, signal: AbortSignal) {
   let offset = 0;
@@ -54,6 +64,7 @@ export async function runPolling(api: TelegramApi, process: (u: TgUpdate) => Pro
       }
       const updates = await api.getUpdates(offset, LONG_POLL_SEC, signal);
       pollingState.lastOkAt = Date.now();
+      pollingState.conflictSince = null;
       if (failures) log.info('polling tiklandi', { afterFailures: failures });
       failures = 0;
       if (!updates.length) continue;
@@ -70,7 +81,10 @@ export async function runPolling(api: TelegramApi, process: (u: TgUpdate) => Pro
       failures++;
       const conflict = err instanceof TelegramError && err.code === 409;
       // 409: boshqa nusxa ishlayapti yoki webhook qolgan — keyingi aylanishda webhook'ni yana o'chiramiz
-      if (conflict) webhookCleared = false;
+      if (conflict) {
+        webhookCleared = false;
+        if (pollingState.conflictSince === null) pollingState.conflictSince = Date.now();
+      }
       log.warn(conflict ? 'boshqa bot nusxasi yoki webhook ishlayapti (409)' : 'getUpdates xatosi', { error: errorMessage(err), failures });
       const pause = Math.min(MAX_ERROR_PAUSE_MS, ERROR_PAUSE_MS * 2 ** Math.min(failures - 1, 4));
       await new Promise((r) => setTimeout(r, pause));

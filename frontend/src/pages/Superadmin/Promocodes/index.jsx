@@ -157,6 +157,9 @@ function PromocodeForm({ promo, onClose, onSaved }) {
     setSaving(true);
     setError('');
     try {
+      if (form.type === 'PERCENT' && form.value !== '' && Number(form.value) > 100) {
+        throw new Error(t("Foiz qiymati 100 dan oshmasligi kerak"));
+      }
       const body = { code: form.code.trim().toUpperCase(), type: form.type };
       if (form.type !== 'FREE_SHIPPING' && form.value !== '') body.value = Number(form.value);
       if (form.minSum !== '') body.minSum = Number(form.minSum);

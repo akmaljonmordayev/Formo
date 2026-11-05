@@ -23,13 +23,15 @@ import { OrderHistoryService } from '../admin/order-history.service';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { NotifyService } from '../notify/notify.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { InventoryService } from '../admin/inventory.service';
 import { AddressesService, formatAddress } from './addresses.service';
 import { CartService, lineProblem, toCartItem } from './cart.service';
-import { STATUS_LABEL } from './order-status';
+import { CUSTOMER_STAGES, customerStageOf, STATUS_LABEL } from './order-status';
 import { dayLabel, DeliveryService, todayLocal } from './delivery.service';
 import { ChangePaymentMethodDto, CheckoutDto, MyOrdersQueryDto } from './dto/checkout.dto';
 import { summarize } from './pricing';
 import { RulesService } from './rules.service';
+import { inTashkentCity } from './tashkent';
 import { CUSTOM_TITLE, designSummary } from './studio';
 import { KIT_DESIGN_TITLE } from '../kits/kit-design';
 import { StudioService } from './studio.service';
@@ -46,17 +48,6 @@ const FINAL: OrderStatus[] = [OrderStatus.DELIVERED, OrderStatus.CANCELLED, Orde
 const CANCELLABLE: OrderStatus[] = [OrderStatus.PENDING_PAYMENT, OrderStatus.NEW, OrderStatus.SENT_TO_WORKSHOP];
 
 export { STATUS_LABEL };
-
-const TIMELINE: OrderStatus[] = [
-  OrderStatus.NEW,
-  OrderStatus.SENT_TO_WORKSHOP,
-  OrderStatus.ACCEPTED,
-  OrderStatus.PRINTING,
-  OrderStatus.QUALITY_CHECK,
-  OrderStatus.READY,
-  OrderStatus.DELIVERING,
-  OrderStatus.DELIVERED,
-];
 
 const include = {
   items: { orderBy: { id: 'asc' }, include: { kit: { select: { bgColor: true, textColor: true } } } },
@@ -104,7 +95,7 @@ export function customerCanCancel(o: { status: OrderStatus; createdAt: Date }, w
 
 export function toOrderView(o: OrderRow, cancelWindowHours?: number) {
   const date = o.deliveryDate?.toISOString().slice(0, 10) ?? null;
-  const current = TIMELINE.indexOf(o.status);
+  const current = customerStageOf(o.status);
   // Tarix tartib bilan o'qiladi — keyingi yozuv oldingisini bosadi
   const reached = new Map(o.statusLogs.map((l) => [l.toStatus, l.createdAt]));
   return {
@@ -127,14 +118,20 @@ export function toOrderView(o: OrderRow, cancelWindowHours?: number) {
     comment: o.comment,
     itemsCount: o.items.reduce((s, i) => s + i.quantity, 0),
     items: o.items.map(({ kit, orderId: _o, ...i }) => ({ ...i, bgColor: kit?.bgColor ?? null, textColor: kit?.textColor ?? null })),
-    timeline: TIMELINE.map((status, i) => ({
-      status,
-      label: STATUS_LABEL[status],
-      done: current >= 0 && i <= current,
-      current: i === current,
-      // shu bosqichga oxirgi marta qachon o'tilgan (sex rad etib qayta yuborilsa ham to'g'ri chiqadi)
-      at: current >= 0 && i <= current ? (reached.get(status) ?? null) : null,
-    })),
+    // Mijoz 4 bosqichni ko'radi (+ yetkazildi): ichki sex holatlari (bosish, sifat nazorati, tayyor) "jarayonda"
+    timeline: CUSTOMER_STAGES.map(({ status, statuses }, i) => {
+      // bosqichga oxirgi marta qachon kirilgan (sex rad etib qayta yuborilsa ham to'g'ri chiqadi) — bosqich
+      // ichidagi holatlardan eng birinchisi
+      const times = statuses.map((s) => reached.get(s)).filter((d): d is Date => Boolean(d));
+      const at = times.length ? times.reduce((a, b) => (a < b ? a : b)) : null;
+      return {
+        status,
+        label: STATUS_LABEL[status],
+        done: current >= 0 && i <= current,
+        current: i === current,
+        at: current >= 0 && i <= current ? at : null,
+      };
+    }),
     canCancel: customerCanCancel(o, cancelWindowHours),
     createdAt: o.createdAt,
   };
@@ -153,6 +150,7 @@ export class ShopOrdersService {
     private readonly notify: NotifyService,
     private readonly studio: StudioService,
     private readonly wallet: WalletService,
+    private readonly inventory: InventoryService,
   ) {}
 
   /** Muddati o'tgan to'lanmagan buyurtmalarni bekor qiladi (slot va promokod bo'shaydi) */
@@ -186,7 +184,15 @@ export class ShopOrdersService {
       await this.history.record({ orderId: id, from, to: OrderStatus.CANCELLED, actor, note }, tx);
       // Balansdan to'langan bo'lsa — pul shu tranzaksiyada (bir marta) qaytadi
       await this.wallet.refundOrder(tx, id, actor?.id ?? null);
-      const order = await tx.order.findUniqueOrThrow({ where: { id }, select: { promocodeId: true } });
+      const order = await tx.order.findUniqueOrThrow({
+        where: { id },
+        select: {
+          promocodeId: true,
+          items: { select: { kitId: true, shirtSize: true, shortsSize: true, withShorts: true, quantity: true } },
+        },
+      });
+      // checkout paytida kamaytirilgan zaxira endi orqaga qaytadi
+      await this.inventory.restore(tx, order.items);
       if (order.promocodeId) {
         await tx.promocode.updateMany({
           where: { id: order.promocodeId, usedCount: { gt: 0 } },
@@ -206,6 +212,12 @@ export class ShopOrdersService {
     ]);
     const online = ONLINE.includes(dto.paymentMethod);
     const fromBalance = dto.paymentMethod === PaymentMethod.BALANCE;
+    // Naqd faqat Toshkent shahri ichiga; shahardan tashqariga — faqat shaxsiy hisobdan
+    if (dto.paymentMethod === PaymentMethod.CASH && !inTashkentCity(address.latitude, address.longitude)) {
+      throw new BadRequestException(
+        "Naqd to'lov faqat Toshkent shahri ichida. Shahardan tashqariga yetkazishda shaxsiy hisobdan to'lang",
+      );
+    }
 
     const orderId = await retrySerializable(() => this.prisma.$transaction(
       async (tx) => {
@@ -248,6 +260,19 @@ export class ShopOrdersService {
           });
           if (!count) throw new ConflictException("Promokod hozirgina o'zgardi, qayta urinib ko'ring");
         }
+
+        // Zaxira (ombor) shartli kamaytiriladi — yetarli bo'lmasa shu yerda xato, butun tranzaksiya qaytadi
+        await this.inventory.reserve(
+          tx,
+          items.map((i) => ({
+            kitId: i.kitId,
+            shirtSize: i.shirtSize,
+            shortsSize: i.shortsSize,
+            withShorts: i.withShorts,
+            quantity: i.quantity,
+            label: i.title,
+          })),
+        );
 
         const first = items[0];
         const order = await tx.order.create({

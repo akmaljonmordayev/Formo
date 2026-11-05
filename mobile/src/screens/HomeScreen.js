@@ -6,7 +6,8 @@ import { Badge, Button, Card, Header, Screen, SectionTitle } from '../components
 import Kit360Thumb from '../components/ui/Kit360Thumb';
 import KitTile from '../components/ui/KitTile';
 import Skeleton from '../components/ui/Skeleton';
-import StatusPill, { statusTone } from '../components/ui/StatusPill';
+import ActiveOrderBar from '../components/ui/ActiveOrderBar';
+import { useTabBarSpace } from '../components/ui/BottomTabs';
 import { statusText, useActiveOrder } from '../features/orders';
 import { useBestSellingKits } from '../features/products/kits';
 import { displayName, nameInitial } from '../utils/userName';
@@ -22,6 +23,7 @@ const BEST_ON_HOME = 8;
  */
 export default function HomeScreen({ t, onNavigate, onOrder, onNotifications, onOpenKit, favorites, rules, auth }) {
   const { order } = useActiveOrder();
+  const tabSpace = useTabBarSpace();
   const { kits, isLoading } = useBestSellingKits();
   const best = kits.slice(0, BEST_ON_HOME);
   const heroTeam = best[0]?.kit360Id || 'rm';
@@ -43,7 +45,7 @@ export default function HomeScreen({ t, onNavigate, onOrder, onNotifications, on
           kit={item}
           t={t}
           rank={ranked && item.soldCount > 0 ? index + 1 : undefined}
-          favorite={favorites.ids.has(item.kitId)}
+          favorite={favorites.has(item)}
           onFavorite={favorites.toggle}
           onPress={onOpenKit}
           style={styles.railCard}
@@ -53,7 +55,9 @@ export default function HomeScreen({ t, onNavigate, onOrder, onNotifications, on
   );
 
   return (
-    <Screen contentStyle={styles.content}>
+    <View style={styles.root}>
+    {/* Faol buyurtma pastda qotib turadi — kontent uning ostida qolmasin */}
+    <Screen contentStyle={[styles.content, order && styles.contentWithOrder]}>
       <Header
         cart
         overline={t('goodDay')}
@@ -97,26 +101,6 @@ export default function HomeScreen({ t, onNavigate, onOrder, onNotifications, on
           <Kit360Thumb team={heroTeam} width={128} height={164} zoom={1.6} style={styles.heroPhoto} />
         </View>
       </View>
-
-      {order ? (
-        <Pressable
-          style={[styles.trackerCard, styles.padded, { borderColor: statusTone(order.status).border }]}
-          onPress={() => onOrder(order.id)}
-          accessibilityRole="button"
-        >
-          <View style={[styles.trackerIconBox, { backgroundColor: statusTone(order.status).bg }]}>
-            <MaterialCommunityIcons name={statusTone(order.status).icon} size={22} color={statusTone(order.status).color} />
-          </View>
-          <View style={{ flex: 1 }}>
-            <Text style={styles.trackerOverline}>
-              {t('activeOrder')} · {order.code}
-            </Text>
-            <StatusPill status={order.status} label={statusText(t, order.status, order.statusLabel)} style={styles.trackerPill} />
-          </View>
-          <Text style={styles.trackerAction}>{t('track')}</Text>
-          <MaterialCommunityIcons name="chevron-right" size={18} color={colors.accent} />
-        </Pressable>
-      ) : null}
 
       {/* Tezkor bo'limlar */}
       <View style={[styles.categoryRow, styles.padded]}>
@@ -193,12 +177,24 @@ export default function HomeScreen({ t, onNavigate, onOrder, onNotifications, on
         ))}
       </View>
     </Screen>
+    {order ? (
+      <ActiveOrderBar
+        t={t}
+        order={order}
+        label={statusText(t, order.status, order.statusLabel)}
+        bottom={tabSpace + spacing.sm}
+        onPress={() => onOrder(order.id)}
+      />
+    ) : null}
+    </View>
   );
 }
 
 const styles = StyleSheet.create({
   // Lentalar ekran chetigacha; matnli bloklar `padded`
+  root: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: 0 },
+  contentWithOrder: { paddingBottom: 220 },
   padded: { marginHorizontal: spacing.lg },
   sectionGap: { marginTop: spacing.lg },
   iconCircle: {

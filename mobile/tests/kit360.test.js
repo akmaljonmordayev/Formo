@@ -37,6 +37,10 @@ test('xabarlar: update va javoblar formo-kit360 belgisi bilan, boshqa postMessag
   assert.equal(JSON.parse(kit360Message({ team: 'rm' })).side, 'back');
   // Yonga burilgan (viewer 'side' xabar qilgan) — tomon buyrug'i yo'q, keyingi "Old" bosilishi holatni o'zgartiradi
   assert.equal(JSON.parse(kit360Message({ team: 'rm', side: 'side' })).side, null);
+  // Shortik raqami: berilmasa — kalit yo'q (viewer orqadagi raqamni chizadi); '' — shortik raqamsiz
+  assert.equal('shortsNumber' in JSON.parse(kit360Message({ team: 'rm', number: 10 })), false);
+  assert.equal(JSON.parse(kit360Message({ team: 'rm', number: 10, shortsNumber: '' })).shortsNumber, '');
+  assert.equal(JSON.parse(kit360Message({ team: 'rm', number: 10, shortsNumber: 10 })).shortsNumber, '10');
   assert.deepEqual(parseKit360Message(JSON.stringify({ source: KIT360_SOURCE, type: 'face', view: 'front' })), {
     source: KIT360_SOURCE,
     type: 'face',

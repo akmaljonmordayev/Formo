@@ -343,8 +343,14 @@ const RU = {
   "{n} ta formani yangilab bo'lmadi: {list}": 'Не удалось обновить {n} форм: {list}',
   '{n} ta forma narxi yangilandi': 'Цены обновлены у {n} форм',
   '{label} narxi': 'Цена: {label}',
-  "Futbolka, bosma va yetkazish narxi. O'ng tomonda mijoz ko'radigan yakuniy narx.":
-    'Цены футболки, печати и доставки. Справа — итоговая цена, которую видит клиент.',
+  "Komplekt (futbolka + shortik), ism-raqam bosmasi va yetkazish narxi. O'ng tomonda mijoz ko'radigan yakuniy narx.":
+    'Цены комплекта (футболка + шорты), печати имени/номера и доставки. Справа — итоговая цена, которую видит клиент.',
+  'Komplekt (futbolka + shortik)': 'Комплект (футболка + шорты)',
+  'Bosma bilan': 'С печатью',
+  "Forma komplektlari (futbolka + shortik) qoldig'i — har bir jamoa va o'lcham bo'yicha. Buyurtma berilganda avtomatik kamayadi.":
+    'Остатки комплектов формы (футболка + шорты) по каждой команде и размеру. При заказе уменьшаются автоматически.',
+  'Jami: {n} ta komplekt': 'Всего: {n} комплектов',
+  'Bitta forma komplekti narxi': 'Цена одного комплекта формы',
   "Narx jadvali hali bo'sh. Standart qatorlarni yarating, narxlarni to'g'rilab «Saqlash»ni bosing.":
     'Таблица цен пока пуста. Создайте стандартные строки, поправьте цены и нажмите «Сохранить».',
   'Standart narxlarni yaratish': 'Создать стандартные цены',

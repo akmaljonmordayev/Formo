@@ -151,7 +151,7 @@ describe('3D forma dizaynlari (e2e)', () => {
         id: designId,
         name: 'Oqim 2026',
         design: { designVersion: 1, primaryColor: '#1f6f8b', pattern: 'fade' },
-        prices: { shirt: 99000, shorts: 60000, print: 30000 },
+        prices: { shirt: 159000, shorts: 0, print: 30000 },
       });
       expect(res.body[0]).not.toHaveProperty('isActive');
       await api(app).get(`/api/kits/designs/${designId}`).expect(200);
@@ -177,7 +177,7 @@ describe('3D forma dizaynlari (e2e)', () => {
         printNumber: '10',
         shirtSize: 'L',
         withShorts: false,
-        unitPrice: 129000,
+        unitPrice: 189000, // komplekt (159 000) + bosma (30 000)
         available: true,
       });
     });
@@ -191,7 +191,7 @@ describe('3D forma dizaynlari (e2e)', () => {
     });
 
     it("buyurtma: KIT_DESIGN, OrderItem'da kitDesignId va dizayn nusxasi; admin ko'radi", async () => {
-      const addr = await as(user).post('/api/addresses', { label: 'Uy', address: 'Yunusobod, Amir Temur 108' }).expect(201);
+      const addr = await as(user).post('/api/addresses', { label: 'Uy', address: 'Yunusobod, Amir Temur 108', latitude: 41.31, longitude: 69.28 }).expect(201);
       addressId = addr.body.id;
       const order = await as(user)
         .post('/api/orders/checkout', {
@@ -208,7 +208,7 @@ describe('3D forma dizaynlari (e2e)', () => {
         printName: 'RAHIMOV',
         printNumber: '10',
         shirtSize: 'L',
-        unitPrice: 129000,
+        unitPrice: 189000, // komplekt (159 000) + bosma (30 000)
         designSnapshot: { designVersion: 1, name: 'Oqim 2026', primaryColor: '#1f6f8b', pattern: 'fade' },
       });
 

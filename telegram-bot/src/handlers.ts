@@ -1,6 +1,6 @@
-import { Backend, CodeResult, TopUpMethods } from './backend';
+import { Backend, CodeResult, HelloResult, TopUpMethods } from './backend';
 import { RecentIds } from './dedupe';
-import { FIRST_LANGUAGE_PROMPT, isLang, Lang, langFromCode, menuAction, money, T } from './i18n';
+import { esc, FIRST_LANGUAGE_PROMPT, isLang, Lang, langFromCode, menuAction, money, ORDER_EMOJI, shortDate, T } from './i18n';
 import { errorMessage, Logger } from './log';
 import { contactKeyboard, LOGIN, removeKeyboard, RESEND_DATA, resendKeyboard } from './messages';
 import { RateLimiter } from './ratelimit';
@@ -115,6 +115,7 @@ async function onMessage(msg: TgMessage, deps: Deps) {
     if (action === 'balance') return showBalance(deps, userId, chatId, lang);
     if (action === 'topup') return startTopUp(deps, userId, chatId, lang);
     if (action === 'orders') return showOrders(deps, userId, chatId, lang);
+    if (action === 'help') return replyWithMenu(deps, userId, chatId, lang, T[lang].help);
     return reply(T[lang].chooseLanguage, { reply_markup: languageKeyboard });
   }
 
@@ -126,7 +127,18 @@ async function onMessage(msg: TgMessage, deps: Deps) {
     return reply(T[lang].confirmAmount(amount), { parse_mode: 'HTML', reply_markup: confirmKeyboard(lang, amount) });
   }
 
-  return reply(T[lang].help);
+  // Tushunarsiz matn: ulangan mijozga — menyu tugmalari, ulanmaganga — qanday kirish
+  return replyWithMenu(deps, userId, chatId, lang, T[lang].menuHint, T[lang].welcome);
+}
+
+/**
+ * Ulangan mijozga matn + pastki menyu (menyu yo'qolgan bo'lsa qaytadi); ulanmaganga — `unlinkedText`
+ * (berilmasa xuddi shu matn) menyusiz.
+ */
+async function replyWithMenu(deps: Deps, userId: string, chatId: string, lang: Lang, text: string, unlinkedText = text) {
+  const me = await deps.backend.me(userId).catch(() => null);
+  if (me?.linked) return send(deps, chatId, text, { reply_markup: mainMenu(rememberLang(deps, userId, me.language, lang)) });
+  return send(deps, chatId, unlinkedText);
 }
 
 /**
@@ -140,10 +152,9 @@ async function onStart(deps: Deps, from: TgUser, chatId: string, payload: string
   if (payload && payload !== 'topup' && !START_TOKEN.test(payload)) return send(deps, chatId, LOGIN[quickLang(deps, from)].invalidLink);
 
   let lang = deps.sessions.lang(userId);
-  let linked: boolean | undefined;
+  let hello: HelloResult | undefined;
   if (!payload || !lang) {
-    const hello = await guarded(deps, chatId, quickLang(deps, from), () => deps.backend.hello(userId, chatId));
-    linked = hello.linked;
+    hello = await guarded(deps, chatId, quickLang(deps, from), () => deps.backend.hello(userId, chatId));
     if (!lang && isLang(hello.language)) {
       lang = hello.language;
       deps.sessions.setLang(userId, lang);
@@ -153,13 +164,18 @@ async function onStart(deps: Deps, from: TgUser, chatId: string, payload: string
     deps.sessions.setPendingStart(userId, payload);
     return send(deps, chatId, FIRST_LANGUAGE_PROMPT, { reply_markup: languageKeyboard });
   }
-  return continueStart(deps, userId, chatId, lang, payload, linked);
+  return continueStart(deps, userId, chatId, lang, payload, hello);
 }
 
-async function continueStart(deps: Deps, userId: string, chatId: string, lang: Lang, payload: string, linked?: boolean) {
+async function continueStart(deps: Deps, userId: string, chatId: string, lang: Lang, payload: string, hello?: HelloResult) {
   if (!payload) {
-    if (linked === undefined) linked = (await guarded(deps, chatId, lang, () => deps.backend.hello(userId, chatId))).linked;
-    return linked
+    if (!hello) hello = await guarded(deps, chatId, lang, () => deps.backend.hello(userId, chatId));
+    // Ilovada "Telegram orqali kirish" bosilgan, lekin token botga yetmagan (oddiy /start, /stop dan keyin va h.k.) —
+    // ochiq so'rov bo'lsa raqam so'raladi va kod beriladi
+    if (hello.login) {
+      return send(deps, chatId, LOGIN[lang].askContact(hello.login.maskedPhone), { parse_mode: 'HTML', reply_markup: contactKeyboard(lang) });
+    }
+    return hello.linked
       ? send(deps, chatId, T[lang].welcomeLinked, { reply_markup: mainMenu(lang) })
       : send(deps, chatId, T[lang].welcome);
   }
@@ -177,6 +193,7 @@ function commandAction(body: string) {
   if (COMMAND('topup').test(body)) return 'topup' as const;
   if (COMMAND('orders').test(body)) return 'orders' as const;
   if (COMMAND('language').test(body)) return 'language' as const;
+  if (COMMAND('help').test(body) || COMMAND('menu').test(body)) return 'help' as const;
   return null;
 }
 
@@ -226,7 +243,7 @@ async function onCallback(query: TgCallbackQuery, deps: Deps) {
     const { linked } = await guarded(deps, chatId, chosen, () => deps.backend.setLanguage(userId, chosen));
     // Birinchi /start til so'rash uchun to'xtatilgan bo'lsa — shu tilda davom etadi
     const pending = deps.sessions.takePendingStart(userId);
-    if (pending !== undefined) return continueStart(deps, userId, chatId, chosen, pending, linked);
+    if (pending !== undefined) return continueStart(deps, userId, chatId, chosen, pending);
     return send(deps, chatId, T[chosen].languageSaved, linked ? { reply_markup: mainMenu(chosen) } : undefined);
   }
 
@@ -334,9 +351,16 @@ async function createTopUp(deps: Deps, userId: string, chatId: string, lang: Lan
 async function showOrders(deps: Deps, userId: string, chatId: string, lang: Lang) {
   const res = await guarded(deps, chatId, lang, () => deps.backend.orders(userId));
   if (!res.linked) return send(deps, chatId, T[lang].notLinked);
-  if (!res.orders.length) return send(deps, chatId, T[lang].noOrders);
-  const lines = [T[lang].ordersTitle, ...res.orders.map((o) => `• ${o.code} — ${o.statusLabel} · ${money(o.totalSum, lang)}`)];
-  return send(deps, chatId, lines.join('\n'));
+  const menu = { reply_markup: mainMenu(lang) };
+  if (!res.orders.length) return send(deps, chatId, T[lang].noOrders, menu);
+  const lines = [`<b>${T[lang].ordersTitle}</b>`, ''];
+  for (const o of res.orders) {
+    const emoji = (o.status && ORDER_EMOJI[o.status]) || '•';
+    lines.push(`${emoji} <b>${esc(o.code)}</b> — ${esc(o.statusLabel)}`);
+    lines.push(`      ${money(o.totalSum, lang)}${o.createdAt ? ` · ${shortDate(o.createdAt)}` : ''}`);
+  }
+  lines.push('', `<i>${T[lang].ordersHint}</i>`);
+  return send(deps, chatId, lines.join('\n'), { parse_mode: 'HTML', ...menu });
 }
 
 let limitsCache: { value: TopUpMethods['limits']; at: number } | null = null;

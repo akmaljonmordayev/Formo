@@ -1,0 +1,46 @@
+version: 2
+
+# Monorepo pnpm workspace sifatida ishlaydi (pnpm-workspace.yaml: backend, frontend, mobile,
+# packages/*) — hammasi BITTA ildiz pnpm-lock.yaml bilan boshqariladi, backend/frontend/mobile'ning
+# o'zining alohida lock fayli yo'q. Shu sababli ular uchun alohida `directory` yozmaymiz (Dependabot
+# npm ekotizimi pnpm workspace'larni ildizdan avtomatik aniqlaydi va har bir workspace paketi uchun
+# alohida PR ochadi) — faqat haqiqatan ham MUSTAQIL qulfi bor joylar alohida yozilgan:
+# ildiz (pnpm-lock.yaml) va telegram-bot (o'zining package-lock.json'i, pnpm workspace'dan tashqarida,
+# npm bilan boshqariladi — ci.yml'dagi telegram-bot job'i ham shunday).
+updates:
+  - package-ecosystem: "npm"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "main"
+    open-pull-requests-limit: 10
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "npm"
+    directory: "/telegram-bot"
+    schedule:
+      interval: "weekly"
+    target-branch: "main"
+    open-pull-requests-limit: 10
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"
+
+  # GitHub Actions versiyalarini (checkout, setup-node, docker/build-push-action, ...) ham yangilab
+  # turish — CI'ning o'zi ishlatadigan action'lar ham ta'minot zanjiri xavfsizligi qamroviga kiradi.
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    target-branch: "main"
+    groups:
+      minor-and-patch:
+        update-types:
+          - "minor"
+          - "patch"

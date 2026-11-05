@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { ordersApi, ORDER_STATUS, paymentLabel, formatDateTime } from '../../../features/platform/platformApi';
-import { prettyPhone, workshopsApi } from '../../../features/accounts/accountsApi';
+import { prettyPhone } from '../../../features/accounts/accountsApi';
+import { useActiveWorkshops } from '../../../features/orders/useOrderWorkflow';
 import { useDebounced } from '../../../hooks/useDebounced';
 import { downloadCsv } from '../../../utils/csvExport';
 import Modal from '../../../components/ui/Modal';
@@ -213,16 +214,13 @@ function OrderModal({ order, onClose, onSaved }) {
   const { t, locale } = useLang();
   const [status, setStatus] = useState(order.status);
   const [workshopId, setWorkshopId] = useState(order.workshop?.id ? String(order.workshop.id) : '');
-  const [workshops, setWorkshops] = useState([]);
+  const { workshops, error: workshopsError } = useActiveWorkshops();
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
-    workshopsApi
-      .list({ isActive: 'true', page: 1, limit: 100 })
-      .then((d) => setWorkshops(d.items))
-      .catch((e) => setError(e.message));
-  }, []);
+    if (workshopsError) setError(workshopsError);
+  }, [workshopsError]);
 
   const workshopChanged = workshopId !== (order.workshop?.id ? String(order.workshop.id) : '');
   const changed = status !== order.status || workshopChanged;

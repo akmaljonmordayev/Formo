@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shirt, Clock, FileText, Image as ImageIcon, Play, CheckCircle, AlertTriangle, Truck, XCircle } from 'lucide-react';
+import { Shirt, Clock, FileText, Image as ImageIcon, CheckCircle, AlertTriangle, Truck, XCircle } from 'lucide-react';
 import { Card } from './ui';
 import OrderKitView from './OrderKitView';
 import WorkflowTracker from './WorkflowTracker';
@@ -105,12 +105,7 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
         ]),
   ].filter((item) => item.value !== undefined && item.value !== null && item.value !== '');
 
-  const workflowLabel =
-    order.status === 'yangi' || order.status === 'qabul'
-      ? t('order.wfReady')
-      : order.status === 'bosildi'
-        ? t('order.wfPrinting')
-        : t('order.wfDone');
+  const workflowLabel = order.status === 'tayyor' ? t('order.wfDone') : t(`status.${order.status}`);
 
   const handleDownload = async (type) => {
     if (type === 'PNG') {
@@ -312,11 +307,11 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
         <div className="flex items-center gap-2">
           <button
             type="button"
-            onClick={() => handleDownload('PDF')}
+            onClick={() => handleDownload('TXT')}
             className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2.5 text-xs font-bold text-slate-300 transition hover:bg-white/10 hover:text-white"
           >
             <FileText className="h-4 w-4" />
-            <span>{t('order.downloadPdf')}</span>
+            <span>{t('order.downloadTxt')}</span>
           </button>
           <button
             type="button"
@@ -390,36 +385,21 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
               </div>
             )}
           </div>
+        ) : order.status === 'tayyor' ? (
+          // Sexning ishi tugadi — yetkazishga operator chiqaradi
+          <div className="flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-300">
+            <Truck className="h-4 w-4" />
+            <span>{t('order.readyWaitsOperator')}</span>
+          </div>
         ) : (
           <button
             type="button"
             disabled={actionLoading}
             onClick={() => onStartPress(order)}
-            className={cx(
-              'flex items-center gap-2 rounded-xl px-6 py-3 text-sm font-extrabold text-slate-950 shadow-glow transition active:scale-95 disabled:opacity-60',
-              order.status === 'bosildi'
-                ? 'bg-amber-400 hover:bg-amber-300'
-                : order.status === 'tayyor'
-                  ? 'bg-emerald-400 hover:bg-emerald-300 text-slate-950'
-                  : 'bg-teal-400 hover:bg-teal-300'
-            )}
+            className="flex items-center gap-2 rounded-xl bg-emerald-400 px-6 py-3 text-sm font-extrabold text-slate-950 shadow-glow transition hover:bg-emerald-300 active:scale-95 disabled:opacity-60"
           >
-            {order.status === 'qabul' ? (
-              <>
-                <Play className="h-4 w-4 fill-current" />
-                <span>{t('order.startPrint')}</span>
-              </>
-            ) : order.status === 'bosildi' ? (
-              <>
-                <CheckCircle className="h-4 w-4" />
-                <span>{t('order.markReady')}</span>
-              </>
-            ) : (
-              <>
-                <Truck className="h-4 w-4" />
-                <span>{t('order.handToCourier')}</span>
-              </>
-            )}
+            <CheckCircle className="h-4 w-4" />
+            <span>{t('order.markReady')}</span>
           </button>
         )}
       </div>

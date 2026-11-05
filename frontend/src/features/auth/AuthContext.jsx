@@ -19,7 +19,16 @@ export function AuthProvider({ children }) {
         session.save({ accessToken: session.accessToken, refreshToken: session.refreshToken, user: fresh });
         setUser(fresh);
       })
-      .catch(() => {}); // 401 bo'lsa api.js sessiyani o'zi tugatadi
+      .catch((err) => {
+        if (cancelled) return;
+        // Server role/sessiyani tasdiqlay olmadi (401/403) — DevTools orqali tahrirlangan/eskirgan
+        // lokal role'ga ishonib qolmasligimiz uchun sessiyani tugatamiz (ProtectedRoute /login'ga yuboradi).
+        // Tarmoq/5xx — vaqtinchalik xato, eski sessiya saqlanadi (keyingi urinishda qayta tekshiriladi)
+        if (err?.status === 401 || err?.status === 403) {
+          session.clear();
+          setUser(null);
+        }
+      });
     return () => {
       cancelled = true;
     };

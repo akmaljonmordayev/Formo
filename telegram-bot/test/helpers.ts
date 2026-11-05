@@ -36,6 +36,8 @@ export class FakeBackend implements Backend {
   linked = false;
   /** hello() qaytaradigan saqlangan til */
   language: string | null = null;
+  /** hello() qaytaradigan ochiq kirish so'rovi */
+  login: { maskedPhone: string } | null = null;
   fail = false;
   outbox: OutboxMessage[] = [];
   reports: { id: number; result: OutboxResult; error?: string }[] = [];
@@ -55,7 +57,7 @@ export class FakeBackend implements Backend {
     return this.rec('resend', args, this.codeResult);
   }
   hello(...args: [string, string]) {
-    return this.rec('hello', args, { linked: this.linked, language: this.language });
+    return this.rec('hello', args, { linked: this.linked, language: this.language, login: this.login });
   }
   stop(...args: [string]) {
     return this.rec('stop', args, { linked: this.linked });

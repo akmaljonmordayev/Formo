@@ -33,6 +33,20 @@ describe('outbox', () => {
     assert.deepEqual(sent, ['10']);
     assert.deepEqual(backend.reports.map((r) => [r.id, r.result]), [[1, 'SENT'], [2, 'BLOCKED']]);
   });
+
+  it('ulangan mijozga xabar pastki menyu bilan (menuLang), noma’lum til — menyusiz', async () => {
+    const { deps, backend } = fakeDeps();
+    backend.outbox = [
+      { id: 1, chatId: '10', text: 'a', attempts: 1, menuLang: 'ru' },
+      { id: 2, chatId: '20', text: 'b', attempts: 1, menuLang: null },
+    ];
+    const opts: Record<string, unknown>[] = [];
+    const tg = { sendMessage: async (_c: string, _t: string, o?: object) => void opts.push((o ?? {}) as Record<string, unknown>) };
+    await drainOutbox(backend, tg, deps.log);
+    const kb = (opts[0].reply_markup as { keyboard: { text: string }[][] }).keyboard;
+    assert.equal(kb[0][0].text, '💰 Баланс');
+    assert.equal(opts[1].reply_markup, undefined);
+  });
 });
 
 describe('config', () => {

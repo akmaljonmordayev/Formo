@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  BackHandler,
+  Platform,
   Pressable,
   StyleSheet,
   Switch,
@@ -10,7 +10,8 @@ import {
   View,
 } from 'react-native';
 import { KeyboardAvoider, KeyboardAwareScrollView } from '../components/ui/KeyboardAware';
-import MapView from 'react-native-maps';
+import NativeMapView from 'react-native-maps';
+import LeafletMap from '../components/ui/LeafletMap';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton, ErrorNote, OutlineButton, authColors as c } from '../components/ui/AuthUi';
@@ -31,6 +32,10 @@ import {
 import { errorText } from '../utils/errors';
 import { DARK_MAP_STYLE } from '../constants/mapStyle';
 
+// Android'da react-native-maps Google Maps kalitisiz release build'da crash qiladi (ilova yopilib qoladi) —
+// u yerda kalit talab qilmaydigan Leaflet/OpenStreetMap xaritasi; iOS'da Apple Maps (kalit kerak emas)
+const MapView = Platform.OS === 'android' ? LeafletMap : NativeMapView;
+
 const LABEL_KEYS = ['addrLabelHome', 'addrLabelWork'];
 const GEOCODE_DELAY_MS = 600;
 
@@ -41,9 +46,11 @@ const GEOCODE_DELAY_MS = 600;
  * Saqlash: POST /addresses (yangi) yoki PATCH /addresses/:id (tahrir) —
  * label, address, apartment, latitude, longitude, isDefault.
  *
- * Props: t, address (tahrirlanadigan manzil | null), onCancel, onSaved(savedAddress)
+ * Props: t, address (tahrirlanadigan manzil | null), onCancel, onSaved(savedAddress),
+ *        onBackIntercept — AppNavigator'ning markaziy hardware-back ref'ini
+ *        o'rnatish funksiyasi (saqlanayotganda orqaga qaytishni bloklash uchun)
  */
-export default function LocationPickerScreen({ t, address, onCancel, onSaved }) {
+export default function LocationPickerScreen({ t, address, onCancel, onSaved, onBackIntercept }) {
   const insets = useSafeAreaInsets();
   const toast = useToast();
   const mapRef = useRef(null);
@@ -76,13 +83,16 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved }) 
   const device = useDeviceLocation();
   const geocoder = useReverseGeocode();
 
+  // Android "orqaga": AppNavigator'dagi yagona hardwareBackPress listener'ga
+  // o'z tekshiruvimizni beramiz — saqlanayotganda orqaga qaytilmaydi
   useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
+    if (!onBackIntercept) return undefined;
+    onBackIntercept(() => {
       if (!saving) onCancel?.();
       return true;
     });
-    return () => sub.remove();
-  }, [onCancel, saving]);
+    return () => onBackIntercept(null);
+  }, [onBackIntercept, onCancel, saving]);
 
   useEffect(() => () => clearTimeout(geocodeTimer.current), []);
 

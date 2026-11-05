@@ -1,7 +1,7 @@
 /**
  * node:test uchun yuklovchi: mobile/src fayllarini Babel bilan CommonJS'ga
- * o'giradi va native modullarni (AsyncStorage, expo-location, react-native-svg,
- * react-native) oddiy test dublyorlari bilan almashtiradi. Qurilma kerak emas.
+ * o'giradi va native modullarni (AsyncStorage, SecureStore, NetInfo, expo-location,
+ * react-native-svg, react-native) oddiy test dublyorlari bilan almashtiradi. Qurilma kerak emas.
  *
  * Ishlatish: node --test --require ./tests/setup/register.js tests/
  */
@@ -21,6 +21,9 @@ const jsxPlugin = require.resolve('@babel/plugin-transform-react-jsx', {
 
 // ─── Native stubs ────────────────────────────────────────────────────────────
 const memory = {};
+// SecureStore uchun alohida xotira — AsyncStorage'dan ko'chirish testlarida ikkisi
+// aralashib ketmasligi uchun (storage.migrateTokensToSecureStore)
+const secureMemory = {};
 const svgTag = (name) => {
   const C = () => null;
   C.displayName = name;
@@ -54,6 +57,21 @@ const stubs = {
       getItem: async (k) => (k in memory ? memory[k] : null),
       setItem: async (k, v) => { memory[k] = v; },
       removeItem: async (k) => { delete memory[k]; },
+      multiGet: async (keys) => keys.map((k) => [k, k in memory ? memory[k] : null]),
+      multiRemove: async (keys) => { keys.forEach((k) => delete memory[k]); },
+    },
+  },
+  'expo-secure-store': {
+    __esModule: true,
+    getItemAsync: async (k) => (k in secureMemory ? secureMemory[k] : null),
+    setItemAsync: async (k, v) => { secureMemory[k] = v; },
+    deleteItemAsync: async (k) => { delete secureMemory[k]; },
+  },
+  '@react-native-community/netinfo': {
+    __esModule: true,
+    default: {
+      addEventListener: () => () => {},
+      fetch: async () => ({ isConnected: true, isInternetReachable: true }),
     },
   },
   'expo-location': { __esModule: true, ...location, default: location },
@@ -78,7 +96,7 @@ const stubs = {
     Platform: { OS: 'android', select: (o) => o.android ?? o.default },
   },
 };
-global.__stubs = { location, memory };
+global.__stubs = { location, memory, secureMemory };
 global.__DEV__ = true;
 
 const origResolve = Module._resolveFilename;

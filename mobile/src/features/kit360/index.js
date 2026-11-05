@@ -11,6 +11,7 @@ const ALIASES = {
   fr: ['fransiya', 'франция', 'france'],
   en: ['angliya', 'англия', 'england'],
   pt: ['portugaliya', 'португалия', 'portugal'],
+  uz: ["o'zbekiston", 'ozbekiston', 'uzbekistan', 'узбекистан', 'ўзбекистон', 'uzb', 'uz'],
   rm: ['real madrid', 'реал мадрид', 'real', 'rma'],
   fcb: ['barselona', 'барселона', 'barcelona', 'fc barcelona', 'fcb', 'bar'],
   mu: ['manchester yunayted', 'манчестер юнайтед', 'manchester united', 'man united', 'man utd', 'mu', 'mun'],
@@ -45,7 +46,7 @@ export const KIT360_TEAMS = [
   { id: 'psg', kind: 'club', name: 'PSJ', code: 'PSG', color: '#1b2450', accent: '#ffffff', colorsLabel: "To'q ko'k / qizil" },
   { id: 'mci', kind: 'club', name: 'Manchester Siti', code: 'MCI', color: '#6cabdd', accent: '#1b2450', colorsLabel: 'Havorang / oq' },
   { id: 'lfc', kind: 'club', name: 'Liverpul', code: 'LFC', color: '#c8102e', accent: '#ffffff', colorsLabel: 'Qizil / oq' },
-  { id: 'ars', kind: 'club', name: 'Arsenal', code: 'ARS', color: '#db0007', accent: '#ffffff', colorsLabel: 'Qizil / oq' },
+  { id: 'ars', kind: 'club', name: 'Arsenal', code: 'ARS', color: '#ef0107', accent: '#ffffff', colorsLabel: 'Qizil / oq' },
   { id: 'che', kind: 'club', name: 'Chelsi', code: 'CHE', color: '#034694', accent: '#ffffff', colorsLabel: "Ko'k / oq" },
   { id: 'juv', kind: 'club', name: 'Yuventus', code: 'JUV', color: '#111318', accent: '#ffffff', colorsLabel: 'Qora / oq' },
   { id: 'rom', kind: 'club', name: 'Roma', code: 'ROM', color: '#8e1f2f', accent: '#f7b731', colorsLabel: "To'q qizil / sariq" },
@@ -76,13 +77,15 @@ export function itemKit360(item) {
 }
 
 /** Ilova → viewer xabari (WebView.postMessage va iframe uchun matn) */
-export function kit360Message({ team, name, number, side }) {
+export function kit360Message({ team, name, number, shortsNumber, side }) {
   return JSON.stringify({
     source: KIT360_SOURCE,
     type: 'update',
     team,
     name: String(name ?? ''),
     number: String(number ?? ''),
+    // Berilmasa (undefined) — viewer shortikka orqadagi raqamni chizadi; '' — shortik raqamsiz
+    ...(shortsNumber !== undefined && shortsNumber !== null && { shortsNumber: String(shortsNumber) }),
     // 'side' — viewer o'zi yonga burilgan (90°/270°): tomon buyrug'i yuborilmaydi, forma joyida qoladi
     side: side === 'front' ? 'front' : side === 'side' ? null : 'back',
   });

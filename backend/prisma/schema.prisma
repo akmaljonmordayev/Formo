@@ -155,6 +155,8 @@ model TelegramOutbox {
   attempts    Int                   @default(0)
   lockedUntil DateTime?
   lastError   String?
+  // Bot shu tilda pastki menyuni (Balans / To'ldirish / Buyurtmalar / Til) xabarga biriktiradi; null — menyusiz
+  menuLang    String?
   createdAt   DateTime              @default(now())
   sentAt      DateTime?
 
@@ -317,8 +319,8 @@ model Kit {
   // Mahsulot sifatidagi ma'lumotlar: to'plam = futbolka + shortik (+ ism/raqam bosmasi)
   colorsLabel String? // "Oq / oltin"
   description String? // "Dry-fit polyester · DTF bosma"
-  shirtPrice  Int      @default(99000) // so'm
-  shortsPrice Int      @default(60000)
+  shirtPrice  Int      @default(159000) // so'm — KOMPLEKT narxi (futbolka + shortik bitta narx)
+  shortsPrice Int      @default(0) // eskirgan: komplekt narxiga qo'shilgan, doim 0
   printPrice  Int      @default(30000) // ism + raqam bosmasi
   sizes       String[] @default(["S", "M", "L", "XL", "XXL", "3XL"]) // sotuvda bor o'lchamlar
   isActive    Boolean  @default(true)
@@ -580,8 +582,8 @@ model OrderStatusLog {
 // ---------------------------------------------------------------------------
 
 enum InventoryProductType {
-  TSHIRT
-  SHORTS
+  TSHIRT // komplekt (futbolka + shortik) qoldig'i
+  SHORTS // eskirgan: alohida shortik qoldig'i endi yuritilmaydi
 }
 
 // Zaxira klub formasi (Kit) bo'yicha yuritiladi, masalan "Real Madrid — Uy"

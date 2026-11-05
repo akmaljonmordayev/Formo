@@ -1,12 +1,10 @@
 import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { createHash, timingSafeEqual } from 'crypto';
 import { Request } from 'express';
+import { timingSafeEqualString } from '../common/utils/timing-safe.util';
 
 /** Qisqa (taxmin qilinadigan) token bilan ichki API umuman ochilmaydi */
 export const MIN_INTERNAL_TOKEN_LENGTH = 32;
-
-const digest = (v: string) => createHash('sha256').update(v).digest();
 
 /**
  * Servislararo (telegram-bot → backend) so'rovlar: `Authorization: Bearer <TELEGRAM_INTERNAL_TOKEN>`.
@@ -22,7 +20,7 @@ export class InternalTokenGuard implements CanActivate {
     const given = header.startsWith('Bearer ') ? header.slice(7) : '';
 
     // Uzunlikdan qat'i nazar doimiy vaqtda solishtirish uchun ikkalasi ham xeshlanadi
-    const ok = expected.length >= MIN_INTERNAL_TOKEN_LENGTH && given.length > 0 && timingSafeEqual(digest(given), digest(expected));
+    const ok = expected.length >= MIN_INTERNAL_TOKEN_LENGTH && given.length > 0 && timingSafeEqualString(given, expected);
     if (!ok) throw new UnauthorizedException();
     return true;
   }

@@ -33,7 +33,7 @@ describe('dashboardStats — kunlik tushum', () => {
     order: { findMany: jest.fn(), count: jest.fn().mockResolvedValue(0) },
     user: { aggregate: jest.fn().mockResolvedValue({ _sum: { dailyCapacity: 0 } }) },
   };
-  const service = new OrdersService(prisma as unknown as PrismaService, {} as never, {} as never, {} as never);
+  const service = new OrdersService(prisma as unknown as PrismaService, {} as never, {} as never, {} as never, {} as never);
 
   it('har kunga count va revenue; bekor qilingan hisoblanmaydi', async () => {
     const at = (d: string) => new Date(`${d}T10:00:00.000Z`);

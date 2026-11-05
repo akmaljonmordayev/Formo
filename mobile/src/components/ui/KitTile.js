@@ -3,7 +3,7 @@ import { ProductCard } from './ProductCard';
 
 /**
  * Forma kartasi (bosh sahifa, Studio katalogi): Forma 360° surati, yurakcha, nomi, narxi.
- * `rank` berilsa — "#1" belgisi (eng ko'p sotilganlar). Yurakcha faqat aniq forma (kitId) bo'lsa.
+ * `rank` berilsa — "#1" belgisi (eng ko'p sotilganlar). Yurakcha har doim ko'rinadi (bosilsa qizaradi).
  *
  * Props: kit (toKitCard), t, favorite, onFavorite(kit), onPress(kit), rank?, style
  */
@@ -21,7 +21,7 @@ export default function KitTile({ kit, t, favorite, onFavorite, onPress, rank, s
       style={style}
       onPress={() => onPress(kit)}
       favorite={favorite}
-      onFavorite={kit.kitId && onFavorite ? () => onFavorite(kit) : undefined}
+      onFavorite={onFavorite ? () => onFavorite(kit) : undefined}
       favoriteLabel={favorite ? t('favoriteRemove') : t('favoriteAdd')}
     />
   );

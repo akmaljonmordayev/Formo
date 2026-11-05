@@ -35,13 +35,13 @@ export default function Partiyalar() {
   const batches = useMemo(() => Object.entries(production?.columns ?? {}).flatMap(([apiStatus, orders]) => {
     const status = {
       ACCEPTED: 'qabul',
-      PRINTING: 'bosildi',
-      QUALITY_CHECK: 'bosildi',
+      PRINTING: 'qabul',
+      QUALITY_CHECK: 'qabul',
       READY: 'tayyor',
     }[apiStatus];
     return (Array.isArray(orders) ? orders : []).map((order) => {
       const qty = order.items?.reduce((sum, item) => sum + item.quantity, 0) ?? order.quantity ?? 0;
-      const progress = { ACCEPTED: 25, PRINTING: 50, QUALITY_CHECK: 75, READY: 100 }[apiStatus] ?? 0;
+      const progress = { ACCEPTED: 50, PRINTING: 50, QUALITY_CHECK: 50, READY: 100 }[apiStatus] ?? 0;
       return {
         id: order.code,
         model: order.items?.map((item) => item.clubName || item.kitLabel).filter(Boolean).join(', ')

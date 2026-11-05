@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, BackHandler, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton, ErrorNote, OutlineButton, authColors as c } from '../components/ui/AuthUi';
@@ -27,13 +27,8 @@ export default function AddressesScreen({ t, onBack, onEdit, refreshKey }) {
     if (refreshKey) refetch();
   }, [refreshKey, refetch]);
 
-  useEffect(() => {
-    const sub = BackHandler.addEventListener('hardwareBackPress', () => {
-      onBack?.();
-      return true;
-    });
-    return () => sub.remove();
-  }, [onBack]);
+  // Android "orqaga": endi AppNavigator'dagi yagona hardwareBackPress listener
+  // shu ekrandan ham xuddi shu onBack maqsadga (profil) olib boradi
 
   const run = async (id, action, successKey) => {
     setBusyId(id);

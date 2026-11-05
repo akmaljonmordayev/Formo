@@ -8,10 +8,13 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Prisma, Role, TelegramAuthChallenge, User } from '@prisma/client';
-import { createHash, createHmac, randomBytes, randomInt, timingSafeEqual } from 'crypto';
+import { createHmac, randomBytes, randomInt } from 'crypto';
 import { AuthService, ClientInfo, NEW_CUSTOMER_NAME, unusablePasswordHash } from '../auth/auth.service';
 import { normalizePhone } from '../common/utils/phone';
 import { PrismaService } from '../prisma/prisma.service';
+import { loginTexts } from './bot-texts';
+import { TelegramOutboxService } from './telegram-outbox.service';
+import { sha256Hex as sha256, timingSafeEqualHex } from '../common/utils/timing-safe.util';
 
 export const CHALLENGE_TTL_MS = 10 * 60 * 1000;
 export const CODE_TTL_MS = 5 * 60 * 1000;
@@ -29,8 +32,6 @@ export type CodeResult =
   | { result: 'CODE'; code: string; expiresInSec: number; maskedPhone: string }
   | { result: 'COOLDOWN'; retryAfterSec: number }
   | { result: 'LIMIT' | 'NO_CHALLENGE' | 'CONTACT_REQUIRED' | 'PHONE_MISMATCH' };
-
-const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
 
 /** "+998901234567" -> "+998 90 *** ** 67" — botda qaysi raqam uchun so'rov ekanini ko'rsatish uchun */
 export function maskPhone(phone: string) {
@@ -51,6 +52,7 @@ export class TelegramAuthService {
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
     private readonly config: ConfigService,
+    private readonly outbox: TelegramOutboxService,
   ) {}
 
   private get botUsername() {
@@ -106,11 +108,14 @@ export class TelegramAuthService {
   }
 
   /** Bot: foydalanuvchi o'z kontaktini yubordi (bot contact.user_id === from.id ni tekshirgan) */
-  async contact(telegramUserId: string, rawPhone: string): Promise<CodeResult> {
-    const challenge = await this.activeChallenge(telegramUserId);
+  async contact(telegramUserId: string, rawPhone: string, chatId?: string): Promise<CodeResult> {
+    const phone = String(normalizePhone(rawPhone));
+    // Deep-link token kelmagan bo'lsa (masalan, mijoz botga oddiy /start yozgan) — Telegram tasdiqlagan
+    // raqam bo'yicha hali egallanmagan ochiq so'rov shu foydalanuvchiga bog'lanadi
+    const challenge = (await this.activeChallenge(telegramUserId)) ?? (await this.claimByPhone(phone, telegramUserId, chatId ?? null));
     if (!challenge) return { result: 'NO_CHALLENGE' };
 
-    if (normalizePhone(rawPhone) !== challenge.phone) {
+    if (phone !== challenge.phone) {
       await this.prisma.telegramAuthChallenge.updateMany({
         where: { id: challenge.id, failedAt: null },
         data: { failedAt: new Date() },
@@ -175,6 +180,8 @@ export class TelegramAuthService {
       if (!result.user.isActive) throw new ForbiddenException('Akkauntingiz bloklangan. Administratorga murojaat qiling');
 
       await this.link(tx, result.user.id, challenge.telegramUserId!, challenge.chatId, challenge.language);
+      // Botda "kirdingiz" xabari pastki menyu bilan — mijoz "/" buyruqlarini yodlamasdan tugmalardan foydalanadi
+      await this.outbox.enqueueForUser(tx, result.user.id, (lang) => loginTexts.linked(lang), `login:${challenge.id}`);
       return result;
     });
 
@@ -183,11 +190,41 @@ export class TelegramAuthService {
   }
 
   /** Bot: /start (payloadsiz) — ulangan bo'lsa xabarlarni qayta yoqadi (masalan /stop yoki bloklashdan keyin) */
+  /**
+   * login — ilovada ochilgan, shu Telegram foydalanuvchisiga tegishli kirish so'rovi (bo'lsa bot raqamni so'raydi):
+   * avval egallangani, aks holda ulangan hisob raqamiga ochilgan so'rov (token botga yetib kelmagan holat).
+   */
   async hello(telegramUserId: string, chatId: string) {
     const { count } = await this.prisma.telegramAccount.updateMany({ where: { telegramUserId }, data: { chatId } });
-    if (!count) return { linked: false, language: null };
-    const account = await this.prisma.telegramAccount.findUnique({ where: { telegramUserId }, select: { language: true } });
-    return { linked: true, language: account?.language ?? null };
+    const account = count
+      ? await this.prisma.telegramAccount.findUnique({
+          where: { telegramUserId },
+          select: { language: true, user: { select: { phone: true } } },
+        })
+      : null;
+    let challenge = await this.activeChallenge(telegramUserId);
+    if (!challenge && account?.user.phone) challenge = await this.claimByPhone(account.user.phone, telegramUserId, chatId);
+    return {
+      linked: Boolean(count),
+      language: account?.language ?? null,
+      login: challenge ? { maskedPhone: maskPhone(challenge.phone) } : null,
+    };
+  }
+
+  /** Raqam bo'yicha eng oxirgi, hali hech kim egallamagan ochiq so'rovni atomik ravishda shu foydalanuvchiga bog'laydi */
+  private async claimByPhone(phone: string, telegramUserId: string, chatId: string | null) {
+    const now = new Date();
+    const found = await this.prisma.telegramAuthChallenge.findFirst({
+      where: { phone, telegramUserId: null, consumedAt: null, failedAt: null, expiresAt: { gt: now } },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (!found) return null;
+    const { count } = await this.prisma.telegramAuthChallenge.updateMany({
+      where: { id: found.id, telegramUserId: null },
+      data: { telegramUserId, chatId, claimedAt: now },
+    });
+    if (!count) return null;
+    return this.prisma.telegramAuthChallenge.findUnique({ where: { id: found.id } });
   }
 
   /** Bot: /stop — xabarlar o'chiriladi, ulanish saqlanadi */
@@ -273,8 +310,6 @@ export class TelegramAuthService {
   }
 
   private hashMatches(actual: string, expected: string) {
-    const a = Buffer.from(actual);
-    const b = Buffer.from(expected);
-    return a.length === b.length && timingSafeEqual(a, b);
+    return timingSafeEqualHex(actual, expected);
   }
 }

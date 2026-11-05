@@ -32,7 +32,8 @@ export default function SuperadminPricing() {
   const [fee, setFee] = useState('');
   const [savedFee, setSavedFee] = useState('');
   const [kit360Rows, setKit360Rows] = useState(null); // [{ kitId, clubName, bgColor, textColor }]
-  const [draft360, setDraft360] = useState({}); // kitId -> { shirtPrice, shortsPrice, printPrice }
+  // kitId -> { shirtPrice, printPrice }: shirtPrice — KOMPLEKT (futbolka + shortik) narxi, shortik alohida sotilmaydi
+  const [draft360, setDraft360] = useState({});
   const [saved360, setSaved360] = useState({});
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -47,8 +48,10 @@ export default function SuperadminPricing() {
     Promise.all([pricingApi.list(), settingsApi.all().catch(() => ({}))])
       .then(([list, settings]) => {
         if (!active) return;
-        setItems(list);
-        setSaved(list);
+        // Shortik komplekt ichida — eski "club.shorts" qatori (migratsiyadan oldingi baza) ko'rsatilmaydi
+        const rows = list.filter((i) => i.key !== 'club.shorts');
+        setItems(rows);
+        setSaved(rows);
         const f = Number(settings?.[SETTING_KEYS.deliveryFee] ?? 0);
         setFee(f);
         setSavedFee(f);
@@ -60,7 +63,7 @@ export default function SuperadminPricing() {
         if (!active) return;
         setKit360Rows(clubs.map((c) => ({ kitId: c.kit.id, clubName: c.name, bgColor: c.kit.bgColor, textColor: c.kit.textColor })));
         const prices = Object.fromEntries(
-          clubs.map((c) => [c.kit.id, { shirtPrice: c.kit.shirtPrice, shortsPrice: c.kit.shortsPrice, printPrice: c.kit.printPrice }]),
+          clubs.map((c) => [c.kit.id, { shirtPrice: c.kit.shirtPrice + (c.kit.shortsPrice || 0), printPrice: c.kit.printPrice }]),
         );
         setDraft360(prices);
         setSaved360(prices);
@@ -117,8 +120,7 @@ export default function SuperadminPricing() {
     const v = Number(items.find((i) => i.key === key)?.price);
     return Number.isFinite(v) ? v : fallback;
   };
-  const tshirt = priced(PRICE_KEYS.shirt);
-  const shorts = priced(PRICE_KEYS.shorts);
+  const kitSet = priced(PRICE_KEYS.shirt);
   const print = priced(PRICE_KEYS.print);
   const delivery = Number(fee) || 0;
 
@@ -128,19 +130,19 @@ export default function SuperadminPricing() {
     setNotice360('');
   };
 
-  const dirty360 = (kit360Rows ?? []).some((r) => {
-    const d = draft360[r.kitId];
-    const s = saved360[r.kitId];
-    return d?.shirtPrice !== s?.shirtPrice || d?.shortsPrice !== s?.shortsPrice || d?.printPrice !== s?.printPrice;
-  });
+  const rowDirty = (kitId) => {
+    const d = draft360[kitId];
+    const s = saved360[kitId];
+    return d?.shirtPrice !== s?.shirtPrice || d?.printPrice !== s?.printPrice;
+  };
+  const dirty360 = (kit360Rows ?? []).some((r) => rowDirty(r.kitId));
   const invalid360 = Object.values(draft360).some(
-    (p) => p.shirtPrice === '' || p.shortsPrice === '' || p.printPrice === ''
-      || Number.isNaN(p.shirtPrice) || Number.isNaN(p.shortsPrice) || Number.isNaN(p.printPrice),
+    (p) => p.shirtPrice === '' || p.printPrice === '' || Number.isNaN(p.shirtPrice) || Number.isNaN(p.printPrice),
   );
 
   const applyDefaultToAll360 = () => {
     setDraft360((prev) => Object.fromEntries(
-      Object.keys(prev).map((kitId) => [kitId, { shirtPrice: tshirt, shortsPrice: shorts, printPrice: print }]),
+      Object.keys(prev).map((kitId) => [kitId, { shirtPrice: kitSet, printPrice: print }]),
     ));
     setNotice360('');
   };
@@ -151,16 +153,13 @@ export default function SuperadminPricing() {
     setSaving360(true);
     setError360('');
     setNotice360('');
-    const dirtyRows = (kit360Rows ?? []).filter((r) => {
-      const d = draft360[r.kitId];
-      const s = saved360[r.kitId];
-      return d?.shirtPrice !== s?.shirtPrice || d?.shortsPrice !== s?.shortsPrice || d?.printPrice !== s?.printPrice;
-    });
+    const dirtyRows = (kit360Rows ?? []).filter((r) => rowDirty(r.kitId));
     const failed = [];
     const succeeded = {};
     for (const r of dirtyRows) {
       try {
-        await clubsApi.updateKit(r.kitId, draft360[r.kitId]);
+        // shortsPrice: 0 — eski bazada qolgan alohida shortik narxi ham tozalanadi
+        await clubsApi.updateKit(r.kitId, { ...draft360[r.kitId], shortsPrice: 0 });
         succeeded[r.kitId] = draft360[r.kitId];
       } catch {
         failed.push(r.clubName);
@@ -206,7 +205,7 @@ export default function SuperadminPricing() {
       <div className="sa-head">
         <div>
           <h1>{t('Narxlar')}</h1>
-          <p>{t("Futbolka, bosma va yetkazish narxi. O'ng tomonda mijoz ko'radigan yakuniy narx.")}</p>
+          <p>{t("Komplekt (futbolka + shortik), ism-raqam bosmasi va yetkazish narxi. O'ng tomonda mijoz ko'radigan yakuniy narx.")}</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           {dirty && (
@@ -276,10 +275,10 @@ export default function SuperadminPricing() {
 
               <div style={{ padding: 16, borderRadius: 14, background: 'var(--sa-surface-2)', border: '1px solid var(--sa-line)' }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--sa-mu)', marginBottom: 10 }}>
-                  <span>{t('Faqat futbolka')}</span>
+                  <span>{t('Komplekt (futbolka + shortik)')}</span>
                 </div>
                 {[
-                  [t('Futbolka'), money(tshirt)],
+                  [t('Komplekt'), money(kitSet)],
                   [t('Ism + raqam'), `+ ${money(print)}`],
                   [t('Yetkazish'), `+ ${money(delivery)}`],
                 ].map(([l, v]) => (
@@ -291,41 +290,12 @@ export default function SuperadminPricing() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--sa-line)' }}>
                   <div>
                     <div className="sa-table__sub">{t('Jami')}</div>
-                    <b style={{ fontFamily: 'var(--font-display)', fontSize: 22 }}>{(tshirt + print).toLocaleString('uz-UZ')}</b>
+                    <b style={{ fontFamily: 'var(--font-display)', fontSize: 22 }}>{(kitSet + print).toLocaleString('uz-UZ')}</b>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div className="sa-table__sub">{t('Yetkazish bilan')}</div>
                     <b style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--sa-accent)' }}>
-                      {(tshirt + print + delivery).toLocaleString('uz-UZ')}
-                    </b>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ padding: 16, borderRadius: 14, background: 'var(--sa-surface-2)', border: '1px solid var(--sa-line)', marginTop: 14 }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 12.5, color: 'var(--sa-mu)', marginBottom: 10 }}>
-                  <span>{t('Komplekt')}</span>
-                </div>
-                {[
-                  [t('Futbolka'), money(tshirt)],
-                  [t('Shortik'), `+ ${money(shorts)}`],
-                  [t('Ism + raqam'), `+ ${money(print)}`],
-                  [t('Yetkazish'), `+ ${money(delivery)}`],
-                ].map(([l, v]) => (
-                  <div key={l} style={{ display: 'flex', justifyContent: 'space-between', padding: '4px 0', fontSize: 13.5 }}>
-                    <span>{l}</span>
-                    <span>{v}</span>
-                  </div>
-                ))}
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--sa-line)' }}>
-                  <div>
-                    <div className="sa-table__sub">{t('Jami')}</div>
-                    <b style={{ fontFamily: 'var(--font-display)', fontSize: 22 }}>{(tshirt + shorts + print).toLocaleString('uz-UZ')}</b>
-                  </div>
-                  <div style={{ textAlign: 'right' }}>
-                    <div className="sa-table__sub">{t('Yetkazish bilan')}</div>
-                    <b style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--sa-accent)' }}>
-                      {(tshirt + shorts + print + delivery).toLocaleString('uz-UZ')}
+                      {(kitSet + print + delivery).toLocaleString('uz-UZ')}
                     </b>
                   </div>
                 </div>
@@ -371,9 +341,9 @@ export default function SuperadminPricing() {
                 <thead>
                   <tr>
                     <th>{t('Forma')}</th>
-                    <th style={{ textAlign: 'right' }}>{t('Futbolka')}</th>
-                    <th style={{ textAlign: 'right' }}>{t('Shortik')}</th>
+                    <th style={{ textAlign: 'right' }}>{t('Komplekt (futbolka + shortik)')}</th>
                     <th style={{ textAlign: 'right' }}>{t('Ism + raqam')}</th>
+                    <th style={{ textAlign: 'right' }}>{t('Bosma bilan')}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -393,7 +363,7 @@ export default function SuperadminPricing() {
                             <b>{r.clubName}</b>
                           </div>
                         </td>
-                        {['shirtPrice', 'shortsPrice', 'printPrice'].map((field) => (
+                        {['shirtPrice', 'printPrice'].map((field) => (
                           <td key={field} style={{ textAlign: 'right' }}>
                             <input
                               className="sa-input"
@@ -402,11 +372,14 @@ export default function SuperadminPricing() {
                               step={1000}
                               value={p[field] ?? ''}
                               onChange={(e) => set360Price(r.kitId, field, e.target.value)}
-                              aria-label={t('{label} narxi', { label: `${r.clubName} ${field}` })}
+                              aria-label={t('{label} narxi', { label: `${r.clubName} ${field === 'shirtPrice' ? t('Komplekt') : t('Ism + raqam')}` })}
                               style={{ width: 110, textAlign: 'right' }}
                             />
                           </td>
                         ))}
+                        <td style={{ textAlign: 'right' }}>
+                          <b>{money((Number(p.shirtPrice) || 0) + (Number(p.printPrice) || 0))}</b>
+                        </td>
                       </tr>
                     );
                   })}

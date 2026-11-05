@@ -1,4 +1,4 @@
-import { KIT360_ALIASES, KIT360_IDS, kit360IdFor, pickKit360Owners } from './kit360';
+import { KIT360_ALIASES, KIT360_CATALOG, KIT360_IDS, kit360IdFor, pickKit360Owners } from './kit360';
 
 describe('kit360IdFor — klub nomi/kodi → Forma 360° id', () => {
   it.each([
@@ -48,6 +48,11 @@ describe('kit360IdFor — klub nomi/kodi → Forma 360° id', () => {
   it("bitta nom ikki jamoaga tegishli emas", () => {
     const all = Object.values(KIT360_ALIASES).flat();
     expect(new Set(all).size).toBe(all.length);
+  });
+
+  it("18 ta id, har biriga katalog ma'lumoti", () => {
+    expect(KIT360_CATALOG.map((t) => t.id)).toEqual([...KIT360_IDS]);
+    for (const t of KIT360_CATALOG) expect(kit360IdFor(t.name, t.code)).toBe(t.id);
   });
 });
 
