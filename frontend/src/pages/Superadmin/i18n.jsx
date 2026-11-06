@@ -153,24 +153,3 @@ export function useMoney() {
   const { t } = useContext(LangContext);
   return useCallback((n) => `${Math.round(n ?? 0).toLocaleString('uz-UZ')} ${t("so'm")}`, [t]);
 }
-
-/** Kichik til almashtirgich (UZ · ЎЗ · RU) */
-export function LangSwitch({ style, full = false }) {
-  const { lang, setLang, t } = useLang();
-  return (
-    <div className="sa-tabs" role="group" aria-label={t('Til')} style={{ marginBottom: 0, gap: 4, ...style }}>
-      {LANGS.map((l) => (
-        <button
-          key={l.value}
-          type="button"
-          className={`sa-tab${lang === l.value ? ' is-active' : ''}`}
-          aria-pressed={lang === l.value}
-          onClick={() => setLang(l.value)}
-          title={l.label}
-        >
-          {full ? l.label : l.short}
-        </button>
-      ))}
-    </div>
-  );
-}

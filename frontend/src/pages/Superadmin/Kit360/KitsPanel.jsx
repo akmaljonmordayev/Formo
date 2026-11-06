@@ -191,18 +191,8 @@ function KitForm({ clubId, kit, onClose, onSaved }) {
             <span>{t('Nomi')}</span>
             <input value={form.label} onChange={set('label')} required maxLength={30} placeholder={t('Uy')} />
           </label>
-          <label className="field">
-            <span>{t('Ustki qism')}</span>
-            <select value={form.sleeve} onChange={set('sleeve')}>
-              {Object.entries(SLEEVES).map(([v, l]) => <option key={v} value={v}>{t(l)}</option>)}
-            </select>
-          </label>
-          <label className="field">
-            <span>{t('Pastki qism')}</span>
-            <select value={form.bottom} onChange={set('bottom')}>
-              {Object.entries(BOTTOMS).map(([v, l]) => <option key={v} value={v}>{t(l)}</option>)}
-            </select>
-          </label>
+          <Choice label={t('Ustki qism')} options={SLEEVES} value={form.sleeve} onChange={(v) => setForm((f) => ({ ...f, sleeve: v }))} />
+          <Choice label={t('Pastki qism')} options={BOTTOMS} value={form.bottom} onChange={(v) => setForm((f) => ({ ...f, bottom: v }))} />
           <label className="field">
             <span>{t('Asosiy rang')}</span>
             <input type="color" value={form.bgColor} onChange={set('bgColor')} />
@@ -236,5 +226,29 @@ function KitForm({ clubId, kit, onClose, onSaved }) {
         </div>
       </form>
     </Modal>
+  );
+}
+
+/** Yengli/Yengsiz, Shortik/Shalvar — bitta bosish bilan tanlanadigan tugmalar */
+function Choice({ label, options, value, onChange }) {
+  const t = useT();
+  return (
+    <div className="field" role="group" aria-label={label}>
+      <span>{label}</span>
+      <div style={{ display: 'flex', gap: 6 }}>
+        {Object.entries(options).map(([v, l]) => (
+          <button
+            key={v}
+            type="button"
+            className={`btn btn--sm ${value === v ? 'btn--accent' : 'btn--ghost'}`}
+            aria-pressed={value === v}
+            onClick={() => onChange(v)}
+            style={{ flex: 1 }}
+          >
+            {t(l)}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
