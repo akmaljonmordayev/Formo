@@ -5,16 +5,16 @@ import { useT } from './i18n';
 import { cx } from './utils';
 import { getTailorDashboard } from './tailorApi';
 
-const PERIODS = [
-  { key: 'bugun', labelKey: 'stat.today', days: 1 },
-  { key: 'hafta', labelKey: 'stat.week', days: 7 },
-  { key: 'oy', labelKey: 'stat.month', days: 30 },
-  { key: 'chorak', labelKey: 'stat.quarter', days: 90 },
-];
+// Grafik bitta: oxirgi 7 kun
+const DAYS = 7;
+
+const WEEKDAYS = {
+  uz: ['Yak', 'Du', 'Se', 'Chor', 'Pay', 'Jum', 'Shan'],
+  ru: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
+};
 
 export default function Statistika() {
   const t = useT();
-  const [period, setPeriod] = useState('hafta');
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -24,8 +24,7 @@ export default function Statistika() {
     setLoading(true);
     setError('');
     setDashboard(null);
-    const days = PERIODS.find((item) => item.key === period).days;
-    getTailorDashboard(days)
+    getTailorDashboard(DAYS)
       .then((data) => {
         if (!cancelled) setDashboard(data);
       })
@@ -38,18 +37,26 @@ export default function Statistika() {
     return () => {
       cancelled = true;
     };
-  }, [period]);
+  }, []);
 
-  const points = (dashboard?.dailyTrend ?? []).map((item) => ({
-    label: new Date(`${item.date}T00:00:00`).toLocaleDateString(t.locale, { day: '2-digit', month: '2-digit' }),
-    value: item.count,
-  }));
-  const maxValue = Math.max(1, ...points.map((point) => point.value));
-  // Ustunlar x o'qi bo'ylab teng bo'linadi; ko'p ustunda yorliqlar bir-birini bosmasligi uchun siyraklashtiriladi
-  const slot = 500 / Math.max(points.length, 1);
-  const barWidth = Math.min(48, slot * 0.6);
-  const xOf = (index) => 40 + slot * index + slot / 2;
-  const heightOf = (value) => (value / maxValue) * 160;
+  const points = (dashboard?.dailyTrend ?? []).map((item) => {
+    const date = new Date(`${item.date}T00:00:00`);
+    // Brauzer uz-UZ uchun sana/hafta kunini inglizcha yoki "11-03" ko'rinishida beradi — o'zimiz yozamiz
+    const weekdays = t.locale.startsWith('ru') ? WEEKDAYS.ru : WEEKDAYS.uz;
+    return {
+      label: `${String(date.getDate()).padStart(2, '0')}.${String(date.getMonth() + 1).padStart(2, '0')}`,
+      weekday: weekdays[date.getDay()],
+      value: item.count,
+    };
+  });
+  const peak = points.reduce((best, point) => (point.value > best.value ? point : best), { value: 0, label: '' });
+  // O'q 4 teng qismga bo'linadi va chiziqlar yaxlit sonlarda (1, 2, 5, 10, 20 ...) turadi — ustun balandligi chiziqqa aynan mos
+  const rawStep = Math.max(1, Math.max(0, ...points.map((point) => point.value)) / 4);
+  const magnitude = 10 ** Math.floor(Math.log10(rawStep));
+  const step = [1, 2, 5, 10].map((m) => m * magnitude).find((v) => v >= rawStep);
+  const maxValue = step * 4;
+  const ticks = [0, 1, 2, 3, 4].map((i) => ({ value: step * i, pct: i * 25 }));
+  // Ko'p ustunda sana yozuvlari bir-birini bosmasligi uchun siyraklashtiriladi
   const labelStep = Math.ceil(points.length / 8);
 
   return (
@@ -58,21 +65,6 @@ export default function Statistika() {
         <div>
           <h1 className="text-2xl font-black text-white">{t('stat.title')}</h1>
           <p className="mt-1 text-xs font-medium text-slate-400">{t('stat.subtitle')}</p>
-        </div>
-        <div className="flex rounded-xl border border-white/10 bg-[#121829] p-1">
-          {PERIODS.map((item) => (
-            <button
-              key={item.key}
-              type="button"
-              onClick={() => setPeriod(item.key)}
-              className={cx(
-                'cursor-pointer rounded-lg px-3 py-1.5 text-xs font-extrabold capitalize transition',
-                period === item.key ? 'bg-teal-400 text-slate-950 shadow-md' : 'text-slate-400 hover:text-white'
-              )}
-            >
-              {t(item.labelKey)}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -84,40 +76,55 @@ export default function Statistika() {
           <div className="flex items-center justify-between border-b border-white/10 pb-4">
             <div>
               <h3 className="text-base font-extrabold text-white">{t('stat.volumeChart')}</h3>
-              <p className="text-xs text-slate-400">{t('stat.volumeChartHint', { period: t(PERIODS.find((item) => item.key === period).labelKey) })}</p>
+              <p className="text-xs text-slate-400">{t('stat.volumeChartHint')}</p>
             </div>
             <BarChart3 className="h-5 w-5 text-teal-400" />
           </div>
-          <div className="relative mt-4 h-60 w-full pt-4">
-            <svg viewBox="0 0 580 230" className="h-full w-full overflow-visible">
-              <line x1="40" y1="40" x2="540" y2="40" stroke="#ffffff15" strokeDasharray="4" />
-              <line x1="40" y1="90" x2="540" y2="90" stroke="#ffffff15" strokeDasharray="4" />
-              <line x1="40" y1="145" x2="540" y2="145" stroke="#ffffff15" strokeDasharray="4" />
-              <line x1="40" y1="200" x2="540" y2="200" stroke="#ffffff30" />
-              {points.map((point, index) => {
-                const x = xOf(index);
-                const h = heightOf(point.value);
-                const showValue = points.length <= 14 || (point.value > 0 && point.value === maxValue);
-                return (
-                  <g key={`${point.label}-${index}`}>
-                    <rect
-                      x={x - barWidth / 2}
-                      y={200 - h}
-                      width={barWidth}
-                      height={h}
-                      rx={Math.min(6, barWidth / 2)}
-                      className="fill-teal-400/80 transition-colors hover:fill-teal-300"
-                    >
-                      <title>{`${point.label}: ${point.value}`}</title>
-                    </rect>
-                    {showValue && point.value > 0 && (
-                      <text x={x} y={200 - h - 8} textAnchor="middle" fill="#ffffff" fontSize="11" fontWeight="bold">{point.value}</text>
+          <div className="relative mt-8 flex gap-3" role="img" aria-label={t('stat.volumeChart')}>
+            <div className="relative h-64 w-8 shrink-0">
+              {ticks.map((tick) => (
+                <span key={tick.value} className="absolute right-0 -translate-y-1/2 text-sm font-semibold tabular-nums text-slate-400" style={{ bottom: `${tick.pct}%` }}>
+                  {tick.value}
+                </span>
+              ))}
+            </div>
+            <div className="min-w-0 flex-1">
+              <div className="relative h-64">
+                {ticks.map((tick) => (
+                  <div
+                    key={tick.value}
+                    className={cx('absolute inset-x-0 border-t', tick.value === 0 ? 'border-white/30' : 'border-dashed border-white/10')}
+                    style={{ bottom: `${tick.pct}%` }}
+                  />
+                ))}
+                <div className="absolute inset-0 flex items-end gap-1 sm:gap-2">
+                  {points.map((point, index) => {
+                    const showValue = points.length <= 14 || (point.value > 0 && point.value === peak.value);
+                    return (
+                      <div key={`${point.label}-${index}`} className="group flex h-full min-w-0 flex-1 flex-col items-center justify-end" title={`${point.label}: ${point.value}`}>
+                        {showValue && point.value > 0 && <span className="mb-1 text-sm font-extrabold tabular-nums text-white">{point.value}</span>}
+                        <div
+                          className="w-full max-w-[56px] rounded-t-lg bg-teal-400/85 transition-colors group-hover:bg-teal-300"
+                          style={{ height: `${(point.value / maxValue) * 100}%`, minHeight: point.value > 0 ? 4 : 0 }}
+                        />
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="mt-2 flex gap-1 sm:gap-2">
+                {points.map((point, index) => (
+                  <div key={`${point.label}-${index}`} className="min-w-0 flex-1 text-center leading-tight">
+                    {index % labelStep === 0 && (
+                      <>
+                        <span className="block whitespace-nowrap text-xs font-bold text-slate-300">{point.label}</span>
+                        {point.weekday && <span className="block text-[11px] font-semibold text-slate-500">{point.weekday}</span>}
+                      </>
                     )}
-                    {index % labelStep === 0 && <text x={x} y="220" textAnchor="middle" fill="#94a3b8" fontSize="11" fontWeight="600">{point.label}</text>}
-                  </g>
-                );
-              })}
-            </svg>
+                  </div>
+                ))}
+              </div>
+            </div>
             {!loading && !error && points.length === 0 && (
               <p className="absolute inset-0 flex items-center justify-center text-xs text-slate-500">{t('api.empty')}</p>
             )}

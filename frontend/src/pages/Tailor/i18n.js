@@ -187,7 +187,7 @@ const uz = {
   'stat.stage.QUALITY_CHECK': 'Sifat nazorati',
   'stat.stage.READY': 'Tayyor',
   'stat.volumeChart': 'Kunlik buyurtmalar soni',
-  'stat.volumeChartHint': "Tanlangan davr ({period}) bo'yicha har kungi buyurtmalar",
+  'stat.volumeChartHint': "Oxirgi 7 kun bo'yicha har kungi buyurtmalar",
 
   // ---------- chat ----------
   'chat.title': 'Operator bilan Chat',
@@ -630,7 +630,7 @@ const ru = {
   'stat.stage.QUALITY_CHECK': 'Контроль качества',
   'stat.stage.READY': 'Готов',
   'stat.volumeChart': 'Заказы по дням',
-  'stat.volumeChartHint': 'Количество заказов по дням за выбранный период ({period})',
+  'stat.volumeChartHint': 'Заказы по дням за последние 7 дней',
 
   // ---------- chat ----------
   'chat.title': 'Чат с оператором',

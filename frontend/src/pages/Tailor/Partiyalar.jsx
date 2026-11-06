@@ -51,14 +51,11 @@ export default function Partiyalar() {
         done: Math.round((qty * progress) / 100),
         progress,
         status,
-        deadline: order.deliveryDate
-          ? new Date(order.deliveryDate).toLocaleDateString(t.locale, { timeZone: 'UTC' })
-          : '—',
       };
     });
-  }), [production, t.locale]);
+  }), [production]);
 
-  const active = batches.filter((b) => b.status === 'bosildi').length;
+  const accepted = batches.filter((b) => b.status === 'qabul').length;
   const ready = batches.filter((b) => b.status === 'tayyor').length;
   const totalQty = batches.reduce((sum, b) => sum + b.qty, 0);
 
@@ -75,7 +72,7 @@ export default function Partiyalar() {
           icon={Layers}
           tone="teal"
         />
-        <StatCard label={t('bat.inProgress')} value={active} hint={t('bat.inProgressHint')} icon={Timer} tone="amber" />
+        <StatCard label={t('status.qabul')} value={accepted} hint={t('bat.inProgressHint')} icon={Timer} tone="amber" />
         <StatCard label={t('bat.ready')} value={ready} hint={t('bat.readyHint')} icon={Package} tone="teal" />
       </div>
 
@@ -96,7 +93,6 @@ export default function Partiyalar() {
                 <th className="px-5 py-3.5">{t('bat.col.qty')}</th>
                 <th className="px-5 py-3.5">{t('bat.col.progress')}</th>
                 <th className="px-5 py-3.5">{t('bat.col.status')}</th>
-                <th className="px-5 py-3.5">{t('bat.col.deadline')}</th>
               </tr>
             </thead>
             <tbody>
@@ -133,13 +129,12 @@ export default function Partiyalar() {
                         {t(`status.${batch.status}`)}
                       </Badge>
                     </td>
-                    <td className="px-5 py-4 text-slate-400">{batch.deadline}</td>
                   </tr>
                 );
               })}
               {!loading && !error && batches.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-xs text-slate-500">{t('api.empty')}</td>
+                  <td colSpan={5} className="px-5 py-8 text-center text-xs text-slate-500">{t('api.empty')}</td>
                 </tr>
               )}
             </tbody>

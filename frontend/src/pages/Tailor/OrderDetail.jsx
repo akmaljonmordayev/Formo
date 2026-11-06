@@ -74,8 +74,8 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
   const kit3d = order.kitDesign;
   const specs = [
     { label: t('order.spec.name'), value: order.apiPrintName || order.customer },
-    { label: t('order.spec.number'), value: order.number, isHighlight: true },
-    { label: t('order.spec.size'), value: order.size },
+    { label: t('order.spec.number'), value: order.number, isHighlight: true, big: true },
+    { label: t('order.spec.size'), value: order.size, big: true },
     { label: t('order.spec.qty'), value: t('order.qtyUnit', { n: order.qty }) },
     { label: t('order.spec.status'), value: t(`status.${order.status}`), tone: order.status },
     // Shortikda raqam bormi — API'dagi numberOnShorts / shortsNumber (faqat Bor / Yo'q)
@@ -101,7 +101,6 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
         ]
       : [
           { label: t('order.spec.club'), value: order.clubName },
-          { label: t('order.spec.kit'), value: order.kitLabel },
         ]),
   ].filter((item) => item.value !== undefined && item.value !== null && item.value !== '');
 
@@ -212,25 +211,26 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
       <div className="grid gap-5 lg:grid-cols-[minmax(320px,1.15fr)_minmax(0,1fr)]">
         <OrderKitView order={order} statusBadge={statusBadge} />
 
-        <dl className="grid h-fit grid-cols-2 gap-x-4 gap-y-3 rounded-2xl border border-white/10 bg-[#0e1424] p-4">
+        <dl className="grid h-fit grid-cols-2 gap-x-5 gap-y-4 rounded-2xl border border-white/10 bg-[#0e1424] p-5">
           {specs.map((item) => (
             <div key={item.label} className="min-w-0">
-              <dt className="text-[9px] font-bold uppercase tracking-wider text-slate-500">{item.label}</dt>
+              <dt className="text-[11px] font-bold uppercase tracking-wider text-slate-400">{item.label}</dt>
               <dd
                 className={cx(
-                  'mt-0.5 truncate text-[13px] font-extrabold',
+                  'mt-1 truncate font-extrabold',
+                  item.big ? 'text-2xl' : 'text-base',
                   item.isHighlight ? 'text-cyan-400' : 'text-white'
                 )}
               >
                 {item.swatch && (
                   <span
-                    className="mr-1.5 inline-block h-2.5 w-2.5 rounded-full align-middle ring-1 ring-white/30"
+                    className="mr-2 inline-block h-3 w-3 rounded-full align-middle ring-1 ring-white/30"
                     style={{ backgroundColor: item.swatch }}
                     aria-hidden="true"
                   />
                 )}
                 {item.tone ? (
-                  <span className={cx('rounded-full px-2 py-0.5 text-[10px] uppercase', BADGE_STYLES[item.tone] ?? BADGE_STYLES.qabul)}>
+                  <span className={cx('rounded-full px-2.5 py-1 text-xs uppercase', BADGE_STYLES[item.tone] ?? BADGE_STYLES.qabul)}>
                     {item.value}
                   </span>
                 ) : (

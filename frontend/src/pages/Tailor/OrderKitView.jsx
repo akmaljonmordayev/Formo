@@ -17,6 +17,7 @@ const TEAM_ALIASES = {
   en: ['angliya', 'англия', 'england'],
   pt: ['portugaliya', 'португалия', 'portugal'],
   uz: ["o'zbekiston", 'ozbekiston', 'uzbekistan', 'узбекистан', 'ўзбекистон', 'uzb', 'uz'],
+  de: ['germaniya', 'германия', 'germany', 'deutschland', 'ger'],
   rm: ['real madrid', 'реал мадрид', 'real', 'rma', 'rm'],
   fcb: ['barselona', 'барселона', 'barcelona', 'fc barcelona', 'fcb', 'bar'],
   mu: ['manchester yunayted', 'манчестер юнайтед', 'manchester united', 'man united', 'man utd', 'mu', 'mun'],
@@ -25,9 +26,15 @@ const TEAM_ALIASES = {
   lfc: ['liverpul', 'ливерпуль', 'liverpool', 'liverpool fc', 'lfc', 'liv'],
   ars: ['arsenal', 'арсенал', 'arsenal fc', 'ars'],
   che: ['chelsi', 'челси', 'chelsea', 'chelsea fc', 'che'],
+  juv: ['yuventus', 'ювентус', 'juventus', 'juve', 'juv'],
+  rom: ['roma', 'рома', 'as roma', 'rom'],
+  atm: ['atletiko madrid', 'атлетико мадрид', 'atletico madrid', 'atlético madrid', 'atletico', 'atm'],
 };
 const norm = (s) => String(s ?? '').toLowerCase().replace(/[‘’ʻʼ`]/g, "'").replace(/\s+/g, ' ').trim();
-export function teamForClub(clubName) {
+export function teamForClub(clubName, kit360Id) {
+  // Buyurtmaga yozilgan Forma 360° id'si nomdan ishonchliroq
+  const byId = kit360Id && TEAMS.find((tm) => tm.id === kit360Id);
+  if (byId) return byId;
   const key = norm(clubName);
   if (!key) return null;
   const id = Object.keys(TEAM_ALIASES).find((tid) => TEAM_ALIASES[tid].includes(key));
@@ -66,7 +73,9 @@ function PhotoKit({ team, name, number, shortsNumber, statusBadge }) {
   const canvasRef = useRef(null);
   const cache = useRef({});
   const drag = useRef(null);
-  const [frame, setFrame] = useState(4);
+  const done = useRef({ sig: '', frames: new Map() });
+  const fontsVersion = useRef(0);
+  const [frame, setFrame] = useState(0);
   const [tick, setTick] = useState(0);
   const [dpr, setDpr] = useState(dprNow);
   const [fontsReady, setFontsReady] = useState(false);
@@ -129,6 +138,7 @@ function PhotoKit({ team, name, number, shortsNumber, statusBadge }) {
     if (!document.fonts) return undefined;
     const onFonts = () => {
       layerCache.clear();
+      fontsVersion.current += 1;
       repaint();
     };
     document.fonts.addEventListener('loadingdone', onFonts);
@@ -150,8 +160,23 @@ function PhotoKit({ team, name, number, shortsNumber, statusBadge }) {
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       return;
     }
+    // Tayyor kadr (paint + sharpen ~140 ms) saqlanadi — aylantirganda qayta hisoblanmaydi
+    const sig = `${team.id}|${name}|${number}|${shortsNumber}|${canvas.width}|${backReady}|${fontsVersion.current}`;
+    if (done.current.sig !== sig) done.current = { sig, frames: new Map() };
+    const hit = done.current.frames.get(frame);
+    if (hit) {
+      const ctx = canvas.getContext('2d');
+      ctx.setTransform(1, 0, 0, 1, 0, 0);
+      ctx.drawImage(hit, 0, 0);
+      return;
+    }
     paint(canvas, img, frame, { name, number, shortsNumber, team, style }, backReady ? back : null);
     sharpen(canvas);
+    const copy = document.createElement('canvas');
+    copy.width = canvas.width;
+    copy.height = canvas.height;
+    copy.getContext('2d').drawImage(canvas, 0, 0);
+    done.current.frames.set(frame, copy);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [img, back, imgReady, backReady, frame, name, number, shortsNumber, team, dpr, tick]);
 
@@ -232,7 +257,7 @@ function PhotoKit({ team, name, number, shortsNumber, statusBadge }) {
  * Status (API'dan) forma yonida ko'rinadi.
  */
 export default function OrderKitView({ order, statusBadge }) {
-  const team = teamForClub(order.clubName);
+  const team = teamForClub(order.clubName, order.apiItems?.[0]?.kit360Id);
   const name = String(order.apiPrintName || '').trim().toUpperCase();
   const number = order.number === '' || order.number == null ? '' : String(order.number);
   return (

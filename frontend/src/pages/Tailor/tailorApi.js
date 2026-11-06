@@ -83,11 +83,15 @@ export async function listTailorOrders() {
   const records = [...(first.items ?? [])];
   const pageCount = Math.ceil((first.total ?? records.length) / PAGE_LIMIT);
 
-  for (let page = 2; page <= pageCount; page += 1) {
-    params.set('page', String(page));
-    const next = await api(`/workshop/orders?${params}`);
-    records.push(...(next.items ?? []));
-  }
+  // Qolgan sahifalar bir vaqtda yuklanadi (ketma-ket kutish yo'q)
+  const rest = await Promise.all(
+    Array.from({ length: Math.max(0, pageCount - 1) }, (_, i) => {
+      const p = new URLSearchParams(params);
+      p.set('page', String(i + 2));
+      return api(`/workshop/orders?${p}`);
+    })
+  );
+  rest.forEach((next) => records.push(...(next.items ?? [])));
 
   return records.map(orderToQueueItem).filter(Boolean);
 }

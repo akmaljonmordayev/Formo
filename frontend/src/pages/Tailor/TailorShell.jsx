@@ -45,6 +45,26 @@ const OUTER_CHROME_CSS = `
   }
 `;
 
+/* Tepa paneldagi sana va soat (Toshkent vaqti). O'z holati bor — har soniyada faqat shu qism qayta chiziladi */
+function Clock({ locale }) {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(new Date()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const tz = { timeZone: 'Asia/Tashkent' };
+  return (
+    <div className="hidden flex-col items-end leading-tight sm:flex" aria-label={now.toLocaleString(locale, tz)}>
+      <time dateTime={now.toISOString()} className="text-sm font-extrabold tabular-nums text-white">
+        {now.toLocaleTimeString(locale, { ...tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
+      </time>
+      <span className="text-[11px] font-medium text-slate-400">
+        {now.toLocaleDateString(locale, { ...tz, day: '2-digit', month: 'long', year: 'numeric' })}
+      </span>
+    </div>
+  );
+}
+
 export default function TailorShell({ title, subtitle, children }) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -85,7 +105,8 @@ export default function TailorShell({ title, subtitle, children }) {
     setOrdersError('');
     try {
       const freshOrders = await listTailorOrders();
-      setOrdersState(freshOrders);
+      // Fon yangilanishida hech narsa o'zgarmagan bo'lsa — qayta chizilmaydi
+      setOrdersState((prev) => (JSON.stringify(prev) === JSON.stringify(freshOrders) ? prev : freshOrders));
     } catch (requestError) {
       setOrdersError(requestError.message);
     } finally {
@@ -260,7 +281,8 @@ export default function TailorShell({ title, subtitle, children }) {
                 {subtitle && <p className="truncate text-xs font-medium text-slate-400">{t(subtitle)}</p>}
               </div>
 
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-3">
+                <Clock locale={t.locale} />
                 <div className="flex rounded-xl border border-white/10 bg-[#121829] p-0.5" role="group" aria-label={t('shell.lang')}>
                   {LANGS.map((l) => (
                     <button
