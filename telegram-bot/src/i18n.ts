@@ -113,7 +113,8 @@ const uz: Dict = {
     '💰 Balans — hisobingizdagi pul va so‘nggi to‘ldirishlar\n' +
     '➕ Balansni to‘ldirish — summani tanlang, kartaga o‘tkazing va chekni shu yerga yuboring\n' +
     '📦 Buyurtmalar — so‘nggi buyurtmalar va ularning holati\n' +
-    '🌐 Til — o‘zbekcha / русский / English\n\n' +
+    '🌐 Til — o‘zbekcha / русский / English\n' +
+    '📱 Raqamni yuborish — ilovaga qayta kirishda yangi kod olish\n\n' +
     'Buyurtma holati o‘zgarsa, xabar shu yerga o‘zi keladi. Xabarlarni o‘chirish: /stop\n\n' +
     'Ilovaga kirish uchun Formo ilovasida «Telegram orqali kirish» tugmasini bosing.',
   failure: 'Texnik nosozlik yuz berdi. Birozdan keyin qayta urinib ko‘ring.',
@@ -177,7 +178,8 @@ const ru: Dict = {
     '💰 Баланс — деньги на счёте и последние пополнения\n' +
     '➕ Пополнить баланс — выберите сумму, переведите на карту и отправьте чек сюда\n' +
     '📦 Заказы — последние заказы и их статус\n' +
-    '🌐 Язык — o‘zbekcha / русский / English\n\n' +
+    '🌐 Язык — o‘zbekcha / русский / English\n' +
+    '📱 Отправить номер — новый код при повторном входе в приложение\n\n' +
     'Когда статус заказа меняется, уведомление придёт сюда само. Отключить уведомления: /stop\n\n' +
     'Чтобы войти в приложение, нажмите «Войти через Telegram» в приложении Formo.',
   failure: 'Произошла техническая ошибка. Попробуйте чуть позже.',
@@ -240,7 +242,8 @@ const en: Dict = {
     '💰 Balance — money on your account and recent top-ups\n' +
     '➕ Top up balance — choose an amount, transfer to the card and send the receipt here\n' +
     '📦 Orders — recent orders and their status\n' +
-    '🌐 Language — o‘zbekcha / русский / English\n\n' +
+    '🌐 Language — o‘zbekcha / русский / English\n' +
+    '📱 Share phone number — get a new code when signing in to the app again\n\n' +
     'When an order status changes, you get a message here automatically. Turn off: /stop\n\n' +
     'To sign in, tap “Sign in with Telegram” in the Formo app.',
   failure: 'A technical error occurred. Please try again later.',

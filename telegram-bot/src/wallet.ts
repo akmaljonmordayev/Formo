@@ -1,5 +1,6 @@
 import { TopUpMethods } from './backend';
 import { isLang, Lang, LANG_KEYBOARD_PREFIX, LANGS, LANGUAGE_NAMES, money, T } from './i18n';
+import { LOGIN } from './messages';
 import { ReplyMarkup, TgMessage } from './telegram';
 
 /** Tayyor summalar (so'm) */
@@ -20,10 +21,18 @@ export interface WalletCtx {
   reply(body: string, options?: { parse_mode?: 'HTML'; reply_markup?: ReplyMarkup }): Promise<void>;
 }
 
+/**
+ * Doimiy pastki menyu. Raqam tugmasi ham shu yerda: ilovani o'chirib qayta o'rnatgan mijoz yangi kodni oladi,
+ * balans, buyurtmalar va til esa yo'qolmaydi.
+ */
 export const mainMenu = (lang: Lang): ReplyMarkup => {
   const m = T[lang].menu;
   return {
-    keyboard: [[{ text: m.balance }, { text: m.topup }], [{ text: m.orders }, { text: m.language }], [{ text: m.help }]],
+    keyboard: [
+      [{ text: m.balance }, { text: m.topup }],
+      [{ text: m.orders }, { text: m.language }],
+      [{ text: m.help }, { text: LOGIN[lang].sendContact, request_contact: true }],
+    ],
     resize_keyboard: true,
     is_persistent: true,
     input_field_placeholder: T[lang].menuPlaceholder,
