@@ -11,18 +11,36 @@ describe('Dashboard davri (resolveRange)', () => {
     expect(r.to?.toISOString()).toBe('2026-11-02T23:59:59.999Z');
   });
 
-  it('days — oxirgi N kun, bugun bilan tugaydi', () => {
-    const r = resolveRange({ days: 7 });
-    expect(r.dayKeys).toHaveLength(7);
-    expect(r.dayKeys[6]).toBe(new Date().toISOString().slice(0, 10));
-    expect(r.to).toBeUndefined();
+  it('days — oxirgi N kun, bugun bilan tugaydi; from birinchi kunning 00:00 i (grafik bilan bir xil chegara)', () => {
+    for (const days of [1, 7, 30]) {
+      const r = resolveRange({ days });
+      expect(r.dayKeys).toHaveLength(days);
+      expect(r.dayKeys[days - 1]).toBe(new Date().toISOString().slice(0, 10));
+      expect(r.from.toISOString()).toBe(`${r.dayKeys[0]}T00:00:00.000Z`);
+      expect(r.to).toBeUndefined();
+    }
+  });
+
+  it('all — birinchi buyurtma kunidan bugungacha; buyurtma yo\'q bo\'lsa faqat bugun', () => {
+    const today = new Date().toISOString().slice(0, 10);
+    const first = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000 + 5 * 60 * 60 * 1000);
+    const r = resolveRange({ all: true }, first);
+    expect(r.from.toISOString()).toBe(`${first.toISOString().slice(0, 10)}T00:00:00.000Z`);
+    expect(r.dayKeys[0]).toBe(first.toISOString().slice(0, 10));
+    expect(r.dayKeys.at(-1)).toBe(today);
+    expect(r.to?.toISOString()).toBe(`${today}T23:59:59.999Z`);
+    expect(resolveRange({ all: true }, null).dayKeys).toEqual([today]);
+  });
+
+  it('uzun davr (2 yil) ham qabul qilinadi', () => {
+    expect(resolveRange({ from: '2024-01-01', to: '2026-01-01' }).dayKeys).toHaveLength(732);
   });
 
   it.each([
     [{ from: '2026-11-01' }],
     [{ from: '2026-11-05', to: '2026-11-01' }],
     [{ from: '2026-02-31', to: '2026-03-05' }],
-    [{ from: '2024-01-01', to: '2026-01-01' }],
+    [{ from: '2010-01-01', to: '2026-01-01' }],
   ])("noto'g'ri davr rad etiladi: %o", (range) => {
     expect(() => resolveRange(range)).toThrow(BadRequestException);
   });
@@ -53,5 +71,26 @@ describe('dashboardStats — kunlik tushum', () => {
       gte: new Date('2026-11-01T00:00:00.000Z'),
       lte: new Date('2026-11-02T23:59:59.999Z'),
     });
+  });
+
+  it("butun davr: birinchi buyurtmadan bugungacha, ordersCount va revenue grafik yig'indisiga teng, delta — null", async () => {
+    const day = (n: number) => new Date(Date.now() - n * 24 * 60 * 60 * 1000);
+    const orders = [
+      { totalSum: 100, status: OrderStatus.DELIVERED, createdAt: day(10) },
+      { totalSum: 40, status: OrderStatus.NEW, createdAt: day(3) },
+      { totalSum: 50, status: OrderStatus.CANCELLED, createdAt: day(3) },
+      { totalSum: 70, status: OrderStatus.DELIVERED, createdAt: day(0) },
+    ];
+    prisma.order.findMany.mockReset().mockResolvedValueOnce(orders);
+    const findFirst = jest.fn().mockResolvedValue({ createdAt: orders[0].createdAt });
+    Object.assign(prisma.order, { findFirst });
+
+    const stats = await service.dashboardStats({ all: true });
+    expect(findFirst).toHaveBeenCalledWith({ orderBy: { createdAt: 'asc' }, select: { createdAt: true } });
+    expect(stats.dailyTrend).toHaveLength(11);
+    expect(stats.dailyTrend.reduce((s, d) => s + d.count, 0)).toBe(stats.ordersCount);
+    expect(stats.dailyTrend.reduce((s, d) => s + d.revenue, 0)).toBe(stats.revenue);
+    expect(stats).toMatchObject({ ordersCount: 3, ordersDeltaPct: null, revenueDeltaPct: null });
+    expect(prisma.order.findMany).toHaveBeenCalledTimes(1); // oldingi davr so'ralmaydi
   });
 });

@@ -13,6 +13,7 @@ type AccountInput = {
   fullName?: string;
   workshopName?: string;
   address?: string;
+  dailyCapacity?: number | null;
   isActive?: boolean;
 };
 

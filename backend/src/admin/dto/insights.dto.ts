@@ -1,6 +1,6 @@
 import { ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
-import { IsIn, IsOptional, Matches } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
+import { IsBoolean, IsIn, IsOptional, Matches } from 'class-validator';
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -20,4 +20,10 @@ export class RangeQueryDto {
   @IsOptional()
   @Matches(ISO_DATE, { message: 'to YYYY-MM-DD formatida bo\'lishi kerak' })
   to?: string;
+
+  @ApiPropertyOptional({ description: "Butun davr: birinchi buyurtma kunidan bugungacha (days/from/to o'rniga)" })
+  @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true' || value === '1')
+  @IsBoolean()
+  all?: boolean;
 }

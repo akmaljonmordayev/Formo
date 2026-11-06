@@ -13,7 +13,8 @@ export const dashboardApi = {
 };
 
 export const financeApi = {
-  get: (days) => api(`/admin/finance${qs({ days })}`),
+  // params: { days } | { from, to } | { all: true }
+  get: (params) => api(`/admin/finance${qs(params)}`),
 };
 
 export const reportsApi = {
@@ -141,12 +142,13 @@ export const ORDER_STATUS = {
   RETURNED: { label: 'Qaytarildi', color: 'red' },
 };
 
-export const PAYMENT_METHOD = { CLICK: 'Click', PAYME: 'Payme', CASH: 'Naqd' };
+export const PAYMENT_METHOD = { CLICK: 'Click', PAYME: 'Payme', CASH: 'Naqd', BALANCE: 'Balans', WALLET: 'Balans' };
 export const PAYMENT_STATUS = { PENDING: 'kutilmoqda', PAID: "to'landi", FAILED: 'xato', REFUNDED: 'qaytarildi' };
 
-export function paymentLabel(method, status) {
-  const base = PAYMENT_METHOD[method] ?? method;
-  return status && status !== 'PAID' ? `${base} · ${PAYMENT_STATUS[status] ?? status}` : base;
+/** `t` berilsa — usul va holat alohida tarjima qilinadi (superadmin tili) */
+export function paymentLabel(method, status, t = (s) => s) {
+  const base = t(PAYMENT_METHOD[method] ?? method);
+  return status && status !== 'PAID' ? `${base} · ${t(PAYMENT_STATUS[status] ?? status)}` : base;
 }
 
 export const money = (n) => `${Math.round(n ?? 0).toLocaleString('uz-UZ')} so'm`;

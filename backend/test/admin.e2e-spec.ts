@@ -151,8 +151,18 @@ describe('Admin CRUD va RBAC (e2e)', () => {
       ['xato telefon', { phone: '123' }],
       ['role kiritilgan', { role: 'SUPERADMIN' }],
       ['manzil juda uzun', { address: 'a'.repeat(256) }],
+      ["sig'im 0", { dailyCapacity: 0 }],
+      ["sig'im juda katta", { dailyCapacity: 10001 }],
     ])('validatsiya — 400 (%s)', async (_, patch) => {
       await as(admin).post('/api/admin/workshops', { ...workshopDto(), ...patch }).expect(400);
+    });
+
+    it("kunlik sig'im yaratishda va tahrirda saqlanadi, dashboard sig'imiga qo'shiladi", async () => {
+      const created = await as(admin).post('/api/admin/workshops', { ...workshopDto(), dailyCapacity: 40 }).expect(201);
+      expect(created.body.dailyCapacity).toBe(40);
+      const updated = await as(admin).patch(`/api/admin/workshops/${created.body.id}`, { dailyCapacity: 55 }).expect(200);
+      expect(updated.body.dailyCapacity).toBe(55);
+      expect((await as(admin).get('/api/admin/dashboard?all=true').expect(200)).body.capacity).toBeGreaterThanOrEqual(55);
     });
 
     it.each(XSS_PAYLOADS)('XSS workshopName/address/fullName da rad etiladi: %s', async (payload) => {

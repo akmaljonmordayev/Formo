@@ -3,6 +3,7 @@ import { auditLogApi } from '../../../features/platform/platformApi';
 import { useDebounced } from '../../../hooks/useDebounced';
 import { downloadCsv } from '../../../utils/csvExport';
 import { useLang } from '../i18n';
+import { Pager } from '../ui';
 
 const CATEGORY_LABEL = {
   ORDER: 'Buyurtma',
@@ -13,28 +14,32 @@ const CATEGORY_LABEL = {
   SYSTEM: 'Tizim',
 };
 const TABS = [['', 'Barchasi'], ...Object.entries(CATEGORY_LABEL)];
+const LIMIT = 50;
 
 export default function SuperadminAuditLog() {
   const { t, locale } = useLang();
   const [tab, setTab] = useState('');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
   const [data, setData] = useState({ items: [], total: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const debouncedSearch = useDebounced(search, 300);
 
+  useEffect(() => setPage(1), [debouncedSearch, tab]);
+
   useEffect(() => {
     let active = true;
     setLoading(true);
     auditLogApi
-      .list({ search: debouncedSearch, category: tab || undefined, limit: 100 })
+      .list({ search: debouncedSearch, category: tab || undefined, page, limit: LIMIT })
       .then((d) => active && setData(d))
       .catch((e) => active && setError(e.message))
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
-  }, [debouncedSearch, tab]);
+  }, [debouncedSearch, tab, page]);
 
   const exportCsv = () => {
     downloadCsv(
@@ -124,6 +129,7 @@ export default function SuperadminAuditLog() {
           </tbody>
         </table>
       </div>
+      <Pager page={page} total={data.total} limit={LIMIT} onPage={setPage} />
     </>
   );
 }

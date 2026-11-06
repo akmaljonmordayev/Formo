@@ -25,7 +25,7 @@ export class InsightsController {
   @ApiOperation({ summary: "Moliya: tushum, to'lov usullari, qaytarishlar" })
   @ApiOkResponse()
   finance(@Query() query: RangeQueryDto) {
-    return this.orders.financeStats(query.days ?? 30);
+    return this.orders.financeStats(query);
   }
 
   @Get('reports')

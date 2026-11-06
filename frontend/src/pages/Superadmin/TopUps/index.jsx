@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { settingsApi, topupsApi } from '../../../features/platform/platformApi';
 import Modal from '../../../components/ui/Modal';
 import { useLang, useMoney, useT } from '../i18n';
+import { Pager } from '../ui';
 
 /*
  * Balansni qo'lda to'ldirish: mijoz botda summa tanlaydi → kartaga o'tkazadi → chek rasmini yuboradi.
@@ -39,12 +40,14 @@ const REJECT_PRESETS = [
   'Kartaga tushum topilmadi',
 ];
 const MANUAL_KEY = 'payments.manual';
+const LIMIT = 50;
 
 export default function SuperadminTopUps() {
   const t = useT();
   const money = useMoney();
   const { locale } = useLang();
   const [tab, setTab] = useState('REVIEW');
+  const [page, setPage] = useState(1);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -56,7 +59,7 @@ export default function SuperadminTopUps() {
     const req = ++lastReq.current;
     setLoading(true);
     return topupsApi
-      .list({ status: tab || undefined, limit: 50 })
+      .list({ status: tab || undefined, page, limit: LIMIT })
       .then((d) => {
         if (req !== lastReq.current) return;
         setData(d);
@@ -64,7 +67,7 @@ export default function SuperadminTopUps() {
       })
       .catch((e) => req === lastReq.current && setError(e.message))
       .finally(() => req === lastReq.current && setLoading(false));
-  }, [tab]);
+  }, [tab, page]);
 
   useEffect(() => {
     load();
@@ -90,7 +93,7 @@ export default function SuperadminTopUps() {
 
       <div className="sa-tabs">
         {TABS.map((x) => (
-          <button key={x.label} type="button" className={`sa-tab${tab === x.status ? ' is-active' : ''}`} onClick={() => setTab(x.status)}>
+          <button key={x.label} type="button" className={`sa-tab${tab === x.status ? ' is-active' : ''}`} onClick={() => { setTab(x.status); setPage(1); }}>
             {t(x.label)}
             {x.status && counts[x.status] ? ` · ${counts[x.status]}` : ''}
           </button>
@@ -156,6 +159,7 @@ export default function SuperadminTopUps() {
           </table>
         </div>
       )}
+      {data && <Pager page={page} total={data.total ?? 0} limit={LIMIT} onPage={setPage} />}
 
       {selected && (
         <ReviewModal

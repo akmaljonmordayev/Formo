@@ -61,6 +61,14 @@ export class CreateWorkshopDto extends CreateOperatorDto {
   @NoHtml()
   @MaxLength(255)
   address?: string;
+
+  @ApiPropertyOptional({ example: 40, description: "Kunlik sig'im (dona) — faqat Superadmin belgilaydi" })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(10000)
+  dailyCapacity?: number;
 }
 
 export class UpdateWorkshopDto extends PartialType(CreateWorkshopDto) {

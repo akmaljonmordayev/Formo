@@ -242,18 +242,32 @@ export class OrdersService {
     });
   }
 
-  /** `from`+`to` (YYYY-MM-DD, UTC kunlari, ikkalasi ham kiradi) yoki oxirgi `days` kun */
-  async dashboardStats(range: { days?: number; from?: string; to?: string }) {
-    const { from, to, dayKeys } = resolveRange(range);
-    // oldingi davr — xuddi shu uzunlikdagi, darhol undan oldingi oraliq
+  /** Davr: `all` (birinchi buyurtmadan), `from`+`to` (YYYY-MM-DD, UTC kunlari, ikkalasi ham kiradi) yoki oxirgi `days` kun */
+  private async range(range: RangeInput) {
+    const first = range.all
+      ? await this.prisma.order.findFirst({ orderBy: { createdAt: 'asc' }, select: { createdAt: true } })
+      : null;
+    const r = resolveRange(range, first?.createdAt);
+    return { ...r, all: Boolean(range.all) };
+  }
+
+  /** Oldingi davr — xuddi shu uzunlikdagi, darhol undan oldingi oraliq; "butun davr"da solishtirish yo'q (null) */
+  private previousOrders({ from, to, all }: { from: Date; to?: Date; all: boolean }) {
+    if (all) return null;
     const prevFrom = new Date(from.getTime() - ((to ?? new Date()).getTime() - from.getTime()));
+    return this.prisma.order.findMany({
+      where: { createdAt: { gte: prevFrom, lt: from } },
+      select: { totalSum: true, status: true },
+    });
+  }
+
+  async dashboardStats(range: RangeInput) {
+    const r = await this.range(range);
+    const { from, to, dayKeys } = r;
 
     const [current, previous, lateCount] = await Promise.all([
       this.ordersSince(from, to),
-      this.prisma.order.findMany({
-        where: { createdAt: { gte: prevFrom, lt: from } },
-        select: { totalSum: true, status: true },
-      }),
+      this.previousOrders(r),
       this.prisma.order.count({
         where: {
           status: { in: [OrderStatus.ACCEPTED, OrderStatus.PRINTING, OrderStatus.QUALITY_CHECK] },
@@ -264,11 +278,7 @@ export class OrdersService {
     ]);
 
     const ordersCount = current.filter((o) => o.status !== OrderStatus.CANCELLED).length;
-    const prevOrdersCount = previous.filter((o) => o.status !== OrderStatus.CANCELLED).length;
     const revenue = current.filter((o) => REVENUE_STATUSES.includes(o.status)).reduce((s, o) => s + o.totalSum, 0);
-    const prevRevenue = previous
-      .filter((o) => REVENUE_STATUSES.includes(o.status))
-      .reduce((s, o) => s + o.totalSum, 0);
 
     const [activeCount, capacityAgg] = await Promise.all([
       this.prisma.order.count({ where: { status: { in: ACTIVE_STATUSES } } }),
@@ -279,9 +289,9 @@ export class OrdersService {
 
     return {
       ordersCount,
-      ordersDeltaPct: pctDelta(ordersCount, prevOrdersCount),
+      ordersDeltaPct: previous ? pctDelta(ordersCount, previous.filter((o) => o.status !== OrderStatus.CANCELLED).length) : null,
       revenue,
-      revenueDeltaPct: pctDelta(revenue, prevRevenue),
+      revenueDeltaPct: previous ? pctDelta(revenue, revenueOf(previous)) : null,
       activeCount,
       capacity,
       loadPct: capacity ? Math.round((activeCount / capacity) * 100) : null,
@@ -290,25 +300,12 @@ export class OrdersService {
     };
   }
 
-  async financeStats(days: number) {
-    const from = new Date();
-    from.setDate(from.getDate() - days);
-    const prevFrom = new Date(from);
-    prevFrom.setDate(prevFrom.getDate() - days);
-
-    const [current, previous] = await Promise.all([
-      this.ordersSince(from),
-      this.prisma.order.findMany({
-        where: { createdAt: { gte: prevFrom, lt: from } },
-        select: { totalSum: true, status: true },
-      }),
-    ]);
+  async financeStats(range: RangeInput) {
+    const r = await this.range(range);
+    const [current, previous] = await Promise.all([this.ordersSince(r.from, r.to), this.previousOrders(r)]);
 
     const revenueOrders = current.filter((o) => REVENUE_STATUSES.includes(o.status));
     const revenue = revenueOrders.reduce((s, o) => s + o.totalSum, 0);
-    const prevRevenue = previous
-      .filter((o) => REVENUE_STATUSES.includes(o.status))
-      .reduce((s, o) => s + o.totalSum, 0);
     const refunded = current.filter((o) => o.status === OrderStatus.RETURNED).reduce((s, o) => s + o.totalSum, 0);
 
     const byMethod: Record<string, { count: number; sum: number }> = {};
@@ -321,7 +318,7 @@ export class OrdersService {
 
     return {
       revenue,
-      revenueDeltaPct: pctDelta(revenue, prevRevenue),
+      revenueDeltaPct: previous ? pctDelta(revenue, revenueOf(previous)) : null,
       refunded,
       byMethod,
     };
@@ -376,14 +373,21 @@ export class OrdersService {
         },
       }),
       this.prisma.order.findMany({
-        where: { status: { in: [OrderStatus.ACCEPTED, OrderStatus.PRINTING, OrderStatus.QUALITY_CHECK, OrderStatus.READY] } },
+        where: {
+          status: {
+            in: [OrderStatus.SENT_TO_WORKSHOP, OrderStatus.ACCEPTED, OrderStatus.PRINTING, OrderStatus.QUALITY_CHECK, OrderStatus.READY],
+          },
+        },
         orderBy: { createdAt: 'asc' },
         include,
       }),
     ]);
 
     const lateCount = printingOrders.filter(
-      (o) => o.status !== OrderStatus.READY && o.createdAt < new Date(Date.now() - 21 * 60 * 60 * 1000),
+      (o) =>
+        o.status !== OrderStatus.READY &&
+        o.status !== OrderStatus.SENT_TO_WORKSHOP &&
+        o.createdAt < new Date(Date.now() - 21 * 60 * 60 * 1000),
     ).length;
 
     return {
@@ -396,7 +400,8 @@ export class OrdersService {
       })),
       lateCount,
       columns: {
-        ACCEPTED: printingOrders.filter((o) => o.status === OrderStatus.ACCEPTED),
+        // Sexga biriktirilgan, sex hali "Qabul qilish"ni bosmagan buyurtmalar — birinchi ustun (navbat) bilan birga
+        ACCEPTED: printingOrders.filter((o) => o.status === OrderStatus.ACCEPTED || o.status === OrderStatus.SENT_TO_WORKSHOP),
         PRINTING: printingOrders.filter((o) => o.status === OrderStatus.PRINTING),
         QUALITY_CHECK: printingOrders.filter((o) => o.status === OrderStatus.QUALITY_CHECK),
         READY: printingOrders.filter((o) => o.status === OrderStatus.READY),
@@ -418,10 +423,29 @@ export class OrdersService {
 }
 
 const DAY_MS = 24 * 60 * 60 * 1000;
-const MAX_RANGE_DAYS = 366;
+const MAX_RANGE_DAYS = 3660;
 
-/** Dashboard davri: from/to bo'lsa — shu oraliq, aks holda oxirgi `days` kun (bugun ham kiradi) */
-export function resolveRange(range: { days?: number; from?: string; to?: string }) {
+export interface RangeInput {
+  days?: number;
+  from?: string;
+  to?: string;
+  all?: boolean;
+}
+
+const utcDay = (d: Date) => new Date(`${d.toISOString().slice(0, 10)}T00:00:00.000Z`);
+
+/**
+ * Dashboard davri. `all` — birinchi buyurtma kunidan bugungacha (buyurtma yo'q bo'lsa — bugun);
+ * from/to — shu oraliq; aks holda oxirgi `days` kun. Har doim butun UTC kunlari: `from` birinchi kun
+ * 00:00 dan, shuning uchun kartochkalar (ordersCount, revenue) grafikdagi kunlar yig'indisiga teng.
+ */
+export function resolveRange(range: RangeInput, firstOrderAt?: Date | null) {
+  if (range.all) {
+    const today = utcDay(new Date());
+    const from = firstOrderAt ? utcDay(firstOrderAt) : today;
+    const count = Math.round((today.getTime() - from.getTime()) / DAY_MS) + 1;
+    return { from, to: new Date(today.getTime() + DAY_MS - 1), dayKeys: dayKeysFrom(from, count) };
+  }
   if (range.from || range.to) {
     if (!range.from || !range.to) throw new BadRequestException("from va to birga yuborilishi kerak");
     const from = new Date(`${range.from}T00:00:00.000Z`);
@@ -435,13 +459,15 @@ export function resolveRange(range: { days?: number; from?: string; to?: string 
     return { from, to: new Date(toStart.getTime() + DAY_MS - 1), dayKeys: dayKeysFrom(from, count) };
   }
   const days = range.days ?? 30;
-  const from = new Date();
-  from.setDate(from.getDate() - days);
-  return { from, to: undefined, dayKeys: dayKeysFrom(new Date(Date.now() - (days - 1) * DAY_MS), days) };
+  const from = new Date(utcDay(new Date()).getTime() - (days - 1) * DAY_MS);
+  return { from, to: undefined as Date | undefined, dayKeys: dayKeysFrom(from, days) };
 }
 
 const dayKeysFrom = (start: Date, count: number) =>
   Array.from({ length: count }, (_, i) => new Date(start.getTime() + i * DAY_MS).toISOString().slice(0, 10));
+
+const revenueOf = (orders: { totalSum: number; status: OrderStatus }[]) =>
+  orders.filter((o) => REVENUE_STATUSES.includes(o.status)).reduce((s, o) => s + o.totalSum, 0);
 
 function pctDelta(current: number, previous: number) {
   if (!previous) return current ? 100 : 0;

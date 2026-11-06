@@ -1,6 +1,23 @@
 import Modal from '../../components/ui/Modal';
 import { useT } from './i18n';
 
+/** Sahifalash: "Jami: N" va ← sahifa / jami → (bitta sahifa bo'lsa ko'rinmaydi) */
+export function Pager({ page, total, limit, onPage }) {
+  const t = useT();
+  const pages = Math.max(1, Math.ceil(total / limit));
+  if (pages <= 1) return null;
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
+      <span className="sa-table__sub" style={{ marginTop: 0 }}>{t('Jami')}: {total}</span>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+        <button type="button" className="sa-btn sa-btn--ghost" aria-label={t('Oldingi sahifa')} disabled={page <= 1} onClick={() => onPage(page - 1)}>←</button>
+        <span className="sa-table__sub" style={{ marginTop: 0 }}>{page} / {pages}</span>
+        <button type="button" className="sa-btn sa-btn--ghost" aria-label={t('Keyingi sahifa')} disabled={page >= pages} onClick={() => onPage(page + 1)}>→</button>
+      </div>
+    </div>
+  );
+}
+
 /** Umumiy ConfirmModal'ning tarjima qilingan varianti (tugmalar tanlangan tilda) */
 export function ConfirmModal({ title, text, confirmLabel, danger = true, onConfirm, onClose, busy }) {
   const t = useT();

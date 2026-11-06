@@ -2,19 +2,16 @@ import { useEffect, useState } from 'react';
 import { financeApi, PAYMENT_METHOD } from '../../../features/platform/platformApi';
 import { downloadCsv } from '../../../utils/csvExport';
 import { useT, useMoney } from '../i18n';
+import RangePicker, { RANGES, rangeParams } from '../RangePicker';
 
-const RANGES = [
-  { label: 'Bugun', days: 1 },
-  { label: '7 kun', days: 7 },
-  { label: '30 kun', days: 30 },
-];
-
-const METHOD_COLOR = { CLICK: '#5b7cfa', PAYME: '#19a7a1', CASH: '#f2a33a' };
+const METHOD_COLOR = { CLICK: '#5b7cfa', PAYME: '#19a7a1', CASH: '#f2a33a', BALANCE: '#8b5cf6', WALLET: '#8b5cf6' };
 
 export default function SuperadminFinance() {
   const money = useMoney();
   const t = useT();
   const [range, setRange] = useState(RANGES[2]);
+  const [from, setFrom] = useState('');
+  const [to, setTo] = useState('');
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -23,14 +20,14 @@ export default function SuperadminFinance() {
     let active = true;
     setLoading(true);
     financeApi
-      .get(range.days)
+      .get(rangeParams(range, from, to))
       .then((d) => active && setData(d))
       .catch((e) => active && setError(e.message))
       .finally(() => active && setLoading(false));
     return () => {
       active = false;
     };
-  }, [range]);
+  }, [range, from, to]);
 
   const byMethod = data?.byMethod ?? {};
   const methods = Object.entries(byMethod);
@@ -38,7 +35,7 @@ export default function SuperadminFinance() {
 
   const exportCsv = () => {
     downloadCsv(
-      `moliya-${range.days}kun-${new Date().toISOString().slice(0, 10)}.csv`,
+      `moliya-${from && to ? `${from}_${to}` : range.all ? "barcha" : `${range.days}kun`}-${new Date().toISOString().slice(0, 10)}.csv`,
       [
         [t("To'lov usuli"), ([method]) => t(PAYMENT_METHOD[method] ?? method)],
         [t('Soni'), ([, m]) => m.count],
@@ -51,7 +48,7 @@ export default function SuperadminFinance() {
 
   const STATS = data
     ? [
-        { label: t('Tushum'), value: money(data.revenue), delta: t('{pct}% oldingi davrga', { pct: `${data.revenueDeltaPct > 0 ? '+' : ''}${data.revenueDeltaPct}` }) },
+        { label: t('Tushum'), value: money(data.revenue), delta: data.revenueDeltaPct === null ? '—' : t('{pct}% oldingi davrga', { pct: `${data.revenueDeltaPct > 0 ? '+' : ''}${data.revenueDeltaPct}` }) },
         { label: t('Qaytarishlar'), value: money(data.refunded), delta: data.revenue ? t('{pct}% tushumdan', { pct: Math.round((data.refunded / (data.revenue || 1)) * 1000) / 10 }) : '—' },
       ]
     : [];
@@ -66,12 +63,8 @@ export default function SuperadminFinance() {
         <button type="button" className="sa-btn sa-btn--ghost" onClick={exportCsv} disabled={!methods.length}>{t("Excel eksport")}</button>
       </div>
 
-      <div className="sa-tabs">
-        {RANGES.map((r) => (
-          <button key={r.label} type="button" className={`sa-tab${range.label === r.label ? ' is-active' : ''}`} onClick={() => setRange(r)}>
-            {t(r.label)}
-          </button>
-        ))}
+      <div style={{ marginBottom: 14 }}>
+        <RangePicker range={range} onRange={setRange} from={from} to={to} onFrom={setFrom} onTo={setTo} />
       </div>
 
       {error && <div className="form-error">{error}</div>}

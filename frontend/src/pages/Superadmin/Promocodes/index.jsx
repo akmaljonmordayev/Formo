@@ -1,19 +1,19 @@
 import { useEffect, useState } from 'react';
 import { promocodesApi } from '../../../features/platform/platformApi';
 import Modal from '../../../components/ui/Modal';
-import { useT } from '../i18n';
+import { useLang, useT } from '../i18n';
 
 const TYPE_LABEL = { PERCENT: 'Foiz', FIXED: "Qat'iy", FREE_SHIPPING: 'Bepul yetkazish' };
 
-const formatPeriod = (p, t) => {
+const formatPeriod = (p, t, locale) => {
   if (!p.startsAt && !p.endsAt) return t('doimiy');
-  const fmt = (d) => new Date(d).toLocaleDateString('uz-UZ', { day: '2-digit', month: 'short' });
+  const fmt = (d) => new Date(d).toLocaleDateString(locale, { day: '2-digit', month: 'short' });
   if (p.endsAt && new Date(p.endsAt) < new Date()) return t('tugagan');
   return `${p.startsAt ? fmt(p.startsAt) : '—'} – ${p.endsAt ? fmt(p.endsAt) : '—'}`;
 };
 
 export default function SuperadminPromocodes() {
-  const t = useT();
+  const { t, locale } = useLang();
   const [codes, setCodes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -80,8 +80,8 @@ export default function SuperadminPromocodes() {
                 <tr key={c.id}>
                   <td><b>{c.code}</b></td>
                   <td>{TYPE_LABEL[c.type] ? t(TYPE_LABEL[c.type]) : c.type}</td>
-                  <td>{c.type === 'FREE_SHIPPING' ? '—' : c.type === 'PERCENT' ? `${c.value}%` : c.value.toLocaleString('uz-UZ')}</td>
-                  <td>{c.minSum ? c.minSum.toLocaleString('uz-UZ') : '—'}</td>
+                  <td>{c.type === 'FREE_SHIPPING' ? '—' : c.type === 'PERCENT' ? `${c.value}%` : c.value.toLocaleString(locale)}</td>
+                  <td>{c.minSum ? c.minSum.toLocaleString(locale) : '—'}</td>
                   <td style={{ minWidth: 150 }}>
                     <div style={{ fontSize: 12.5, marginBottom: 4 }}>{c.usedCount} / {c.usageCap ?? '∞'}</div>
                     {c.usageCap && (
@@ -90,7 +90,7 @@ export default function SuperadminPromocodes() {
                       </div>
                     )}
                   </td>
-                  <td>{formatPeriod(c, t)}</td>
+                  <td>{formatPeriod(c, t, locale)}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <button type="button" className="sa-btn sa-btn--ghost" style={{ marginRight: 10, verticalAlign: 'middle' }} onClick={() => setEditing(c)}>
                       {t("Tahrirlash")}
@@ -214,7 +214,7 @@ function PromocodeForm({ promo, onClose, onSaved }) {
           {form.type !== 'FREE_SHIPPING' && (
             <label className="field">
               <span>{form.type === 'PERCENT' ? t('Qiymat (%)') : t("Qiymat (so'm)")}</span>
-              <input type="number" min={0} max={form.type === 'PERCENT' ? 100 : undefined} value={form.value} onChange={set('value')} />
+              <input type="number" required min={1} max={form.type === 'PERCENT' ? 100 : undefined} value={form.value} onChange={set('value')} />
             </label>
           )}
           <label className="field">
