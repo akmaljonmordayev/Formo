@@ -3,14 +3,20 @@ import { describe, it } from 'node:test';
 import { handleUpdate } from '../src/handlers';
 import { RESEND_DATA } from '../src/messages';
 import { RateLimiter } from '../src/ratelimit';
-import { callbackUpdate, chooseLang, contactUpdate, fakeDeps, textUpdate, USER_ID } from './helpers';
+import { callbackUpdate, chooseLang, contactUpdate, fakeDeps, Sent, textUpdate, USER_ID } from './helpers';
 
 const START_TOKEN = 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcde';
+const FULL_MENU = ['💰 Balans', '➕ Balansni to‘ldirish', '📦 Buyurtmalar', '🌐 Til', '❓ Yordam', '📱 Raqamni yuborish'];
+
+type Keyboard = { keyboard: { text: string; request_contact?: boolean }[][] };
+const menuButtons = (m: Sent) => (m.options?.reply_markup as Keyboard).keyboard.flat().map((b) => b.text);
+const contactButton = (m: Sent) => (m.options?.reply_markup as Keyboard).keyboard.flat().find((b) => b.request_contact);
 
 describe('handleUpdate', () => {
   it('/start <token>: so‘rovni egallaydi va kontakt tugmasini ko‘rsatadi', async () => {
     const { deps, backend, sent } = fakeDeps();
     chooseLang(deps, 'uz');
+    backend.meResult = { linked: false };
     await handleUpdate(textUpdate(`/start ${START_TOKEN}`), deps);
 
     assert.deepEqual(backend.calls[0], { name: 'claim', args: [START_TOKEN, String(USER_ID), String(USER_ID), 'uz'] });
@@ -49,8 +55,39 @@ describe('handleUpdate', () => {
     backend.login = { maskedPhone: '+998 90 *** ** 67' };
     await handleUpdate(textUpdate('/start'), deps);
     assert.match(sent[0].text, /\+998 90 \*\*\* \*\* 67/);
-    const markup = sent[0].options?.reply_markup as { keyboard: { request_contact?: boolean }[][] };
-    assert.equal(markup.keyboard[0][0].request_contact, true);
+    assert.deepEqual(menuButtons(sent[0]), FULL_MENU);
+    assert.equal(contactButton(sent[0])?.request_contact, true);
+  });
+
+  it('akkaunti bor, ilovani o‘chirgan mijoz: /start <token> — menyu qoladi va raqam yuborib yangi kod oladi', async () => {
+    const { deps, sent } = fakeDeps();
+    chooseLang(deps, 'uz');
+    await handleUpdate(textUpdate(`/start ${START_TOKEN}`), deps);
+    assert.deepEqual(menuButtons(sent[0]), FULL_MENU);
+    assert.equal(contactButton(sent[0])?.request_contact, true);
+
+    await handleUpdate(contactUpdate('998901234567', USER_ID), deps);
+    assert.match(sent[1].text, /48213/);
+  });
+
+  it('ulanmagan mijoz: raqam so‘ralganda faqat raqam tugmasi', async () => {
+    const { deps, backend, sent } = fakeDeps();
+    chooseLang(deps, 'uz');
+    backend.meResult = { linked: false };
+    await handleUpdate(textUpdate(`/start ${START_TOKEN}`), deps);
+    assert.deepEqual(menuButtons(sent[0]), ['📱 Raqamni yuborish']);
+  });
+
+  it('ochiq so‘rov yo‘q: ulangan mijozda menyu qoladi, ulanmaganda raqam tugmasi olib tashlanadi', async () => {
+    const { deps, backend, sent } = fakeDeps();
+    chooseLang(deps, 'uz');
+    backend.codeResult = { result: 'NO_CHALLENGE' };
+    await handleUpdate(contactUpdate('998901234567', USER_ID), deps);
+    assert.deepEqual(menuButtons(sent[0]), FULL_MENU);
+
+    backend.meResult = { linked: false };
+    await handleUpdate({ ...contactUpdate('998901234567', USER_ID), update_id: 9001 }, deps);
+    assert.deepEqual(sent[1].options?.reply_markup, { remove_keyboard: true });
   });
 
   it('o‘z kontakti: kod HTML <code> ichida va "Yangi kod" tugmasi bilan', async () => {
@@ -148,7 +185,7 @@ describe('handleUpdate', () => {
     await handleUpdate(textUpdate('salom'), deps);
     assert.match(sent[0].text, /pastdagi tugmalardan/);
     const kb = (sent[0].options?.reply_markup as { keyboard: { text: string }[][] }).keyboard;
-    assert.deepEqual(kb.flat().map((b) => b.text), ['💰 Balans', '➕ Balansni to‘ldirish', '📦 Buyurtmalar', '🌐 Til', '❓ Yordam']);
+    assert.deepEqual(kb.flat().map((b) => b.text), FULL_MENU);
 
     backend.meResult = { linked: false };
     await handleUpdate(textUpdate('salom2'), deps);

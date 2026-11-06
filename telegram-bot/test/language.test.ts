@@ -35,6 +35,7 @@ describe('til: birinchi /start va barcha xabarlar bir tilda', () => {
 
   it('kirish havolasi: tanlangan til backend’ga yuboriladi, kod ham shu tilda', async () => {
     const { deps, backend, sent } = fakeDeps();
+    backend.meResult = { linked: false };
     await handleUpdate(textUpdate(`/start ${START_TOKEN}`, { lang: 'uz' }), deps);
     assert.equal(sent[0].text, FIRST_LANGUAGE_PROMPT);
     assert.equal(backend.calls.some((c) => c.name === 'claim'), false);

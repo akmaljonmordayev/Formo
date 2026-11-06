@@ -173,7 +173,8 @@ async function continueStart(deps: Deps, userId: string, chatId: string, lang: L
     // Ilovada "Telegram orqali kirish" bosilgan, lekin token botga yetmagan (oddiy /start, /stop dan keyin va h.k.) —
     // ochiq so'rov bo'lsa raqam so'raladi va kod beriladi
     if (hello.login) {
-      return send(deps, chatId, LOGIN[lang].askContact(hello.login.maskedPhone), { parse_mode: 'HTML', reply_markup: contactKeyboard(lang) });
+      const reply_markup = hello.linked ? mainMenu(lang) : contactKeyboard(lang);
+      return send(deps, chatId, LOGIN[lang].askContact(hello.login.maskedPhone), { parse_mode: 'HTML', reply_markup });
     }
     return hello.linked
       ? send(deps, chatId, T[lang].welcomeLinked, { reply_markup: mainMenu(lang) })
@@ -183,7 +184,7 @@ async function continueStart(deps: Deps, userId: string, chatId: string, lang: L
   if (payload === 'topup') return startTopUp(deps, userId, chatId, lang);
   const res = await guarded(deps, chatId, lang, () => deps.backend.claim(payload, userId, chatId, lang));
   if (res.result === 'CONTACT_REQUIRED') {
-    return send(deps, chatId, LOGIN[lang].askContact(res.maskedPhone), { parse_mode: 'HTML', reply_markup: contactKeyboard(lang) });
+    return send(deps, chatId, LOGIN[lang].askContact(res.maskedPhone), { parse_mode: 'HTML', reply_markup: await loginKeyboard(deps, userId, lang) });
   }
   return send(deps, chatId, LOGIN[lang].invalidLink);
 }
@@ -203,12 +204,13 @@ async function onContact(msg: TgMessage, deps: Deps) {
   // Telegram faqat "raqamni yuborish" tugmasida user_id = yuboruvchining o'zi bo'ladi.
   // Boshqa kontaktni ulashish yoki qo'lda yozilgan raqam — dalil emas.
   if (contact.user_id !== msg.from!.id) {
-    const lang = quickLang(deps, msg.from!);
-    return send(deps, chatId, LOGIN[lang].notOwnContact, { reply_markup: contactKeyboard(lang) });
+    // Backend chaqirilmaydi; mavjud klaviatura joyida qoladi — raqam tugmasi unda bor
+    return send(deps, chatId, LOGIN[quickLang(deps, msg.from!)].notOwnContact);
   }
   const lang = await langOf(deps, msg.from!);
-  const res = await guarded(deps, chatId, lang, () => deps.backend.contact(String(msg.from!.id), chatId, contact.phone_number));
-  return replyCode(deps, chatId, lang, res);
+  const userId = String(msg.from!.id);
+  const res = await guarded(deps, chatId, lang, () => deps.backend.contact(userId, chatId, contact.phone_number));
+  return replyCode(deps, userId, chatId, lang, res);
 }
 
 /**
@@ -251,7 +253,7 @@ async function onCallback(query: TgCallbackQuery, deps: Deps) {
 
   if (data === RESEND_DATA) {
     const res = await guarded(deps, chatId, lang, () => deps.backend.resend(userId));
-    return replyCode(deps, chatId, lang, res);
+    return replyCode(deps, userId, chatId, lang, res);
   }
 
   if (data === CB.abort) {
@@ -378,21 +380,33 @@ export const resetLimitsCache = () => {
   limitsCache = null;
 };
 
-function replyCode(deps: Deps, chatId: string, lang: Lang, res: CodeResult) {
+const isLinked = async (deps: Deps, userId: string) => (await deps.backend.me(userId).catch(() => null))?.linked === true;
+
+/** Raqam so'ralganda: ulangan mijozga to'liq menyu (raqam tugmasi ichida), ulanmaganga — faqat raqam tugmasi */
+async function loginKeyboard(deps: Deps, userId: string, lang: Lang) {
+  return (await isLinked(deps, userId)) ? mainMenu(lang) : contactKeyboard(lang);
+}
+
+/** Kod berilmagan yakuniy javoblar: ulangan mijozda menyu qoladi, ulanmaganda raqam tugmasi olib tashlanadi */
+async function closingKeyboard(deps: Deps, userId: string, lang: Lang) {
+  return (await isLinked(deps, userId)) ? mainMenu(lang) : removeKeyboard;
+}
+
+async function replyCode(deps: Deps, userId: string, chatId: string, lang: Lang, res: CodeResult) {
   const t = LOGIN[lang];
   switch (res.result) {
     case 'CODE':
       return send(deps, chatId, t.code(res.code, res.maskedPhone, res.expiresInSec), { parse_mode: 'HTML', reply_markup: resendKeyboard(lang) });
     case 'PHONE_MISMATCH':
-      return send(deps, chatId, t.phoneMismatch, { reply_markup: removeKeyboard });
+      return send(deps, chatId, t.phoneMismatch, { reply_markup: await closingKeyboard(deps, userId, lang) });
     case 'COOLDOWN':
       return send(deps, chatId, t.cooldown(res.retryAfterSec));
     case 'LIMIT':
-      return send(deps, chatId, t.limit, { reply_markup: removeKeyboard });
+      return send(deps, chatId, t.limit, { reply_markup: await closingKeyboard(deps, userId, lang) });
     case 'CONTACT_REQUIRED':
-      return send(deps, chatId, t.contactRequired, { reply_markup: contactKeyboard(lang) });
+      return send(deps, chatId, t.contactRequired, { reply_markup: await loginKeyboard(deps, userId, lang) });
     default:
-      return send(deps, chatId, t.noChallenge, { reply_markup: removeKeyboard });
+      return send(deps, chatId, t.noChallenge, { reply_markup: await closingKeyboard(deps, userId, lang) });
   }
 }
 
