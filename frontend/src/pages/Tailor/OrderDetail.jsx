@@ -15,7 +15,7 @@ const BADGE_STYLES = {
   tayyor: 'bg-amber-500/20 text-amber-400 ring-1 ring-amber-500/40',
 };
 
-export default function OrderDetail({ order, onStartPress, onReject, actionLoading = false, onToast }) {
+export default function OrderDetail({ order, onStartPress, onReject, actionLoading = false, onToast, hideActions = false }) {
   const navigate = useNavigate();
   const t = useT();
   const detailRef = useRef(null);
@@ -331,7 +331,7 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
           </button>
         </div>
 
-        {order.status === 'yangi' ? (
+        {hideActions ? null : order.status === 'yangi' ? (
           <div className="flex flex-col items-end gap-2">
             {rejecting && (
               <div className="flex w-full min-w-[260px] flex-col gap-2">
@@ -386,7 +386,7 @@ export default function OrderDetail({ order, onStartPress, onReject, actionLoadi
             )}
           </div>
         ) : order.status === 'tayyor' ? (
-          // Sexning ishi tugadi — yetkazishga operator chiqaradi
+          // Sexning ishi tugadi
           <div className="flex items-center gap-2 rounded-xl border border-emerald-400/30 bg-emerald-400/10 px-5 py-3 text-sm font-bold text-emerald-300">
             <Truck className="h-4 w-4" />
             <span>{t('order.readyWaitsOperator')}</span>

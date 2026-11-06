@@ -1,16 +1,17 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { ClipboardList, Layers, LogOut, Settings2, BarChart3, MessageSquare } from 'lucide-react';
+import { CheckCircle2, ClipboardList, LogOut, Settings2, BarChart3, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { FormoLogo } from './ui';
 import { useT } from './i18n';
 import { useTailor } from './prefs';
+import { groupActiveOrders } from './orderBuckets';
 import { cx, initialsOf } from './utils';
 import { getChatUnread, getWorkshopProfile } from './tailorApi';
 
 const NAV_ITEMS = [
-  { to: '/tailor', key: 'nav.queue', icon: ClipboardList, queueBadge: true, end: true },
-  { to: '/tailor/partiyalar', key: 'nav.batches', icon: Layers },
+  { to: '/tailor', key: 'orders.title', icon: ClipboardList, count: 'active', end: true },
+  { to: '/tailor/tayyor', key: 'prod.ready', icon: CheckCircle2, count: 'ready' },
   { to: '/tailor/statistika', key: 'nav.stats', icon: BarChart3 },
   { to: '/tailor/chat', key: 'nav.chat', icon: MessageSquare, chatBadge: true },
   { to: '/tailor/profil', key: 'nav.profile', icon: Settings2 },
@@ -58,7 +59,11 @@ function SidebarContent({ onNavigate }) {
     };
   }, [pathname]);
 
-  const queueCount = orders?.filter((order) => order.status === 'yangi' || order.status === 'qabul').length ?? 0;
+  const counts = useMemo(() => {
+    const list = orders ?? [];
+    const late = groupActiveOrders(list).late.length;
+    return { active: list.filter((o) => o.status !== 'tayyor').length, late, ready: list.filter((o) => o.status === 'tayyor').length };
+  }, [orders]);
 
   const handleLogout = async () => {
     // serverdagi sessiya yopilguncha kutamiz, aks holda /login dan qaytib sakraydi
@@ -77,8 +82,8 @@ function SidebarContent({ onNavigate }) {
       </div>
 
       <nav className="mt-2 flex flex-col gap-1">
-        {NAV_ITEMS.map(({ to, key, icon: Icon, queueBadge, chatBadge, end }, index) => {
-          const badge = queueBadge ? queueCount : chatBadge ? unread : undefined;
+        {NAV_ITEMS.map(({ to, key, icon: Icon, count, chatBadge, end }, index) => {
+          const badge = count ? counts[count] : chatBadge ? unread : undefined;
           return (
             <NavLink
               key={to}
@@ -88,7 +93,7 @@ function SidebarContent({ onNavigate }) {
               style={{ '--tl-delay': `${index * 45}ms` }}
               className={({ isActive }) =>
                 cx(
-                  'tl-pop group relative flex items-center justify-between rounded-xl px-3 py-2.5 text-xs font-bold transition-all duration-200',
+                  'tl-pop group relative flex items-center justify-between rounded-xl px-3 py-3 text-sm font-bold transition-all duration-200',
                   isActive
                     ? 'bg-gradient-to-r from-teal-500/20 to-indigo-500/10 text-white shadow-md ring-1 ring-inset ring-teal-400/20'
                     : 'text-slate-400 hover:translate-x-0.5 hover:bg-white/5 hover:text-white'
@@ -101,11 +106,11 @@ function SidebarContent({ onNavigate }) {
                 <span className="absolute -left-4 top-1/2 h-5 w-1 -translate-y-1/2 rounded-r-full bg-teal-400 shadow-[0_0_12px_rgba(45,212,191,0.8)]" />
               )}
               <div className="flex min-w-0 items-center gap-2.5">
-                <Icon className="h-4 w-4 shrink-0 text-teal-400 transition-transform duration-200 group-hover:scale-110" />
+                <Icon className={'h-4 w-4 shrink-0 text-teal-400 transition-transform duration-200 group-hover:scale-110'} />
                 <span className="truncate">{t(key)}</span>
               </div>
               {badge !== undefined && badge > 0 && (
-                <span className="flex h-4 min-w-[18px] items-center justify-center rounded-full bg-teal-400 px-1 text-[10px] font-black text-slate-950">
+                <span className={cx('flex h-5 min-w-[22px] items-center justify-center rounded-full px-1.5 text-xs font-black', count === 'active' && counts.late > 0 ? 'bg-rose-500 text-white' : 'bg-teal-400 text-slate-950')}>
                   {badge}
                 </span>
               )}

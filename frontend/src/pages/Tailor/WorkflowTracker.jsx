@@ -3,7 +3,7 @@ import { useT } from './i18n';
 
 export default function WorkflowTracker({ stage = 0, status = 'qabul' }) {
   const t = useT();
-  // Sexda ikki bosqich: qabul qilindi → tayyor (yetkazishga operator chiqaradi)
+  // Sexda ikki bosqich: qabul qilindi → tayyor 
   const isAccepted = status !== 'yangi' && stage >= 1;
   const isTayyor = status === 'tayyor' || stage >= 2;
 

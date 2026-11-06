@@ -1,7 +1,6 @@
 import Brak from './Brak';
 import Chat from './Chat';
-import Navbat from './Navbat';
-import Partiyalar from './Partiyalar';
+import OrderList from './OrderList';
 import Profil from './Profil';
 import Statistika from './Statistika';
 import TailorShell from './TailorShell';
@@ -17,11 +16,11 @@ const shell = (title, subtitle, element) => (
 export const tailorRoutes = [
   {
     path: '',
-    element: shell('route.queue.title', 'route.queue.sub', <Navbat />),
+    element: shell('orders.title', 'orders.sub', <OrderList view="active" />),
   },
   {
-    path: 'partiyalar',
-    element: shell('route.batches.title', 'route.batches.sub', <Partiyalar />),
+    path: 'tayyor',
+    element: shell('prod.ready', 'prod.readyHint', <OrderList view="ready" />),
   },
   {
     path: 'statistika',
@@ -42,8 +41,8 @@ export const tailorRoutes = [
 ];
 
 export const tailorMenu = [
-  { to: BASE, label: 'Faol buyurtmalar', end: true },
-  { to: `${BASE}/partiyalar`, label: 'Ishlab chiqarish' },
+  { to: BASE, label: 'Buyurtmalar', end: true },
+  { to: `${BASE}/tayyor`, label: 'Tayyor buyurtmalar' },
   { to: `${BASE}/statistika`, label: 'Statistika' },
   { to: `${BASE}/chat`, label: 'Chat' },
   { to: `${BASE}/profil`, label: 'Profil va sozlamalar' },
