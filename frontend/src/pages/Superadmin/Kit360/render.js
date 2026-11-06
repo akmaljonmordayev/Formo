@@ -23,9 +23,9 @@ export const TEAMS = [
   { id: 'psg', kind: 'club', name: 'PSJ', ink: '#ffffff', outline: '#d6202f' },
   { id: 'mci', kind: 'club', name: 'Manchester Siti', ink: '#1b2450' },
   { id: 'lfc', kind: 'club', name: 'Liverpul', ink: '#ffffff' },
-  { id: 'ars', kind: 'club', name: 'Arsenal', ink: '#ffffff', outline: '#1b2450' },
+  { id: 'ars', kind: 'club', name: 'Arsenal', ink: '#ffffff', shortsInk: '#db0007', outline: '#1b2450' },
   { id: 'che', kind: 'club', name: 'Chelsi', ink: '#ffffff', outline: '#034694' },
-  { id: 'juv', kind: 'club', name: 'Yuventus', ink: '#ffffff', outline: '#111318' },
+  { id: 'juv', kind: 'club', name: 'Yuventus', ink: '#ffffff', shortsInk: '#111318', outline: '#111318' },
   { id: 'rom', kind: 'club', name: 'Roma', ink: '#f7b731', outline: '#8e1f2f' },
   { id: 'atm', kind: 'club', name: 'Atletiko Madrid', ink: '#ffffff', outline: '#cb3524' },
 ];

@@ -133,7 +133,24 @@ function spanNear(img, y, x0, gap) {
 const TORSO_Y = 300;
 export function measureTorso(img) {
   const s = spanNear(img, TORSO_Y, 300, 4);
-  return s && s[1] - s[0] > 60 ? { mid: (s[0] + s[1]) / 2, half: (s[1] - s[0]) / 2 } : null;
+  if (s && s[1] - s[0] > 60) return { mid: (s[0] + s[1]) / 2, half: (s[1] - s[0]) / 2 };
+  // Yo'l-yo'l forma (juv, atm): soyadagi oq yo'l fon yorqinligida (189 vs 184) — mato bo'lagi birinchi yo'lda uziladi.
+  // Unda siluet chetlari olinadi: chapdan va o'ngdan fon tugagan (3 px ketma-ket fon emas) joy, bir necha qator medianasi
+  const edges = [];
+  for (let dy = -8; dy <= 8; dy += 4) {
+    const y = TORSO_Y + dy;
+    const bg = backgroundRow(img, y);
+    const solid = (x, dir) => [0, 1, 2].every((k) => pixelKind(img, x + dir * k, y, bg) !== BG);
+    let l = 150;
+    while (l < 300 && !solid(l, 1)) l += 1;
+    let r = 450;
+    while (r > 300 && !solid(r, -1)) r -= 1;
+    if (r - l > 60) edges.push([l, r]);
+  }
+  if (!edges.length) return null;
+  const l = median(edges.map((e) => e[0]));
+  const r = median(edges.map((e) => e[1]));
+  return { mid: (l + r) / 2, half: (r - l) / 2 };
 }
 
 /* Burilgan kadrda tana kengligi ma'lum (180° kadridan, ellips proyeksiyasi 2R). Siluet chetiga ishonmaymiz — soyadagi oq
@@ -188,6 +205,16 @@ function collarAt(img, x) {
   };
   const strict = scan(4);
   return strict !== null && strict >= COLLAR_MIN ? strict : (scan(6) ?? strict);
+}
+
+/* Yoqa (collarAt) yo'l-yo'l orqada: markaz soyadagi oq yo'lga tushsa (juv) u fon kabi kulrang — yoqa futbolka pastida
+   "topiladi". Natija COLLAR_MAX dan past bo'lsa, qo'shni ustunlardan eng yuqori ishonchli yoqa olinadi. */
+const COLLAR_MAX = 200;
+function collarNear(img, x) {
+  const c = collarAt(img, x);
+  if (c === null || c <= COLLAR_MAX) return c;
+  const alt = [-18, -12, -6, 6, 12, 18].map((d) => collarAt(img, x + d)).filter((v) => v !== null && v <= COLLAR_MAX);
+  return alt.length ? Math.min(...alt) : c;
 }
 
 /* Shortikning raqamli oyog'i — manekenning chap oyog'i, rasmda doim o'ngdagi oyoq (0°, 45°, 315°); oyoq hech qachon
@@ -314,14 +341,20 @@ export function measureShorts(img, legA = null, theta = 0) {
 /* Pastki chetdagi brend logotipi (Nike/Adidas/Puma): raqam ustunida mato medianasidan keskin farq qiladigan (|Δl| > 70)
    va o'tkir chegarali (qo'shni bilan > 35) piksellar — qatorda kamida 2 ta bo'lsa, logotip boshlandi. Burma soyasi yumshoq. */
 export function logoTop(img, xa, xb, ya, yb) {
+  return logoRows(img, xa, xb, ya, yb)[0] ?? null;
+}
+
+/* Logotip/gerb qatorlari (logoTop bilan bir xil mezon): [ya, yb] oralig'idagi, kamida 2 ta keskin farqli piksel bor qatorlar */
+export function logoRows(img, xa, xb, ya, yb) {
   const x0 = Math.max(1, Math.round(xa));
   const x1 = Math.min(img.width - 2, Math.round(xb));
   const y0 = Math.max(1, Math.round(ya));
   const y1 = Math.min(img.height - 2, Math.round(yb));
-  if (x1 <= x0 || y1 <= y0) return null;
+  if (x1 <= x0 || y1 <= y0) return [];
   const ls = [];
   for (let y = y0; y <= y1; y += 1) for (let x = x0; x <= x1; x += 1) ls.push(pixel(img, x, y).l);
   const med = median(ls);
+  const rows = [];
   for (let y = y0; y <= y1; y += 1) {
     let hits = 0;
     for (let x = x0; x <= x1; x += 1) {
@@ -330,9 +363,9 @@ export function logoTop(img, xa, xb, ya, yb) {
       const sharp = [[1, 0], [-1, 0], [0, 1], [0, -1]].some(([dx, dy]) => Math.abs(pixel(img, x + dx, y + dy).l - l) > 35);
       if (Math.abs(l - med) > 70 && sharp) hits += 1;
     }
-    if (hits >= 2) return y;
+    if (hits >= 2) rows.push(y);
   }
-  return null;
+  return rows;
 }
 
 /* Alohida turgan "nishon" (klub gerbi) — oyoq ichidagi to'rtburchakda:
@@ -542,6 +575,21 @@ export function printLayout(frame, img, backImg, scale = 1) {
     const logo = logoTop(img, cx - size * 0.65, cx + size * 0.65, leg.hem - 34, leg.hem - 6);
     if (logo !== null) y = Math.min(y, logo - 6);
     y = Math.max(y, SHORTS_TOP + size);
+    // Raqam yonida/ustida logotip yoki gerb bo'lsa (es adidas, psg Nike, juv gerbi) — raqam qutisi (±0.75 balandlik eni)
+    // logotip qatorlariga tegmaydigan eng yaqin balandlikka ko'tariladi; bo'sh joy bo'lmasa, avvalgi joyida qoladi
+    const hits = new Set(logoRows(img, cx - size * 0.75, cx + size * 0.75, SHORTS_TOP, leg.hem - 4));
+    const clear = (yy) => {
+      for (let r = yy - size - 4; r <= yy + 4; r += 1) if (hits.has(r)) return false;
+      return true;
+    };
+    if (!clear(y)) {
+      for (let yy = y - 1; yy >= SHORTS_TOP + size; yy -= 1) {
+        if (clear(yy)) {
+          y = yy;
+          break;
+        }
+      }
+    }
     return [{ text: 'number', shorts: true, surface: surfaceAt(y), track: 0, size, maxW: a * 1.1, y }];
   }
   if (!(frame in BACK_FRAMES)) return [];
@@ -561,8 +609,8 @@ export function printLayout(frame, img, backImg, scale = 1) {
   }
   const { a, b } = surface;
   // Kadrlar bir xil tekislangan — burilgan kadrda yoqa 180° dagidan uzoq bo'lolmaydi (chiziq/soya xato bersa, o'shani olamiz)
-  const straightCollar = straight && frame !== 4 ? collarAt(backImg, straight.mid) : null;
-  let collar = collarAt(img, surface.mid + b * Math.sin(theta)) ?? straightCollar ?? 150;
+  const straightCollar = straight && frame !== 4 ? collarNear(backImg, straight.mid) : null;
+  let collar = collarNear(img, surface.mid + b * Math.sin(theta)) ?? straightCollar ?? 150;
   if (straightCollar && Math.abs(collar - straightCollar) > 15) collar = straightCollar;
 
   const nameSize = Math.round(a * 0.23 * scale);
@@ -624,6 +672,7 @@ export function healedPixels(frame, img, backImg) {
      (yorqinlik < 150) bo'laklar;
    - chegarada 1 px [1, 2, 1]/4 yumshatish — kesilgan harf cheti ham silliq qoladi. */
 const MANNEQUIN_RUN = 10;
+const DARK_FABRIC_L = 90;
 const BG_TOL = 12;
 const BG_STEP = 4;
 const BG_SAT = 4;
@@ -672,7 +721,8 @@ export function garmentMask(img) {
     let start = -1;
     for (let x = 0; x <= w; x += 1) {
       // soyadagi oq mato ham neytral kulrang, lekin yorug'roq (150–204); maneken plastigi qorong'iroq
-      const grey = x < w && L[y * w + x] < MANNEQUIN_L && pixelKind(img, x, y, bg) === GREY;
+      // juda to'q neytral (< 90) — qora mato (juv yo'llari), maneken plastigi (~120) emas
+      const grey = x < w && L[y * w + x] < MANNEQUIN_L && L[y * w + x] >= DARK_FABRIC_L && pixelKind(img, x, y, bg) === GREY;
       if (grey && start < 0) start = x;
       if (!grey && start >= 0) {
         if (x - start >= MANNEQUIN_RUN) hard.fill(0, y * w + start, y * w + x);

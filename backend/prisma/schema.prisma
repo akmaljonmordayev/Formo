@@ -307,6 +307,16 @@ model Club {
 }
 
 // Bitta klubning uy/mehmon/uchinchi formasi
+enum KitSleeve {
+  SLEEVED // yengli
+  SLEEVELESS // yengsiz
+}
+
+enum KitBottom {
+  SHORTS // shortik
+  PANTS // shalvar
+}
+
 model Kit {
   id        Int    @id @default(autoincrement())
   clubId    Int
@@ -319,11 +329,13 @@ model Kit {
   // Mahsulot sifatidagi ma'lumotlar: to'plam = futbolka + shortik (+ ism/raqam bosmasi)
   colorsLabel String? // "Oq / oltin"
   description String? // "Dry-fit polyester · DTF bosma"
-  shirtPrice  Int      @default(159000) // so'm — KOMPLEKT narxi (futbolka + shortik bitta narx)
-  shortsPrice Int      @default(0) // eskirgan: komplekt narxiga qo'shilgan, doim 0
-  printPrice  Int      @default(30000) // ism + raqam bosmasi
-  sizes       String[] @default(["S", "M", "L", "XL", "XXL", "3XL"]) // sotuvda bor o'lchamlar
-  isActive    Boolean  @default(true)
+  shirtPrice  Int       @default(159000) // so'm — KOMPLEKT narxi (futbolka + shortik bitta narx)
+  shortsPrice Int       @default(0) // eskirgan: komplekt narxiga qo'shilgan, doim 0
+  printPrice  Int       @default(30000) // ism + raqam bosmasi
+  sizes       String[]  @default(["S", "M", "L", "XL", "XXL", "3XL"]) // sotuvda bor o'lchamlar
+  sleeve      KitSleeve @default(SLEEVED) // ustki qism: yengli futbolka yoki yengsiz mayka
+  bottom      KitBottom @default(SHORTS) // pastki qism: shortik yoki shalvar
+  isActive    Boolean   @default(true)
 
   cartItems      CartItem[]
   orderItems     OrderItem[]

@@ -3,7 +3,7 @@ import { AuditCategory, OrderStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditEntry, AuditService } from './audit.service';
 import { CategoriesService } from './categories.service';
-import { ClubKitDto, CreateClubDto, ListClubsQueryDto, UpdateClubDto, UpdateKitDto } from './dto/club.dto';
+import { ClubKitDto, CreateClubDto, KitDto, ListClubsQueryDto, UpdateClubDto, UpdateKitDto } from './dto/club.dto';
 
 const clubInclude = {
   category: { select: { id: true, name: true, slug: true } },
@@ -149,6 +149,31 @@ export class ClubsService {
       ip,
     });
     return kit;
+  }
+
+  /** Klubga yangi forma (oxiriga qo'shiladi) */
+  async createKit(clubId: number, dto: KitDto, actor: AuditEntry['actor'], ip?: string) {
+    const club = await this.prisma.club.findUnique({ where: { id: clubId }, select: { name: true } });
+    if (!club) throw new NotFoundException('Klub topilmadi');
+    const last = await this.prisma.kit.aggregate({ where: { clubId }, _max: { sortOrder: true } });
+    const kit = await this.prisma.kit.create({ data: { ...dto, clubId, sortOrder: (last._max.sortOrder ?? -1) + 1 } });
+    await this.audit.log({ actor, action: "Forma qo'shildi", category: AuditCategory.CATALOG, context: `${club.name} · ${kit.label}`, ip });
+    return kit;
+  }
+
+  /**
+   * Formani o'chirish. Buyurtmalardagi qatorlar o'z nusxasini saqlaydi (kitId → null), savat va zaxira yozuvlari o'chadi.
+   * Klubning oxirgi formasi o'chirilmaydi — katalog, Narxlar va Zaxira shu formaga tayanadi.
+   */
+  async removeKit(id: number, actor: AuditEntry['actor'], ip?: string) {
+    const kit = await this.prisma.kit.findUnique({ where: { id }, include: { club: { select: { name: true } } } });
+    if (!kit) throw new NotFoundException('Forma topilmadi');
+    if ((await this.prisma.kit.count({ where: { clubId: kit.clubId } })) <= 1) {
+      throw new ConflictException("Klubning yagona formasini o'chirib bo'lmaydi — avval yangisini qo'shing");
+    }
+    await this.prisma.kit.delete({ where: { id } });
+    await this.audit.log({ actor, action: "Forma o'chirildi", category: AuditCategory.CATALOG, context: `${kit.club.name} · ${kit.label}`, ip });
+    return { message: "Forma o'chirildi" };
   }
 
   async remove(id: number, actor: AuditEntry['actor'], ip?: string) {
