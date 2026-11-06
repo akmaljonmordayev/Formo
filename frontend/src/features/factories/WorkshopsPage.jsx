@@ -3,11 +3,13 @@ import Modal, { ConfirmModal } from '../../components/ui/Modal';
 import PhoneInput, { phoneDigits } from '../../components/ui/PhoneInput';
 import { formatDate, prettyPhone, workshopsApi } from '../accounts/accountsApi';
 import { useDebounced } from '../../hooks/useDebounced';
+import { useT } from '../../pages/Superadmin/i18n';
 
 const LIMIT = 10;
 
 // Tikuv sexlari: superadmin uchun to'liq CRUD, operator uchun faqat ko'rish (readOnly)
 export default function WorkshopsPage({ readOnly = false }) {
+  const t = useT();
   const [data, setData] = useState({ items: [], total: 0 });
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState('');
@@ -65,12 +67,12 @@ export default function WorkshopsPage({ readOnly = false }) {
     <>
       <div className="page-head">
         <div>
-          <h2>Tikuv sexlari</h2>
-          <p>{readOnly ? "Hamkor tikuv sexlari ro'yxati" : 'Tikuv sexlariga akkaunt ochish va boshqarish'}</p>
+          <h2>{t('Tikuv sexlari')}</h2>
+          <p>{t(readOnly ? "Hamkor tikuv sexlari ro'yxati" : 'Tikuv sexlariga akkaunt ochish va boshqarish')}</p>
         </div>
         {!readOnly && (
           <button type="button" className="btn btn--accent" onClick={() => setEditing('new')}>
-            + Tikuv sexi qo‘shish
+            {t("+ Tikuv sexi qo'shish")}
           </button>
         )}
       </div>
@@ -78,15 +80,15 @@ export default function WorkshopsPage({ readOnly = false }) {
       <div className="toolbar">
         <input
           type="search"
-          placeholder="Nomi, mas'ul shaxs yoki telefon bo'yicha qidirish"
+          placeholder={t("Nomi, mas'ul shaxs yoki telefon bo'yicha qidirish")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           maxLength={100}
         />
-        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label="Holat">
-          <option value="">Barchasi</option>
-          <option value="true">Faol</option>
-          <option value="false">Bloklangan</option>
+        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label={t('Holat')}>
+          <option value="">{t('Barchasi')}</option>
+          <option value="true">{t('Faol')}</option>
+          <option value="false">{t('Bloklangan')}</option>
         </select>
       </div>
 
@@ -96,25 +98,26 @@ export default function WorkshopsPage({ readOnly = false }) {
         <table className="table">
           <thead>
             <tr>
-              <th>Tikuv sexi</th>
-              <th>Mas'ul shaxs</th>
-              <th>Telefon</th>
-              <th>Holat</th>
-              <th>Qo‘shilgan</th>
+              <th>{t('Tikuv sexi')}</th>
+              <th>{t("Mas'ul shaxs")}</th>
+              <th>{t('Telefon')}</th>
+              <th>{t("Kunlik sig'im")}</th>
+              <th>{t('Holat')}</th>
+              <th>{t("Qo'shilgan")}</th>
               {!readOnly && <th />}
             </tr>
           </thead>
           <tbody>
             {loading && !data.items.length ? (
               <tr>
-                <td colSpan={6} className="table__empty">
-                  Yuklanmoqda...
+                <td colSpan={7} className="table__empty">
+                  {t('Yuklanmoqda...')}
                 </td>
               </tr>
             ) : !data.items.length ? (
               <tr>
-                <td colSpan={6} className="table__empty">
-                  Tikuv sexlari topilmadi
+                <td colSpan={7} className="table__empty">
+                  {t('Tikuv sexlari topilmadi')}
                 </td>
               </tr>
             ) : (
@@ -126,9 +129,10 @@ export default function WorkshopsPage({ readOnly = false }) {
                   </td>
                   <td>{w.fullName}</td>
                   <td className="mono">{prettyPhone(w.phone)}</td>
+                  <td>{w.dailyCapacity ? t('{n} dona', { n: w.dailyCapacity }) : '—'}</td>
                   <td>
                     <span className={`badge ${w.isActive ? 'badge--on' : 'badge--off'}`}>
-                      {w.isActive ? 'Faol' : 'Bloklangan'}
+                      {t(w.isActive ? 'Faol' : 'Bloklangan')}
                     </span>
                   </td>
                   <td className="mono">{formatDate(w.createdAt)}</td>
@@ -136,13 +140,13 @@ export default function WorkshopsPage({ readOnly = false }) {
                     <td>
                       <div className="table__actions">
                         <button type="button" className="btn btn--ghost btn--sm" onClick={() => setEditing(w)}>
-                          Tahrirlash
+                          {t('Tahrirlash')}
                         </button>
                         <button type="button" className="btn btn--ghost btn--sm" onClick={() => toggleActive(w)}>
-                          {w.isActive ? 'Bloklash' : 'Faollashtirish'}
+                          {t(w.isActive ? 'Bloklash' : 'Faollashtirish')}
                         </button>
                         <button type="button" className="btn btn--danger btn--sm" onClick={() => setDeleting(w)}>
-                          O‘chirish
+                          {t("O'chirish")}
                         </button>
                       </div>
                     </td>
@@ -155,7 +159,7 @@ export default function WorkshopsPage({ readOnly = false }) {
       </div>
 
       <div className="pager">
-        <span>Jami: {data.total}</span>
+        <span>{t('Jami')}: {data.total}</span>
         <div>
           <button type="button" className="btn btn--ghost btn--sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
             ←
@@ -186,8 +190,8 @@ export default function WorkshopsPage({ readOnly = false }) {
       )}
       {deleting && (
         <ConfirmModal
-          title="Tikuv sexini o‘chirish"
-          text={`«${deleting.workshopName}» akkaunti butunlay o‘chiriladi va barcha qurilmalardan chiqariladi.`}
+          title={t("Tikuv sexini o'chirish")}
+          text={t("«{name}» akkaunti butunlay o'chiriladi va barcha qurilmalardan chiqariladi.", { name: deleting.workshopName })}
           busy={busy}
           onConfirm={remove}
           onClose={() => setDeleting(null)}
@@ -198,12 +202,14 @@ export default function WorkshopsPage({ readOnly = false }) {
 }
 
 function WorkshopForm({ workshop, onClose, onSaved }) {
+  const t = useT();
   const isEdit = !!workshop;
   const [form, setForm] = useState({
     workshopName: workshop?.workshopName ?? '',
     fullName: workshop?.fullName ?? '',
     phone: phoneDigits(workshop?.phone),
     address: workshop?.address ?? '',
+    dailyCapacity: workshop?.dailyCapacity ? String(workshop.dailyCapacity) : '',
     password: '',
   });
   const [error, setError] = useState('');
@@ -212,7 +218,7 @@ function WorkshopForm({ workshop, onClose, onSaved }) {
 
   const submit = async (e) => {
     e.preventDefault();
-    if (form.phone.length !== 9) return setError("Telefon raqamni to'liq kiriting");
+    if (form.phone.length !== 9) return setError(t("Telefon raqamni to'liq kiriting"));
     setSaving(true);
     setError('');
     try {
@@ -223,6 +229,7 @@ function WorkshopForm({ workshop, onClose, onSaved }) {
       };
       if (form.address.trim()) body.address = form.address.trim();
       if (form.password) body.password = form.password;
+      if (form.dailyCapacity) body.dailyCapacity = Number(form.dailyCapacity);
       if (isEdit) await workshopsApi.update(workshop.id, body);
       else await workshopsApi.create(body);
       onSaved();
@@ -233,28 +240,32 @@ function WorkshopForm({ workshop, onClose, onSaved }) {
   };
 
   return (
-    <Modal title={isEdit ? 'Tikuv sexini tahrirlash' : 'Yangi tikuv sexi'} onClose={onClose}>
+    <Modal title={t(isEdit ? 'Tikuv sexini tahrirlash' : 'Yangi tikuv sexi')} onClose={onClose}>
       <form onSubmit={submit}>
         {error && <div className="form-error">{error}</div>}
         <div className="form-grid">
           <label className="field field--full">
-            <span>Tikuv sexi nomi</span>
+            <span>{t('Tikuv sexi nomi')}</span>
             <input value={form.workshopName} onChange={set('workshopName')} required minLength={2} maxLength={120} />
           </label>
           <label className="field">
-            <span>Mas'ul shaxs</span>
+            <span>{t("Mas'ul shaxs")}</span>
             <input value={form.fullName} onChange={set('fullName')} required minLength={2} maxLength={100} />
           </label>
           <label className="field">
-            <span>Telefon (login)</span>
+            <span>{t('Telefon (login)')}</span>
             <PhoneInput value={form.phone} onChange={set('phone')} required />
           </label>
           <label className="field field--full">
-            <span>Manzil</span>
+            <span>{t('Manzil')}</span>
             <input value={form.address} onChange={set('address')} maxLength={255} />
           </label>
+          <label className="field">
+            <span>{t("Kunlik sig'im (dona)")}</span>
+            <input type="number" min={1} max={10000} step={1} value={form.dailyCapacity} onChange={set('dailyCapacity')} />
+          </label>
           <label className="field field--full">
-            <span>{isEdit ? 'Yangi parol' : 'Parol'}</span>
+            <span>{t(isEdit ? 'Yangi parol' : 'Parol')}</span>
             <input
               type="text"
               value={form.password}
@@ -264,15 +275,15 @@ function WorkshopForm({ workshop, onClose, onSaved }) {
               maxLength={64}
               autoComplete="new-password"
             />
-            <small>{isEdit ? "Bo'sh qoldirilsa o'zgarmaydi" : 'Kamida 6 belgi. Tikuv sexiga yetkazing.'}</small>
+            <small>{t(isEdit ? "Bo'sh qoldirilsa o'zgarmaydi" : 'Kamida 6 belgi. Tikuv sexiga yetkazing.')}</small>
           </label>
         </div>
         <div className="modal__foot" style={{ padding: '8px 0 0' }}>
           <button type="button" className="btn btn--ghost" onClick={onClose}>
-            Bekor qilish
+            {t('Bekor qilish')}
           </button>
           <button type="submit" className="btn btn--accent" disabled={saving}>
-            {saving ? 'Saqlanmoqda...' : 'Saqlash'}
+            {t(saving ? 'Saqlanmoqda...' : 'Saqlash')}
           </button>
         </div>
       </form>

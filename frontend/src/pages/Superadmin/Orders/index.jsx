@@ -7,6 +7,7 @@ import { downloadCsv } from '../../../utils/csvExport';
 import Modal from '../../../components/ui/Modal';
 import { useLang, useMoney } from '../i18n';
 import { loadAdminPrefs } from '../prefs';
+import { Pager } from '../ui';
 
 // 3D ko'rinish (three.js) faqat 3D dizaynli buyurtma ochilganda yuklanadi
 const KitOrderPreview = lazy(() => import('../KitDesigns/KitOrderPreview'));
@@ -14,9 +15,11 @@ const KitOrderPreview = lazy(() => import('../KitDesigns/KitOrderPreview'));
 const TABS = [
   { label: 'Barchasi', status: undefined },
   { label: 'Yangi', status: 'NEW' }, // naqd/balans buyurtmalari shu holatda keladi
+  { label: 'Sexga yuborildi', status: 'SENT_TO_WORKSHOP' },
   { label: "To'lov kutilmoqda", status: 'PENDING_PAYMENT' },
   { label: 'Qabul qilindi', status: 'ACCEPTED' },
   { label: 'Ishlab chiqarishda', status: 'PRINTING' },
+  { label: 'Tayyor', status: 'READY' },
   { label: 'Yetkazishda', status: 'DELIVERING' },
   { label: 'Yetkazildi', status: 'DELIVERED' },
   { label: 'Bekor qilingan', status: 'CANCELLED' },
@@ -66,8 +69,6 @@ export default function SuperadminOrders() {
     };
   }, [debouncedSearch, tab, page, reload, LIMIT, poll]);
 
-  const pages = Math.max(1, Math.ceil(data.total / LIMIT));
-
   const exportCsv = () => {
     downloadCsv(
       `buyurtmalar-${new Date().toISOString().slice(0, 10)}.csv`,
@@ -76,7 +77,7 @@ export default function SuperadminOrders() {
         [t("Mijoz"), (o) => o.customerName],
         [t("Telefon"), (o) => prettyPhone(o.customerPhone)],
         [t("Summa"), (o) => o.totalSum],
-        [t("To'lov"), (o) => paymentLabel(o.paymentMethod, o.paymentStatus)],
+        [t("To'lov"), (o) => paymentLabel(o.paymentMethod, o.paymentStatus, t)],
         [t("Status"), (o) => t(ORDER_STATUS[o.status]?.label ?? o.status)],
         [t("Sex"), (o) => o.workshop?.workshopName || o.workshop?.fullName || ''],
         [t("Kanal"), (o) => (o.channel === 'APP' ? 'app' : 'web')],
@@ -171,7 +172,7 @@ export default function SuperadminOrders() {
                       <span className="sa-table__sub">{prettyPhone(o.customerPhone)}</span>
                     </td>
                     <td>{money(o.totalSum)}</td>
-                    <td>{paymentLabel(o.paymentMethod, o.paymentStatus)}</td>
+                    <td>{paymentLabel(o.paymentMethod, o.paymentStatus, t)}</td>
                     <td><span className={`sa-badge sa-badge--${st.color}`}>{t(st.label)}</span></td>
                     <td>{o.workshop?.workshopName || o.workshop?.fullName || '—'}</td>
                     <td>{o.channel === 'APP' ? t('ilova') : 'web'}</td>
@@ -184,16 +185,7 @@ export default function SuperadminOrders() {
         </table>
       </div>
 
-      {pages > 1 && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
-          <span className="sa-table__sub" style={{ marginTop: 0 }}>{t('Jami')}: {data.total}</span>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button type="button" className="sa-btn sa-btn--ghost" disabled={page <= 1} onClick={() => setPage(page - 1)}>←</button>
-            <span className="sa-table__sub" style={{ marginTop: 0 }}>{page} / {pages}</span>
-            <button type="button" className="sa-btn sa-btn--ghost" disabled={page >= pages} onClick={() => setPage(page + 1)}>→</button>
-          </div>
-        </div>
-      )}
+      <Pager page={page} total={data.total} limit={LIMIT} onPage={setPage} />
 
       {selected && (
         <OrderModal
@@ -244,7 +236,7 @@ function OrderModal({ order, onClose, onSaved }) {
 
   const rows = [
     [t("Mijoz"), `${order.customerName} · ${prettyPhone(order.customerPhone)}`],
-    [t("To'lov"), `${paymentLabel(order.paymentMethod, order.paymentStatus)} · ${money(order.totalSum)}`],
+    [t("To'lov"), `${paymentLabel(order.paymentMethod, order.paymentStatus, t)} · ${money(order.totalSum)}`],
     order.discountSum > 0 && [t("Chegirma"), money(order.discountSum)],
     order.deliveryAddress && [t("Manzil"), order.deliveryAddress],
     order.deliveryDate && [t("Yetkazish"), `${new Date(order.deliveryDate).toLocaleDateString(locale)} ${order.deliverySlot ?? ''}`],
@@ -350,7 +342,14 @@ function OrderModal({ order, onClose, onSaved }) {
           </label>
           <label className="field">
             <span>{t("Tikuv sexi")}</span>
-            <select value={workshopId} onChange={(e) => setWorkshopId(e.target.value)}>
+            <select
+              value={workshopId}
+              onChange={(e) => {
+                setWorkshopId(e.target.value);
+                // Yangi buyurtmaga sex tanlansa — assign uni SENT_TO_WORKSHOP qiladi, holat selecti ham shuni ko'rsatsin
+                if (e.target.value && status === 'NEW') setStatus('SENT_TO_WORKSHOP');
+              }}
+            >
               {!order.workshop && <option value="">{t("— Biriktirilmagan —")}</option>}
               {order.workshop && !workshops.some((w) => w.id === order.workshop.id) && (
                 <option value={order.workshop.id}>{order.workshop.workshopName || order.workshop.fullName}</option>

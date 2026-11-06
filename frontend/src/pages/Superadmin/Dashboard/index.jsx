@@ -1,15 +1,10 @@
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../../hooks/useAuth';
-import { dashboardApi, ordersApi, ORDER_STATUS, formatDateTime } from '../../../features/platform/platformApi';
+import { auditLogApi, dashboardApi, ordersApi, ORDER_STATUS, formatDateTime } from '../../../features/platform/platformApi';
 import { useLang, useMoney } from '../i18n';
 import { loadAdminPrefs } from '../prefs';
-
-const RANGES = [
-  { label: 'Bugun', days: 1 },
-  { label: '7 kun', days: 7 },
-  { label: '30 kun', days: 30 },
-];
+import RangePicker, { RANGES, rangeParams, todayKey as utcToday } from '../RangePicker';
 
 const delta = (t, pct) =>
   pct === null || pct === undefined ? null : t('{pct}% oldingi davrga nisbatan', { pct: `${pct > 0 ? '+' : ''}${pct}` });
@@ -31,6 +26,7 @@ export default function SuperadminDashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [recent, setRecent] = useState(null);
+  const [actions, setActions] = useState(null);
   const name = (user?.fullName || 'Super admin').split(' ')[0];
   const WEEKDAYS = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'];
   const MONTHS = [
@@ -38,7 +34,7 @@ export default function SuperadminDashboard() {
   ];
   const now = new Date();
   const today = `${t(WEEKDAYS[now.getDay()])}, ${now.getDate()}-${t(MONTHS[now.getMonth()])}`;
-  const todayKey = now.toISOString().slice(0, 10); // backend kunlarni UTC bo'yicha guruhlaydi
+  const todayKey = utcToday();
   const custom = Boolean(from && to);
   const badRange = custom && from > to;
 
@@ -48,7 +44,7 @@ export default function SuperadminDashboard() {
     setLoading(true);
     setError('');
     dashboardApi
-      .get(custom ? { from, to } : { days: range.days })
+      .get(rangeParams(range, from, to))
       .then((d) => active && setStats(d))
       .catch((e) => active && setError(e.message))
       .finally(() => active && setLoading(false));
@@ -63,6 +59,10 @@ export default function SuperadminDashboard() {
       .list({ limit: 5 })
       .then((d) => active && setRecent(d.items))
       .catch(() => active && setRecent([]));
+    auditLogApi
+      .list({ limit: 5 })
+      .then((d) => active && setActions(d.items))
+      .catch(() => active && setActions([]));
     return () => {
       active = false;
     };
@@ -98,45 +98,7 @@ export default function SuperadminDashboard() {
           <h1>{t('Xayrli kun, {name}', { name })}</h1>
           <p>{today} · {t('barcha tizimlar kuzatuvda')}</p>
         </div>
-        <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-          <div className="sa-tabs" style={{ marginBottom: 0 }}>
-            {RANGES.map((r) => (
-              <button
-                key={r.label}
-                type="button"
-                className={`sa-tab${!custom && range.label === r.label ? ' is-active' : ''}`}
-                onClick={() => {
-                  setFrom('');
-                  setTo('');
-                  setRange(r);
-                }}
-              >
-                {t(r.label)}
-              </button>
-            ))}
-          </div>
-          <input
-            type="date"
-            className="sa-input"
-            style={{ width: 'auto' }}
-            aria-label={t('Boshlanish sanasi')}
-            title={t('Boshlanish sanasi')}
-            value={from}
-            max={to || todayKey}
-            onChange={(e) => setFrom(e.target.value)}
-          />
-          <input
-            type="date"
-            className="sa-input"
-            style={{ width: 'auto' }}
-            aria-label={t('Tugash sanasi')}
-            title={t('Tugash sanasi')}
-            value={to}
-            min={from || undefined}
-            max={todayKey}
-            onChange={(e) => setTo(e.target.value)}
-          />
-        </div>
+        <RangePicker range={range} onRange={setRange} from={from} to={to} onFrom={setFrom} onTo={setTo} />
       </div>
 
       {badRange && <div className="form-error">{t("Boshlanish sanasi tugash sanasidan keyin bo'lmasligi kerak")}</div>}
@@ -220,7 +182,7 @@ export default function SuperadminDashboard() {
         <div className="sa-panel">
           <div className="sa-panel__head">
             <div className="sa-panel__title">{t("So'nggi buyurtmalar")}</div>
-            <a className="sa-panel__link" href="/superadmin/orders">{t('Barchasi →')}</a>
+            <Link className="sa-panel__link" to="/superadmin/orders">{t('Barchasi →')}</Link>
           </div>
           {recent === null ? (
             <div className="sa-table__sub" style={{ padding: '8px 0' }}>{t('Yuklanmoqda...')}</div>
@@ -268,11 +230,36 @@ export default function SuperadminDashboard() {
       <div className="sa-panel">
         <div className="sa-panel__head">
           <div className="sa-panel__title">{t("So'nggi muhim amallar")}</div>
-          <a className="sa-panel__link" href="/superadmin/audit-log">{t("Audit jurnali →")}</a>
+          <Link className="sa-panel__link" to="/superadmin/audit-log">{t("Audit jurnali →")}</Link>
         </div>
-        <div className="sa-table__sub" style={{ padding: '8px 0' }}>
-          {t("To'liq ro'yxat Audit jurnali sahifasida.")}
-        </div>
+        {actions === null ? (
+          <div className="sa-table__sub" style={{ padding: '8px 0' }}>{t('Yuklanmoqda...')}</div>
+        ) : actions.length === 0 ? (
+          <div className="sa-table__sub" style={{ padding: '8px 0' }}>{t('Yozuv topilmadi')}</div>
+        ) : (
+          <div className="sa-table-wrap">
+            <table className="sa-table">
+              <thead>
+                <tr>
+                  <th>{t('Vaqt')}</th>
+                  <th>{t('Kim')}</th>
+                  <th>{t('Amal')}</th>
+                  <th>{t('Obyekt')}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {actions.map((l) => (
+                  <tr key={l.id}>
+                    <td>{formatDateTime(l.createdAt)}</td>
+                    <td><b>{l.actorName}</b></td>
+                    <td>{t(l.action)}</td>
+                    <td style={{ color: 'var(--sa-mu)' }}>{l.context || '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
     </>
   );

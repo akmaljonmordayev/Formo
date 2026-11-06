@@ -331,7 +331,6 @@ function GeneralSection({ settings, onSaved }) {
 function SlotsSection({ settings, onSaved }) {
   const { t } = useLang();
   const [slots, setSlots] = useState(settings[SETTING_KEYS.deliverySlots] ?? []);
-  const [fee, setFee] = useState(settings[SETTING_KEYS.deliveryFee] ?? 0);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
@@ -350,11 +349,6 @@ function SlotsSection({ settings, onSaved }) {
       const clean = slots.map((s) => ({ start: s.start, end: s.end, cap: Math.max(0, Number(s.cap) || 0), on: Boolean(s.on) }));
       await saveSetting(SETTING_KEYS.deliverySlots, clean);
       onSaved(SETTING_KEYS.deliverySlots, clean);
-      const f = Math.max(0, Math.round(Number(fee) || 0));
-      if (f !== Number(settings[SETTING_KEYS.deliveryFee] ?? 0)) {
-        await saveSetting(SETTING_KEYS.deliveryFee, f);
-        onSaved(SETTING_KEYS.deliveryFee, f);
-      }
       setNotice(t('Saqlandi'));
     } catch (e) {
       setError(e.message);
@@ -370,10 +364,6 @@ function SlotsSection({ settings, onSaved }) {
         {t("Mijoz buyurtma berishda tanlaydigan vaqt oraliqlari. Slot to'lsa, mijozga keyingi bo'sh slot taklif qilinadi.")}
       </p>
       <Messages error={error} notice={notice} />
-
-      <div style={{ ...grid, marginBottom: 10 }}>
-        <NumberField label={t('Yetkazish narxi')} value={fee} onChange={setFee} suffix={t("so'm")} max={10000000} />
-      </div>
 
       <div className="sa-table-wrap" style={{ border: 'none', background: 'transparent' }}>
         <table className="sa-table">

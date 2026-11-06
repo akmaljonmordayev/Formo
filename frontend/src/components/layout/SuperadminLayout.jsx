@@ -16,7 +16,10 @@ function initials(name = '') {
 }
 
 // Superadmin uchun alohida (quyuq) layout: guruhlangan sidebar + qidiruv/profil bilan yuqori panel
-export default function SuperadminLayout({ menu }) {
+// labels — tarjima qilingan tugma matnlari (AdminLayout beradi); berilmasa o'zbekcha
+const DEFAULT_LABELS = { logout: 'Chiqish', leaving: 'Chiqilmoqda...', openMenu: 'Menyuni ochish' };
+
+export default function SuperadminLayout({ menu, labels = DEFAULT_LABELS }) {
   const { user, role, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
@@ -109,7 +112,7 @@ export default function SuperadminLayout({ menu }) {
             type="button"
             className="sa-iconbtn sa-mbtn"
             onClick={() => setDrawer(true)}
-            aria-label="Menyuni ochish"
+            aria-label={labels.openMenu}
             aria-expanded={drawer}
           >
             <Menu size={18} strokeWidth={1.8} />
@@ -138,7 +141,7 @@ export default function SuperadminLayout({ menu }) {
               <div className="sa-pop" role="menu">
                 <button type="button" className="sa-pop__item" role="menuitem" onClick={handleLogout} disabled={leaving}>
                   <LogOut size={15} strokeWidth={1.8} aria-hidden="true" />
-                  {leaving ? 'Chiqilmoqda...' : 'Chiqish'}
+                  {leaving ? labels.leaving : labels.logout}
                 </button>
               </div>
             )}

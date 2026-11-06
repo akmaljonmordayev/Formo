@@ -16,7 +16,10 @@ function TranslatedLayout({ menu }) {
 
   return (
     <>
-      <SuperadminLayout menu={translated} />
+      <SuperadminLayout
+        menu={translated}
+        labels={{ logout: t('Chiqish'), leaving: t('Chiqilmoqda...'), openMenu: t('Menyuni ochish') }}
+      />
       <div
         className="sa"
         style={{
