@@ -136,12 +136,12 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
     });
 
     it("forma qo'shish (yengsiz + shalvar) va o'chirish; yagona forma o'chirilmaydi", async () => {
-      const kit = { label: 'Mashq', bgColor: '#111111', textColor: '#ffffff', sleeve: 'SLEEVELESS', bottom: 'PANTS' };
+      const kit = { label: 'Mashq', bgColor: '#111111', textColor: '#ffffff', sleeve: 'LONG', bottom: 'PANTS' };
       await as(user).post(`/api/admin/clubs/${real.id}/kits`, kit).expect(403);
       await as(admin).post(`/api/admin/clubs/${real.id}/kits`, { ...kit, sleeve: 'TANK' }).expect(400);
       await as(admin).post('/api/admin/clubs/99999/kits', kit).expect(404);
       const res = await as(admin).post(`/api/admin/clubs/${real.id}/kits`, kit).expect(201);
-      expect(res.body).toMatchObject({ clubId: real.id, sleeve: 'SLEEVELESS', bottom: 'PANTS', sortOrder: 3, shirtPrice: 159000 });
+      expect(res.body).toMatchObject({ clubId: real.id, sleeve: 'LONG', bottom: 'PANTS', sortOrder: 3, shirtPrice: 159000 });
       await as(admin).delete(`/api/admin/clubs/kits/${res.body.id}`).expect(200);
       await as(admin).delete(`/api/admin/clubs/kits/${res.body.id}`).expect(404);
 

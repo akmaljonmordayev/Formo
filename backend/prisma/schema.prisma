@@ -308,8 +308,8 @@ model Club {
 
 // Bitta klubning uy/mehmon/uchinchi formasi
 enum KitSleeve {
-  SLEEVED // yengli
-  SLEEVELESS // yengsiz
+  SHORT // kalta yeng
+  LONG // uzun yeng
 }
 
 enum KitBottom {
@@ -333,7 +333,7 @@ model Kit {
   shortsPrice Int       @default(0) // eskirgan: komplekt narxiga qo'shilgan, doim 0
   printPrice  Int       @default(30000) // ism + raqam bosmasi
   sizes       String[]  @default(["S", "M", "L", "XL", "XXL", "3XL"]) // sotuvda bor o'lchamlar
-  sleeve      KitSleeve @default(SLEEVED) // ustki qism: yengli futbolka yoki yengsiz mayka
+  sleeve      KitSleeve @default(SHORT) // ustki qism: kalta yoki uzun yengli futbolka
   bottom      KitBottom @default(SHORTS) // pastki qism: shortik yoki shalvar
   isActive    Boolean   @default(true)
 

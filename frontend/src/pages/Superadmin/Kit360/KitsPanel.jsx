@@ -5,7 +5,7 @@ import { FALLBACK_PRICES, loadKitPrices } from '../adminApi';
 import { ConfirmModal } from '../ui';
 import { useMoney, useT } from '../i18n';
 
-export const SLEEVES = { SLEEVED: 'Yengli', SLEEVELESS: 'Yengsiz' };
+export const SLEEVES = { SHORT: 'Kalta yeng', LONG: 'Uzun yeng' };
 export const BOTTOMS = { SHORTS: 'Shortik', PANTS: 'Shalvar' };
 
 // kit360Id unikal — server filtri bilan bitta so'rov
@@ -95,7 +95,7 @@ export default function KitsPanel({ teamId, teamName }) {
                     <b>{k.label}</b>
                     {k.colorsLabel && <span className="sa-table__sub">{k.colorsLabel}</span>}
                   </td>
-                  <td>{t(SLEEVES[k.sleeve] ?? 'Yengli')} · {t(BOTTOMS[k.bottom] ?? 'Shortik')}</td>
+                  <td>{t(SLEEVES[k.sleeve] ?? 'Kalta yeng')} · {t(BOTTOMS[k.bottom] ?? 'Shortik')}</td>
                   <td>{money(k.shirtPrice + (k.shortsPrice || 0))}</td>
                   <td>{money(k.printPrice)}</td>
                   <td>{t(k.isActive ? 'Faol' : 'Nofaol')}</td>
@@ -146,7 +146,7 @@ function KitForm({ clubId, kit, onClose, onSaved }) {
   const isEdit = Boolean(kit);
   const [form, setForm] = useState({
     label: kit?.label ?? '',
-    sleeve: kit?.sleeve ?? 'SLEEVED',
+    sleeve: kit?.sleeve ?? 'SHORT',
     bottom: kit?.bottom ?? 'SHORTS',
     bgColor: kit?.bgColor ?? '#ffffff',
     textColor: kit?.textColor ?? '#111111',
@@ -245,7 +245,7 @@ function KitForm({ clubId, kit, onClose, onSaved }) {
   );
 }
 
-/** Yengli/Yengsiz, Shortik/Shalvar — bitta bosish bilan tanlanadigan tugmalar */
+/** Kalta/Uzun yeng, Shortik/Shalvar — bitta bosish bilan tanlanadigan tugmalar */
 function Choice({ label, options, value, onChange }) {
   const t = useT();
   return (

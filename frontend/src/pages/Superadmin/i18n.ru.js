@@ -862,13 +862,16 @@ const RU = {
   "Yangi forma": "Новая форма",
   "Ustki qism": "Верх",
   "Pastki qism": "Низ",
-  "Yengli": "С рукавами",
-  "Yengsiz": "Без рукавов",
   "Shalvar": "Брюки",
   "Asosiy rang": "Основной цвет",
   "Komplekt narxi (so'm)": "Цена комплекта (сум)",
   "Bosma narxi (so'm)": "Цена печати (сум)",
   "Sotuvda (faol)": "В продаже (активна)",
+  "Forma turi": "Тип формы",
+  "Kalta yeng · shortik": "Короткий рукав · шорты",
+  "Uzun yeng · shalvar": "Длинный рукав · брюки",
+  "Kalta yeng": "Короткий рукав",
+  "Uzun yeng": "Длинный рукав",
 };
 
 export default RU;

@@ -93,7 +93,7 @@ export class KitDto {
   @IsIn(ALL_SIZES, { each: true, message: "O'lcham noto'g'ri" })
   sizes?: string[];
 
-  @ApiPropertyOptional({ enum: KitSleeve, default: KitSleeve.SLEEVED, description: 'Ustki qism: yengli yoki yengsiz' })
+  @ApiPropertyOptional({ enum: KitSleeve, default: KitSleeve.SHORT, description: 'Ustki qism: kalta yoki uzun yeng' })
   @IsOptional()
   @IsEnum(KitSleeve)
   sleeve?: KitSleeve;
