@@ -86,7 +86,7 @@ export class ChatService {
     await this.assertParty(partyId, role);
     const fromParty = sender.role === role;
     if (fromParty && sender.id !== partyId) throw new BadRequestException('Faqat o‘z suhbatingizga yoza olasiz');
-    if (!fromParty && sender.role !== Role.OPERATOR && sender.role !== Role.SUPERADMIN) {
+    if (!fromParty && sender.role !== Role.SUPERADMIN) {
       throw new BadRequestException('Bu suhbatga yozish mumkin emas');
     }
     return this.prisma.chatMessage.create({

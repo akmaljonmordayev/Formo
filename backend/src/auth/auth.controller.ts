@@ -55,7 +55,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Telefon + parol bilan kirish',
     description:
-      'Barcha rollar uchun bitta endpoint: SUPERADMIN, OPERATOR, TAILOR (tikuv sexi) va USER. ' +
+      'Barcha rollar uchun bitta endpoint: SUPERADMIN, TAILOR (tikuv sexi) va USER. ' +
       'Javobdagi user.role orqali klient qaysi panelga yo‘naltirishni hal qiladi.',
   })
   @ApiOkResponse({ type: AuthResponseDto })

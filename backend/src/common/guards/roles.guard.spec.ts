@@ -25,8 +25,8 @@ describe('RolesGuard', () => {
   });
 
   it('roli mos kelsa o‘tkazadi', () => {
-    requireRoles([Role.SUPERADMIN, Role.OPERATOR]);
-    expect(guard.canActivate(contextWith({ role: Role.OPERATOR }))).toBe(true);
+    requireRoles([Role.SUPERADMIN, Role.TAILOR]);
+    expect(guard.canActivate(contextWith({ role: Role.TAILOR }))).toBe(true);
   });
 
   it('roli mos kelmasa — 403', () => {

@@ -1,3 +1,4 @@
+import { KeyedQueue } from './keyed-queue';
 import { errorMessage, Logger } from './log';
 import { TelegramApi, TelegramError, TgUpdate } from './telegram';
 
@@ -5,8 +6,8 @@ const LONG_POLL_SEC = 30;
 const ERROR_PAUSE_MS = 5000;
 const MAX_ERROR_PAUSE_MS = 60_000;
 
-/** Update qaysi foydalanuvchiniki — bir foydalanuvchining xabarlari tartib bilan qayta ishlanadi */
-function chatKey(update: TgUpdate): string {
+/** Update qaysi foydalanuvchiniki — bir foydalanuvchining xabarlari tartib bilan qayta ishlanadi (polling va webhook'da) */
+export function chatKey(update: TgUpdate): string {
   const id = update.message?.chat.id ?? update.callback_query?.from.id;
   return id === undefined ? `u${update.update_id}` : String(id);
 }
@@ -16,16 +17,14 @@ function chatKey(update: TgUpdate): string {
  * boshqalar kutib qolmaydi), bitta foydalanuvchiniki — kelgan tartibda.
  */
 export async function processBatch(updates: TgUpdate[], process: (u: TgUpdate) => Promise<void>, log: Logger) {
-  const chains = new Map<string, Promise<void>>();
-  for (const update of updates) {
-    const key = chatKey(update);
-    const prev = chains.get(key) ?? Promise.resolve();
-    chains.set(
-      key,
-      prev.then(() => process(update)).catch((err) => log.error('update qayta ishlanmadi', { updateId: update.update_id, error: errorMessage(err) })),
-    );
-  }
-  await Promise.all(chains.values());
+  const queue = new KeyedQueue();
+  await Promise.all(
+    updates.map((update) =>
+      queue.run(chatKey(update), () => process(update), (err) =>
+        log.error('update qayta ishlanmadi', { updateId: update.update_id, error: errorMessage(err) }),
+      ),
+    ),
+  );
 }
 
 /**

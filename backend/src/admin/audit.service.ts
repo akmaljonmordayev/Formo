@@ -14,7 +14,6 @@ export interface AuditEntry {
 
 export const ROLE_LABEL: Record<string, string> = {
   SUPERADMIN: 'Super admin',
-  OPERATOR: 'Operator',
   TAILOR: 'Tikuv sexi',
   USER: 'Foydalanuvchi',
 };

@@ -2,24 +2,20 @@ import { PromocodeType } from '@prisma/client';
 import { addDays, dayLabel, todayLocal } from './delivery.service';
 import { DEFAULT_KIT_DESIGN_PRICES, fullSetPrice, loadKitDesignPrices, promoError, PromoCheck, summarize, unitPrice } from './pricing';
 
-const kit = { shirtPrice: 99000, shortsPrice: 60000, printPrice: 30000 };
+const kit = { shirtPrice: 159000, printPrice: 30000 };
 
 describe('narx hisoblash', () => {
-  it("to'plam narxi dizayndagidek: 99 000 + 60 000 + 30 000 = 189 000", () => {
+  it("to'plam narxi dizayndagidek: 159 000 + 30 000 = 189 000", () => {
     expect(fullSetPrice(kit)).toBe(189000);
-    expect(unitPrice(kit, { withShorts: true, printName: 'AZIZ', printNumber: '10' })).toBe(189000);
+    expect(unitPrice(kit, { printName: 'AZIZ', printNumber: '10' })).toBe(189000);
   });
 
   it("ism/raqam bo'lmasa bosma narxi qo'shilmaydi", () => {
-    expect(unitPrice(kit, { withShorts: true })).toBe(159000);
+    expect(unitPrice(kit, {})).toBe(159000);
   });
 
   it("faqat raqam ham bosma hisoblanadi", () => {
-    expect(unitPrice(kit, { withShorts: true, printNumber: '7' })).toBe(189000);
-  });
-
-  it('shortiksiz', () => {
-    expect(unitPrice(kit, { withShorts: false, printName: 'AZIZ' })).toBe(129000);
+    expect(unitPrice(kit, { printNumber: '7' })).toBe(189000);
   });
 });
 
