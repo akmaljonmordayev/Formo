@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useRef } from 'react';
 import { useT } from '../i18n';
 import { DEFAULT_ORDER_RULES, SETTING_KEYS, loadSettings } from '../adminApi';
 import { BACK_FRAMES, FRONT_FRAMES } from './measure';
+import KitsPanel from './KitsPanel';
 import { FONTS, FONTS_CSS, FONT_SAMPLE, H, N, TEAMS, W, fontCss, layerCache, paint, ready } from './render';
 
 export { FONTS, TEAMS, fitFont, fontCss } from './render';
@@ -410,6 +411,8 @@ export default function Kit360() {
           </div>
         </div>
       </div>
+
+      <KitsPanel teamId={team.id} teamName={team.name} />
     </>
   );
 }

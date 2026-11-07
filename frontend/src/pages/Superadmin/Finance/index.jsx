@@ -16,9 +16,13 @@ export default function SuperadminFinance() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const badRange = Boolean(from && to) && from > to;
+
   useEffect(() => {
+    if (badRange) return undefined;
     let active = true;
     setLoading(true);
+    setError('');
     financeApi
       .get(rangeParams(range, from, to))
       .then((d) => active && setData(d))
@@ -27,7 +31,7 @@ export default function SuperadminFinance() {
     return () => {
       active = false;
     };
-  }, [range, from, to]);
+  }, [range, from, to, badRange]);
 
   const byMethod = data?.byMethod ?? {};
   const methods = Object.entries(byMethod);
@@ -67,6 +71,7 @@ export default function SuperadminFinance() {
         <RangePicker range={range} onRange={setRange} from={from} to={to} onFrom={setFrom} onTo={setTo} />
       </div>
 
+      {badRange && <div className="form-error">{t("Boshlanish sanasi tugash sanasidan keyin bo'lmasligi kerak")}</div>}
       {error && <div className="form-error">{error}</div>}
 
       <div className="sa-stats" style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))' }}>

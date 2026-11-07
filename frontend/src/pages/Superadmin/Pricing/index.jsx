@@ -10,15 +10,10 @@ const toInput = ({ key, section, step, label, sub, price }) => ({ key, section, 
 const KIT360_ORDER = new Map(TEAMS.map((tm, i) => [tm.id, i]));
 
 async function fetchKit360Clubs() {
-  const out = [];
-  for (let page = 1; page <= 20; page += 1) {
-    const d = await clubsApi.list({ page, limit: 100 });
-    out.push(...(d.items ?? []));
-    if (out.length >= (d.total ?? 0) || (d.items ?? []).length < 100) break;
-  }
+  // Forma 360° jamoalari (18 ta) — server filtri bilan bitta so'rov
+  const d = await clubsApi.list({ kit360Id: 'any', limit: 100 });
   // Bitta jamoaga bitta forma — Forma 360° bilan bir xil 18 ta jamoa, o'sha tartibda
-  return out
-    .filter((c) => c.kit360Id)
+  return (d.items ?? [])
     .map((c) => ({ ...c, kit: [...(c.kits ?? [])].sort((a, b) => a.sortOrder - b.sortOrder)[0] }))
     .filter((c) => c.kit)
     .sort((a, b) => (KIT360_ORDER.get(a.kit360Id) ?? 99) - (KIT360_ORDER.get(b.kit360Id) ?? 99));
@@ -154,17 +149,18 @@ export default function SuperadminPricing() {
     setError360('');
     setNotice360('');
     const dirtyRows = (kit360Rows ?? []).filter((r) => rowDirty(r.kitId));
+    // Parallel yuboriladi; allSettled — qaysi formalar xato bo'lgani yo'qolmaydi
+    // shortsPrice: 0 — eski bazada qolgan alohida shortik narxi ham tozalanadi
+    const results = await Promise.allSettled(
+      dirtyRows.map((r) => clubsApi.updateKit(r.kitId, { ...draft360[r.kitId], shortsPrice: 0 })),
+    );
     const failed = [];
     const succeeded = {};
-    for (const r of dirtyRows) {
-      try {
-        // shortsPrice: 0 — eski bazada qolgan alohida shortik narxi ham tozalanadi
-        await clubsApi.updateKit(r.kitId, { ...draft360[r.kitId], shortsPrice: 0 });
-        succeeded[r.kitId] = draft360[r.kitId];
-      } catch {
-        failed.push(r.clubName);
-      }
-    }
+    results.forEach((res, i) => {
+      const r = dirtyRows[i];
+      if (res.status === 'fulfilled') succeeded[r.kitId] = draft360[r.kitId];
+      else failed.push(r.clubName);
+    });
     // Faqat saqlanganlari "saqlangan" deb belgilanadi — xato bo'lganlari o'zgargan bo'lib qoladi va qayta yuboriladi
     setSaved360((s) => ({ ...s, ...succeeded }));
     setSaving360(false);
@@ -290,12 +286,12 @@ export default function SuperadminPricing() {
                 <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 10, paddingTop: 10, borderTop: '1px solid var(--sa-line)' }}>
                   <div>
                     <div className="sa-table__sub">{t('Jami')}</div>
-                    <b style={{ fontFamily: 'var(--font-display)', fontSize: 22 }}>{(kitSet + print).toLocaleString('uz-UZ')}</b>
+                    <b style={{ fontFamily: 'var(--font-display)', fontSize: 22 }}>{money(kitSet + print)}</b>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <div className="sa-table__sub">{t('Yetkazish bilan')}</div>
                     <b style={{ fontFamily: 'var(--font-display)', fontSize: 22, color: 'var(--sa-accent)' }}>
-                      {(kitSet + print + delivery).toLocaleString('uz-UZ')}
+                      {money(kitSet + print + delivery)}
                     </b>
                   </div>
                 </div>

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { promocodesApi } from '../../../features/platform/platformApi';
 import Modal from '../../../components/ui/Modal';
 import { useLang, useT } from '../i18n';
+import { Switch } from '../ui';
 
 const TYPE_LABEL = { PERCENT: 'Foiz', FIXED: "Qat'iy", FREE_SHIPPING: 'Bepul yetkazish' };
 
@@ -95,22 +96,14 @@ export default function SuperadminPromocodes() {
                     <button type="button" className="sa-btn sa-btn--ghost" style={{ marginRight: 10, verticalAlign: 'middle' }} onClick={() => setEditing(c)}>
                       {t("Tahrirlash")}
                     </button>
-                    <button
-                      type="button"
-                      disabled={busyId === c.id}
-                      onClick={() => toggle(c)}
-                      style={{
-                        display: 'inline-block', width: 36, height: 20, borderRadius: 999, border: 'none', cursor: 'pointer',
-                        background: c.isActive ? 'var(--sa-teal)' : 'rgba(255,255,255,0.12)', position: 'relative', padding: 0, verticalAlign: 'middle',
-                      }}
-                      aria-label={c.isActive ? t("O'chirish") : t('Yoqish')}
-                    >
-                      <span
-                        style={{
-                          position: 'absolute', top: 2, left: c.isActive ? 18 : 2, width: 16, height: 16, borderRadius: '50%', background: '#fff',
-                        }}
+                    <span style={{ display: 'inline-flex', verticalAlign: 'middle' }}>
+                      <Switch
+                        checked={c.isActive}
+                        disabled={busyId === c.id}
+                        onChange={() => toggle(c)}
+                        label={c.code}
                       />
-                    </button>
+                    </span>
                   </td>
                 </tr>
               ))}

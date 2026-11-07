@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { inventoryApi } from '../../../features/platform/platformApi';
 import { useT } from '../i18n';
+import { ConfirmModal } from '../ui';
 
 const KID_SIZES = ['2-3', '4-5', '6-7', '8-9', '10-11', '12-13'];
 const ADULT_SIZES = ['S', 'M', 'L', 'XL', 'XXL', '3XL'];
@@ -90,8 +91,12 @@ export default function SuperadminInventory() {
     }
   };
 
-  const clearKit = async (kit) => {
-    if (!window.confirm(t("{club} qoldig'i o'chirilsinmi? Barcha o'lchamlar tozalanadi.", { club: kit.clubName }))) return;
+  const [clearing, setClearing] = useState(null); // tasdiqlash kutayotgan forma
+  const [clearBusy, setClearBusy] = useState(false);
+
+  const clearKit = async () => {
+    const kit = clearing;
+    setClearBusy(true);
     setError('');
     setSaved(false);
     try {
@@ -99,6 +104,9 @@ export default function SuperadminInventory() {
       setItems((list) => list.filter((i) => i.kitId !== kit.kitId));
     } catch (e) {
       setError(e.message);
+    } finally {
+      setClearBusy(false);
+      setClearing(null);
     }
   };
 
@@ -202,7 +210,7 @@ export default function SuperadminInventory() {
                         title={t("Qoldiqni o'chirish")}
                         aria-label={t("Qoldiqni o'chirish")}
                         disabled={!items.some((i) => i.kitId === kit.kitId)}
-                        onClick={() => clearKit(kit)}
+                        onClick={() => setClearing(kit)}
                       >
                         🗑
                       </button>
@@ -213,6 +221,16 @@ export default function SuperadminInventory() {
             </tbody>
           </table>
         </div>
+      )}
+
+      {clearing && (
+        <ConfirmModal
+          title={t("Qoldiqni o'chirish")}
+          text={t("{club} qoldig'i o'chirilsinmi? Barcha o'lchamlar tozalanadi.", { club: clearing.clubName })}
+          busy={clearBusy}
+          onConfirm={clearKit}
+          onClose={() => setClearing(null)}
+        />
       )}
     </>
   );

@@ -1,5 +1,5 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { ClubType, Continent } from '@prisma/client';
+import { ClubType, Continent, KitBottom, KitSleeve } from '@prisma/client';
 import { Type } from 'class-transformer';
 import {
   ArrayMaxSize,
@@ -92,6 +92,16 @@ export class KitDto {
   @ArrayUnique()
   @IsIn(ALL_SIZES, { each: true, message: "O'lcham noto'g'ri" })
   sizes?: string[];
+
+  @ApiPropertyOptional({ enum: KitSleeve, default: KitSleeve.SLEEVED, description: 'Ustki qism: yengli yoki yengsiz' })
+  @IsOptional()
+  @IsEnum(KitSleeve)
+  sleeve?: KitSleeve;
+
+  @ApiPropertyOptional({ enum: KitBottom, default: KitBottom.SHORTS, description: 'Pastki qism: shortik yoki shalvar' })
+  @IsOptional()
+  @IsEnum(KitBottom)
+  bottom?: KitBottom;
 
   @ApiPropertyOptional({ default: true })
   @IsOptional()
@@ -211,6 +221,11 @@ export class ListClubsQueryDto {
   @IsOptional()
   @IsEnum(Continent)
   continent?: Continent;
+
+  @ApiPropertyOptional({ enum: [...KIT360_IDS, 'any'], description: "Forma 360° jamoasi bo'yicha filtr; 'any' — bog'langan barcha klublar" })
+  @IsOptional()
+  @IsIn([...KIT360_IDS, 'any'])
+  kit360Id?: Kit360Id | 'any';
 
   @ApiPropertyOptional({ default: 1 })
   @IsOptional()
