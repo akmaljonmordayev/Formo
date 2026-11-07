@@ -91,14 +91,14 @@ export const settingsApi = {
   notificationsTest: () => api('/admin/settings/notifications/test', { method: 'POST' }),
 };
 
-// Operator/Superadmin ↔ tikuv sexi yozishmasi
+// Superadmin ↔ tikuv sexi yozishmasi
 export const chatApi = {
   threads: () => api('/admin/chat/threads'), // [{ workshopId, name, unread, lastMessage }]
   messages: (workshopId, after) => api(`/admin/chat/${workshopId}/messages${qs({ after })}`), // { items }
   send: (workshopId, text) => api(`/admin/chat/${workshopId}/messages`, { method: 'POST', body: { text } }),
 };
 
-// Operator/Superadmin ↔ mobil ilova mijozi (qo'llab-quvvatlash chati)
+// Superadmin ↔ mobil ilova mijozi (qo'llab-quvvatlash chati)
 export const supportApi = {
   threads: () => api('/admin/support/threads'), // [{ workshopId(=userId), name, phone, unread, lastMessage }]
   unread: () => api('/admin/support/unread'), // { unread }

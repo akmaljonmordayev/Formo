@@ -26,6 +26,9 @@ const select = {
   statusLogs: { orderBy: { id: 'asc' } },
 } satisfies Prisma.OrderSelect;
 
+// Ro'yxat va taxta uchun: holat tarixi (statusLogs) faqat bitta buyurtma tafsilotida kerak
+const { statusLogs: _statusLogs, ...listSelect } = select;
+
 /** Sex ishlab chiqarish bosqichlari tartibi — holat faqat oldinga siljiydi */
 const FLOW: OrderStatus[] = [
   OrderStatus.ACCEPTED,
@@ -78,7 +81,7 @@ export class WorkshopOrdersService {
 
     const [[items, total], counts] = await Promise.all([
       this.prisma.$transaction([
-        this.prisma.order.findMany({ where, select, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
+        this.prisma.order.findMany({ where, select: listSelect, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
         this.prisma.order.count({ where }),
       ]),
       this.prisma.order.groupBy({ by: ['status'], where: { workshopId: workshop.id }, _count: { _all: true } }),
@@ -98,7 +101,7 @@ export class WorkshopOrdersService {
     const [orders, me] = await Promise.all([
       this.prisma.order.findMany({
         where: { workshopId: workshop.id, status: { in: PRODUCTION_COLUMNS } },
-        select,
+        select: listSelect,
         orderBy: { createdAt: 'asc' },
       }),
       this.prisma.user.findUnique({ where: { id: workshop.id }, select: { dailyCapacity: true } }),
@@ -121,13 +124,18 @@ export class WorkshopOrdersService {
   async stats(workshop: AuthUser, days: number) {
     const from = new Date();
     from.setDate(from.getDate() - days);
-    const [inPeriod, production] = await Promise.all([
+    const lateBefore = new Date(Date.now() - LATE_AFTER_MS);
+    // Faqat sonlar kerak — buyurtmalarni (mahsulot qatorlari bilan) yuklamaymiz; so'rovlar bir vaqtda ketadi
+    const [inPeriod, activeCount, lateCount, me] = await Promise.all([
       this.prisma.order.findMany({
         where: { workshopId: workshop.id, createdAt: { gte: from } },
-        select: { status: true, createdAt: true },
+        select: { createdAt: true },
       }),
-      this.production(workshop),
+      this.prisma.order.count({ where: { workshopId: workshop.id, status: { in: ACTIVE_STATUSES } } }),
+      this.prisma.order.count({ where: { workshopId: workshop.id, status: { in: IN_WORK }, createdAt: { lt: lateBefore } } }),
+      this.prisma.user.findUnique({ where: { id: workshop.id }, select: { dailyCapacity: true } }),
     ]);
+    const capacity = me?.dailyCapacity ?? null;
 
     const buckets = new Map<string, number>();
     for (let i = days - 1; i >= 0; i--) {
@@ -142,10 +150,10 @@ export class WorkshopOrdersService {
 
     return {
       ordersCount: inPeriod.length,
-      activeCount: production.activeCount,
-      capacity: production.capacity,
-      loadPct: production.loadPct,
-      lateCount: production.lateCount,
+      activeCount,
+      capacity,
+      loadPct: capacity ? Math.round((activeCount / capacity) * 100) : null,
+      lateCount,
       dailyTrend: Array.from(buckets.entries()).map(([date, count]) => ({ date, count })),
     };
   }

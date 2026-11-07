@@ -188,6 +188,39 @@ export function JerseyPreview({
   );
 }
 
+/**
+ * Buyurtma qatori uchun kichkina forma (orqa tomon: ism va raqam). Bosmasdan ham qanday forma ekani ko'rinadi.
+ */
+export function JerseyMini({ color = '#D72E3F', number = '', name = '', shorts = true, shortsNumber = '' }) {
+  const ink = readableInk(color);
+  const outline = ink === '#ffffff' ? '#0b1220' : '#ffffff';
+  const label = String(name || '').trim().toUpperCase();
+  const digits = String(number ?? '');
+  const viewH = shorts ? 350 : 250;
+
+  return (
+    <svg viewBox={`0 0 240 ${viewH}`} className="h-28 w-20 shrink-0" role="img" aria-label={`${label} ${digits}`.trim()}>
+      {shorts && (
+        <g>
+          <path d={SHORTS_PATH} fill={color} stroke="#ffffff" strokeOpacity="0.25" strokeWidth="3" />
+          {shortsNumber !== '' && shortsNumber != null && (
+            <text x="150" y="300" textAnchor="middle" fontSize="34" fontWeight="900" fill={ink} stroke={outline} strokeWidth="1.5" paintOrder="stroke">
+              {shortsNumber}
+            </text>
+          )}
+        </g>
+      )}
+      <path d={SHIRT_PATH} fill={color} stroke="#ffffff" strokeOpacity="0.25" strokeWidth="3" />
+      <g stroke={outline} strokeWidth="3" paintOrder="stroke" fill={ink} textAnchor="middle" fontWeight="900">
+        <text x="120" y="80" fontSize={label.length > 7 ? 20 : 26} textLength={label.length > 5 ? Math.min(150, label.length * 18) : undefined} lengthAdjust="spacingAndGlyphs">
+          {label}
+        </text>
+        <text x="120" y="184" fontSize={digits.length > 1 ? 90 : 108}>{digits}</text>
+      </g>
+    </svg>
+  );
+}
+
 export function StatCard({ label, value, hint, icon: Icon, tone = 'teal' }) {
   return (
     <div className="rounded-2xl border border-white/10 bg-[#121829] p-5">

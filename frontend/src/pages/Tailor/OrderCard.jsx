@@ -1,5 +1,7 @@
-import { CheckCircle, Truck } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import { useT } from './i18n';
+import { JerseyMini } from './ui';
+import { frameUrl, teamForClub } from './OrderKitView';
 import { cx } from './utils';
 
 const STRIP = {
@@ -8,6 +10,12 @@ const STRIP = {
   upcoming: 'bg-slate-500',
   nodate: 'bg-slate-600',
   ready: 'bg-emerald-400',
+};
+
+const STATUS_PILL = {
+  yangi: 'bg-amber-400/20 text-amber-300',
+  qabul: 'bg-teal-400/20 text-teal-300',
+  tayyor: 'bg-emerald-400/20 text-emerald-300',
 };
 
 const DEADLINE_TEXT = {
@@ -32,10 +40,31 @@ function deadlineText(t, order, bucket) {
   return slot ? `${date} · ${slot}` : date;
 }
 
-/** Ixcham qator: tartib raqami · mijoz va kod · muddat · tugma. Qolgani — bosganda ochiladi */
-export default function OrderCard({ order, index, bucket, onOpen, onAdvance, actionLoading }) {
+/** Forma rasmi: klubning haqiqiy surati (oldi tomoni), bo'lmasa — rangli chizma */
+function KitThumb({ order }) {
+  const team = teamForClub(order.clubName, order.apiItems?.[0]?.kit360Id);
+  const src = team ? frameUrl(team.id, 0) : null;
+  if (!src) {
+    return (
+      <JerseyMini
+        color={order.design?.color?.hex || order.kitDesign?.primaryColor || order.jerseyColor}
+        number={order.number}
+        name={order.apiPrintName}
+        shorts={order.withShorts}
+        shortsNumber={order.shortsNumber}
+      />
+    );
+  }
+  return (
+    <div className="h-44 w-32 shrink-0 overflow-hidden rounded-lg bg-[#b2b2b3]">
+      <img src={src} alt={team.name} loading="lazy" className="h-full w-full origin-[50%_36%] scale-[1.4] object-cover" />
+    </div>
+  );
+}
+
+/** Ixcham qator: tartib raqami · forma · mijoz va kod · muddat · holat. Qabul va tayyor qilish — faqat buyurtma ochilgandan keyin (formani ko'rib) */
+export default function OrderCard({ order, index, bucket, onOpen }) {
   const t = useT();
-  const canAdvance = order.status === 'yangi' || order.status === 'qabul';
 
   return (
     <article
@@ -53,33 +82,26 @@ export default function OrderCard({ order, index, bucket, onOpen, onAdvance, act
         {index}
       </span>
 
+      <KitThumb order={order} />
+
       <div className="min-w-0 flex-1">
         <p className="truncate text-base font-bold text-white">
           {order.customer} <span className="ml-1 font-mono text-xs font-normal text-slate-500">#{order.id}</span>
         </p>
+        {order.apiSummary && <p className="mt-0.5 truncate text-xs text-slate-400">{order.apiSummary}</p>}
+        {(order.apiPrintName || order.number) && (
+          <p className="mt-0.5 text-sm font-bold text-cyan-300">
+            {[order.apiPrintName, order.number].filter(Boolean).join(' · ')}
+          </p>
+        )}
         <p className={cx('mt-0.5 text-sm font-semibold', DEADLINE_TEXT[bucket])}>{deadlineText(t, order, bucket)}</p>
       </div>
 
-      <div className="sm:w-40">
-        {canAdvance ? (
-          <button
-            type="button"
-            disabled={actionLoading}
-            onClick={(e) => { e.stopPropagation(); onAdvance(order); }}
-            className={cx(
-              'flex w-full items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-bold text-slate-950 transition active:scale-95 disabled:opacity-60',
-              order.status === 'yangi' ? 'bg-teal-400 hover:bg-teal-300' : 'bg-emerald-400 hover:bg-emerald-300'
-            )}
-          >
-            <CheckCircle className="h-4 w-4" />
-            {order.status === 'yangi' ? t('q.accept') : t('q.markReady')}
-          </button>
-        ) : (
-          <p className="flex items-center justify-center gap-2 text-sm font-semibold text-emerald-300">
-            <Truck className="h-4 w-4 shrink-0" />
-            {t('q.readyWait')}
-          </p>
-        )}
+      <div className="flex items-center gap-2 sm:w-52 sm:justify-end">
+        <span className={cx('rounded-full px-3 py-1 text-xs font-bold', STATUS_PILL[order.status])}>
+          {order.status === 'tayyor' ? t('q.readyWait') : t(`status.${order.status}`)}
+        </span>
+        <ChevronRight className="h-5 w-5 text-slate-500" aria-hidden="true" />
       </div>
     </article>
   );

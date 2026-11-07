@@ -30,7 +30,7 @@ const uz = {
 
   // ---------- buyurtmalar (navbat / ishlab chiqarish) ----------
   'orders.title': 'Buyurtmalar',
-  'orders.sub': 'Kechikkanlar birinchi, keyin muddat bo‘yicha',
+  'orders.sub': 'Muddat bo‘yicha tartiblangan',
   'q.late': 'Kechikkan buyurtmalar',
   'q.lateHint': "Muddati o'tgan — birinchi navbatda bajaring",
   'q.today': 'Bugungi navbat',
@@ -43,6 +43,7 @@ const uz = {
   'q.readyLink': 'Tayyor buyurtmalar',
   'q.search': 'Mijoz, kod yoki model bo‘yicha qidirish',
   'q.allDone': 'Hozircha faol buyurtma yo‘q',
+  'q.emptyLate': 'Kechikkan buyurtma yo‘q',
   'q.lateDays': '{n} kun kechikdi',
   'q.lateToday': 'Vaqti o‘tdi',
   'q.dueToday': 'Bugun · {slot}',
@@ -156,7 +157,7 @@ const uz = {
   'order.defect': 'Brak',
   'order.startPrint': 'Bosishni boshlash',
   'order.markReady': 'Tayyor deb belgilash',
-  'order.readyWaitsOperator': 'Tayyor — yetkazishga tayyor',
+  'order.readyWaits': 'Tayyor — yetkazishga tayyor',
   'order.completed': 'Bajarildi',
   'order.qtyUnit': '{n} dona',
   'order.downloadToast': '#{id} buyurtma {type} fayli yuklab olindi',
@@ -432,7 +433,7 @@ const uz = {
   'modal.closeWindow': 'Oynani yopish',
 
   // ---------- yangi (API) ----------
-  'chat.operator': 'Formo',
+  'chat.staff': 'Formo',
   'chat.empty': "Hozircha xabarlar yo'q. Birinchi xabarni yozing.",
   'chat.loadError': "Xabarlarni yuklab bo'lmadi.",
   'chat.sendError': "Xabarni yuborib bo'lmadi.",
@@ -500,13 +501,18 @@ const ru = {
   'shell.markAllRead': 'Отметить всё прочитанным',
   'note.orderStatus.title': 'Статус заказа',
   'note.orderStatus.text': '№{code} · {status}',
+  'note.newOrder.title': 'Новый заказ',
+  'note.deadline.title': 'Срок доставки',
+  'note.deadline.text': '№{code} · {date}, {slot}',
+  'note.summary.title': 'Итоги текущей смены',
+  'note.summary.text': 'Всего: {count} · в очереди: {accepted} · готово: {ready}',
   'note.currentStatuses': 'Текущие статусы заказов. Отдельного API серверных уведомлений нет.',
   'shell.lang': 'Язык',
 
 
   // ---------- заказы (очередь / производство) ----------
   'orders.title': 'Заказы',
-  'orders.sub': 'Сначала просроченные, затем по сроку',
+  'orders.sub': 'Отсортированы по сроку',
   'q.late': 'Просроченные заказы',
   'q.lateHint': 'Срок прошёл — выполните в первую очередь',
   'q.today': 'Очередь на сегодня',
@@ -519,6 +525,7 @@ const ru = {
   'q.readyLink': 'Готовые заказы',
   'q.search': 'Поиск по клиенту, коду или модели',
   'q.allDone': 'Активных заказов пока нет',
+  'q.emptyLate': 'Просроченных заказов нет',
   'q.lateDays': 'Просрочено на {n} дн.',
   'q.lateToday': 'Время вышло',
   'q.dueToday': 'Сегодня · {slot}',
@@ -632,7 +639,7 @@ const ru = {
   'order.defect': 'Брак',
   'order.startPrint': 'Начать печать',
   'order.markReady': 'Отметить готовым',
-  'order.readyWaitsOperator': 'Готов к доставке',
+  'order.readyWaits': 'Готов к доставке',
   'order.completed': 'Выполнено',
   'order.qtyUnit': '{n} шт.',
   'order.downloadToast': 'Файл {type} заказа #{id} скачан',
@@ -908,7 +915,7 @@ const ru = {
   'modal.closeWindow': 'Закрыть окно',
 
   // ---------- новое (API) ----------
-  'chat.operator': 'Formo',
+  'chat.staff': 'Formo',
   'chat.empty': 'Сообщений пока нет. Напишите первое сообщение.',
   'chat.loadError': 'Не удалось загрузить сообщения.',
   'chat.sendError': 'Не удалось отправить сообщение.',

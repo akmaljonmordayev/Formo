@@ -7,7 +7,7 @@ import { fetchMe, login as loginRequest, logout as logoutRequest } from './authS
 
 vi.mock('./authService', () => ({ login: vi.fn(), logout: vi.fn(), fetchMe: vi.fn() }));
 
-const operator = { id: 2, fullName: 'Dilshod Karimov', role: 'OPERATOR' };
+const operator = { id: 2, fullName: 'Dilshod Karimov', role: 'TAILOR' };
 const tokens = { accessToken: 'access-1', refreshToken: 'refresh-1' };
 
 let auth;
@@ -40,8 +40,8 @@ describe('AuthProvider', () => {
 
     renderProvider();
 
-    expect(screen.getByText('Dilshod Karimov (OPERATOR)')).toBeInTheDocument();
-    expect(await screen.findByText('Yangi Ism (OPERATOR)')).toBeInTheDocument();
+    expect(screen.getByText('Dilshod Karimov (TAILOR)')).toBeInTheDocument();
+    expect(await screen.findByText('Yangi Ism (TAILOR)')).toBeInTheDocument();
     expect(session.user.fullName).toBe('Yangi Ism');
     expect(session.accessToken).toBe('access-1');
   });
@@ -53,7 +53,7 @@ describe('AuthProvider', () => {
     renderProvider();
     await waitFor(() => expect(fetchMe).toHaveBeenCalled());
 
-    expect(screen.getByText('Dilshod Karimov (OPERATOR)')).toBeInTheDocument();
+    expect(screen.getByText('Dilshod Karimov (TAILOR)')).toBeInTheDocument();
   });
 
   it('/auth/me 401/403 bersa — lokal (tahrirlangan) role bilan qolmasdan chiqarib yuboriladi', async () => {
@@ -79,7 +79,7 @@ describe('AuthProvider', () => {
     expect(result).toEqual(operator);
     expect(onSuccess).toHaveBeenCalledWith(operator);
     expect(session.accessToken).toBe('access-1');
-    expect(screen.getByText('Dilshod Karimov (OPERATOR)')).toBeInTheDocument();
+    expect(screen.getByText('Dilshod Karimov (TAILOR)')).toBeInTheDocument();
   });
 
   it('login: mobil foydalanuvchi (USER) panelga kiritilmaydi va serverdagi sessiyasi yopiladi', async () => {

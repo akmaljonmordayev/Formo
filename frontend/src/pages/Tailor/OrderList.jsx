@@ -6,11 +6,11 @@ import { useT } from './i18n';
 import { useTailor } from './prefs';
 import useOrderActions from './useOrderActions';
 
-/** Bitta tekis ro'yxat. view: active (kechikkanlar birinchi, keyin muddat bo'yicha) | ready */
+/** Bitta tekis ro'yxat. view: active (kechikmagan, muddat bo'yicha) | late (kechikkanlar) | ready (tayyorlar) */
 export default function OrderList({ view }) {
   const t = useT();
   const { orders = [], ordersError = '', ordersLoading = false } = useTailor() ?? {};
-  const { advance, reject, showToast, toastView, actionLoading } = useOrderActions();
+  const { advance, reject, toastView, actionLoading } = useOrderActions();
   const [openId, setOpenId] = useState(null);
 
   const rows = useMemo(() => {
@@ -18,8 +18,20 @@ export default function OrderList({ view }) {
       return orders.filter((o) => o.status === 'tayyor').map((order) => ({ order, bucket: 'ready' }));
     }
     const groups = groupActiveOrders(orders);
-    return ['late', 'today', 'upcoming', 'nodate'].flatMap((bucket) => groups[bucket].map((order) => ({ order, bucket })));
+    const buckets = view === 'late' ? ['late'] : ['today', 'upcoming', 'nodate'];
+    return buckets.flatMap((bucket) => groups[bucket].map((order) => ({ order, bucket })));
   }, [orders, view]);
+
+  // Faol ro'yxatda yangi (qabul kutayotgan) buyurtmalar tepada, alohida bo'limda
+  const sections = useMemo(() => {
+    if (view !== 'active') return [{ key: view, rows }];
+    const fresh = rows.filter(({ order }) => order.status === 'yangi');
+    const inProgress = rows.filter(({ order }) => order.status !== 'yangi');
+    return [
+      { key: 'new', title: t('q.new'), rows: fresh },
+      { key: 'progress', title: t('prod.inProgress'), rows: inProgress },
+    ].filter((section) => section.rows.length > 0);
+  }, [rows, view, t]);
 
   const opened = orders.find((o) => o.id === openId) ?? null;
 
@@ -30,21 +42,29 @@ export default function OrderList({ view }) {
         <div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{ordersError}</div>
       )}
 
-      {rows.map(({ order, bucket }, index) => (
-        <OrderCard
-          key={order.id}
-          index={index + 1}
-          order={order}
-          bucket={bucket}
-          onOpen={(o) => setOpenId(o.id)}
-          onAdvance={advance}
-          actionLoading={actionLoading}
-        />
+      {sections.map(({ key, title, rows: sectionRows }) => (
+        <section key={key} className="space-y-3">
+          {title && (
+            <h2 className="flex items-center gap-2 pt-2 text-sm font-bold uppercase tracking-wide text-slate-300">
+              {title}
+              <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs tabular-nums">{sectionRows.length}</span>
+            </h2>
+          )}
+          {sectionRows.map(({ order, bucket }, index) => (
+            <OrderCard
+              key={order.id}
+              index={index + 1}
+              order={order}
+              bucket={bucket}
+              onOpen={(o) => setOpenId(o.id)}
+            />
+          ))}
+        </section>
       ))}
 
       {rows.length === 0 && (
         <div className="rounded-2xl border border-white/10 bg-[#121829] px-6 py-12 text-center text-sm text-slate-400">
-          {ordersLoading ? t('api.loading') : view === 'ready' ? t('prod.emptyReady') : t('q.allDone')}
+          {ordersLoading ? t('api.loading') : view === 'ready' ? t('prod.emptyReady') : view === 'late' ? t('q.emptyLate') : t('q.allDone')}
         </div>
       )}
 
@@ -54,7 +74,6 @@ export default function OrderList({ view }) {
         onAdvance={advance}
         onReject={reject}
         actionLoading={actionLoading}
-        onToast={showToast}
       />
     </div>
   );

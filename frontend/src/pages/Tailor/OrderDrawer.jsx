@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle, Truck, X, XCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { AlertTriangle, CheckCircle, Truck, X, XCircle } from 'lucide-react';
 import OrderDetail from './OrderDetail';
 import { useT } from './i18n';
 
 /** Buyurtma tafsiloti — o'ng tomondan ochiladigan panel. Qabul / tayyor / rad etish tugmalari tepada turadi */
-export default function OrderDrawer({ order, onClose, onAdvance, onReject, actionLoading, onToast }) {
+export default function OrderDrawer({ order, onClose, onAdvance, onReject, actionLoading }) {
   const t = useT();
+  const navigate = useNavigate();
   const [rejecting, setRejecting] = useState(false);
   const [reason, setReason] = useState('');
 
@@ -42,53 +44,25 @@ export default function OrderDrawer({ order, onClose, onAdvance, onReject, actio
         role="dialog"
         aria-modal="true"
         aria-label={`#${order.id}`}
-        className="absolute inset-y-0 right-0 w-[min(960px,100vw)] overflow-y-auto bg-[#0b0f19] shadow-2xl"
+        className="absolute inset-y-0 right-0 flex w-[min(960px,100vw)] flex-col bg-[#0b0f19] shadow-2xl"
         style={{ animation: 'tl-slide-in 0.28s cubic-bezier(0.22, 1, 0.36, 1) both' }}
       >
-        <div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b0f19]/95 px-4 py-3 backdrop-blur sm:px-5">
+        <div className="border-b border-white/10 bg-[#0b0f19] px-4 py-3 sm:px-5">
           <div className="flex flex-wrap items-center gap-3">
             <div className="min-w-0 flex-1">
               <p className="truncate text-base font-bold text-white">{order.customer}</p>
               <p className="font-mono text-xs text-slate-500">#{order.id}</p>
             </div>
 
-            {order.status === 'yangi' && !rejecting && (
-              <>
-                <button
-                  type="button"
-                  onClick={() => setRejecting(true)}
-                  className="flex items-center gap-2 rounded-lg border border-rose-500/40 px-4 py-2.5 text-sm font-bold text-rose-300 hover:bg-rose-500/10"
-                >
-                  <XCircle className="h-4 w-4" />
-                  {t('order.reject')}
-                </button>
-                <button
-                  type="button"
-                  disabled={actionLoading}
-                  onClick={() => onAdvance(order)}
-                  className="flex items-center gap-2 rounded-lg bg-teal-400 px-5 py-2.5 text-sm font-bold text-slate-950 hover:bg-teal-300 disabled:opacity-60"
-                >
-                  <CheckCircle className="h-4 w-4" />
-                  {t('q.accept')}
-                </button>
-              </>
-            )}
-            {order.status === 'qabul' && (
+            {order.status !== 'yangi' && (
               <button
                 type="button"
-                disabled={actionLoading}
-                onClick={() => onAdvance(order)}
-                className="flex items-center gap-2 rounded-lg bg-emerald-400 px-5 py-2.5 text-sm font-bold text-slate-950 hover:bg-emerald-300 disabled:opacity-60"
+                onClick={() => navigate('/tailor/brak', { state: { order } })}
+                className="flex items-center gap-2 rounded-lg border border-rose-500/30 px-3 py-2.5 text-sm font-bold text-rose-300 hover:bg-rose-500/10"
               >
-                <CheckCircle className="h-4 w-4" />
-                {t('q.markReady')}
+                <AlertTriangle className="h-4 w-4" />
+                {t('order.defect')}
               </button>
-            )}
-            {order.status === 'tayyor' && (
-              <span className="flex items-center gap-2 text-sm font-semibold text-emerald-300">
-                <Truck className="h-4 w-4" />
-                {t('q.readyWait')}
-              </span>
             )}
 
             <button
@@ -101,8 +75,15 @@ export default function OrderDrawer({ order, onClose, onAdvance, onReject, actio
             </button>
           </div>
 
-          {rejecting && (
-            <div className="mt-3 flex flex-col gap-2">
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-3 sm:p-5">
+          <OrderDetail key={order.id} order={order} />
+        </div>
+
+        <div className="border-t border-white/10 bg-[#0b0f19] p-4 sm:px-5">
+          {rejecting ? (
+            <div className="flex flex-col gap-3">
               <textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
@@ -111,13 +92,13 @@ export default function OrderDrawer({ order, onClose, onAdvance, onReject, actio
                 autoFocus
                 placeholder={t('order.rejectReason')}
                 aria-label={t('order.rejectReason')}
-                className="w-full rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-sm text-white placeholder:text-slate-500"
+                className="w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-base text-white placeholder:text-slate-500"
               />
-              <div className="flex justify-end gap-2">
+              <div className="grid grid-cols-2 gap-3">
                 <button
                   type="button"
                   onClick={() => { setRejecting(false); setReason(''); }}
-                  className="rounded-lg border border-white/10 px-4 py-2 text-sm font-semibold text-slate-300 hover:bg-white/10"
+                  className="rounded-xl border border-white/10 px-5 py-4 text-base font-bold text-slate-300 hover:bg-white/10"
                 >
                   {t('order.cancel')}
                 </button>
@@ -125,17 +106,48 @@ export default function OrderDrawer({ order, onClose, onAdvance, onReject, actio
                   type="button"
                   disabled={actionLoading || !reason.trim()}
                   onClick={submitReject}
-                  className="rounded-lg bg-rose-500 px-4 py-2 text-sm font-bold text-white hover:bg-rose-400 disabled:opacity-50"
+                  className="rounded-xl bg-rose-500 px-5 py-4 text-base font-extrabold text-white hover:bg-rose-400 disabled:opacity-50"
                 >
                   {t('order.rejectConfirm')}
                 </button>
               </div>
             </div>
+          ) : order.status === 'yangi' ? (
+            <div className="grid grid-cols-[1fr_2fr] gap-3">
+              <button
+                type="button"
+                onClick={() => setRejecting(true)}
+                className="flex items-center justify-center gap-2 rounded-xl border border-rose-500/40 px-5 py-4 text-base font-bold text-rose-300 hover:bg-rose-500/10"
+              >
+                <XCircle className="h-5 w-5" />
+                {t('order.reject')}
+              </button>
+              <button
+                type="button"
+                disabled={actionLoading}
+                onClick={() => onAdvance(order)}
+                className="flex items-center justify-center gap-2 rounded-xl bg-teal-400 px-6 py-4 text-lg font-extrabold text-slate-950 hover:bg-teal-300 active:scale-[0.99] disabled:opacity-60"
+              >
+                <CheckCircle className="h-6 w-6" />
+                {t('q.accept')}
+              </button>
+            </div>
+          ) : order.status === 'qabul' ? (
+            <button
+              type="button"
+              disabled={actionLoading}
+              onClick={() => onAdvance(order)}
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-400 px-6 py-4 text-lg font-extrabold text-slate-950 hover:bg-emerald-300 active:scale-[0.99] disabled:opacity-60"
+            >
+              <CheckCircle className="h-6 w-6" />
+              {t('q.markReady')}
+            </button>
+          ) : (
+            <p className="flex items-center justify-center gap-2 py-3 text-base font-bold text-emerald-300">
+              <Truck className="h-5 w-5" />
+              {t('q.readyWait')}
+            </p>
           )}
-        </div>
-
-        <div className="p-3 sm:p-5">
-          <OrderDetail key={order.id} order={order} hideActions onStartPress={onAdvance} onReject={onReject} actionLoading={actionLoading} onToast={onToast} />
         </div>
       </div>
     </div>

@@ -115,7 +115,7 @@ export default function Chat() {
               >
                 <p className="whitespace-pre-wrap break-words">{m.text}</p>
                 <span className={cx('mt-1 block text-[10px]', m.fromWorkshop ? 'text-slate-800' : 'text-slate-400')}>
-                  {m.fromWorkshop ? t('chat.me') : t('chat.operator')} · {timeOf(m.createdAt)}
+                  {m.fromWorkshop ? t('chat.me') : t('chat.staff')} · {timeOf(m.createdAt)}
                 </span>
               </div>
             </div>

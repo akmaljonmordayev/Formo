@@ -7,7 +7,7 @@ import { useT } from '../../pages/Superadmin/i18n';
 
 const LIMIT = 10;
 
-// Tikuv sexlari: superadmin uchun to'liq CRUD, operator uchun faqat ko'rish (readOnly)
+// Tikuv sexlari: to'liq CRUD yoki faqat ko'rish (readOnly)
 export default function WorkshopsPage({ readOnly = false }) {
   const t = useT();
   const [data, setData] = useState({ items: [], total: 0 });

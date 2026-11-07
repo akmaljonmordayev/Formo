@@ -10,9 +10,8 @@ export const ROLE_LABELS = {
   [ROLES.TAILOR]: 'Tikuv sexi',
 };
 
-// Har bir rol login qilgandan keyin tushadigan bosh sahifa
+// Har bir rol login qilgandan keyin tushadigan bosh sahifa (OPERATOR ning paneli yo'q)
 export const ROLE_HOME = {
   [ROLES.SUPERADMIN]: '/superadmin',
-  [ROLES.OPERATOR]: '/operator',
   [ROLES.TAILOR]: '/tailor',
 };

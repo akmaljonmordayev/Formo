@@ -6,7 +6,7 @@ import { ROLE_HOME } from '../constants/roles';
 export default function PublicRoute() {
   const { isAuthenticated, role } = useAuth();
 
-  if (isAuthenticated) return <Navigate to={ROLE_HOME[role] ?? '/'} replace />;
+  if (isAuthenticated && ROLE_HOME[role]) return <Navigate to={ROLE_HOME[role]} replace />;
 
   return <Outlet />;
 }

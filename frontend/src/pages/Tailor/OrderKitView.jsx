@@ -7,7 +7,7 @@ import { cx } from './utils';
 
 /* Forma surati admin paneldagi "Forma 360°" bilan bir xil: har jamoa uchun 8 burchakli surat, ism va raqam formaga bosiladi */
 const FRAMES = import.meta.glob('../Superadmin/Kit360/frames/*/*.jpg', { eager: true, query: '?url', import: 'default' });
-const frameUrl = (id, i) => FRAMES[`../Superadmin/Kit360/frames/${id}/f${i}.jpg`];
+export const frameUrl = (id, i) => FRAMES[`../Superadmin/Kit360/frames/${id}/f${i}.jpg`];
 
 // Buyurtmadagi klub nomi → surati bor jamoa. Ro'yxat backend/src/kits/kit360.ts (KIT360_ALIASES) bilan bir xil
 const TEAM_ALIASES = {
@@ -218,7 +218,7 @@ function PhotoKit({ team, name, number, shortsNumber, statusBadge }) {
           onPointerUp={onPointerUp}
           onPointerCancel={onPointerUp}
           onKeyDown={onKeyDown}
-          className="block h-full w-full cursor-grab touch-none select-none active:cursor-grabbing"
+          className="block h-full w-full origin-[50%_38%] scale-[1.35] cursor-grab touch-none select-none active:cursor-grabbing"
         />
         {statusBadge && <div className="absolute right-2 top-2">{statusBadge}</div>}
       </div>

@@ -16,7 +16,7 @@ function formatPhone(digits) {
 const prefersReducedMotion = () =>
   typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
 
-// Superadmin, Operator va Tikuv sexi uchun bitta umumiy login sahifasi.
+// Superadmin va Tikuv sexi uchun bitta umumiy login sahifasi.
 // Rol backend javobidan aniqlanadi va foydalanuvchi o'z paneliga yo'naltiriladi.
 export default function Login() {
   const { login } = useAuth();
@@ -171,7 +171,6 @@ export default function Login() {
           </h1>
           <ul className="tag__roles" aria-label="Kirish mumkin bo'lgan rollar">
             <li>Superadmin</li>
-            <li>Operator</li>
             <li>Tikuv sexi</li>
           </ul>
 

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { NavLink, useLocation, useNavigate } from 'react-router-dom';
-import { CheckCircle2, ClipboardList, LogOut, Settings2, BarChart3, MessageSquare } from 'lucide-react';
+import { AlarmClock, CheckCircle2, ClipboardList, LogOut, Settings2, BarChart3, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { FormoLogo } from './ui';
 import { useT } from './i18n';
@@ -11,6 +11,7 @@ import { getChatUnread, getWorkshopProfile } from './tailorApi';
 
 const NAV_ITEMS = [
   { to: '/tailor', key: 'orders.title', icon: ClipboardList, count: 'active', end: true },
+  { to: '/tailor/kechikkan', key: 'q.late', icon: AlarmClock, count: 'late' },
   { to: '/tailor/tayyor', key: 'prod.ready', icon: CheckCircle2, count: 'ready' },
   { to: '/tailor/statistika', key: 'nav.stats', icon: BarChart3 },
   { to: '/tailor/chat', key: 'nav.chat', icon: MessageSquare, chatBadge: true },
@@ -62,7 +63,7 @@ function SidebarContent({ onNavigate }) {
   const counts = useMemo(() => {
     const list = orders ?? [];
     const late = groupActiveOrders(list).late.length;
-    return { active: list.filter((o) => o.status !== 'tayyor').length, late, ready: list.filter((o) => o.status === 'tayyor').length };
+    return { active: list.filter((o) => o.status !== 'tayyor').length - late, late, ready: list.filter((o) => o.status === 'tayyor').length };
   }, [orders]);
 
   const handleLogout = async () => {
@@ -110,7 +111,7 @@ function SidebarContent({ onNavigate }) {
                 <span className="truncate">{t(key)}</span>
               </div>
               {badge !== undefined && badge > 0 && (
-                <span className={cx('flex h-5 min-w-[22px] items-center justify-center rounded-full px-1.5 text-xs font-black', count === 'active' && counts.late > 0 ? 'bg-rose-500 text-white' : 'bg-teal-400 text-slate-950')}>
+                <span className={cx('flex h-5 min-w-[22px] items-center justify-center rounded-full px-1.5 text-xs font-black', count === 'late' ? 'bg-rose-500 text-white' : 'bg-teal-400 text-slate-950')}>
                   {badge}
                 </span>
               )}

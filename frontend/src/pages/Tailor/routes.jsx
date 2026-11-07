@@ -19,6 +19,10 @@ export const tailorRoutes = [
     element: shell('orders.title', 'orders.sub', <OrderList view="active" />),
   },
   {
+    path: 'kechikkan',
+    element: shell('q.late', 'q.lateHint', <OrderList view="late" />),
+  },
+  {
     path: 'tayyor',
     element: shell('prod.ready', 'prod.readyHint', <OrderList view="ready" />),
   },
@@ -42,6 +46,7 @@ export const tailorRoutes = [
 
 export const tailorMenu = [
   { to: BASE, label: 'Buyurtmalar', end: true },
+  { to: `${BASE}/kechikkan`, label: 'Kechikkan buyurtmalar' },
   { to: `${BASE}/tayyor`, label: 'Tayyor buyurtmalar' },
   { to: `${BASE}/statistika`, label: 'Statistika' },
   { to: `${BASE}/chat`, label: 'Chat' },
