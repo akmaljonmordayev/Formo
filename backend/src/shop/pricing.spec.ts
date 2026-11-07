@@ -65,10 +65,14 @@ describe('loadKitDesignPrices', () => {
 
   it("jadvalda yo'q kalit — standart narx; bori — jadvaldagi narx", async () => {
     await expect(loadKitDesignPrices(db([]))).resolves.toEqual(DEFAULT_KIT_DESIGN_PRICES);
-    await expect(loadKitDesignPrices(db([{ key: 'club.shorts', price: 70000 }, { key: 'other', price: 1 }]))).resolves.toEqual({
+    await expect(loadKitDesignPrices(db([{ key: 'club.tshirt', price: 170000 }, { key: 'other', price: 1 }]))).resolves.toEqual({
       ...DEFAULT_KIT_DESIGN_PRICES,
-      shortsPrice: 70000,
+      shirtPrice: 170000,
     });
+  });
+
+  it("eskirgan 'club.shorts' kaliti e'tiborga olinmaydi (shortik narxi komplektga qo'shilgan)", async () => {
+    await expect(loadKitDesignPrices(db([{ key: 'club.shorts', price: 70000 }]))).resolves.toEqual(DEFAULT_KIT_DESIGN_PRICES);
   });
 });
 
