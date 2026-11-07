@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { defectsApi, formatDateTime } from '../../../features/platform/platformApi';
 import Modal from '../../../components/ui/Modal';
 import { useT } from '../i18n';
+import { Pager } from '../ui';
 
 const LIMIT = 20;
 const REASON_LABEL = {
@@ -39,7 +40,6 @@ export default function SuperadminDefects() {
     };
   }, [status, page, reload]);
 
-  const pages = Math.max(1, Math.ceil(data.total / LIMIT));
   const tabs = [
     { label: 'Barchasi', value: '' },
     { label: 'Ochiq', value: 'OPEN', count: data.openCount },
@@ -130,16 +130,7 @@ export default function SuperadminDefects() {
         </table>
       </div>
 
-      {pages > 1 && (
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 14 }}>
-          <span className="sa-table__sub" style={{ marginTop: 0 }}>{t('Jami')}: {data.total}</span>
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-            <button type="button" className="sa-btn sa-btn--ghost" disabled={page <= 1} onClick={() => setPage(page - 1)}>←</button>
-            <span className="sa-table__sub" style={{ marginTop: 0 }}>{page} / {pages}</span>
-            <button type="button" className="sa-btn sa-btn--ghost" disabled={page >= pages} onClick={() => setPage(page + 1)}>→</button>
-          </div>
-        </div>
-      )}
+      <Pager page={page} total={data.total} limit={LIMIT} onPage={setPage} />
 
       {resolving && (
         <ResolveModal

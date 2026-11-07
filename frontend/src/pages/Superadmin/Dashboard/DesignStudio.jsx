@@ -31,6 +31,16 @@ const GRADIENTS = [
 
 const CUSTOM_COLOR_DEFAULT = '#7A4FD1'
 
+// Bosiladigan kartalar klaviaturadan ham tanlansin (Enter/Space); ichidagi Toggle bosilganda karta tanlanmaydi
+const keyActivate = (fn) => ({
+  tabIndex: 0,
+  onKeyDown: (e) => {
+    if (e.target !== e.currentTarget || (e.key !== 'Enter' && e.key !== ' ')) return
+    e.preventDefault()
+    fn()
+  },
+})
+
 const FONTS = [
   { id: 'sport', label: 'Sport', desc: 'Tor, futbolcha', fontFamily: "'Saira Extra Condensed', sans-serif" },
   { id: 'klassik', label: 'Klassik', desc: 'Keng, qalin', fontFamily: "'Unbounded', sans-serif" },
@@ -914,6 +924,7 @@ function DesignStudio() {
                         colorSelection.type === 'solid' && colorSelection.id === c.id ? ' is-active' : ''
                       }${solidToggles[c.id] ? '' : ' is-disabled'}`}
                       onClick={() => setColorSelection({ type: 'solid', id: c.id })}
+                      {...keyActivate(() => setColorSelection({ type: 'solid', id: c.id }))}
                     >
                       <div className="ds-swatch-box" style={{ background: c.hex }} />
                       <div className="ds-swatch-footer">
@@ -944,6 +955,7 @@ function DesignStudio() {
                         colorSelection.type === 'gradient' && colorSelection.id === g.id ? ' is-active' : ''
                       }${gradientToggles[g.id] ? '' : ' is-disabled'}`}
                       onClick={() => setColorSelection({ type: 'gradient', id: g.id })}
+                      {...keyActivate(() => setColorSelection({ type: 'gradient', id: g.id }))}
                     >
                       <div
                         className="ds-swatch-box"
@@ -969,6 +981,7 @@ function DesignStudio() {
                   customColorToggle ? '' : ' is-disabled'
                 }`}
                 onClick={() => setColorSelection({ type: 'custom', id: 'custom' })}
+                {...keyActivate(() => setColorSelection({ type: 'custom', id: 'custom' }))}
               >
                 <label className="ds-paint-swatch" style={{ background: customColorValue }} onClick={(e) => e.stopPropagation()}>
                   <input
@@ -984,8 +997,8 @@ function DesignStudio() {
                 <div className="ds-paint-text">
                   <strong>{t("O'z rangingiz (paint)")}</strong>
                   <div>
-                    Mijoz istalgan rangni yasaydi. Kvadratni bosib sinab ko'ring: <code>{customColorValue.toUpperCase()}</code>.
-                    Zaxirada «Boshqalar» qatoridan olinadi.
+                    {t("Mijoz istalgan rangni yasaydi. Kvadratni bosib sinab ko'ring:")} <code>{customColorValue.toUpperCase()}</code>.{' '}
+                    {t("Zaxirada «Boshqalar» qatoridan olinadi.")}
                   </div>
                 </div>
                 <Toggle
@@ -1014,6 +1027,7 @@ function DesignStudio() {
                         fontToggles[f.id] ? '' : ' is-disabled'
                       }`}
                       onClick={() => setSelectedFont(f.id)}
+                      {...keyActivate(() => setSelectedFont(f.id))}
                     >
                       <div className="ds-font-preview" style={{ fontFamily: f.fontFamily }}>
                         <span className="nm">SAMIR</span>
@@ -1071,6 +1085,7 @@ function DesignStudio() {
                         patchToggles[p.id] ? '' : ' is-disabled'
                       }`}
                       onClick={() => setSelectedPatch((prev) => (prev === p.id ? null : p.id))}
+                      {...keyActivate(() => setSelectedPatch((prev) => (prev === p.id ? null : p.id)))}
                     >
                       <span className="ds-patch-circle">{p.sym}</span>
                       <div className="ds-patch-text">

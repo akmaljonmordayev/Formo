@@ -19,12 +19,13 @@ export class ClubsService {
   ) {}
 
   async list(query: ListClubsQueryDto) {
-    const { league, categoryId, type, continent, page = 1, limit = 50 } = query;
+    const { league, categoryId, type, continent, kit360Id, page = 1, limit = 50 } = query;
     const where: Prisma.ClubWhereInput = {
       ...(league && { league }),
       ...(categoryId && { categoryId }),
       ...(type && { type }),
       ...(continent && { continent }),
+      ...(kit360Id && { kit360Id: kit360Id === 'any' ? { not: null } : kit360Id }),
     };
 
     const [clubs, total] = await this.prisma.$transaction([

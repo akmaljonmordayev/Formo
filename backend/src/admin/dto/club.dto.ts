@@ -222,6 +222,11 @@ export class ListClubsQueryDto {
   @IsEnum(Continent)
   continent?: Continent;
 
+  @ApiPropertyOptional({ enum: [...KIT360_IDS, 'any'], description: "Forma 360° jamoasi bo'yicha filtr; 'any' — bog'langan barcha klublar" })
+  @IsOptional()
+  @IsIn([...KIT360_IDS, 'any'])
+  kit360Id?: Kit360Id | 'any';
+
   @ApiPropertyOptional({ default: 1 })
   @IsOptional()
   @Type(() => Number)

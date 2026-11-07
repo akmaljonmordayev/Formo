@@ -404,6 +404,8 @@ const RU = {
     'Нажмите на цвет — он появится слева. Переключатель справа показывает или скрывает его в приложении.',
   "Ikki rangli o'tish. Bosma doim oq yoki to'q rangda.": 'Двухцветный переход. Печать всегда белая или тёмная.',
   "O'z rangingiz (paint)": 'Свой цвет (палитра)',
+  "Mijoz istalgan rangni yasaydi. Kvadratni bosib sinab ko'ring:": 'Клиент создаёт любой цвет. Нажмите на квадрат, чтобы попробовать:',
+  'Zaxirada «Boshqalar» qatoridan olinadi.': 'На складе берётся из строки «Другие».',
   'Orqa yozuv shrifti': 'Шрифт надписи на спине',
   "Ism va raqam uchun. Bosing — chapdagi formada ko'rinadi.": 'Для имени и номера. Нажмите — появится на форме слева.',
   'Yozuv qoidalari': 'Правила надписи',

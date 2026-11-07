@@ -1,20 +1,15 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Modal from '../../../components/ui/Modal';
 import { clubsApi } from '../../../features/platform/platformApi';
+import { FALLBACK_PRICES, loadKitPrices } from '../adminApi';
 import { ConfirmModal } from '../ui';
 import { useMoney, useT } from '../i18n';
 
 export const SLEEVES = { SLEEVED: 'Yengli', SLEEVELESS: 'Yengsiz' };
 export const BOTTOMS = { SHORTS: 'Shortik', PANTS: 'Shalvar' };
 
-async function findClub(kit360Id) {
-  for (let page = 1; page <= 20; page += 1) {
-    const d = await clubsApi.list({ page, limit: 100 });
-    const club = (d.items ?? []).find((c) => c.kit360Id === kit360Id);
-    if (club || (d.items ?? []).length < 100) return club ?? null;
-  }
-  return null;
-}
+// kit360Id unikal — server filtri bilan bitta so'rov
+const findClub = (kit360Id) => clubsApi.list({ kit360Id, limit: 1 }).then((d) => d.items?.[0] ?? null);
 
 /** Tanlangan Forma 360° jamoasining formalari: qo'shish, tahrirlash, o'chirish */
 export default function KitsPanel({ teamId, teamName }) {
@@ -26,9 +21,13 @@ export default function KitsPanel({ teamId, teamName }) {
   const [deleting, setDeleting] = useState(null);
   const [busy, setBusy] = useState(false);
 
+  const lastReq = useRef(0);
   const load = useCallback(() => {
+    const req = ++lastReq.current; // jamoa tez almashsa eski javob yangisini bosib ketmasin
     setError('');
-    return findClub(teamId).then(setClub).catch((e) => { setClub(null); setError(e.message); });
+    return findClub(teamId)
+      .then((c) => req === lastReq.current && setClub(c))
+      .catch((e) => { if (req === lastReq.current) { setClub(null); setError(e.message); } });
   }, [teamId]);
 
   useEffect(() => {
@@ -152,12 +151,29 @@ function KitForm({ clubId, kit, onClose, onSaved }) {
     bgColor: kit?.bgColor ?? '#ffffff',
     textColor: kit?.textColor ?? '#111111',
     colorsLabel: kit?.colorsLabel ?? '',
-    shirtPrice: kit ? kit.shirtPrice + (kit.shortsPrice || 0) : 159000,
-    printPrice: kit?.printPrice ?? 30000,
+    shirtPrice: kit ? kit.shirtPrice + (kit.shortsPrice || 0) : FALLBACK_PRICES.shirt,
+    printPrice: kit?.printPrice ?? FALLBACK_PRICES.print,
     isActive: kit?.isActive ?? true,
   });
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
+
+  // Yangi forma narxi narx jadvalidan; admin yuklanguncha o'zgartirgan maydon bosib ketilmaydi
+  useEffect(() => {
+    if (isEdit) return undefined;
+    let active = true;
+    loadKitPrices().then((p) => {
+      if (!active) return;
+      setForm((f) => ({
+        ...f,
+        shirtPrice: f.shirtPrice === FALLBACK_PRICES.shirt ? p.shirtPrice : f.shirtPrice,
+        printPrice: f.printPrice === FALLBACK_PRICES.print ? p.printPrice : f.printPrice,
+      }));
+    });
+    return () => {
+      active = false;
+    };
+  }, [isEdit]);
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
 
   const submit = async (e) => {
