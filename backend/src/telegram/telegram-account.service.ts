@@ -41,6 +41,12 @@ export class TelegramAccountService {
     return { linked: true as const, firstName: name, balance: user.balance, activeOrders, language: user.language };
   }
 
+  /** `me()`ning yengil versiyasi — faqat menyu/til uchun kerak bo'lgan maydonlar, buyurtmalar soni so'ralmaydi */
+  async status(telegramUserId: string) {
+    const user = await this.customer(telegramUserId);
+    return user ? { linked: true as const, language: user.language } : { linked: false as const };
+  }
+
   /** Bot tili: ulangan akkauntda va ochiq kirish so'rovlarida (ulanganda akkauntga o'tadi) saqlanadi */
   async setLanguage(telegramUserId: string, language: string) {
     await this.prisma.telegramAuthChallenge.updateMany({

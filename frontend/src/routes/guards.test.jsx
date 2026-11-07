@@ -17,9 +17,6 @@ const renderAt = (path, role) =>
           <Route element={<ProtectedRoute allowedRoles={[ROLES.SUPERADMIN]} />}>
             <Route path="/superadmin" element={<p>superadmin paneli</p>} />
           </Route>
-          <Route element={<ProtectedRoute allowedRoles={[ROLES.OPERATOR]} />}>
-            <Route path="/operator" element={<p>operator paneli</p>} />
-          </Route>
           <Route element={<ProtectedRoute allowedRoles={[ROLES.TAILOR]} />}>
             <Route path="/tailor" element={<p>tikuv sexi paneli</p>} />
           </Route>
@@ -36,12 +33,11 @@ describe('ProtectedRoute', () => {
   });
 
   it('roli mos — sahifa ochiladi', () => {
-    renderAt('/operator', ROLES.OPERATOR);
-    expect(screen.getByText('operator paneli')).toBeInTheDocument();
+    renderAt('/tailor', ROLES.TAILOR);
+    expect(screen.getByText('tikuv sexi paneli')).toBeInTheDocument();
   });
 
   it.each([
-    [ROLES.OPERATOR, '/superadmin', 'operator paneli'],
     [ROLES.TAILOR, '/superadmin', 'tikuv sexi paneli'],
     [ROLES.SUPERADMIN, '/tailor', 'superadmin paneli'],
   ])('%s %s ga kirsa — o‘z paneliga qaytariladi', (role, path, expected) => {

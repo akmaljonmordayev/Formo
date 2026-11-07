@@ -6,7 +6,6 @@ import DashboardLayout from '../components/layout/DashboardLayout';
 import Login from '../pages/Login';
 import NotFound from '../pages/NotFound';
 import { superadminLayout, superadminMenu, superadminRoutes } from '../pages/Superadmin/routes';
-import { operatorLayout, operatorMenu, operatorRoutes } from '../pages/Operator/routes';
 import { tailorMenu, tailorRoutes } from '../pages/Tailor/routes';
 
 const roleSections = [
@@ -17,7 +16,6 @@ const roleSections = [
     routes: superadminRoutes,
     layout: superadminLayout,
   },
-  { role: ROLES.OPERATOR, basePath: '/operator', menu: operatorMenu, routes: operatorRoutes, layout: operatorLayout },
   { role: ROLES.TAILOR, basePath: '/tailor', menu: tailorMenu, routes: tailorRoutes },
 ];
 

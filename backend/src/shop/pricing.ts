@@ -7,33 +7,27 @@ export const ALL_SIZES: readonly string[] = [...ADULT_SIZES, ...KID_SIZES];
 
 export interface KitPrices {
   shirtPrice: number;
-  shortsPrice: number;
   printPrice: number;
 }
 
 export interface ItemOptions {
-  withShorts: boolean;
   printName?: string | null;
   printNumber?: string | null;
 }
 
 export const hasPrint = (o: Pick<ItemOptions, 'printName' | 'printNumber'>) => Boolean(o.printName || o.printNumber);
 
-/**
- * Bitta komplekt narxi: komplekt (futbolka + shortik bitta narx — `shirtPrice`) + (ism/raqam bosmasi).
- * `shortsPrice` eskirgan: 2026-11-04 migratsiyasi uni komplekt narxiga qo'shib 0 qildi.
- */
+/** Bitta komplekt narxi: komplekt (futbolka + shortik bitta narx — `shirtPrice`) + (ism/raqam bosmasi). */
 export function unitPrice(kit: KitPrices, o: ItemOptions) {
-  return kit.shirtPrice + (o.withShorts ? kit.shortsPrice : 0) + (hasPrint(o) ? kit.printPrice : 0);
+  return kit.shirtPrice + (hasPrint(o) ? kit.printPrice : 0);
 }
 
 /**
  * 3D dizayn (Superadmin yasagan forma) narxi — klub formasi narx jadvalidagi kalitlar bilan bir xil:
  * Superadmin "Narxlar" sahifasida o'zgartiriladi, mijoz yuborgan narx hech qachon ishlatilmaydi.
  */
-export const KIT_DESIGN_PRICE_KEYS = { shirt: 'club.tshirt', shorts: 'club.shorts', print: 'club.print' } as const;
-// "club.tshirt" — komplekt narxi; "club.shorts" kaliti endi yo'q (shortik komplekt ichida)
-export const DEFAULT_KIT_DESIGN_PRICES: KitPrices = { shirtPrice: 159000, shortsPrice: 0, printPrice: 30000 };
+export const KIT_DESIGN_PRICE_KEYS = { shirt: 'club.tshirt', print: 'club.print' } as const;
+export const DEFAULT_KIT_DESIGN_PRICES: KitPrices = { shirtPrice: 159000, printPrice: 30000 };
 
 type PriceDb = { pricingItem: { findMany(args: { where: { key: { in: string[] } } }): Promise<{ key: string; price: number }[]> } };
 
@@ -43,13 +37,12 @@ export async function loadKitDesignPrices(db: PriceDb): Promise<KitPrices> {
   const byKey = new Map(rows.map((r) => [r.key, r.price]));
   return {
     shirtPrice: byKey.get(KIT_DESIGN_PRICE_KEYS.shirt) ?? DEFAULT_KIT_DESIGN_PRICES.shirtPrice,
-    shortsPrice: byKey.get(KIT_DESIGN_PRICE_KEYS.shorts) ?? DEFAULT_KIT_DESIGN_PRICES.shortsPrice,
     printPrice: byKey.get(KIT_DESIGN_PRICE_KEYS.print) ?? DEFAULT_KIT_DESIGN_PRICES.printPrice,
   };
 }
 
 /** Katalogda ko'rsatiladigan "to'plam" narxi — futbolka + shortik + bosma (dizayndagi 189 000 so'm) */
-export const fullSetPrice = (kit: KitPrices) => kit.shirtPrice + kit.shortsPrice + kit.printPrice;
+export const fullSetPrice = (kit: KitPrices) => kit.shirtPrice + kit.printPrice;
 
 /** 1000000 -> "1 000 000" (oddiy bo'shliq bilan — toLocaleString ko'rinmas U+202F qo'yadi) */
 export const formatSum = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');

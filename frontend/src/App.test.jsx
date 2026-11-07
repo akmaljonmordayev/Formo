@@ -8,7 +8,7 @@ import { session } from './services/session';
  * Backend javoblari e2e testlardagi (backend/test) shaklga mos.
  */
 const json = (status, body) => ({ ok: status < 300, status, json: async () => body });
-const operator = { id: 2, phone: '+998902222222', fullName: 'Dilshod Karimov', role: 'OPERATOR', isActive: true };
+const tailor = { id: 2, phone: '+998902222222', fullName: 'Dilshod Karimov', role: 'TAILOR', isActive: true };
 
 function mockBackend(routes) {
   vi.stubGlobal(
@@ -50,21 +50,21 @@ describe('Ilova: login oqimi', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('operator kiradi: raqam +998 formatida ketadi, tokenlar saqlanadi, o‘z paneliga o‘tadi', async () => {
+  it('tikuv sexi kiradi: raqam +998 formatida ketadi, tokenlar saqlanadi, o‘z paneliga o‘tadi', async () => {
     mockBackend({
-      'POST /api/auth/login': () => json(200, { accessToken: 'access-1', refreshToken: 'refresh-1', user: operator }),
+      'POST /api/auth/login': () => json(200, { accessToken: 'access-1', refreshToken: 'refresh-1', user: tailor }),
     });
     render(<App />);
 
-    await submitLogin('90 222 22 22', 'operator-pass');
+    await submitLogin('90 222 22 22', 'tailor-pass');
 
-    await waitFor(() => expect(window.location.pathname).toBe('/operator'));
+    await waitFor(() => expect(window.location.pathname).toBe('/tailor'));
     const [[, init]] = requestsTo('/api/auth/login');
-    expect(JSON.parse(init.body)).toEqual({ phone: '+998902222222', password: 'operator-pass' });
+    expect(JSON.parse(init.body)).toEqual({ phone: '+998902222222', password: 'tailor-pass' });
     expect(init.headers.Authorization).toBeUndefined();
     expect(session.accessToken).toBe('access-1');
-    expect(session.user).toEqual(operator);
-    expect(await screen.findByText('Dilshod Karimov')).toBeInTheDocument();
+    expect(session.user).toEqual(tailor);
+    expect((await screen.findAllByText('Dilshod Karimov')).length).toBeGreaterThan(0);
   });
 
   it('noto‘g‘ri parol — server xabari ko‘rsatiladi, login sahifasida qoladi', async () => {
@@ -93,7 +93,7 @@ describe('Ilova: login oqimi', () => {
   it('mobil foydalanuvchi (USER) — panelga kiritilmaydi, sessiyasi serverda yopiladi', async () => {
     mockBackend({
       'POST /api/auth/login': () =>
-        json(200, { accessToken: 'access-9', refreshToken: 'refresh-9', user: { ...operator, role: 'USER' } }),
+        json(200, { accessToken: 'access-9', refreshToken: 'refresh-9', user: { ...tailor, role: 'USER' } }),
       'POST /api/auth/logout': () => json(200, { message: 'Tizimdan chiqildi' }),
     });
     render(<App />);
@@ -108,22 +108,22 @@ describe('Ilova: login oqimi', () => {
   });
 
   it('saqlangan sessiya bilan /login ochilsa — panelga qaytariladi; begona panelga o‘tolmaydi', async () => {
-    session.save({ accessToken: 'access-1', refreshToken: 'refresh-1', user: operator });
-    mockBackend({ 'GET /api/auth/me': () => json(200, operator) });
+    session.save({ accessToken: 'access-1', refreshToken: 'refresh-1', user: tailor });
+    mockBackend({ 'GET /api/auth/me': () => json(200, tailor) });
     window.history.pushState({}, '', '/superadmin');
 
     render(<App />);
 
-    await waitFor(() => expect(window.location.pathname).toBe('/operator'));
+    await waitFor(() => expect(window.location.pathname).toBe('/tailor'));
   });
 
   it('sessiya serverda tugagan (refresh ham o‘tmaydi) — login sahifasiga chiqariladi', async () => {
-    session.save({ accessToken: 'expired', refreshToken: 'revoked', user: operator });
+    session.save({ accessToken: 'expired', refreshToken: 'revoked', user: tailor });
     mockBackend({
       'GET /api/auth/me': () => json(401, { message: 'Sessiya tugagan, qaytadan kiring' }),
       'POST /api/auth/refresh': () => json(401, { message: 'Sessiya tugagan, qaytadan kiring' }),
     });
-    window.history.pushState({}, '', '/operator');
+    window.history.pushState({}, '', '/tailor');
 
     render(<App />);
 

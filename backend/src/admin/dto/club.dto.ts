@@ -71,13 +71,6 @@ export class KitDto {
   @Max(MAX_PRICE)
   shirtPrice?: number;
 
-  @ApiPropertyOptional({ example: 0, description: "Eskirgan: shortik komplekt narxi ichida — 0 yuboring" })
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(MAX_PRICE)
-  shortsPrice?: number;
-
   @ApiPropertyOptional({ example: 30000, description: "Ism + raqam bosmasi narxi, so'm" })
   @IsOptional()
   @IsInt()

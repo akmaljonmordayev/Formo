@@ -22,7 +22,17 @@ let face = null;
 function post(msg) {
   const text = JSON.stringify({ source: SOURCE, ...msg });
   if (window.ReactNativeWebView) window.ReactNativeWebView.postMessage(text);
-  else if (window.parent !== window) window.parent.postMessage(text, '*');
+  else if (window.parent !== window) {
+    // Ota oyna manzili ma'lum bo'lsa shungagina yuboriladi (ochiq '*' emas); noma'lum bo'lsa (masalan RN WebView'ning
+    // ba'zi versiyalarida referrer yo'q) '*' ga tushadi — ketayotgan ma'lumot nosezgir (faqat forma holati).
+    let targetOrigin = '*';
+    try {
+      if (document.referrer) targetOrigin = new URL(document.referrer).origin;
+    } catch {
+      targetOrigin = '*';
+    }
+    window.parent.postMessage(text, targetOrigin);
+  }
 }
 
 function image(id, i) {
@@ -116,6 +126,12 @@ function update(msg) {
 }
 
 function onMessage(e) {
+  // Origin bilan solishtirib bo'lmaydi: Expo web'da bu fayl sandbox="allow-scripts" (allow-same-origin'siz)
+  // iframe ichida ishlaydi — uning window.location.origin har doim "null" (yopiq origin), ota oynaniki esa
+  // haqiqiy origin, shuning uchun ikkisi hech qachon teng kelmaydi. O'rniga manba identifikatsiyasi
+  // tekshiriladi: RN WebView ko'prigi source'siz keladi (ruxsat etiladi), haqiqiy ota oyna — window.parent bilan
+  // bir xil (ruxsat etiladi), boshqa har qanday oyna — rad etiladi.
+  if (e.source && e.source !== window.parent) return;
   let msg = e.data;
   try {
     if (typeof msg === 'string') msg = JSON.parse(msg);

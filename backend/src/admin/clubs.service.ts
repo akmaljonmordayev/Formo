@@ -3,7 +3,10 @@ import { AuditCategory, OrderStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditEntry, AuditService } from './audit.service';
 import { CategoriesService } from './categories.service';
-import { ClubKitDto, CreateClubDto, ListClubsQueryDto, UpdateClubDto, UpdateKitDto } from './dto/club.dto';
+import { ClubKitDto, CreateClubDto, KitDto, ListClubsQueryDto, UpdateClubDto, UpdateKitDto } from './dto/club.dto';
+
+/** Klubda bitta jamoa uchun ko'pi bilan nechta forma (uy/mehmon/uchinchi) bo'lishi mumkin */
+const MAX_KITS_PER_CLUB = 3;
 
 const clubInclude = {
   category: { select: { id: true, name: true, slug: true } },
@@ -134,6 +137,33 @@ export class ClubsService {
       update: rows.filter((k) => k.id).map(({ id, ...data }) => ({ where: { id }, data })),
       create: rows.filter((k) => !k.id).map(({ id: _id, ...data }) => data),
     } satisfies Prisma.KitUpdateManyWithoutClubNestedInput;
+  }
+
+  /** "Formalar" sahifasi uchun — barcha klublarning barcha formalari bitta yassi ro'yxatda */
+  async listKits() {
+    return this.prisma.kit.findMany({
+      orderBy: [{ club: { name: 'asc' } }, { sortOrder: 'asc' }],
+      include: { club: { select: { id: true, name: true, code: true, markColor: true, season: true } } },
+    });
+  }
+
+  /** Mavjud klubga yangi forma (uy/mehmon/uchinchi) qo'shadi — kits massivini qayta yuborish shart emas */
+  async createKit(clubId: number, dto: KitDto, actor: AuditEntry['actor'], ip?: string) {
+    const club = await this.prisma.club.findUnique({ where: { id: clubId }, include: { _count: { select: { kits: true } } } });
+    if (!club) throw new NotFoundException('Klub topilmadi');
+    if (club._count.kits >= MAX_KITS_PER_CLUB) {
+      throw new BadRequestException(`Klubda ko'pi bilan ${MAX_KITS_PER_CLUB} ta forma bo'lishi mumkin`);
+    }
+    const kit = await this.prisma.kit.create({ data: { ...dto, clubId, sortOrder: club._count.kits } });
+
+    await this.audit.log({
+      actor,
+      action: 'Forma qo\'shildi',
+      category: AuditCategory.CATALOG,
+      context: `${club.name} · ${kit.label}`,
+      ip,
+    });
+    return kit;
   }
 
   async updateKit(id: number, dto: UpdateKitDto, actor: AuditEntry['actor'], ip?: string) {

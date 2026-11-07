@@ -63,7 +63,7 @@ export default function SuperadminPricing() {
         if (!active) return;
         setKit360Rows(clubs.map((c) => ({ kitId: c.kit.id, clubName: c.name, bgColor: c.kit.bgColor, textColor: c.kit.textColor })));
         const prices = Object.fromEntries(
-          clubs.map((c) => [c.kit.id, { shirtPrice: c.kit.shirtPrice + (c.kit.shortsPrice || 0), printPrice: c.kit.printPrice }]),
+          clubs.map((c) => [c.kit.id, { shirtPrice: c.kit.shirtPrice, printPrice: c.kit.printPrice }]),
         );
         setDraft360(prices);
         setSaved360(prices);
@@ -158,8 +158,7 @@ export default function SuperadminPricing() {
     const succeeded = {};
     for (const r of dirtyRows) {
       try {
-        // shortsPrice: 0 — eski bazada qolgan alohida shortik narxi ham tozalanadi
-        await clubsApi.updateKit(r.kitId, { ...draft360[r.kitId], shortsPrice: 0 });
+        await clubsApi.updateKit(r.kitId, draft360[r.kitId]);
         succeeded[r.kitId] = draft360[r.kitId];
       } catch {
         failed.push(r.clubName);

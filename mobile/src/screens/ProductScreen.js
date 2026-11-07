@@ -44,18 +44,14 @@ export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCusto
   }
 
   const available = visibleSizes(product.sizes, rules).filter((s) => s.available).map((s) => s.size);
-  const breakdown = product.priceBreakdown || {
-    shirt: product.price || 0,
-    shorts: 0,
-    print: 0,
-  };
+  // Shortik narxi endi alohida emas — komplekt (futbolka+shortik) narxiga qo'shilgan
+  const breakdown = product.priceBreakdown || { shirt: product.price || 0, print: 0 };
 
   // Faqat serverdan kelgan ma'lumot (Kit: colorsLabel, narx tarkibi, o'lchamlar)
   const specs = [
     [t('kitIncludes'), t('kitIncludesValue')],
     product.colorsLabel ? [t('kitColors'), product.colorsLabel] : null,
     [t('shirtPrice'), formatMoney(breakdown.shirt)],
-    [t('shortsPrice'), formatMoney(breakdown.shorts)],
     [t('printPrice'), formatMoney(breakdown.print)],
     [t('sizes'), available.length ? `${available[0]}–${available[available.length - 1]}` : '—'],
   ].filter(Boolean);

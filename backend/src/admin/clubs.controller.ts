@@ -6,7 +6,7 @@ import { CurrentUser, AuthUser } from '../common/decorators/current-user.decorat
 import { Roles } from '../common/decorators/roles.decorator';
 import { ParseIdPipe } from '../common/pipes/parse-id.pipe';
 import { ClubsService } from './clubs.service';
-import { CreateClubDto, ListClubsQueryDto, UpdateClubDto, UpdateKitDto } from './dto/club.dto';
+import { CreateClubDto, KitDto, ListClubsQueryDto, UpdateClubDto, UpdateKitDto } from './dto/club.dto';
 
 @ApiTags('Admin · Klublar va formalar')
 @ApiBearerAuth()
@@ -27,6 +27,18 @@ export class ClubsController {
   @ApiOperation({ summary: "Yangi klub va uning formalarini qo'shish" })
   create(@Body() dto: CreateClubDto, @CurrentUser() user: AuthUser, @Req() req: Request) {
     return this.clubs.create(dto, user, req.ip);
+  }
+
+  @Get('kits')
+  @ApiOperation({ summary: "Barcha formalar — klublar bo'yicha yassi ro'yxat (\"Formalar\" sahifasi uchun)" })
+  listKits() {
+    return this.clubs.listKits();
+  }
+
+  @Post(':id/kits')
+  @ApiOperation({ summary: "Mavjud klubga yangi forma (uy/mehmon/uchinchi) qo'shish" })
+  createKit(@Param('id', ParseIdPipe) id: number, @Body() dto: KitDto, @CurrentUser() user: AuthUser, @Req() req: Request) {
+    return this.clubs.createKit(id, dto, user, req.ip);
   }
 
   @Patch(':id')

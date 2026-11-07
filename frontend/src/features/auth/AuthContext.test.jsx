@@ -7,7 +7,7 @@ import { fetchMe, login as loginRequest, logout as logoutRequest } from './authS
 
 vi.mock('./authService', () => ({ login: vi.fn(), logout: vi.fn(), fetchMe: vi.fn() }));
 
-const operator = { id: 2, fullName: 'Dilshod Karimov', role: 'OPERATOR' };
+const tailor = { id: 2, fullName: 'Dilshod Karimov', role: 'TAILOR' };
 const tokens = { accessToken: 'access-1', refreshToken: 'refresh-1' };
 
 let auth;
@@ -35,29 +35,29 @@ describe('AuthProvider', () => {
   });
 
   it('saqlangan sessiya — darhol tiklanadi, keyin bazadagi yangi ma’lumot bilan yangilanadi', async () => {
-    session.save({ ...tokens, user: operator });
-    fetchMe.mockResolvedValue({ ...operator, fullName: 'Yangi Ism' });
+    session.save({ ...tokens, user: tailor });
+    fetchMe.mockResolvedValue({ ...tailor, fullName: 'Yangi Ism' });
 
     renderProvider();
 
-    expect(screen.getByText('Dilshod Karimov (OPERATOR)')).toBeInTheDocument();
-    expect(await screen.findByText('Yangi Ism (OPERATOR)')).toBeInTheDocument();
+    expect(screen.getByText('Dilshod Karimov (TAILOR)')).toBeInTheDocument();
+    expect(await screen.findByText('Yangi Ism (TAILOR)')).toBeInTheDocument();
     expect(session.user.fullName).toBe('Yangi Ism');
     expect(session.accessToken).toBe('access-1');
   });
 
   it('/auth/me xato bersa (tarmoq) — foydalanuvchi chiqarib yuborilmaydi', async () => {
-    session.save({ ...tokens, user: operator });
+    session.save({ ...tokens, user: tailor });
     fetchMe.mockRejectedValue(new Error('Failed to fetch'));
 
     renderProvider();
     await waitFor(() => expect(fetchMe).toHaveBeenCalled());
 
-    expect(screen.getByText('Dilshod Karimov (OPERATOR)')).toBeInTheDocument();
+    expect(screen.getByText('Dilshod Karimov (TAILOR)')).toBeInTheDocument();
   });
 
   it('/auth/me 401/403 bersa — lokal (tahrirlangan) role bilan qolmasdan chiqarib yuboriladi', async () => {
-    session.save({ ...tokens, user: { ...operator, role: 'SUPERADMIN' } });
+    session.save({ ...tokens, user: { ...tailor, role: 'SUPERADMIN' } });
     fetchMe.mockRejectedValue(Object.assign(new Error('Ruxsat yo‘q'), { status: 403 }));
 
     renderProvider();
@@ -67,7 +67,7 @@ describe('AuthProvider', () => {
   });
 
   it('login: sessiya saqlanadi, onSuccess chaqiriladi', async () => {
-    loginRequest.mockResolvedValue({ ...tokens, user: operator });
+    loginRequest.mockResolvedValue({ ...tokens, user: tailor });
     const onSuccess = vi.fn();
     renderProvider();
 
@@ -76,10 +76,10 @@ describe('AuthProvider', () => {
       result = await auth.login({ phone: '+998902222222', password: 'x' }, { onSuccess });
     });
 
-    expect(result).toEqual(operator);
-    expect(onSuccess).toHaveBeenCalledWith(operator);
+    expect(result).toEqual(tailor);
+    expect(onSuccess).toHaveBeenCalledWith(tailor);
     expect(session.accessToken).toBe('access-1');
-    expect(screen.getByText('Dilshod Karimov (OPERATOR)')).toBeInTheDocument();
+    expect(screen.getByText('Dilshod Karimov (TAILOR)')).toBeInTheDocument();
   });
 
   it('login: mobil foydalanuvchi (USER) panelga kiritilmaydi va serverdagi sessiyasi yopiladi', async () => {
@@ -112,7 +112,7 @@ describe('AuthProvider', () => {
   });
 
   it('logout: server + lokal sessiya yopiladi', async () => {
-    session.save({ ...tokens, user: operator });
+    session.save({ ...tokens, user: tailor });
     renderProvider();
 
     await act(() => auth.logout());
@@ -123,7 +123,7 @@ describe('AuthProvider', () => {
   });
 
   it('sessiya tugadi hodisasi — avtomatik chiqarib yuboriladi', async () => {
-    session.save({ ...tokens, user: operator });
+    session.save({ ...tokens, user: tailor });
     renderProvider();
 
     act(() => {

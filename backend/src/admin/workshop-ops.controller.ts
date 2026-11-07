@@ -13,7 +13,7 @@ import { ChatMessagesQueryDto, ListDefectsQueryDto, ResolveDefectDto, SendChatMe
 @ApiTags('Admin · Sex bilan yozishma')
 @ApiBearerAuth()
 @ApiForbiddenResponse({ description: "Ruxsat yo'q" })
-@Roles(Role.SUPERADMIN, Role.OPERATOR)
+@Roles(Role.SUPERADMIN)
 @Controller('admin/chat')
 export class AdminChatController {
   constructor(private readonly chat: ChatService) {}
@@ -41,13 +41,13 @@ export class AdminChatController {
 @ApiTags('Admin · Nuqsonlar (brak)')
 @ApiBearerAuth()
 @ApiForbiddenResponse({ description: "Ruxsat yo'q" })
-@Roles(Role.SUPERADMIN, Role.OPERATOR)
+@Roles(Role.SUPERADMIN)
 @Controller('admin/defects')
 export class AdminDefectsController {
   constructor(private readonly defects: DefectsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Barcha sexlarning nuqson hisobotlari (`openCount` — hal qilinmaganlar)' })
+  @ApiOperation({ summary: "Barcha sexlarning nuqson hisobotlari (`openCount` — hal qilinmaganlar, `resolvedCount` — hal qilinganlar)" })
   list(@Query() query: ListDefectsQueryDto) {
     return this.defects.listAll(query);
   }

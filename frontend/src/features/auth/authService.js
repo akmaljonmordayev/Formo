@@ -6,7 +6,6 @@ const USE_MOCK = import.meta.env.VITE_USE_MOCK_AUTH === 'true';
 
 const MOCK_USERS = [
   { id: 1, fullName: 'Super Admin', phone: '+998901111111', password: 'admin123', role: ROLES.SUPERADMIN },
-  { id: 2, fullName: 'Operator', phone: '+998902222222', password: 'operator123', role: ROLES.OPERATOR },
   { id: 3, fullName: 'Tikuvxona', phone: '+998903333333', password: 'tailor123', role: ROLES.TAILOR },
 ];
 

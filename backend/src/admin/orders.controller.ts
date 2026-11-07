@@ -20,7 +20,7 @@ import { OrdersService } from './orders.service';
 @ApiTags('Admin · Buyurtmalar')
 @ApiBearerAuth()
 @ApiForbiddenResponse({ description: "Ruxsat yo'q" })
-@Roles(Role.SUPERADMIN, Role.OPERATOR)
+@Roles(Role.SUPERADMIN)
 @Controller('admin/orders')
 export class OrdersController {
   constructor(private readonly orders: OrdersService) {}

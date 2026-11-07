@@ -30,6 +30,8 @@ export const clubsApi = {
   create: (body) => api('/admin/clubs', { method: 'POST', body }),
   update: (id, body) => api(`/admin/clubs/${id}`, { method: 'PATCH', body }),
   remove: (id) => api(`/admin/clubs/${id}`, { method: 'DELETE' }),
+  listKits: () => api('/admin/clubs/kits'),
+  createKit: (clubId, body) => api(`/admin/clubs/${clubId}/kits`, { method: 'POST', body }),
   updateKit: (kitId, body) => api(`/admin/clubs/kits/${kitId}`, { method: 'PATCH', body }),
 };
 
@@ -91,14 +93,14 @@ export const settingsApi = {
   notificationsTest: () => api('/admin/settings/notifications/test', { method: 'POST' }),
 };
 
-// Operator/Superadmin ↔ tikuv sexi yozishmasi
+// Superadmin ↔ tikuv sexi yozishmasi
 export const chatApi = {
   threads: () => api('/admin/chat/threads'), // [{ workshopId, name, unread, lastMessage }]
   messages: (workshopId, after) => api(`/admin/chat/${workshopId}/messages${qs({ after })}`), // { items }
   send: (workshopId, text) => api(`/admin/chat/${workshopId}/messages`, { method: 'POST', body: { text } }),
 };
 
-// Operator/Superadmin ↔ mobil ilova mijozi (qo'llab-quvvatlash chati)
+// Superadmin ↔ mobil ilova mijozi (qo'llab-quvvatlash chati)
 export const supportApi = {
   threads: () => api('/admin/support/threads'), // [{ workshopId(=userId), name, phone, unread, lastMessage }]
   unread: () => api('/admin/support/unread'), // { unread }

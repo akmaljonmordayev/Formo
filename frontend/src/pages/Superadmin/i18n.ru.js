@@ -201,6 +201,8 @@ const RU = {
   '— Biriktirilmagan —': '— Не назначен —',
   Yangi: 'Новые',
   "To'lov kutilmoqda": 'Ожидает оплаты',
+  Yangi: 'Новый',
+  'Sexga yuborildi': 'Отправлен в цех',
   'Qabul qilindi': 'Принят',
   'Ishlab chiqarishda': 'В производстве',
   Bosilmoqda: 'Печатается',

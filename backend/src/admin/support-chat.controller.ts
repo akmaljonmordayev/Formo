@@ -44,7 +44,7 @@ export class SupportChatController {
 @ApiTags('Admin · Mijozlar bilan yozishma')
 @ApiBearerAuth()
 @ApiForbiddenResponse({ description: "Ruxsat yo'q" })
-@Roles(Role.SUPERADMIN, Role.OPERATOR)
+@Roles(Role.SUPERADMIN)
 @Controller('admin/support')
 export class AdminSupportChatController {
   constructor(private readonly chat: ChatService) {}

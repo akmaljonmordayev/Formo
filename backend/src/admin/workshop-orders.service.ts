@@ -191,7 +191,7 @@ export class WorkshopOrdersService {
       throw new ConflictException('Avval buyurtmani qabul qiling (POST /workshop/orders/{id}/accept)');
     }
     if (dto.status !== OrderStatus.READY) {
-      throw new ConflictException('Sex buyurtmani faqat «Tayyor» deb belgilaydi — yetkazishga operator chiqaradi');
+      throw new ConflictException('Sex buyurtmani faqat «Tayyor» deb belgilaydi — yetkazishga administratsiya chiqaradi');
     }
     if (!IN_WORK.includes(order.status)) {
       throw new ConflictException(`Buyurtma ${order.status} holatida — o'zgartirib bo'lmaydi`);

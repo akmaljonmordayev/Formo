@@ -4,14 +4,13 @@ import { addDays, todayLocal } from '../src/shop/delivery.service';
 import { api, bearer, createApp, login, nextPhone, SUPERADMIN } from './helpers';
 
 /**
- * Operator ↔ tikuv sexi: yozishma, nuqson (brak), profil/xodimlar; Superadmin ↔ mobil: dizayn studiyasi,
+ * Superadmin ↔ tikuv sexi: yozishma, nuqson (brak), profil/xodimlar; Superadmin ↔ mobil: dizayn studiyasi,
  * kampaniya auditoriyasi, bildirishnoma holati; mobil profil.
  */
 describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
   let app: INestApplication;
   let prisma: PrismaService;
   let admin: string;
-  let operator: string;
   let user: string;
   let sexA: { token: string; id: number };
   let sexB: { token: string; id: number };
@@ -49,9 +48,6 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
       'TRUNCATE "Category", "Club", "Kit", "Promocode", "Setting", "AuditLog", "PricingItem", "Campaign" RESTART IDENTITY CASCADE',
     );
     admin = (await login(app, SUPERADMIN.phone, SUPERADMIN.password)).accessToken;
-    const opPhone = nextPhone();
-    await as(admin).post('/api/admin/operator', { phone: opPhone, password: 'operator123', fullName: 'Dilshod Operator' }).expect(201);
-    operator = (await login(app, opPhone, 'operator123')).accessToken;
     sexA = await workshop('Ipak Yo‘li Tikuv');
     sexB = await workshop('Chilonzor Sex');
 
@@ -81,9 +77,9 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
   });
 
   // ---------------------------------------------------------------------------
-  describe('Operator ↔ sex yozishmasi', () => {
-    it('operator sexga yozadi, sex ko‘radi va o‘qilgan bo‘ladi; javob operatorga o‘qilmagan bo‘lib tushadi', async () => {
-      await as(operator).post(`/api/admin/chat/${sexA.id}/messages`, { text: 'Bugun 20 ta forma kerak' }).expect(201);
+  describe('Superadmin ↔ sex yozishmasi', () => {
+    it('superadmin sexga yozadi, sex ko‘radi va o‘qilgan bo‘ladi; javob superadminga o‘qilmagan bo‘lib tushadi', async () => {
+      await as(admin).post(`/api/admin/chat/${sexA.id}/messages`, { text: 'Bugun 20 ta forma kerak' }).expect(201);
       expect((await as(sexA.token).get('/api/workshop/chat/unread').expect(200)).body.unread).toBe(1);
 
       const seen = await as(sexA.token).get('/api/workshop/chat/messages').expect(200);
@@ -93,7 +89,7 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
       const reply = await as(sexA.token).post('/api/workshop/chat/messages', { text: 'Tayyor bo‘ladi' }).expect(201);
       expect(reply.body).toMatchObject({ fromWorkshop: true, workshopId: sexA.id });
 
-      const threads = await as(operator).get('/api/admin/chat/threads').expect(200);
+      const threads = await as(admin).get('/api/admin/chat/threads').expect(200);
       const a = threads.body.find((t: { workshopId: number }) => t.workshopId === sexA.id);
       expect(a).toMatchObject({ unread: 1, lastMessage: { text: 'Tayyor bo‘ladi', fromWorkshop: true } });
       expect(threads.body[0].workshopId).toBe(sexA.id); // oxirgi yozilgan birinchi
@@ -101,14 +97,14 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
       expect(b).toMatchObject({ unread: 0, lastMessage: null });
     });
 
-    it('?after faqat yangi xabarlarni qaytaradi; operator ochganda sex xabarlari o‘qiladi', async () => {
-      const all = await as(operator).get(`/api/admin/chat/${sexA.id}/messages`).expect(200);
+    it('?after faqat yangi xabarlarni qaytaradi; superadmin ochganda sex xabarlari o‘qiladi', async () => {
+      const all = await as(admin).get(`/api/admin/chat/${sexA.id}/messages`).expect(200);
       expect(all.body.items).toHaveLength(2);
       const lastId = all.body.items[1].id;
       await as(sexA.token).post('/api/workshop/chat/messages', { text: 'Yana bir xabar' }).expect(201);
-      const fresh = await as(operator).get(`/api/admin/chat/${sexA.id}/messages?after=${lastId}`).expect(200);
+      const fresh = await as(admin).get(`/api/admin/chat/${sexA.id}/messages?after=${lastId}`).expect(200);
       expect(fresh.body.items.map((m: { text: string }) => m.text)).toEqual(['Yana bir xabar']);
-      const threads = await as(operator).get('/api/admin/chat/threads').expect(200);
+      const threads = await as(admin).get('/api/admin/chat/threads').expect(200);
       expect(threads.body.find((t: { workshopId: number }) => t.workshopId === sexA.id).unread).toBe(0);
     });
 
@@ -118,9 +114,9 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
       await as(user).get('/api/workshop/chat/messages').expect(403);
       await as(user).get('/api/admin/chat/threads').expect(403);
       await as(sexA.token).get('/api/admin/chat/threads').expect(403);
-      await as(operator).post(`/api/admin/chat/${sexA.id}/messages`, { text: '   ' }).expect(400);
-      await as(operator).post(`/api/admin/chat/${sexA.id}/messages`, { text: '<script>alert(1)</script>' }).expect(400);
-      await as(operator).post('/api/admin/chat/999999/messages', { text: 'salom' }).expect(404);
+      await as(admin).post(`/api/admin/chat/${sexA.id}/messages`, { text: '   ' }).expect(400);
+      await as(admin).post(`/api/admin/chat/${sexA.id}/messages`, { text: '<script>alert(1)</script>' }).expect(400);
+      await as(admin).post('/api/admin/chat/999999/messages', { text: 'salom' }).expect(404);
       // Saqlangan XSS: matnli maydonlar HTMLni qabul qilmaydi
       await as(sexA.token).post('/api/workshop/employees', { fullName: '<img src=x onerror=alert(1)>', role: 'Tikuvchi' }).expect(400);
       await as(sexA.token).patch('/api/workshop/profile', { address: 'javascript:alert(1)' }).expect(400);
@@ -128,7 +124,7 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
   });
 
   // ---------------------------------------------------------------------------
-  describe('Mijoz ↔ operator yozishmasi (qo‘llab-quvvatlash)', () => {
+  describe('Mijoz ↔ superadmin yozishmasi (qo‘llab-quvvatlash)', () => {
     let user2: string;
     let userId: number;
 
@@ -141,20 +137,20 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
       user2 = reg.body.accessToken;
     });
 
-    it('mijoz yozadi → operator ro‘yxatda ko‘radi (o‘qilmagan) → javob mijozga yetadi', async () => {
+    it('mijoz yozadi → superadmin ro‘yxatda ko‘radi (o‘qilmagan) → javob mijozga yetadi', async () => {
       const sent = await as(user).post('/api/support/messages', { text: 'Buyurtmam qachon keladi?' }).expect(201);
       expect(sent.body).toMatchObject({ workshopId: userId, fromWorkshop: true, text: 'Buyurtmam qachon keladi?' });
 
-      expect((await as(operator).get('/api/admin/support/unread').expect(200)).body.unread).toBe(1);
-      const threads = await as(operator).get('/api/admin/support/threads').expect(200);
+      expect((await as(admin).get('/api/admin/support/unread').expect(200)).body.unread).toBe(1);
+      const threads = await as(admin).get('/api/admin/support/threads').expect(200);
       expect(threads.body).toHaveLength(1);
       expect(threads.body[0]).toMatchObject({ workshopId: userId, name: 'Aziz Karimov', unread: 1 });
 
-      const opened = await as(operator).get(`/api/admin/support/${userId}/messages`).expect(200);
+      const opened = await as(admin).get(`/api/admin/support/${userId}/messages`).expect(200);
       expect(opened.body.items.map((m: { text: string }) => m.text)).toEqual(['Buyurtmam qachon keladi?']);
-      expect((await as(operator).get('/api/admin/support/unread').expect(200)).body.unread).toBe(0);
+      expect((await as(admin).get('/api/admin/support/unread').expect(200)).body.unread).toBe(0);
 
-      await as(operator).post(`/api/admin/support/${userId}/messages`, { text: 'Ertaga yetkaziladi' }).expect(201);
+      await as(admin).post(`/api/admin/support/${userId}/messages`, { text: 'Ertaga yetkaziladi' }).expect(201);
       expect((await as(user).get('/api/support/unread').expect(200)).body.unread).toBe(1);
       const mine = await as(user).get(`/api/support/messages?after=${sent.body.id}`).expect(200);
       expect(mine.body.items).toHaveLength(1);
@@ -166,21 +162,21 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
       const other = await as(user2).get('/api/support/messages').expect(200);
       expect(other.body.items).toEqual([]);
       // Mijoz suhbatlari sexlar ro'yxatiga, sex suhbatlari mijozlar ro'yxatiga tushmaydi
-      const sexThreads = await as(operator).get('/api/admin/chat/threads').expect(200);
+      const sexThreads = await as(admin).get('/api/admin/chat/threads').expect(200);
       expect(sexThreads.body.find((th: { workshopId: number }) => th.workshopId === userId)).toBeUndefined();
-      const custThreads = await as(operator).get('/api/admin/support/threads').expect(200);
+      const custThreads = await as(admin).get('/api/admin/support/threads').expect(200);
       expect(custThreads.body.find((th: { workshopId: number }) => th.workshopId === sexA.id)).toBeUndefined();
     });
 
     it('rol, IDOR va validatsiya', async () => {
       await as(sexA.token).get('/api/support/messages').expect(403);
-      await as(operator).get('/api/support/messages').expect(403);
+      await as(admin).get('/api/support/messages').expect(403);
       await as(user).get('/api/admin/support/threads').expect(403);
       await as(user).get(`/api/admin/support/${userId}/messages`).expect(403);
       await as(sexA.token).get('/api/admin/support/threads').expect(403);
-      // Operator sex id'si bilan mijoz chatiga, mijoz id'si bilan sex chatiga yoza olmaydi
-      await as(operator).post(`/api/admin/support/${sexA.id}/messages`, { text: 'salom' }).expect(404);
-      await as(operator).post(`/api/admin/chat/${userId}/messages`, { text: 'salom' }).expect(404);
+      // Superadmin sex id'si bilan mijoz chatiga, mijoz id'si bilan sex chatiga yoza olmaydi
+      await as(admin).post(`/api/admin/support/${sexA.id}/messages`, { text: 'salom' }).expect(404);
+      await as(admin).post(`/api/admin/chat/${userId}/messages`, { text: 'salom' }).expect(404);
       await as(user).post('/api/support/messages', { text: '   ' }).expect(400);
       await as(user).post('/api/support/messages', { text: '<script>alert(1)</script>' }).expect(400);
       await as(user).post('/api/support/messages', { text: 'x'.repeat(1001) }).expect(400);
@@ -194,7 +190,7 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
     beforeAll(async () => {
       await as(user).post('/api/cart/items', { kitId, shirtSize: 'M' }).expect(201);
       orderId = (await checkout(1).expect(201)).body.id;
-      await as(operator).post(`/api/admin/orders/${orderId}/assign`, { workshopId: sexA.id }).expect(200);
+      await as(admin).post(`/api/admin/orders/${orderId}/assign`, { workshopId: sexA.id }).expect(200);
       await as(sexA.token).post(`/api/workshop/orders/${orderId}/accept`).expect(200);
     });
 
@@ -208,21 +204,21 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
       await as(user).post('/api/workshop/defects', { orderId, reason: 'FABRIC' }).expect(403);
     });
 
-    it('operator ko‘radi (openCount), hal qiladi; sex o‘z ro‘yxatida ko‘radi', async () => {
-      const list = await as(operator).get('/api/admin/defects?status=OPEN').expect(200);
+    it('superadmin ko‘radi (openCount), hal qiladi; sex o‘z ro‘yxatida ko‘radi', async () => {
+      const list = await as(admin).get('/api/admin/defects?status=OPEN').expect(200);
       expect(list.body.openCount).toBe(1);
       expect(list.body.items[0]).toMatchObject({ reason: 'PRINT_SHIFT', order: { id: orderId } });
       const id = list.body.items[0].id;
 
       await as(sexA.token).patch(`/api/admin/defects/${id}/resolve`, {}).expect(403);
-      const done = await as(operator).patch(`/api/admin/defects/${id}/resolve`, { note: 'Qayta bosildi' }).expect(200);
+      const done = await as(admin).patch(`/api/admin/defects/${id}/resolve`, { note: 'Qayta bosildi' }).expect(200);
       expect(done.body).toMatchObject({ status: 'RESOLVED', resolvedNote: 'Qayta bosildi' });
-      expect((await as(operator).get('/api/admin/defects').expect(200)).body.openCount).toBe(0);
+      expect((await as(admin).get('/api/admin/defects').expect(200)).body.openCount).toBe(0);
 
       const mine = await as(sexA.token).get('/api/workshop/defects').expect(200);
       expect(mine.body.total).toBe(1);
       expect((await as(sexB.token).get('/api/workshop/defects').expect(200)).body.total).toBe(0);
-      await as(operator).patch('/api/admin/defects/999999/resolve', {}).expect(404);
+      await as(admin).patch('/api/admin/defects/999999/resolve', {}).expect(404);
     });
   });
 
@@ -371,7 +367,7 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
       expect(res.body.summary.subtotal).toBe(150000 + 10000 + 159000); // komplekt (futbolka + shortik) bitta narx
       const id = res.body.id;
 
-      const detail = await as(operator).get(`/api/admin/orders/${id}`).expect(200);
+      const detail = await as(admin).get(`/api/admin/orders/${id}`).expect(200);
       expect(detail.body.items).toHaveLength(2);
       const custom = detail.body.items.find((i: { kitId: number | null }) => i.kitId === null);
       expect(custom).toMatchObject({ clubName: 'Maxsus dizayn', unitPrice: 160000, shirtSize: 'XL' });
@@ -379,7 +375,7 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
       expect(custom.design).toMatchObject({ patch: 'bayroq' });
       expect(detail.body.productType).toBe('CUSTOM_DESIGN');
 
-      await as(operator).post(`/api/admin/orders/${id}/assign`, { workshopId: sexB.id }).expect(200);
+      await as(admin).post(`/api/admin/orders/${id}/assign`, { workshopId: sexB.id }).expect(200);
       const forWorkshop = await as(sexB.token).get(`/api/workshop/orders/${id}`).expect(200);
       expect(forWorkshop.body.items.find((i: { kitId: number | null }) => i.kitId === null).design).toMatchObject({ font: 'sport' });
       // mijoz o'z buyurtmasini ko'radi
@@ -395,7 +391,7 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
       const test = await as(admin).post('/api/admin/settings/notifications/test').expect(200);
       expect(test.body).toMatchObject({ sent: false });
       expect(test.body.reason).toContain('TELEGRAM_BOT_TOKEN');
-      await as(operator).get('/api/admin/settings/notifications/status').expect(403);
+      await as(sexA.token).get('/api/admin/settings/notifications/status').expect(403);
 
       await as(admin).put('/api/admin/settings/admin.notifications', { value: { newOrder: true, telegramChatId: '123' } }).expect(200);
       await as(user).post('/api/cart/items', { kitId, shirtSize: 'S' }).expect(201);
@@ -406,7 +402,7 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
 
   // ---------------------------------------------------------------------------
   describe("Zaxira qoldig'ini o'chirish", () => {
-    it("formaning faqat tanlangan turi o'chiriladi, auditga yoziladi; operator va noto'g'ri tur — rad", async () => {
+    it("formaning faqat tanlangan turi o'chiriladi, auditga yoziladi; tikuv sexi va noto'g'ri tur — rad", async () => {
       await as(admin)
         .put('/api/admin/inventory', {
           items: [
@@ -415,7 +411,7 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
           ],
         })
         .expect(200);
-      await as(operator).delete(`/api/admin/inventory/kit/${kitId}?productType=TSHIRT`).expect(403);
+      await as(sexA.token).delete(`/api/admin/inventory/kit/${kitId}?productType=TSHIRT`).expect(403);
       await as(admin).delete(`/api/admin/inventory/kit/${kitId}?productType=HAT`).expect(400);
 
       const res = await as(admin).delete(`/api/admin/inventory/kit/${kitId}?productType=TSHIRT`).expect(200);

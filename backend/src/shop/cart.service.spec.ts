@@ -26,9 +26,9 @@ describe('CartService — shortiksiz klub formasi', () => {
     });
   });
 
-  it("narx: shortiksiz to'plamga shortsPrice qo'shilmaydi", () => {
-    const kit = { shirtPrice: 99000, shortsPrice: 60000, printPrice: 30000 };
-    expect(unitPrice(kit, { withShorts: false, printName: 'ALI' })).toBe(129000);
-    expect(unitPrice(kit, { withShorts: true, printName: 'ALI' })).toBe(189000);
+  it('narx: komplekt (futbolka+shortik bitta narx) + bosma bo‘lsa shuning narxi', () => {
+    const kit = { shirtPrice: 99000, printPrice: 30000 };
+    expect(unitPrice(kit, { printName: 'ALI' })).toBe(129000);
+    expect(unitPrice(kit, {})).toBe(99000);
   });
 });

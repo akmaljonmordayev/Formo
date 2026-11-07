@@ -6,7 +6,7 @@ import { ChatService } from './chat.service';
 
 const as = (id: number, role: Role) => ({ id, role }) as AuthUser;
 
-describe('ChatService (support chat: mijoz ↔ operator)', () => {
+describe('ChatService (support chat: mijoz ↔ superadmin)', () => {
   const prisma = {
     user: { findFirst: jest.fn(), findMany: jest.fn() },
     chatMessage: {
@@ -43,15 +43,15 @@ describe('ChatService (support chat: mijoz ↔ operator)', () => {
     await expect(service.send(7, as(3, Role.TAILOR), 'x', Role.USER)).rejects.toBeInstanceOf(BadRequestException);
   });
 
-  it('operator javobi — fromWorkshop=false', async () => {
+  it('superadmin javobi — fromWorkshop=false', async () => {
     prisma.user.findFirst.mockResolvedValue({ id: 7 });
-    const msg = await service.send(7, as(2, Role.OPERATOR), 'Javob', Role.USER);
+    const msg = await service.send(7, as(2, Role.SUPERADMIN), 'Javob', Role.USER);
     expect(msg).toMatchObject({ workshopId: 7, senderId: 2, fromWorkshop: false });
   });
 
-  it('operator sex id bilan mijoz chatiga yoza olmaydi (rol tekshiriladi)', async () => {
+  it('superadmin sex id bilan mijoz chatiga yoza olmaydi (rol tekshiriladi)', async () => {
     prisma.user.findFirst.mockResolvedValue(null);
-    await expect(service.send(3, as(2, Role.OPERATOR), 'x', Role.USER)).rejects.toBeInstanceOf(NotFoundException);
+    await expect(service.send(3, as(2, Role.SUPERADMIN), 'x', Role.USER)).rejects.toBeInstanceOf(NotFoundException);
   });
 
   it('messages faqat qaytarilgan xabarlarni o‘qilgan qiladi', async () => {

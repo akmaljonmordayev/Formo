@@ -20,7 +20,6 @@ const tailor = (extra: Partial<User> = {}) =>
 const prismaError = (code: string) => new Prisma.PrismaClientKnownRequestError('x', { code, clientVersion: 'test' });
 
 describe('AccountsService', () => {
-  const tx = { user: { count: jest.fn(), findUnique: jest.fn(), create: jest.fn() } };
   const prisma = {
     user: {
       findMany: jest.fn(),
@@ -41,8 +40,7 @@ describe('AccountsService', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
-    // Massiv ko'rinishi (list) va callback ko'rinishi (createSingle) — ikkalasi ham ishlatiladi
-    prisma.$transaction.mockImplementation((arg) => (typeof arg === 'function' ? arg(tx) : Promise.all(arg)));
+    prisma.$transaction.mockImplementation((arg) => Promise.all(arg));
   });
 
   describe('list', () => {
@@ -92,7 +90,7 @@ describe('AccountsService', () => {
     });
   });
 
-  describe('findOne / findSingle', () => {
+  describe('findOne', () => {
     it('id va rol bo‘yicha qidiradi — boshqa roldagi akkaunt topilmaydi', async () => {
       prisma.user.findFirst.mockResolvedValue(null);
       await expect(service.findOne(Role.TAILOR, 1)).rejects.toThrow(NotFoundException);
@@ -102,11 +100,6 @@ describe('AccountsService', () => {
     it('topilsa parol xeshisiz qaytaradi', async () => {
       prisma.user.findFirst.mockResolvedValue(tailor());
       expect(await service.findOne(Role.TAILOR, 3)).not.toHaveProperty('passwordHash');
-    });
-
-    it('findSingle: operator hali yaratilmagan — 404', async () => {
-      prisma.user.findFirst.mockResolvedValue(null);
-      await expect(service.findSingle(Role.OPERATOR)).rejects.toThrow(NotFoundException);
     });
   });
 
@@ -130,47 +123,6 @@ describe('AccountsService', () => {
       expect(data).not.toHaveProperty('password');
       expect(await bcrypt.compare('tailor-pass', data.passwordHash)).toBe(true);
       expect(result).not.toHaveProperty('passwordHash');
-    });
-  });
-
-  describe('createSingle (yagona operator)', () => {
-    const input = { phone: '+998902222222', password: 'operator-pass', fullName: 'Dilshod' };
-
-    it('Serializable tranzaksiyada yaratadi', async () => {
-      tx.user.count.mockResolvedValue(0);
-      tx.user.findUnique.mockResolvedValue(null);
-      tx.user.create.mockImplementation(async ({ data }) => ({ id: 2, ...data }));
-
-      const result = await service.createSingle(Role.OPERATOR, input);
-
-      expect(prisma.$transaction).toHaveBeenCalledWith(
-        expect.any(Function),
-        expect.objectContaining({ isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 10_000 }),
-      );
-      expect(tx.user.create.mock.calls[0][0].data).toMatchObject({ role: Role.OPERATOR, phone: input.phone });
-      expect(result).not.toHaveProperty('passwordHash');
-    });
-
-    it('operator allaqachon bor — 409', async () => {
-      tx.user.count.mockResolvedValue(1);
-      await expect(service.createSingle(Role.OPERATOR, input)).rejects.toThrow(ConflictException);
-      expect(tx.user.create).not.toHaveBeenCalled();
-    });
-
-    it('telefon boshqa akkauntda band — 409', async () => {
-      tx.user.count.mockResolvedValue(0);
-      tx.user.findUnique.mockResolvedValue(tailor());
-      await expect(service.createSingle(Role.OPERATOR, input)).rejects.toThrow(/telefon raqam band/);
-    });
-
-    it.each(['P2034', 'P2002'])('parallel so‘rov bilan to‘qnashuv (%s) — 500 emas, 409', async (code) => {
-      prisma.$transaction.mockRejectedValue(prismaError(code));
-      await expect(service.createSingle(Role.OPERATOR, input)).rejects.toThrow(ConflictException);
-    });
-
-    it('boshqa baza xatolari yutib yuborilmaydi', async () => {
-      prisma.$transaction.mockRejectedValue(prismaError('P1001'));
-      await expect(service.createSingle(Role.OPERATOR, input)).rejects.toThrow(Prisma.PrismaClientKnownRequestError);
     });
   });
 
@@ -244,9 +196,9 @@ describe('AccountsService', () => {
       await expect(service.remove(Role.TAILOR, 3)).rejects.toThrow(ConflictException);
     });
 
-    it('TAILOR emas (masalan OPERATOR) bo‘lsa — faol buyurtma tekshirilmaydi', async () => {
-      prisma.user.findFirst.mockResolvedValue(tailor({ role: Role.OPERATOR }));
-      await expect(service.remove(Role.OPERATOR, 3)).resolves.toEqual({ message: expect.any(String) });
+    it('TAILOR emas (masalan USER) bo‘lsa — faol buyurtma tekshirilmaydi', async () => {
+      prisma.user.findFirst.mockResolvedValue(tailor({ role: Role.USER }));
+      await expect(service.remove(Role.USER, 3)).resolves.toEqual({ message: expect.any(String) });
       expect(prisma.order.count).not.toHaveBeenCalled();
       expect(prisma.user.delete).toHaveBeenCalledWith({ where: { id: 3 } });
     });

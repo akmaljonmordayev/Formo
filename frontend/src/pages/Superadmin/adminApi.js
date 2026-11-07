@@ -3,7 +3,7 @@ import { pricingApi, settingsApi } from '../../features/platform/platformApi';
 /*
  * Superadmin sahifalari uchun umumiy narx/sozlama yordamchilari.
  * Haqiqiy narxlar: GET /admin/pricing (narx jadvali) va GET /admin/settings ('delivery.fee').
- * Mobil ilova klub formasi narxini har bir formaning o'zidan (shirtPrice/shortsPrice/printPrice) oladi —
+ * Mobil ilova klub formasi narxini har bir formaning o'zidan (shirtPrice/printPrice) oladi —
  * shuning uchun yangi forma narxi jadvaldan to'ldiriladi va "Barcha formalarga qo'llash" mavjud.
  */
 
@@ -38,15 +38,14 @@ export async function loadKitPrices() {
     const items = await pricingApi.list();
     return {
       shirtPrice: priceOf(items, PRICE_KEYS.shirt, FALLBACK_PRICES.shirt),
-      shortsPrice: 0,
       printPrice: priceOf(items, PRICE_KEYS.print, FALLBACK_PRICES.print),
     };
   } catch {
-    return { shirtPrice: FALLBACK_PRICES.shirt, shortsPrice: 0, printPrice: FALLBACK_PRICES.print };
+    return { shirtPrice: FALLBACK_PRICES.shirt, printPrice: FALLBACK_PRICES.print };
   }
 }
 
-export const kitSetPrice = (k) => (Number(k.shirtPrice) || 0) + (Number(k.shortsPrice) || 0) + (Number(k.printPrice) || 0);
+export const kitSetPrice = (k) => (Number(k.shirtPrice) || 0) + (Number(k.printPrice) || 0);
 
 /* ---------- Sozlama kalitlari ---------- */
 export const SETTING_KEYS = {

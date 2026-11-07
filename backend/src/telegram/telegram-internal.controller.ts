@@ -77,6 +77,13 @@ export class TelegramInternalController {
     return this.account.me(dto.telegramUserId);
   }
 
+  /** `me`ning yengil versiyasi — menyu/til ko'rsatish uchun (har xabarda chaqirilishi mumkin) */
+  @Post('status')
+  @HttpCode(HttpStatus.OK)
+  status(@Body() dto: TelegramUserDto) {
+    return this.account.status(dto.telegramUserId);
+  }
+
   @Post('language')
   @HttpCode(HttpStatus.OK)
   language(@Body() dto: TelegramLanguageDto) {
