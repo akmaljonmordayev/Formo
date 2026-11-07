@@ -6,7 +6,7 @@ import { CurrentUser, AuthUser } from '../common/decorators/current-user.decorat
 import { Roles } from '../common/decorators/roles.decorator';
 import { ParseIdPipe } from '../common/pipes/parse-id.pipe';
 import { ClubsService } from './clubs.service';
-import { CreateClubDto, ListClubsQueryDto, UpdateClubDto, UpdateKitDto } from './dto/club.dto';
+import { CreateClubDto, KitDto, ListClubsQueryDto, UpdateClubDto, UpdateKitDto } from './dto/club.dto';
 
 @ApiTags('Admin · Klublar va formalar')
 @ApiBearerAuth()
@@ -49,6 +49,18 @@ export class ClubsController {
     @Req() req: Request,
   ) {
     return this.clubs.updateKit(kitId, dto, user, req.ip);
+  }
+
+  @Post(':id/kits')
+  @ApiOperation({ summary: "Klubga yangi forma qo'shish (yengli/yengsiz, shortik/shalvar)" })
+  createKit(@Param('id', ParseIdPipe) id: number, @Body() dto: KitDto, @CurrentUser() user: AuthUser, @Req() req: Request) {
+    return this.clubs.createKit(id, dto, user, req.ip);
+  }
+
+  @Delete('kits/:kitId')
+  @ApiOperation({ summary: "Formani o'chirish (klubning oxirgi formasi emas)" })
+  removeKit(@Param('kitId', ParseIdPipe) kitId: number, @CurrentUser() user: AuthUser, @Req() req: Request) {
+    return this.clubs.removeKit(kitId, user, req.ip);
   }
 
   @Delete(':id')

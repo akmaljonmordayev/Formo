@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { campaignsApi } from '../../../features/platform/platformApi';
 import Modal from '../../../components/ui/Modal';
-import { useT, useMoney } from '../i18n';
+import { useLang, useT, useMoney } from '../i18n';
 
 const STATUS_LABEL = {
   DRAFT: { label: 'Qoralama', color: 'blue' },
@@ -27,7 +27,7 @@ const toLocalInput = (iso) => {
 
 export default function SuperadminCampaigns() {
   const money = useMoney();
-  const t = useT();
+  const { t, locale } = useLang();
   const [data, setData] = useState({ items: [], totals: { sent: 0, opened: 0, orders: 0, revenue: 0 } });
   const [statusFilter, setStatusFilter] = useState('');
   const [loading, setLoading] = useState(true);
@@ -51,7 +51,7 @@ export default function SuperadminCampaigns() {
   const convRate = data.totals.sent ? Math.round((data.totals.orders / data.totals.sent) * 1000) / 10 : 0;
 
   const STATS = [
-    { label: t('Yuborilgan xabarlar'), value: data.totals.sent.toLocaleString('uz-UZ'), sub: '' },
+    { label: t('Yuborilgan xabarlar'), value: data.totals.sent.toLocaleString(locale), sub: '' },
     { label: t("O'rtacha ochilish"), value: `${openRate}%`, sub: t('faqat push') },
     { label: t('Kampaniyadan buyurtma'), value: String(data.totals.orders), sub: t('{n}% konversiya', { n: convRate }) },
     { label: t('Tushum'), value: money(data.totals.revenue), sub: '' },
@@ -124,7 +124,7 @@ export default function SuperadminCampaigns() {
                     <b style={{ color: 'var(--sa-ink)' }}>{CHANNEL_LABEL[c.channel]}</b>
                     {c.scheduledAt && (
                       <>
-                        {' '}· {t('Qachon')}: <b style={{ color: 'var(--sa-ink)' }}>{new Date(c.scheduledAt).toLocaleString('uz-UZ')}</b>
+                        {' '}· {t('Qachon')}: <b style={{ color: 'var(--sa-ink)' }}>{new Date(c.scheduledAt).toLocaleString(locale)}</b>
                       </>
                     )}
                   </div>

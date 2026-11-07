@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState, useRef } from 'react';
 import { useT } from '../i18n';
 import { DEFAULT_ORDER_RULES, SETTING_KEYS, loadSettings } from '../adminApi';
 import { BACK_FRAMES, FRONT_FRAMES } from './measure';
+import KitsPanel from './KitsPanel';
 import { FONTS, FONTS_CSS, FONT_SAMPLE, H, N, TEAMS, W, fontCss, layerCache, paint, ready } from './render';
 
 export { FONTS, TEAMS, fitFont, fontCss } from './render';
@@ -9,7 +10,9 @@ export { FONTS, TEAMS, fitFont, fontCss } from './render';
 /* Forma 360°: har jamoa uchun 8 ta burchak (45° qadam), mijoz ismi va raqami yozilishi bilan formada chiziladi.
    Bosma joyi har bir suratdan o'lchanadi (measure.js) — kadrlar neyroset chizgani uchun har biri biroz boshqacha. */
 const FRAMES = import.meta.glob('./frames/*/*.jpg', { eager: true, query: '?url', import: 'default' });
-const frameUrl = (id, i) => FRAMES[`./frames/${id}/f${i}.jpg`];
+// f0..f7 — kalta yeng + shortik, l0..l7 — uzun yeng + shalvar (bor jamoalarda)
+const frameUrl = (id, i, v = 'f') => FRAMES[`./frames/${id}/${v}${i}.jpg`];
+export const VARIANTS = [{ id: 'f', label: 'Kalta yeng · shortik' }, { id: 'l', label: 'Uzun yeng · shalvar' }];
 
 // Klaviaturadagi barcha apostrof turlari (` ' ‘ ’ ʻ ʼ ´) bitta ' ga — O'KTAM, G'OFUR har qanday klaviaturada bir xil
 const APOSTROPHES = /[`'‘’ʻʼ´]/g;
@@ -50,6 +53,7 @@ export default function Kit360() {
   const drag = useRef(null);
   const [team, setTeam] = useState(DEFAULT_TEAM);
   const [frame, setFrame] = useState(0);
+  const [variantPick, setVariant] = useState('f');
   const [name, setName] = useState('');
   const [number, setNumber] = useState('');
   const [style, setStyle] = useState(() => defaultStyle(DEFAULT_TEAM));
@@ -66,8 +70,8 @@ export default function Kit360() {
     if (!s || im === s.img || im === s.back) repaint();
   }, [repaint]);
 
-  const image = useCallback((id, i) => {
-    const key = `${id}/${i}`;
+  const image = useCallback((id, i, v) => {
+    const key = `${id}/${v}${i}`;
     if (!cache.current[key]) {
       const im = new Image();
       im.decoding = 'async';
@@ -77,15 +81,17 @@ export default function Kit360() {
         repaintIfShown(im);
       };
       // Suratlari hali qo'shilmagan jamoa — so'rov yubormaymiz (404 o'rniga "tayyorlanmoqda" holati)
-      if (frameUrl(id, i)) im.src = frameUrl(id, i);
+      if (frameUrl(id, i, v)) im.src = frameUrl(id, i, v);
       else im.failed = true;
       cache.current[key] = im;
     }
     return cache.current[key];
   }, [repaintIfShown]);
 
-  const img = image(team.id, frame);
-  const back = image(team.id, 4);
+  // Uzun yengli suratlari hali yo'q jamoada — oddiy forma
+  const variant = frameUrl(team.id, 0, variantPick) ? variantPick : 'f';
+  const img = image(team.id, frame, variant);
+  const back = image(team.id, 4, variant);
   shownRef.current = { img, back };
   const imgReady = ready(img);
   const backReady = ready(back);
@@ -94,8 +100,8 @@ export default function Kit360() {
 
   // Tanlangan jamoaning barcha burchaklari oldindan yuklanadi — aylantirganda kutish bo'lmaydi
   useEffect(() => {
-    for (let i = 0; i < N; i += 1) image(team.id, i);
-  }, [team.id, image]);
+    for (let i = 0; i < N; i += 1) image(team.id, i, variant);
+  }, [team.id, variant, image]);
 
   // Platforma qoidalari: ism uzunligi, raqam oralig'i va taqiqlangan so'zlar (Sozlamalar → Buyurtma qoidalari)
   useEffect(() => {
@@ -181,7 +187,8 @@ export default function Kit360() {
       ghost.style.opacity = '1';
     }
     // 180° kadr hali yuklanmagan yoki xato bo'lsa — joylashuv joriy kadrning o'zidan o'lchanadi
-    paint(canvas, img, frame, { name: shown, number, team, style }, backReady ? back : null);
+    // Uzun shalvarda raqam bosilmaydi — faqat orqada ism va raqam
+    paint(canvas, img, frame, { name: shown, number, shortsNumber: variant === 'l' ? '' : undefined, team, style }, backReady ? back : null);
     if (fade) {
       requestAnimationFrame(() => {
         ghost.style.transition = 'opacity 180ms ease-out';
@@ -189,7 +196,7 @@ export default function Kit360() {
       });
     }
     lastPaint.current = { team: team.id, frame };
-  }, [img, back, imgReady, backReady, frame, shown, number, team, style, dpr, tick]);
+  }, [img, back, imgReady, backReady, frame, shown, number, variant, team, style, dpr, tick]);
 
   // Ism — orqa tomonda; raqam, shrift, o'lcham — oldidan (shortik) qarab turgan bo'lsa ham shu yerda qoladi
   const toBack = () => setFrame((f) => (f in BACK_FRAMES ? f : 4));
@@ -290,7 +297,7 @@ export default function Kit360() {
                 background: 'linear-gradient(180deg, #c4c4c5 0%, #a9a9aa 100%)', color: '#2a2f3d', fontSize: 13, fontWeight: 600,
               }}
             >
-              {!frameUrl(team.id, 0) ? t('Bu jamoa suratlari tayyorlanmoqda') : status === 'error' ? t('Surat yuklanmadi') : t('Yuklanmoqda...')}
+              {!frameUrl(team.id, 0, variant) ? t('Bu jamoa suratlari tayyorlanmoqda') : status === 'error' ? t('Surat yuklanmadi') : t('Yuklanmoqda...')}
             </div>
           )}
         </div>
@@ -316,6 +323,28 @@ export default function Kit360() {
                 </div>
               </div>
             ))}
+          </div>
+
+          <div role="group" aria-label={t('Forma turi')}>
+            <div className="sa-table__sub" style={{ marginBottom: 8 }}>{t('Forma turi')}</div>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {VARIANTS.map((v) => {
+                const has = Boolean(frameUrl(team.id, 0, v.id));
+                return (
+                  <button
+                    key={v.id}
+                    type="button"
+                    className={variant === v.id ? 'sa-btn' : 'sa-btn sa-btn--ghost'}
+                    aria-pressed={variant === v.id}
+                    disabled={!has}
+                    title={has ? undefined : t('Bu jamoa suratlari tayyorlanmoqda')}
+                    onClick={() => setVariant(v.id)}
+                  >
+                    {t(v.label)}
+                  </button>
+                );
+              })}
+            </div>
           </div>
 
           <label style={field}>
@@ -410,6 +439,8 @@ export default function Kit360() {
           </div>
         </div>
       </div>
+
+      <KitsPanel teamId={team.id} teamName={team.name} />
     </>
   );
 }

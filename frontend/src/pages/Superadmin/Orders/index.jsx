@@ -1,4 +1,5 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { ordersApi, ORDER_STATUS, paymentLabel, formatDateTime } from '../../../features/platform/platformApi';
 import { prettyPhone } from '../../../features/accounts/accountsApi';
 import { useActiveWorkshops } from '../../../features/orders/useOrderWorkflow';
@@ -32,7 +33,10 @@ export default function SuperadminOrders() {
   const [LIMIT] = useState(() => loadAdminPrefs().ordersPageSize || 20);
   const [tab, setTab] = useState(TABS[0]);
   // Dashboard / Ishlab chiqarish dan ?search=KOD bilan kelinsa — shu buyurtma darhol topiladi
-  const [search, setSearch] = useState(() => new URLSearchParams(window.location.search).get('search') ?? '');
+  const [params] = useSearchParams();
+  const urlSearch = params.get('search') ?? '';
+  const [search, setSearch] = useState(urlSearch);
+  useEffect(() => setSearch(urlSearch), [urlSearch]); // SPA ichida boshqa ?search= bilan kelinsa ham
   const [page, setPage] = useState(1);
   const [data, setData] = useState({ items: [], total: 0, byStatus: {} });
   const [loading, setLoading] = useState(true);
@@ -160,7 +164,18 @@ export default function SuperadminOrders() {
               data.items.map((o) => {
                 const st = ORDER_STATUS[o.status] ?? { label: o.status, color: 'blue' };
                 return (
-                  <tr key={o.id} onClick={() => setSelected(o)} style={{ cursor: 'pointer' }}>
+                  <tr
+                    key={o.id}
+                    tabIndex={0}
+                    onClick={() => setSelected(o)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelected(o);
+                      }
+                    }}
+                    style={{ cursor: 'pointer' }}
+                  >
                     <td>
                       <b>{o.code}</b>
                       {o.productType === 'KIT_DESIGN' && (
@@ -214,8 +229,12 @@ function OrderModal({ order, onClose, onSaved }) {
     if (workshopsError) setError(workshopsError);
   }, [workshopsError]);
 
-  const workshopChanged = workshopId !== (order.workshop?.id ? String(order.workshop.id) : '');
+  // assign o'tib, holat yangilash xato bersa: qayta bosishda assign takrorlanmaydi, yopilganda ro'yxat yangilanadi
+  const assigned = useRef(false);
+  const [savedWorkshopId, setSavedWorkshopId] = useState(order.workshop?.id ? String(order.workshop.id) : '');
+  const workshopChanged = workshopId !== savedWorkshopId;
   const changed = status !== order.status || workshopChanged;
+  const close = () => (assigned.current ? onSaved() : onClose());
 
   const submit = async (e) => {
     e.preventDefault();
@@ -224,8 +243,12 @@ function OrderModal({ order, onClose, onSaved }) {
     try {
       // Sex almashishi — faqat assign orqali (to'lanmagan/tikilayotgan buyurtmani server rad etadi, tarix yoziladi).
       // assign holatni SENT_TO_WORKSHOP qiladi; boshqa holat tanlangan bo'lsa u alohida o'rnatiladi
-      if (workshopChanged && workshopId) await ordersApi.assign(order.id, { workshopId: Number(workshopId) });
-      const assignedNow = workshopChanged && workshopId && status === 'SENT_TO_WORKSHOP';
+      if (workshopChanged && workshopId) {
+        await ordersApi.assign(order.id, { workshopId: Number(workshopId) });
+        assigned.current = true;
+        setSavedWorkshopId(workshopId);
+      }
+      const assignedNow = assigned.current && status === 'SENT_TO_WORKSHOP';
       if (status !== order.status && !assignedNow) await ordersApi.updateStatus(order.id, { status });
       onSaved();
     } catch (err) {
@@ -245,7 +268,7 @@ function OrderModal({ order, onClose, onSaved }) {
   ].filter(Boolean);
 
   return (
-    <Modal title={t('Buyurtma {code}', { code: order.code })} onClose={onClose}>
+    <Modal title={t('Buyurtma {code}', { code: order.code })} onClose={close}>
       <form onSubmit={submit}>
         {error && <div className="form-error">{error}</div>}
 
@@ -362,7 +385,7 @@ function OrderModal({ order, onClose, onSaved }) {
         </div>
 
         <div className="modal__foot" style={{ padding: '14px 0 0' }}>
-          <button type="button" className="btn btn--ghost" onClick={onClose}>
+          <button type="button" className="btn btn--ghost" onClick={close}>
             {t("Yopish")}
           </button>
           <button type="submit" className="btn btn--accent" disabled={saving || !changed}>
