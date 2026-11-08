@@ -3,7 +3,7 @@ const assert = require('node:assert/strict');
 const path = require('path');
 
 const src = (p) => path.join(__dirname, '..', 'src', p);
-const { kit360Team, kit360Message, parseKit360Message, KIT360_SOURCE, KIT360_TEAMS, KIT360_IDS, findKit360Team } = require(src('features/kit360/index.js'));
+const { kit360Team, kit360Message, parseKit360Message, KIT360_SOURCE, KIT360_TEAMS, KIT360_IDS, KIT360_LONG, findKit360Team } = require(src('features/kit360/index.js'));
 const viewerHtml = require(src('components/ui/kit360/viewerHtml.js')).default;
 
 test("kit360Team: katalogdagi klub nomi/kodi → foto-360° jamoasi (lotin, kirill, inglizcha)", () => {
@@ -53,11 +53,45 @@ test('xabarlar: update va javoblar formo-kit360 belgisi bilan, boshqa postMessag
 test("viewer.html: har jamoaning (KIT360_IDS) 8 tadan kadri ichida (data: URL), tashqi skript yo'q", () => {
   const frames = JSON.parse(viewerHtml.match(/window\.FORMO_FRAMES=(\{.*?\})<\/script>/s)[1]);
   assert.deepEqual(Object.keys(frames).sort(), [...KIT360_IDS].sort());
-  for (const list of Object.values(frames)) {
-    assert.equal(list.length, 8);
-    for (const url of list) assert.ok(url.startsWith('data:image/jpeg;base64,'));
+  // { f: kalta yeng, l?: uzun yeng } — har biri 8 kadr
+  for (const [id, sets] of Object.entries(frames)) {
+    assert.deepEqual(Object.keys(sets).sort(), KIT360_LONG.includes(id) ? ['f', 'l'] : ['f']);
+    for (const list of Object.values(sets)) {
+      assert.equal(list.length, 8);
+      for (const url of list) assert.ok(url.startsWith('data:image/jpeg;base64,'));
+    }
   }
   assert.ok(!/<script[^>]+src=/i.test(viewerHtml));
+});
+
+test('uzun yeng: KIT360_LONG viewer build (thumbs.js → LONG_TEAMS) va backend KIT360_LONG_IDS bilan bir xil', () => {
+  const fs = require('fs');
+  const thumbs = fs.readFileSync(src('components/ui/kit360/thumbs.js'), 'utf8');
+  assert.deepEqual(JSON.parse(thumbs.match(/LONG_TEAMS = (\[.*?\]);/)[1]), [...KIT360_LONG].sort());
+  const backend = fs.readFileSync(path.join(__dirname, '..', '..', 'backend', 'src', 'kits', 'kit360.ts'), 'utf8');
+  const ids = JSON.parse(backend.match(/KIT360_LONG_IDS[^=]*= (\[.*?\]);/)[1].replace(/'/g, '"'));
+  assert.deepEqual([...ids].sort(), [...KIT360_LONG].sort());
+});
+
+test("forma turi: kit360Variant, itemVariant (savat kit.sleeve / buyurtma sleeve) va xabardagi variant", () => {
+  const { kit360Variant, itemVariant } = require(src('features/kit360/index.js'));
+  assert.equal(kit360Variant('rm', 'LONG'), 'l');
+  assert.equal(kit360Variant('rm', 'SHORT'), 'f');
+  assert.equal(kit360Variant('ars', 'LONG'), 'f'); // uzun yeng suratlari yo'q
+  assert.equal(itemVariant({ club: { kit360Id: 'fcb' }, kit: { sleeve: 'LONG' } }), 'l');
+  assert.equal(itemVariant({ kit360Id: 'fcb', sleeve: 'LONG' }), 'l');
+  assert.equal(itemVariant({ kit360Id: 'fcb' }), 'f');
+  assert.equal(JSON.parse(kit360Message({ team: 'rm', variant: 'l' })).variant, 'l');
+  assert.equal('variant' in JSON.parse(kit360Message({ team: 'rm', variant: 'f' })), false);
+});
+
+test('bosma matni: cleanPrintName (apostrof, kirill) va cleanPrintNumber ("0", max)', () => {
+  const { cleanPrintName, cleanPrintNumber } = require(src('features/kit360/index.js'));
+  assert.equal(cleanPrintName("o`ktam"), "O'KTAM");
+  assert.equal(cleanPrintName('ҚОДИРОВ 7'), 'ҚОДИРОВ ');
+  assert.equal(cleanPrintNumber('0'), '0');
+  assert.equal(cleanPrintNumber('07'), '7');
+  assert.equal(cleanPrintNumber('150', 99), '99');
 });
 
 test("KIT360_TEAMS: 18 ta jamoa (7 terma jamoa, 11 klub), to'liq ma'lumotlar bilan", () => {

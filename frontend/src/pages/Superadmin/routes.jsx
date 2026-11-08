@@ -5,10 +5,10 @@ import {
   Factory,
   History,
   LayoutDashboard,
+  MessagesSquare,
   Package,
   Rotate3d,
   Settings,
-  ShieldCheck,
   ShoppingBag,
   Tag,
   Ticket,
@@ -25,6 +25,7 @@ import Orders from './Orders';
 import Production from './Production';
 import Defects from './Defects';
 import Kit360 from './Kit360';
+import Messages from './Messages';
 import Inventory from './Inventory';
 import Pricing from './Pricing';
 import Promocodes from './Promocodes';
@@ -80,6 +81,8 @@ export const superadminRoutes = [
   { path: 'finance', element: <Finance /> },
   { path: 'topups', element: <TopUps /> },
   { path: 'reports', element: <Reports /> },
+  { path: 'messages', element: <Messages /> },
+  // Operator paneli olib tashlandi: mijozlar va sexlar bilan yozishma — "Xabarlar"; eski havola ishlashda qoladi
   { path: 'operator', element: legacy(Operator) },
   { path: 'settings', element: <SettingsPage /> },
   { path: 'audit-log', element: <AuditLog /> },
@@ -89,6 +92,7 @@ export const superadminRoutes = [
 export const superadminMenu = [
   { to: BASE, label: 'Dashboard', end: true, icon: LayoutDashboard, group: 'Asosiy' },
   { to: `${BASE}/orders`, label: 'Buyurtmalar', icon: ShoppingBag, group: 'Asosiy' },
+  { to: `${BASE}/messages`, label: 'Xabarlar', icon: MessagesSquare, group: 'Asosiy' },
   { to: `${BASE}/topups`, label: "Balans to'ldirish", icon: CreditCard, group: 'Asosiy' },
   { to: `${BASE}/production`, label: 'Ishlab chiqarish', icon: Factory, group: 'Asosiy' },
 
@@ -104,7 +108,6 @@ export const superadminMenu = [
   { to: `${BASE}/users`, label: 'Mijozlar', icon: Users, group: 'Moliya va Mijozlar' },
 
   // Kampaniyalar va Hisobotlar menyudan yashirildi — marshrutlari superadminRoutes da qoladi
-  { to: `${BASE}/operator`, label: 'Operator akkaunti', icon: ShieldCheck, group: 'Tizim' },
   { to: `${BASE}/settings`, label: 'Sozlamalar', icon: Settings, group: 'Tizim' },
   { to: `${BASE}/audit-log`, label: 'Audit jurnali', icon: History, group: 'Tizim' },
 ];

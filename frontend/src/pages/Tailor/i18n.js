@@ -1,13 +1,17 @@
 import { useCallback } from 'react';
+import { toUzNewLatin } from '../../utils/uzNewLatin';
+import en from './i18n.en';
 import { useTailor } from './prefs';
 
 export const LANGS = [
   { value: 'uz', label: "O'zbekcha", shortLabel: 'UZ' },
-  { value: 'ru', label: 'Русский', shortLabel: 'RU' },
+  { value: 'uz-New', label: 'Ōzbekça', shortLabel: 'ŌZ' },
   { value: 'uz-Cyrl', label: 'Ўзбекча', shortLabel: 'ЎЗ' },
+  { value: 'ru', label: 'Русский', shortLabel: 'RU' },
+  { value: 'en', label: 'English', shortLabel: 'EN' },
 ];
 
-export const LOCALES = { uz: 'uz-UZ', 'uz-Cyrl': 'uz-Cyrl-UZ', ru: 'ru-RU' };
+export const LOCALES = { uz: 'uz-UZ', 'uz-New': 'uz-UZ', 'uz-Cyrl': 'uz-Cyrl-UZ', ru: 'ru-RU', en: 'en-US' };
 
 const uz = {
   // ---------- shell ----------
@@ -973,7 +977,7 @@ const ru = {
   'emp.loadError': 'Не удалось загрузить список сотрудников.',
 };
 
-const DICTS = { uz, ru };
+const DICTS = { uz, ru, en };
 
 const UZ_CYRILLIC_DIGRAPHS = {
   "o'": 'ў',
@@ -1028,7 +1032,8 @@ function transliterateUzbek(text) {
 
 export const translate = (lang, key, vars) => {
   const baseText = DICTS[lang]?.[key] ?? uz[key] ?? key;
-  const text = lang === 'uz-Cyrl' ? transliterateUzbek(baseText) : baseText;
+  // uz-Cyrl — kirill, uz-New — yangi lotin alifbosi (Ō, Ḡ, Ş, Ç): ikkalasi o'zbekcha matndan avtomatik
+  const text = lang === 'uz-Cyrl' ? transliterateUzbek(baseText) : lang === 'uz-New' ? toUzNewLatin(baseText) : baseText;
   return vars ? text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m)) : text;
 };
 

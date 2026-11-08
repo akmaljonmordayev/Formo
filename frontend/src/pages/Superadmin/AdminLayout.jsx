@@ -11,7 +11,7 @@ function TranslatedLayout({ menu }) {
   );
 
   useEffect(() => {
-    document.documentElement.lang = lang === 'oz' ? 'uz-Cyrl' : lang;
+    document.documentElement.lang = lang === 'oz' ? 'uz-Cyrl' : lang === 'uzn' ? 'uz' : lang;
   }, [lang]);
 
   return (

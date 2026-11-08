@@ -7,7 +7,11 @@ import { cx } from './utils';
 
 /* Forma surati admin paneldagi "Forma 360°" bilan bir xil: har jamoa uchun 8 burchakli surat, ism va raqam formaga bosiladi */
 const FRAMES = import.meta.glob('../Superadmin/Kit360/frames/*/*.jpg', { eager: true, query: '?url', import: 'default' });
-export const frameUrl = (id, i) => FRAMES[`../Superadmin/Kit360/frames/${id}/f${i}.jpg`];
+// v: 'f' — kalta yeng + shortik, 'l' — uzun yeng + shalvar (suratlari yo'q jamoada — 'f')
+export const frameUrl = (id, i, v = 'f') =>
+  FRAMES[`../Superadmin/Kit360/frames/${id}/${v}${i}.jpg`] ?? FRAMES[`../Superadmin/Kit360/frames/${id}/f${i}.jpg`];
+/** Buyurtma qatori → surat varianti: uzun yengli forma (sleeve LONG) — 'l' */
+export const orderVariant = (order) => (order?.apiItems?.[0]?.sleeve === 'LONG' ? 'l' : 'f');
 
 // Buyurtmadagi klub nomi → surati bor jamoa. Ro'yxat backend/src/kits/kit360.ts (KIT360_ALIASES) bilan bir xil
 const TEAM_ALIASES = {
@@ -68,7 +72,7 @@ const VIEWS = [
   { key: 'jersey.back', frame: 4 },
 ];
 
-function PhotoKit({ team, name, number, shortsNumber, statusBadge }) {
+function PhotoKit({ team, variant = 'f', name, number, shortsNumber, statusBadge }) {
   const t = useT();
   const canvasRef = useRef(null);
   const cache = useRef({});
@@ -89,7 +93,7 @@ function PhotoKit({ team, name, number, shortsNumber, statusBadge }) {
   const style = { font: FONTS[0], scale: 1, nameColor: team.ink, numberColor: team.ink };
 
   const image = useCallback((id, i) => {
-    const k = `${id}/${i}`;
+    const k = `${id}/${variant}${i}`;
     if (!cache.current[k]) {
       const im = new Image();
       im.decoding = 'async';
@@ -98,11 +102,11 @@ function PhotoKit({ team, name, number, shortsNumber, statusBadge }) {
         im.failed = true;
         repaintIfShown(im);
       };
-      im.src = frameUrl(id, i);
+      im.src = frameUrl(id, i, variant);
       cache.current[k] = im;
     }
     return cache.current[k];
-  }, [repaintIfShown]);
+  }, [repaintIfShown, variant]);
 
   const img = image(team.id, frame);
   const back = image(team.id, 4);
@@ -161,7 +165,7 @@ function PhotoKit({ team, name, number, shortsNumber, statusBadge }) {
       return;
     }
     // Tayyor kadr (paint + sharpen ~140 ms) saqlanadi — aylantirganda qayta hisoblanmaydi
-    const sig = `${team.id}|${name}|${number}|${shortsNumber}|${canvas.width}|${backReady}|${fontsVersion.current}`;
+    const sig = `${team.id}|${variant}|${name}|${number}|${shortsNumber}|${canvas.width}|${backReady}|${fontsVersion.current}`;
     if (done.current.sig !== sig) done.current = { sig, frames: new Map() };
     const hit = done.current.frames.get(frame);
     if (hit) {
@@ -263,7 +267,7 @@ export default function OrderKitView({ order, statusBadge }) {
   return (
     <div className="flex flex-col gap-2">
       {team ? (
-        <PhotoKit team={team} name={name} number={number} shortsNumber={order.shortsNumber || ''} statusBadge={statusBadge} />
+        <PhotoKit team={team} variant={orderVariant(order)} name={name} number={number} shortsNumber={order.shortsNumber || ''} statusBadge={statusBadge} />
       ) : (
         <div className="relative">
           <JerseyPreview

@@ -32,7 +32,10 @@ export class InventoryService {
     });
   }
 
-  /** Zaxira uchun klub formalari ro'yxati (tanlov uchun) — Forma 360° bilan bir xil, bitta jamoaga bitta forma */
+  /**
+   * Zaxira uchun klub formalari ro'yxati (tanlov uchun) — Forma 360° bilan bir xil: jamoaning har turi (kalta yeng,
+   * uzun yeng) bo'yicha bitta forma — qishki formalar qoldig'i ham alohida yuritiladi
+   */
   async kitOptions() {
     const kits = await this.prisma.kit.findMany({
       where: { isActive: true, club: { kit360Id: { not: null } } },
@@ -40,8 +43,11 @@ export class InventoryService {
       orderBy: { sortOrder: 'asc' },
     });
     const order = new Map(KIT360_IDS.map((id, i) => [id, i]));
-    const oneByClub = new Map<number, (typeof kits)[number]>();
-    for (const k of kits) if (!oneByClub.has(k.clubId)) oneByClub.set(k.clubId, k);
+    const oneByClub = new Map<string, (typeof kits)[number]>();
+    for (const k of kits) {
+      const key = `${k.clubId}:${k.sleeve}`;
+      if (!oneByClub.has(key)) oneByClub.set(key, k);
+    }
     return [...oneByClub.values()]
       .map((k) => ({
         kitId: k.id,
@@ -50,8 +56,14 @@ export class InventoryService {
         bgColor: k.bgColor,
         textColor: k.textColor,
         kit360Id: k.club.kit360Id,
+        sleeve: k.sleeve,
       }))
-      .sort((a, b) => (order.get(a.kit360Id as never) ?? 99) - (order.get(b.kit360Id as never) ?? 99));
+      // Jamoa tartibida, jamoa ichida — avval kalta yeng
+      .sort(
+        (a, b) =>
+          (order.get(a.kit360Id as never) ?? 99) - (order.get(b.kit360Id as never) ?? 99) ||
+          Number(a.sleeve === 'LONG') - Number(b.sleeve === 'LONG'),
+      );
   }
 
   async upsert(dto: UpsertInventoryDto, actor: AuditEntry['actor'], ip?: string) {

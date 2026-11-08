@@ -142,6 +142,14 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
       await as(admin).post('/api/admin/clubs/99999/kits', kit).expect(404);
       const res = await as(admin).post(`/api/admin/clubs/${real.id}/kits`, kit).expect(201);
       expect(res.body).toMatchObject({ clubId: real.id, sleeve: 'LONG', bottom: 'PANTS', sortOrder: 3, shirtPrice: 159000 });
+      // Mobil ilova: klub sahifasida forma turi va komplekt tarkibi ko'rinadi (qishki forma tanlovi shundan)
+      const club = await api(app).get(`/api/catalog/clubs/${real.id}`).expect(200);
+      expect(club.body.kits.find((k: { id: number }) => k.id === res.body.id)).toMatchObject({
+        sleeve: 'LONG',
+        bottom: 'PANTS',
+        includes: 'Uzun yengli futbolka + shalvar',
+      });
+      expect(club.body.kits.find((k: { sleeve: string }) => k.sleeve === 'SHORT')).toMatchObject({ includes: 'Futbolka + shortik' });
       await as(admin).delete(`/api/admin/clubs/kits/${res.body.id}`).expect(200);
       await as(admin).delete(`/api/admin/clubs/kits/${res.body.id}`).expect(404);
 

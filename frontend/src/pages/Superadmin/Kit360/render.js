@@ -386,7 +386,8 @@ export function paint(canvas, img, frame, { name, number, shortsNumber, team, st
     const color = z.text === 'name' ? style.nameColor
       : z.shorts && style.numberColor === team.ink && team.shortsInk ? team.shortsInk : style.numberColor;
     const layer = textLayer(text, z, style.font, color, z.shorts ? null : team.outline, K);
-    const zone = warp(layer, z, mask, img.naturalWidth, K, canvas.width, canvas.height);
+    // Shalvar: soyadagi oq mato fon bilan birga "fon" deb belgilanadi (fr) — raqam son o'rtasida, niqobsiz chiziladi
+    const zone = warp(layer, z, z.pants ? null : mask, img.naturalWidth, K, canvas.width, canvas.height);
     if (zone) shadeInto(ctx, zone, K);
   }
 }

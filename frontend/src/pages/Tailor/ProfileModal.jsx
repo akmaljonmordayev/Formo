@@ -251,7 +251,7 @@ export default function ProfileModal({ open, profile, onClose, onSaved }) {
               <Globe className="h-3.5 w-3.5" aria-hidden="true" />
               {t('profile.langLabel')}
             </span>
-            <div className="grid grid-cols-3 gap-1 rounded-xl border border-white/10 bg-[#0e1424] p-1">
+            <div className="grid grid-cols-5 gap-1 rounded-xl border border-white/10 bg-[#0e1424] p-1">
               {LANGS.map((language) => (
                 <button
                   key={language.value}
@@ -263,7 +263,7 @@ export default function ProfileModal({ open, profile, onClose, onSaved }) {
                     lang === language.value ? 'bg-teal-400 text-slate-950' : 'text-slate-400 hover:text-white'
                   )}
                 >
-                  {language.label}
+                  <span title={language.label}>{language.shortLabel}</span>
                 </button>
               ))}
             </div>

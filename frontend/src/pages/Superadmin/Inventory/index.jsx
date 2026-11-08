@@ -176,6 +176,7 @@ export default function SuperadminInventory() {
                           }}
                         />
                         <b>{kit.clubName}</b>
+                        {kit.sleeve === 'LONG' && <span className="sa-badge sa-badge--blue">{t('Uzun yeng')}</span>}
                       </div>
                     </td>
                     {SIZES.map((s) => {

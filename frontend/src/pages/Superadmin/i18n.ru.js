@@ -872,6 +872,21 @@ const RU = {
   "Uzun yeng · shalvar": "Длинный рукав · брюки",
   "Kalta yeng": "Короткий рукав",
   "Uzun yeng": "Длинный рукав",
+  // --- Xabarlar (yordam chati) ---
+  "Mijozlar ilovadagi «Yordam chati»dan yozadi, sexlar — o'z panelidan. Javobingiz ularga darhol ko'rinadi.":
+    'Клиенты пишут из «Чата поддержки» в приложении, цеха — из своей панели. Ваш ответ они увидят сразу.',
+  Suhbatlar: 'Диалоги',
+  'Ism yoki telefon': 'Имя или телефон',
+  'Hali hech bir mijoz yozmagan': 'Пока ни один клиент не написал',
+  'Sexlar topilmadi': 'Цеха не найдены',
+  Siz: 'Вы',
+  "Xabar yo'q": 'Нет сообщений',
+  "Xabarlar yo'q": 'Сообщений пока нет',
+  'Suhbatni tanlang': 'Выберите диалог',
+  "Chapdagi ro'yxatdan mijoz yoki sexni tanlang": 'Выберите клиента или цех в списке слева',
+  "Qo'ng'iroq": 'Позвонить',
+  'Javob yozing...': 'Напишите ответ...',
+  Yuborish: 'Отправить',
 };
 
 export default RU;

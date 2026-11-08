@@ -162,6 +162,27 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
       expect((await as(user).get('/api/support/unread').expect(200)).body.unread).toBe(0);
     });
 
+    it("operator paneli yo'q — superadmin (Xabarlar sahifasi) mijoz yozganini ko'radi va javob beradi", async () => {
+      const reg = await api(app)
+        .post('/api/auth/register')
+        .send({ phone: nextPhone(), password: 'secret123', fullName: 'Sardor Toshev' })
+        .expect(201);
+      const user3 = reg.body.accessToken as string;
+      const sent = await as(user3).post('/api/support/messages', { text: 'Uzun yengli forma bormi?' }).expect(201);
+      const user3Id = sent.body.workshopId;
+      const threads = await as(admin).get('/api/admin/support/threads').expect(200);
+      expect(threads.body.find((th: { workshopId: number }) => th.workshopId === user3Id)).toMatchObject({
+        name: 'Sardor Toshev',
+        unread: 1,
+      });
+      await as(admin).get(`/api/admin/support/${user3Id}/messages`).expect(200);
+      await as(admin).post(`/api/admin/support/${user3Id}/messages`, { text: 'Ha, Formalar → Qishki' }).expect(201);
+      const mine = await as(user3).get(`/api/support/messages?after=${sent.body.id}`).expect(200);
+      expect(mine.body.items).toEqual([expect.objectContaining({ fromWorkshop: false, text: 'Ha, Formalar → Qishki' })]);
+      // Sex chatini ham superadmin ochadi
+      await as(admin).get('/api/admin/chat/threads').expect(200);
+    });
+
     it('mijozlar bir-birining yozishmasini ko‘rmaydi; sex chatlari aralashmaydi', async () => {
       const other = await as(user2).get('/api/support/messages').expect(200);
       expect(other.body.items).toEqual([]);

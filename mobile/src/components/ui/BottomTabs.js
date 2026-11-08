@@ -8,8 +8,8 @@ import { useKeyboard } from './KeyboardAware';
 
 const TABS = [
   { key: 'home', label: 'home', icon: 'home-variant-outline', iconActive: 'home-variant' },
-  // Studio = Forma 360° katalogi (alohida "Forma 360°" tabi yo'q)
-  { key: 'studio', label: 'studio', icon: 'tshirt-crew-outline', iconActive: 'tshirt-crew' },
+  // "Formalar" — Forma 360° katalogi (ligalar, qishki/yozgi formalar); marshrut kaliti eskicha 'studio'
+  { key: 'studio', label: 'formsTab', icon: 'tshirt-crew-outline', iconActive: 'tshirt-crew' },
   { key: 'orders', label: 'orders', icon: 'clipboard-text-outline', iconActive: 'clipboard-text' },
   { key: 'profile', label: 'profile', icon: 'account-circle-outline', iconActive: 'account-circle' },
 ];

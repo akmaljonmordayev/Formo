@@ -1,11 +1,13 @@
 import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common';
-import { ClubType, Continent } from '@prisma/client';
+import { ClubType, Continent, KitBottom, KitSleeve } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { KIT360_CATALOG, pickKit360Owners } from './kit360';
+import { KIT360_CATALOG, KIT360_LONG_IDS, pickKit360Owners } from './kit360';
 
 const SEASON = '2026/27';
 /** Yashirin jamoalarni ochish bir marta bajariladi: keyin admin yashirgan klub qayta ochilmaydi */
 const REVEAL_KEY = 'kit360.catalog.revealed.v1';
+/** Uzun yengli formalar har jamoaga bir marta qo'shiladi ({ done: [id] }): admin o'chirsa qayta yaratilmaydi */
+const LONG_KEY = 'kit360.catalog.long.v1';
 
 /**
  * Forma 360° jamoalari mobil ilovada sotuvda bo'lishi uchun katalogda bog'langan klub va faol forma kerak.
@@ -56,6 +58,57 @@ export class Kit360CatalogSeed implements OnApplicationBootstrap {
       const value = { at: new Date().toISOString() };
       await this.prisma.setting.upsert({ where: { key: REVEAL_KEY }, create: { key: REVEAL_KEY, value }, update: { value } });
     }
+    await this.ensureLongKits();
+  }
+
+  /**
+   * Har jamoa uchun bir martalik: uzun yeng + shalvar suratlari bor jamoaga "Uzun yeng" formasi (asosiy formaning
+   * narxi va ranglari bilan). Bajarilgan jamoalar LONG_KEY sozlamasida saqlanadi: admin keyin o'chirsa yoki yashirsa —
+   * qayta yaratilmaydi; klubi hali yo'q yoki xato bergan jamoa keyingi ishga tushishda qayta uriniladi.
+   */
+  async ensureLongKits() {
+    const saved = await this.prisma.setting.findUnique({ where: { key: LONG_KEY } });
+    const prev = (saved?.value ?? {}) as { done?: unknown };
+    const done = new Set<string>(Array.isArray(prev.done) ? (prev.done as string[]) : []);
+    const before = done.size;
+    for (const id of KIT360_LONG_IDS) {
+      if (done.has(id)) continue;
+      try {
+        const club = await this.prisma.club.findUnique({
+          where: { kit360Id: id },
+          // Nofaol formalar ham: admin yashirgan uzun yengli forma qayta yaratilmasin
+          select: { id: true, kits: { orderBy: [{ sortOrder: 'asc' }, { id: 'asc' }] } },
+        });
+        if (!club) continue;
+        if (club.kits.some((k) => k.sleeve === KitSleeve.LONG)) {
+          done.add(id);
+          continue;
+        }
+        const base = club.kits.find((k) => k.isActive) ?? club.kits[0];
+        const team = KIT360_CATALOG.find((tm) => tm.id === id);
+        await this.prisma.kit.create({
+          data: {
+            clubId: club.id,
+            label: base?.label ?? 'Uy',
+            bgColor: base?.bgColor ?? team?.bgColor ?? '#ffffff',
+            textColor: base?.textColor ?? team?.textColor ?? '#111318',
+            colorsLabel: base?.colorsLabel ?? team?.colorsLabel ?? null,
+            description: base?.description ?? 'Dry-fit polyester · DTF bosma',
+            ...(base && { shirtPrice: base.shirtPrice, printPrice: base.printPrice, sizes: base.sizes }),
+            sleeve: KitSleeve.LONG,
+            bottom: KitBottom.PANTS,
+            sortOrder: (base?.sortOrder ?? 0) + 1,
+          },
+        });
+        done.add(id);
+        this.logger.log(`Forma 360° ${id}: #${club.id} klubiga uzun yengli forma qo'shildi`);
+      } catch (err) {
+        this.logger.error(`Forma 360° ${id} (uzun yeng): ${err instanceof Error ? err.message : err}`);
+      }
+    }
+    if (saved && done.size === before) return;
+    const value = { at: new Date().toISOString(), done: [...done] };
+    await this.prisma.setting.upsert({ where: { key: LONG_KEY }, create: { key: LONG_KEY, value }, update: { value } });
   }
 
   private async ensureTeam(team: (typeof KIT360_CATALOG)[number], reveal: boolean) {

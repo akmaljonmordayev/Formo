@@ -252,7 +252,10 @@ export default function Profile() {
                       active ? 'text-slate-950' : 'text-slate-400 hover:text-white'
                     )}
                   >
-                    {language.label}
+                    {/* 5 ta til: tor ekranda qisqa nom (UZ, ŌZ, ЎЗ, RU, EN) */}
+                    <span className="sm:hidden" aria-hidden="true">{language.shortLabel}</span>
+                    <span className="hidden sm:inline">{language.label}</span>
+                    <span className="sr-only sm:hidden">{language.label}</span>
                   </button>
                 );
               })}
