@@ -319,6 +319,8 @@ export class ShopOrdersService {
                 designSnapshot: (i.kitDesign?.design ?? undefined) as unknown as Prisma.InputJsonObject | undefined,
                 // Klub formasi: Forma 360° suratlari to'plami (admin/sex foto-360° ko'rsatadi)
                 kit360Id: i.club?.kit360Id ?? null,
+                // Forma turi (kalta/uzun yeng, shortik/shalvar) — sex va admin aynan shu suratlarni ko'radi
+                ...(i.kit && { sleeve: i.kit.sleeve, bottom: i.kit.bottom }),
                 printName: i.printName,
                 printNumber: i.printNumber,
                 numberOnShorts: i.numberOnShorts,

@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Kit, OrderStatus, Prisma } from '@prisma/client';
+import { Kit, KitBottom, KitSleeve, OrderStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ListCatalogClubsQueryDto } from './dto/catalog.dto';
 import { ADULT_SIZES, ALL_SIZES, fullSetPrice, KID_SIZES } from './pricing';
@@ -30,6 +30,12 @@ type ClubCardRow = Prisma.ClubGetPayload<{ select: typeof clubCard }>;
 
 const toClubCard = ({ _count, ...c }: ClubCardRow) => ({ ...c, kitsCount: _count.kits });
 
+/** Komplekt tarkibi: "Futbolka + shortik", "Uzun yengli futbolka + shalvar" */
+export function kitIncludes(kit: Pick<Kit, 'sleeve' | 'bottom'>) {
+  const top = kit.sleeve === KitSleeve.LONG ? 'Uzun yengli futbolka' : 'Futbolka';
+  return `${top} + ${kit.bottom === KitBottom.PANTS ? 'shalvar' : 'shortik'}`;
+}
+
 /** Forma (mahsulot) — narxlari bilan */
 export function toKitProduct(kit: Kit) {
   return {
@@ -41,7 +47,10 @@ export function toKitProduct(kit: Kit) {
     textColor: kit.textColor,
     colorsLabel: kit.colorsLabel,
     description: kit.description,
-    includes: 'Futbolka + shortik',
+    // Forma turi: kalta yeng (yozgi) yoki uzun yeng (qishki); pastki qism — shortik yoki shalvar
+    sleeve: kit.sleeve,
+    bottom: kit.bottom,
+    includes: kitIncludes(kit),
     price: fullSetPrice(kit),
     priceBreakdown: { shirt: kit.shirtPrice, print: kit.printPrice },
     sizes: ALL_SIZES.map((size) => ({ size, available: kit.sizes.includes(size) })).filter(
@@ -60,6 +69,7 @@ const kitCardInclude = {
       league: true,
       markColor: true,
       kit360Id: true,
+      type: true,
       category: { select: { id: true, name: true, slug: true } },
     },
   },
@@ -213,8 +223,8 @@ export class CatalogService {
   /**
    * Formalar sotilgan soni bo'yicha (ko'pidan kamiga): buyurtmalardagi qatorlar miqdori yig'indisi,
    * bekor qilingan/qaytarilgan/to'lanmaganlar sanalmaydi. Teng bo'lsa — klub nomi bo'yicha.
-   * kit360=true — har klubdan bitta (birinchi) forma: Forma 360° ekrani buyurtmada shuni ishlatadi
-   * va jamoa surati katalogda takrorlanmaydi.
+   * kit360=true — har klubdan har yeng turi (kalta / uzun) bo'yicha bitta (birinchi) forma: Forma 360° ekrani
+   * buyurtmada shuni ishlatadi va jamoa surati katalogda takrorlanmaydi.
    */
   async bestSellingKits(limit = 20, kit360 = false) {
     const rows = await this.prisma.kit.findMany({
@@ -222,8 +232,15 @@ export class CatalogService {
       include: kitCardInclude,
       orderBy: [{ club: { name: 'asc' } }, { sortOrder: 'asc' }, { id: 'asc' }],
     });
-    const seen = new Set<number>();
-    const kits = kit360 ? rows.filter((k) => !seen.has(k.clubId) && seen.add(k.clubId)) : rows;
+    const seen = new Set<string>();
+    const kits = kit360
+      ? rows.filter((k) => {
+          const key = `${k.clubId}:${k.sleeve}`;
+          if (seen.has(key)) return false;
+          seen.add(key);
+          return true;
+        })
+      : rows;
     if (!kits.length) return [];
 
     const sold = await this.prisma.orderItem.groupBy({

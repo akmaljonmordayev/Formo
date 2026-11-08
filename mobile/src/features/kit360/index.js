@@ -31,6 +31,15 @@ const norm = (s) => String(s ?? '').toLowerCase().replace(/[‘’ʻʼ`]/g, "'")
 
 export const KIT360_IDS = Object.keys(ALIASES);
 
+/**
+ * Uzun yeng + shalvar suratlari (l0..l7) bor jamoalar — viewer build.mjs chiqaradigan thumbs.js → LONG_TEAMS
+ * va backend kit360.ts → KIT360_LONG_IDS bilan bir xil (tests/kit360.test.js tekshiradi).
+ */
+export const KIT360_LONG = ['ar', 'de', 'en', 'es', 'fcb', 'fr', 'mci', 'mu', 'psg', 'pt', 'rm', 'uz'];
+
+/** Forma turi → viewer/karta surati varianti: 'l' — uzun yeng + shalvar (suratlari bo'lsa), aks holda 'f' */
+export const kit360Variant = (team, sleeve) => (sleeve === 'LONG' && KIT360_LONG.includes(team) ? 'l' : 'f');
+
 /** 18 ta Forma 360° jamoalari — admin paneldagi Superadmin → Forma 360° bilan bir xil */
 export const KIT360_TEAMS = [
   { id: 'es', kind: 'national', name: 'Ispaniya', code: 'ESP', color: '#c60b1e', accent: '#f6c23e', colorsLabel: 'Qizil / sariq' },
@@ -76,12 +85,20 @@ export function itemKit360(item) {
   return KIT360_IDS.includes(id) ? id : null;
 }
 
+/** Savat qatori (item.kit.sleeve) yoki buyurtma qatori (item.sleeve) → karta surati varianti ('f' | 'l') */
+export function itemVariant(item) {
+  const team = itemKit360(item);
+  return team ? kit360Variant(team, item?.kit?.sleeve ?? item?.sleeve) : 'f';
+}
+
 /** Ilova → viewer xabari (WebView.postMessage va iframe uchun matn) */
-export function kit360Message({ team, name, number, shortsNumber, side }) {
+export function kit360Message({ team, variant, name, number, shortsNumber, side }) {
   return JSON.stringify({
     source: KIT360_SOURCE,
     type: 'update',
     team,
+    // 'l' — uzun yeng + shalvar suratlari; berilmasa kalit yo'q (viewer kalta yengni ko'rsatadi)
+    ...(variant === 'l' && { variant: 'l' }),
     name: String(name ?? ''),
     number: String(number ?? ''),
     // Berilmasa (undefined) — viewer shortikka orqadagi raqamni chizadi; '' — shortik raqamsiz
@@ -105,3 +122,20 @@ export function findKit360Team(id) {
   return KIT360_TEAMS.find((t) => t.id === id) || KIT360_TEAMS[0];
 }
 
+
+/** Formadagi ism: apostroflar bitta ' ga, katta harf, faqat lotin/kirill harflari, bo'shliq va ' . -; maxLen gacha */
+export const cleanPrintName = (s, maxLen = 30) =>
+  String(s ?? '')
+    .replace(/[`'‘’ʻʼ´]/g, "'")
+    .toUpperCase()
+    .replace(/[^A-ZА-ЯЁЎҚҒҲ' .-]/g, '')
+    .replace(/ {2,}/g, ' ')
+    .replace(/^ /, '')
+    .slice(0, maxLen);
+
+/** Raqam: faqat raqamlar, oldidagi nollarsiz ("0" qoladi), max dan oshmaydi */
+export const cleanPrintNumber = (s, max = 99) => {
+  const digits = String(s ?? '').replace(/\D/g, '').replace(/^0+(?=\d)/, '');
+  const val = Number(digits);
+  return val > max ? String(max) : digits;
+};

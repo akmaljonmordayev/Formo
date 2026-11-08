@@ -7,9 +7,13 @@ import { colors, radii, spacing } from '../../../constants/theme';
  * 3-bosqich: shortikka raqam. Toggle yoqilgan bo'lsa formaning orqasidagi raqam (2-bosqich) shortikka ham
  * bosiladi; o'chirilsa shortik raqamsiz. Raqam alohida kiritilmaydi — 2-bosqichdagi raqamning o'zi.
  *
- * Props: t, enabled, onToggle(bool), number (formaning orqasidagi raqam)
+ * pants — uzun yengli forma: shortik o'rniga shalvar (matnlar shunga mos).
+ *
+ * Props: t, enabled, onToggle(bool), number (formaning orqasidagi raqam), pants?
  */
-export default function ShortsNumberStep({ t, enabled, onToggle, number }) {
+export default function ShortsNumberStep({ t, enabled, onToggle, number, pants = false }) {
+  const toggleLabel = t(pants ? 'pantsNumberToggle' : 'shortsNumberToggle');
+  const offHint = t(pants ? 'pantsNumberOffHint' : 'shortsNumberOffHint');
   return (
     <View>
       <View style={styles.toggleRow}>
@@ -17,21 +21,21 @@ export default function ShortsNumberStep({ t, enabled, onToggle, number }) {
           <MaterialCommunityIcons name="numeric" size={20} color={enabled ? colors.primaryDark : colors.muted} />
         </View>
         <View style={{ flex: 1 }}>
-          <Text style={styles.toggleTitle}>{t('shortsNumberToggle')}</Text>
-          <Text style={styles.toggleSub}>{enabled ? t('shortsNumberOnHint') : t('shortsNumberOffHint')}</Text>
+          <Text style={styles.toggleTitle}>{toggleLabel}</Text>
+          <Text style={styles.toggleSub}>{enabled ? t('shortsNumberOnHint') : offHint}</Text>
         </View>
         <Switch
           value={enabled}
           onValueChange={onToggle}
           trackColor={{ false: '#2A3160', true: colors.accent }}
           thumbColor="#FFFFFF"
-          accessibilityLabel={t('shortsNumberToggle')}
+          accessibilityLabel={toggleLabel}
         />
       </View>
 
       {enabled ? (
         <View style={styles.displayRow}>
-          <View style={[styles.display, !number && styles.displayEmpty]} accessibilityLabel={t('shortsNumber')}>
+          <View style={[styles.display, !number && styles.displayEmpty]} accessibilityLabel={t(pants ? 'pantsNumber' : 'shortsNumber')}>
             <Text style={[styles.displayText, !number && styles.displayPlaceholder]}>{number || '—'}</Text>
           </View>
           <View style={styles.displaySide}>
@@ -42,7 +46,7 @@ export default function ShortsNumberStep({ t, enabled, onToggle, number }) {
       ) : (
         <View style={styles.offCard}>
           <MaterialCommunityIcons name="check-circle-outline" size={18} color={colors.tealLight} />
-          <Text style={styles.offText}>{t('shortsNumberOffHint')}</Text>
+          <Text style={styles.offText}>{offHint}</Text>
         </View>
       )}
     </View>

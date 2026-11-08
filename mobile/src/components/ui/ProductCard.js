@@ -37,7 +37,7 @@ export function ProductCard({ product, onPress, favorite, onFavorite, favoriteLa
           </Pressable>
         ) : null}
 
-        <Kit360Thumb team={product.kit360Id} />
+        <Kit360Thumb team={product.kit360Id} variant={product.variant} />
       </View>
 
       <View style={styles.info}>

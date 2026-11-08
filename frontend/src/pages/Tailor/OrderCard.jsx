@@ -1,7 +1,7 @@
 import { ChevronRight } from 'lucide-react';
 import { useT } from './i18n';
 import { JerseyMini } from './ui';
-import { frameUrl, teamForClub } from './OrderKitView';
+import { frameUrl, orderVariant, teamForClub } from './OrderKitView';
 import { cx } from './utils';
 
 const STRIP = {
@@ -43,7 +43,7 @@ function deadlineText(t, order, bucket) {
 /** Forma rasmi: klubning haqiqiy surati (oldi tomoni), bo'lmasa — rangli chizma */
 function KitThumb({ order }) {
   const team = teamForClub(order.clubName, order.apiItems?.[0]?.kit360Id);
-  const src = team ? frameUrl(team.id, 0) : null;
+  const src = team ? frameUrl(team.id, 0, orderVariant(order)) : null;
   if (!src) {
     return (
       <JerseyMini

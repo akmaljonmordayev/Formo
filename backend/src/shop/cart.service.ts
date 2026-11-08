@@ -88,7 +88,7 @@ export function toCartItem(line: CartLine, prices: CartPrices) {
   const print = [line.printName, line.printNumber].filter(Boolean).join(' · ');
   const sizes = line.withShorts ? `${line.shirtSize} / ${line.shortsSize}` : line.shirtSize;
   const title = kit
-    ? `${kit.club.name} · ${kit.label} formasi`
+    ? `${kit.club.name} · ${kit.label} formasi${kit.sleeve === 'LONG' ? ' (uzun yeng)' : ''}`
     : kitDesign
       ? `${kitDesign.name} · ${KIT_DESIGN_TITLE}`
       : `${CUSTOM_TITLE} futbolka`;
@@ -98,7 +98,10 @@ export function toCartItem(line: CartLine, prices: CartPrices) {
     club: kit
       ? { id: kit.club.id, name: kit.club.name, code: kit.club.code, markColor: kit.club.markColor, kit360Id: kit.club.kit360Id }
       : null,
-    kit: kit ? { label: kit.label, bgColor: kit.bgColor, textColor: kit.textColor } : null,
+    // sleeve/bottom — savat/buyurtma kartasi va sex uchun: kalta yeng + shortik yoki uzun yeng + shalvar
+    kit: kit
+      ? { label: kit.label, bgColor: kit.bgColor, textColor: kit.textColor, sleeve: kit.sleeve, bottom: kit.bottom }
+      : null,
     kitDesignId: line.kitDesignId,
     kitDesign: kitDesign ? { id: kitDesign.id, name: kitDesign.name, thumbnailUrl: kitDesign.thumbnailUrl, design: toDesignV1(kitDesign) } : null,
     design,

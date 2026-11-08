@@ -1,7 +1,8 @@
 /* Mobil ilova uchun Forma 360° — admin sahifasidagi bilan bir xil chizish (render.js), WebView ichidagi lokal HTML.
    Kadrlar HTML ichida (data: URL, tarmoq kerak emas); shriftlar Google Fonts'dan, internet bo'lmasa — tizim shrifti.
 
-   Ilova → viewer:  { source, type: 'update', team, name, number, shortsNumber?, side?: 'front' | 'back', font?: id }
+   Ilova → viewer:  { source, type: 'update', team, variant?, name, number, shortsNumber?, side?: 'front' | 'back', font?: id }
+                    variant: 'f' — kalta yeng + shortik (standart), 'l' — uzun yeng + shalvar (suratlari yo'q bo'lsa — 'f')
                     shortsNumber berilsa (bo'sh qator — shortik raqamsiz) shortikka alohida; berilmasa — orqadagi raqam
    Viewer → ilova:  { source, type: 'ready' } · { source, type: 'face', view: 'front' | 'back' | 'side' } · { source, type: 'error', message } */
 import { BACK_FRAMES, FRONT_FRAMES } from '../measure';
@@ -15,7 +16,10 @@ const dpr = Math.min(window.devicePixelRatio || 1, 2);
 canvas.width = Math.round(W * dpr);
 canvas.height = Math.round(H * dpr);
 
-const state = { team: TEAMS[0], frame: 4, name: '', number: '', shortsNumber: undefined, font: FONTS[0] };
+const state = { team: TEAMS[0], variant: 'f', frame: 4, name: '', number: '', shortsNumber: undefined, font: FONTS[0] };
+// Jamoa kadrlari: FRAMES[id] = { f: [8 ta], l?: [8 ta] }
+const framesOf = (id, v) => FRAMES[id]?.[v] ?? null;
+const variantFor = (id, v) => (v === 'l' && framesOf(id, 'l') ? 'l' : 'f');
 const images = {};
 let face = null;
 
@@ -35,16 +39,16 @@ function post(msg) {
   }
 }
 
-function image(id, i) {
-  const key = `${id}/${i}`;
+function image(id, i, v = state.variant) {
+  const key = `${id}/${v}${i}`;
   if (!images[key]) {
     const im = new Image();
     // Faqat ko'rinib turgan kadr (yoki 180° namuna) yuklanganda qayta chiziladi — 8 ta ortiqcha chizish yo'q
     im.onload = () => {
-      if (id === state.team.id && (i === state.frame || i === 4)) schedule();
+      if (id === state.team.id && v === state.variant && (i === state.frame || i === 4)) schedule();
     };
     im.onerror = () => post({ type: 'error', message: `frame ${key}` });
-    im.src = FRAMES[id]?.[i] ?? '';
+    im.src = framesOf(id, v)?.[i] ?? '';
     images[key] = im;
   }
   return images[key];
@@ -66,10 +70,10 @@ let warmTimer = null;
 function warmUp() {
   clearTimeout(warmTimer);
   if (!state.name.trim() && !state.number) return;
-  const { team } = state;
+  const { team, variant } = state;
   const order = [1, 7, 2, 6, 3, 5, 0, 4].map((d) => (state.frame + d) % N);
   const step = () => {
-    if (team !== state.team) return;
+    if (team !== state.team || variant !== state.variant) return;
     const i = order.shift();
     if (i === undefined) return;
     prepare(i, image(team.id, i), image(team.id, 4));
@@ -110,8 +114,10 @@ function draw() {
 function update(msg) {
   const team = TEAMS.find((t) => t.id === msg.team);
   if (!team) return post({ type: 'error', message: `team ${msg.team}` });
-  if (team !== state.team) for (let i = 0; i < N; i += 1) image(team.id, i);
+  const variant = variantFor(team.id, msg.variant);
+  if (team !== state.team || variant !== state.variant) for (let i = 0; i < N; i += 1) image(team.id, i, variant);
   state.team = team;
+  state.variant = variant;
   state.name = String(msg.name ?? '');
   state.number = String(msg.number ?? '');
   state.shortsNumber = msg.shortsNumber === undefined || msg.shortsNumber === null ? undefined : String(msg.shortsNumber);

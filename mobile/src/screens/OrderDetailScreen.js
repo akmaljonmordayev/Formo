@@ -5,7 +5,7 @@ import { colors, radii, spacing } from '../constants/theme';
 import { Button, Card, Header, Overline, Screen, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
 import Kit360Thumb from '../components/ui/Kit360Thumb';
-import { itemKit360 } from '../features/kit360';
+import { itemKit360, itemVariant } from '../features/kit360';
 import { designText } from '../features/studio';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import StatusPill, { OrderStepper, statusTone } from '../components/ui/StatusPill';
@@ -182,7 +182,7 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
           {order.items.map((item) => (
             <View key={item.id} style={styles.item}>
               <View style={styles.thumb}>
-                <Kit360Thumb team={itemKit360(item)} />
+                <Kit360Thumb team={itemKit360(item)} variant={itemVariant(item)} />
               </View>
               <View style={{ flex: 1 }}>
                 <Text style={styles.itemTitle} numberOfLines={1}>

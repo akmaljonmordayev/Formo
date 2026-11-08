@@ -8,11 +8,14 @@ import { ProductCard } from './ProductCard';
  * Props: kit (toKitCard), t, favorite, onFavorite(kit), onPress(kit), rank?, style
  */
 export default function KitTile({ kit, t, favorite, onFavorite, onPress, rank, style }) {
+  const long = kit.sleeve === 'LONG';
   const product = {
     kit360Id: kit.kit360Id,
+    // Uzun yeng (qishki) — l0 surati
+    variant: kit.variant,
     name: kit.name,
     price: kit.price,
-    category: kit.kind === 'national' ? t('nationalTeams') : t('clubTeams'),
+    category: `${kit.kind === 'national' ? t('nationalTeams') : t('clubTeams')} · ${long ? t('sleeveLong') : t('sleeveShort')}`,
     badge: rank ? `#${rank}` : null,
   };
   return (

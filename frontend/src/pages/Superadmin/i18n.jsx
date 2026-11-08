@@ -1,22 +1,28 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
+import { toUzNewLatin } from '../../utils/uzNewLatin';
+import EN from './i18n.en';
 import RU from './i18n.ru';
 
 /*
- * Superadmin paneli uchun 3 til: o'zbekcha (lotin), ўзбекча (кирилл), русский.
+ * Superadmin paneli uchun 5 til: o'zbekcha (lotin), oʻzbekcha (yangi alifbo), ўзбекча (кирилл), русский, English.
  * Kalit — o'zbekcha (lotin) matnning o'zi: t("Buyurtmalar").
  *   - uz  → matn o'zgarishsiz
  *   - oz  → lotindan kirillga avtomatik transliteratsiya (alohida lug'at shart emas)
+ *   - uzn → lotindan yangi alifboga (Ō, Ḡ, Ş, Ç) avtomatik — utils/uzNewLatin.js
  *   - ru  → i18n.ru.js lug'atidan, topilmasa o'zbekchaga qaytadi
+ *   - en  → i18n.en.js lug'atidan, topilmasa o'zbekchaga qaytadi
  * O'zgaruvchilar: t("{n} ta sotildi", { n: 5 }). {…} ichidagi nom transliteratsiya qilinmaydi.
  */
 
 export const LANGS = [
   { value: 'uz', label: "O'zbekcha", short: 'UZ' },
+  { value: 'uzn', label: 'Ōzbekça (yangi alifbo)', short: 'ŌZ' },
   { value: 'oz', label: 'Ўзбекча', short: 'ЎЗ' },
   { value: 'ru', label: 'Русский', short: 'RU' },
+  { value: 'en', label: 'English', short: 'EN' },
 ];
 
-export const LOCALES = { uz: 'uz-UZ', oz: 'uz-Cyrl-UZ', ru: 'ru-RU' };
+export const LOCALES = { uz: 'uz-UZ', uzn: 'uz-UZ', oz: 'uz-Cyrl-UZ', ru: 'ru-RU', en: 'en-US' };
 
 const STORAGE_KEY = 'formo_admin_lang';
 
@@ -119,7 +125,9 @@ export function translate(lang, text, vars) {
   const key = normalizeKey(text);
   let out;
   if (lang === 'ru') out = RU[key] ?? key;
+  else if (lang === 'en') out = EN[key] ?? key;
   else if (lang === 'oz') out = toCyrillic(key);
+  else if (lang === 'uzn') out = toUzNewLatin(key);
   else out = String(text);
   return fill(out, vars);
 }

@@ -51,6 +51,8 @@ export default function AppNavigator({ store, t, auth }) {
   // Forma 360° ko'ruvchisi: qaysi jamoa va qaysi ekrandan ochilgani (orqaga qaytish)
   const [kit360TeamId, setKit360TeamId] = useState(null);
   const [kit360From, setKit360From] = useState('studio');
+  // Katalogda bosilgan forma turi (LONG — qishki / SHORT — yozgi) — Forma 360° 1-bosqichida oldindan tanlanadi
+  const [kit360Sleeve, setKit360Sleeve] = useState(null);
 
   // ─── Cart origin (to return where the user came from) ────────────────────────
   const [cartFrom, setCartFrom] = useState('home');
@@ -106,6 +108,7 @@ export default function AppNavigator({ store, t, auth }) {
     setStudioKit(null);
     setOrderId(null);
     setKit360TeamId(null);
+    setKit360Sleeve(null);
     setKit360From('studio');
     setPickerAddress(null);
     setCheckoutAddressId(null);
@@ -139,8 +142,9 @@ export default function AppNavigator({ store, t, auth }) {
     setCartFrom(from);
     setRoute('cart');
   };
-  const openKit360 = (teamId) => {
+  const openKit360 = (teamId, sleeve = null) => {
     setKit360TeamId(teamId || null);
+    setKit360Sleeve(sleeve);
     setKit360From(route === 'kit360' ? kit360From : route);
     setRoute('kit360');
   };
@@ -155,7 +159,7 @@ export default function AppNavigator({ store, t, auth }) {
   };
   // Katalog/bosh sahifadagi forma kartasi: Forma 360° jamoasi bo'lsa — 360° ko'ruvchi, aks holda klub sahifasi
   const openKit = (kit) => {
-    if (kit.kit360Id) openKit360(kit.kit360Id);
+    if (kit.kit360Id) openKit360(kit.kit360Id, kit.sleeve || null);
     else if (kit.clubId) openClub({ id: kit.clubId, name: kit.name }, kit.kitId);
   };
   const openOrder = (id, from = route) => {
@@ -269,7 +273,9 @@ export default function AppNavigator({ store, t, auth }) {
     ) : route === 'kit360' || route === 'catalog' ? (
       <Kit360Screen
         t={t}
+        key={`${kit360TeamId || ''}:${kit360Sleeve || ''}`}
         initialTeam={kit360TeamId}
+        initialSleeve={kit360Sleeve}
         rules={config.rules}
         cart={cart}
         onBack={() => navigate(kit360From)}

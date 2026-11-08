@@ -7,9 +7,10 @@ import { Button, Header, Overline, Screen } from '../components/ui/Common';
 import { getItem, setItem } from '../utils/storage';
 
 const LANGUAGE_SUBS = {
-  uz: { uz: 'Lotin alifbosi', ru: 'Kirill yozuvi', en: 'Lotin alifbosi' },
-  ru: { uz: 'Узбекский · латиница', ru: 'Русский · кириллица', en: 'Английский · латиница' },
-  en: { uz: 'Uzbek · Latin', ru: 'Russian · Cyrillic', en: 'English · Latin' },
+  uz: { uz: 'Lotin alifbosi', uzn: 'Yangi lotin alifbosi (Ō, Ḡ, Ş, Ç)', ru: 'Kirill yozuvi', en: 'Lotin alifbosi' },
+  uzn: { uz: 'Lotin alifbosi', uzn: 'Yangi lotin alifbosi (Ō, Ḡ, Ş, Ç)', ru: 'Kirill yozuvi', en: 'Lotin alifbosi' },
+  ru: { uz: 'Узбекский · латиница', uzn: 'Узбекский · новый латинский алфавит', ru: 'Русский · кириллица', en: 'Английский · латиница' },
+  en: { uz: 'Uzbek · Latin', uzn: 'Uzbek · new Latin alphabet', ru: 'Russian · Cyrillic', en: 'English · Latin' },
 };
 
 const NOTIF_KEY = 'formo_notif_prefs';
