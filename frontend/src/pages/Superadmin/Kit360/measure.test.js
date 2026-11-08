@@ -127,6 +127,19 @@ describe('Forma 360° — suratdan bosma joyini o\'lchash', () => {
     expect(measureTorso(img)).toEqual({ mid: 300, half: 70 });
   });
 
+  it("yo'l-yo'l orqa (juv, atm): soyadagi oq yo'l fon yorqinligida — tana siluet chetidan o'lchanadi, null emas", () => {
+    const img = frame();
+    for (let y = 150; y < 400; y += 1) {
+      for (let x = 230; x <= 370; x += 1) {
+        // 14 px qora / 14 px soyadagi oq (neytral 180 — fon 178 ga deyarli teng); ikkala chetda qora yo'l
+        const c = (x - 230) % 28 >= 14 && x < 360 ? [180, 180, 181] : [30, 30, 32];
+        img.data.set(c, (y * img.width + x) * 4);
+      }
+    }
+    expect(measureTorso(img)).toEqual({ mid: 300, half: 70 });
+    expect(printLayout(4, img)).toHaveLength(2); // ism va raqam chiziladi
+  });
+
   it("shortikning o'ng oyog'i va pastki cheti", () => {
     expect(measureShorts(frame())).toMatchObject({ cx: 329.5, half: 45.5, hem: 505 });
   });

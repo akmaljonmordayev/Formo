@@ -35,12 +35,6 @@ export class ClubsController {
     return this.clubs.listKits();
   }
 
-  @Post(':id/kits')
-  @ApiOperation({ summary: "Mavjud klubga yangi forma (uy/mehmon/uchinchi) qo'shish" })
-  createKit(@Param('id', ParseIdPipe) id: number, @Body() dto: KitDto, @CurrentUser() user: AuthUser, @Req() req: Request) {
-    return this.clubs.createKit(id, dto, user, req.ip);
-  }
-
   @Patch(':id')
   @ApiOperation({ summary: "Klubni tahrirlash" })
   update(
@@ -61,6 +55,18 @@ export class ClubsController {
     @Req() req: Request,
   ) {
     return this.clubs.updateKit(kitId, dto, user, req.ip);
+  }
+
+  @Post(':id/kits')
+  @ApiOperation({ summary: "Klubga yangi forma qo'shish (yengli/yengsiz, shortik/shalvar)" })
+  createKit(@Param('id', ParseIdPipe) id: number, @Body() dto: KitDto, @CurrentUser() user: AuthUser, @Req() req: Request) {
+    return this.clubs.createKit(id, dto, user, req.ip);
+  }
+
+  @Delete('kits/:kitId')
+  @ApiOperation({ summary: "Formani o'chirish (klubning oxirgi formasi emas)" })
+  removeKit(@Param('kitId', ParseIdPipe) kitId: number, @CurrentUser() user: AuthUser, @Req() req: Request) {
+    return this.clubs.removeKit(kitId, user, req.ip);
   }
 
   @Delete(':id')

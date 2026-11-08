@@ -33,6 +33,7 @@ export const clubsApi = {
   listKits: () => api('/admin/clubs/kits'),
   createKit: (clubId, body) => api(`/admin/clubs/${clubId}/kits`, { method: 'POST', body }),
   updateKit: (kitId, body) => api(`/admin/clubs/kits/${kitId}`, { method: 'PATCH', body }),
+  removeKit: (kitId) => api(`/admin/clubs/kits/${kitId}`, { method: 'DELETE' }),
 };
 
 export const categoriesApi = {

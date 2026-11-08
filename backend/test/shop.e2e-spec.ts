@@ -134,6 +134,20 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
       expect(res.body.printPrice).toBe(35000);
       await as(admin).patch('/api/admin/clubs/kits/99999', { printPrice: 1 }).expect(404);
     });
+
+    it("forma qo'shish (yengsiz + shalvar) va o'chirish; yagona forma o'chirilmaydi", async () => {
+      const kit = { label: 'Mashq', bgColor: '#111111', textColor: '#ffffff', sleeve: 'LONG', bottom: 'PANTS' };
+      await as(user).post(`/api/admin/clubs/${real.id}/kits`, kit).expect(403);
+      await as(admin).post(`/api/admin/clubs/${real.id}/kits`, { ...kit, sleeve: 'TANK' }).expect(400);
+      await as(admin).post('/api/admin/clubs/99999/kits', kit).expect(404);
+      const res = await as(admin).post(`/api/admin/clubs/${real.id}/kits`, kit).expect(201);
+      expect(res.body).toMatchObject({ clubId: real.id, sleeve: 'LONG', bottom: 'PANTS', sortOrder: 3, shirtPrice: 159000 });
+      await as(admin).delete(`/api/admin/clubs/kits/${res.body.id}`).expect(200);
+      await as(admin).delete(`/api/admin/clubs/kits/${res.body.id}`).expect(404);
+
+      const list = await as(admin).get('/api/admin/clubs?league=Premier League').expect(200);
+      await as(admin).delete(`/api/admin/clubs/kits/${list.body.items[0].kits[0].id}`).expect(409);
+    });
   });
 
   // ---------------------------------------------------------------------------

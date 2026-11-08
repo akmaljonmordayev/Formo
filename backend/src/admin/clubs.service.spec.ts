@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { NotFoundException } from '@nestjs/common';
 import { AuditService } from './audit.service';
 import { CategoriesService } from './categories.service';
 import { ClubsService } from './clubs.service';
@@ -7,7 +7,7 @@ import { PrismaService } from '../prisma/prisma.service';
 describe('ClubsService', () => {
   const prisma = {
     club: { findUnique: jest.fn() },
-    kit: { findMany: jest.fn(), create: jest.fn() },
+    kit: { findMany: jest.fn(), create: jest.fn(), aggregate: jest.fn() },
   };
   const audit = { log: jest.fn() };
   const categories = { resolve: jest.fn() };
@@ -44,14 +44,9 @@ describe('ClubsService', () => {
       expect(prisma.kit.create).not.toHaveBeenCalled();
     });
 
-    it('klubda allaqachon 3 ta forma bo‘lsa — 400, yaratilmaydi', async () => {
-      prisma.club.findUnique.mockResolvedValue({ id: 5, name: 'Real Madrid', _count: { kits: 3 } });
-      await expect(service.createKit(5, dto, null)).rejects.toThrow(BadRequestException);
-      expect(prisma.kit.create).not.toHaveBeenCalled();
-    });
-
-    it('bo‘sh joy bo‘lsa — formani yaratadi, sortOrder mavjud sonidan davom etadi', async () => {
-      prisma.club.findUnique.mockResolvedValue({ id: 5, name: 'Real Madrid', _count: { kits: 2 } });
+    it("mavjud formalar bo‘lsa — sortOrder eng kattasidan +1 bo‘lib davom etadi", async () => {
+      prisma.club.findUnique.mockResolvedValue({ id: 5, name: 'Real Madrid' });
+      prisma.kit.aggregate.mockResolvedValue({ _max: { sortOrder: 1 } });
       prisma.kit.create.mockImplementation(async ({ data }) => ({ id: 10, ...data }));
 
       const result = await service.createKit(5, dto, null);
@@ -59,6 +54,16 @@ describe('ClubsService', () => {
       expect(prisma.kit.create).toHaveBeenCalledWith({ data: { ...dto, clubId: 5, sortOrder: 2 } });
       expect(result).toMatchObject({ id: 10, label: 'Uchinchi', clubId: 5, sortOrder: 2 });
       expect(audit.log).toHaveBeenCalled();
+    });
+
+    it("hali forma bo‘lmagan klubda — sortOrder 0 dan boshlanadi", async () => {
+      prisma.club.findUnique.mockResolvedValue({ id: 5, name: 'Real Madrid' });
+      prisma.kit.aggregate.mockResolvedValue({ _max: { sortOrder: null } });
+      prisma.kit.create.mockImplementation(async ({ data }) => ({ id: 10, ...data }));
+
+      const result = await service.createKit(5, dto, null);
+
+      expect(result).toMatchObject({ sortOrder: 0 });
     });
   });
 });
