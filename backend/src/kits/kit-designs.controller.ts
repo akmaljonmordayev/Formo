@@ -12,7 +12,7 @@ export class KitDesignsController {
   @Public()
   @Get()
   @ApiOperation({ summary: "Nashr qilingan 3D dizaynlar (tartib bo'yicha) va server narxlari" })
-  @ApiOkResponse({ description: '[{ id, name, thumbnailUrl, design: { designVersion: 1, ... }, prices: { shirt, shorts, print } }]' })
+  @ApiOkResponse({ description: '[{ id, name, thumbnailUrl, design: { designVersion: 1, ... }, prices: { shirt, print } }]' })
   list() {
     return this.designs.listPublished();
   }
