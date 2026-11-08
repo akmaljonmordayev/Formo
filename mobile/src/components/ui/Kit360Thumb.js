@@ -17,12 +17,13 @@ export const KIT360_BG = '#b8b8ba';
  *
  * Props: team (kit360Id), width?, height?, zoom, style
  */
-export default function Kit360Thumb({ team, width, height, zoom = 1.6, style }) {
+export default function Kit360Thumb({ team, variant = 'f', width, height, zoom = 1.6, style }) {
   const fill = !width || !height;
   const [measured, setMeasured] = useState(null);
   const w = fill ? measured?.width : width;
   const h = fill ? measured?.height : height;
-  const source = team ? thumbs[team] : null;
+  // variant 'l' — uzun yeng + shalvar surati (yo'q bo'lsa kalta yengniki)
+  const source = team ? (variant === 'l' && thumbs[`${team}_l`]) || thumbs[team] : null;
   const box = [styles.box, fill ? StyleSheet.absoluteFill : { width, height }, !source && styles.empty, style];
   const onLayout = fill ? (e) => setMeasured(e.nativeEvent.layout) : undefined;
 

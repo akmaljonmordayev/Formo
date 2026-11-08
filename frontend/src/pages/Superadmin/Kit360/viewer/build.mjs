@@ -33,13 +33,21 @@ const result = await build({
 });
 const js = result.outputFiles[0].text.replace(/<\/script/gi, '<\\/script');
 
+// frames[team] = { f: 8 kadr (kalta yeng + shortik), l?: 8 kadr (uzun yeng + shalvar — suratlari bor jamoalarda) }
 const frames = {};
+const longTeams = [];
 for (const team of (await readdir(framesDir)).sort()) {
-  frames[team] = [];
-  for (let i = 0; i < 8; i += 1) {
-    const jpg = await readFile(resolve(framesDir, team, `f${i}.jpg`));
-    frames[team].push(`data:image/jpeg;base64,${jpg.toString('base64')}`);
+  const files = new Set(await readdir(resolve(framesDir, team)));
+  frames[team] = {};
+  for (const v of ['f', 'l']) {
+    if (!files.has(`${v}0.jpg`)) continue;
+    frames[team][v] = [];
+    for (let i = 0; i < 8; i += 1) {
+      const jpg = await readFile(resolve(framesDir, team, `${v}${i}.jpg`));
+      frames[team][v].push(`data:image/jpeg;base64,${jpg.toString('base64')}`);
+    }
   }
+  if (frames[team].l) longTeams.push(team);
 }
 
 const html = `<!doctype html>
@@ -58,12 +66,21 @@ export default ${JSON.stringify(html)};
 `;
 
 const teams = Object.keys(frames);
-const thumbsText = `// AVTOMATIK YARATILGAN — tahrirlamang. Manba: frontend/src/pages/Superadmin/Kit360/frames/<id>/f0.jpg (viewer/build.mjs)
+// Kartalar surati: <id>.jpg — f0 (kalta yeng), <id>_l.jpg — l0 (uzun yeng)
+const thumbFiles = [
+  ...teams.map((id) => ({ key: id, file: `${id}.jpg`, src: resolve(framesDir, id, 'f0.jpg') })),
+  ...longTeams.map((id) => ({ key: `${id}_l`, file: `${id}_l.jpg`, src: resolve(framesDir, id, 'l0.jpg') })),
+].sort((a, b) => a.key.localeCompare(b.key));
+const thumbsText = `// AVTOMATIK YARATILGAN — tahrirlamang. Manba: frontend/src/pages/Superadmin/Kit360/frames/<id>/f0.jpg, l0.jpg (viewer/build.mjs)
 // Forma 360° jamoalarining old tomon surati — katalog, bosh sahifa, savat va buyurtma kartalari uchun.
+// <id> — kalta yeng + shortik, <id>_l — uzun yeng + shalvar (suratlari bor jamoalarda).
 /* eslint-disable global-require */
 export default {
-${teams.map((id) => `  ${JSON.stringify(id)}: require('../../../../assets/kit360/${id}.jpg'),`).join('\n')}
+${thumbFiles.map((t) => `  ${JSON.stringify(t.key)}: require('../../../../assets/kit360/${t.file}'),`).join('\n')}
 };
+
+/** Uzun yeng + shalvar suratlari bor jamoalar */
+export const LONG_TEAMS = ${JSON.stringify(longTeams)};
 `;
 
 if (process.argv.includes('--check')) {
@@ -72,12 +89,9 @@ if (process.argv.includes('--check')) {
   if (current.replace(/\r\n/g, '\n') !== moduleText) stale.push('mobile/src/components/ui/kit360/viewerHtml.js');
   const thumbs = await readFile(thumbsOut, 'utf8').catch(() => '');
   if (thumbs.replace(/\r\n/g, '\n') !== thumbsText) stale.push('mobile/src/components/ui/kit360/thumbs.js');
-  for (const id of teams) {
-    const [src, copy] = await Promise.all([
-      readFile(resolve(framesDir, id, 'f0.jpg')),
-      readFile(resolve(thumbsDir, `${id}.jpg`)).catch(() => null),
-    ]);
-    if (!copy || !src.equals(copy)) stale.push(`mobile/assets/kit360/${id}.jpg`);
+  for (const t of thumbFiles) {
+    const [src, copy] = await Promise.all([readFile(t.src), readFile(resolve(thumbsDir, t.file)).catch(() => null)]);
+    if (!copy || !src.equals(copy)) stale.push(`mobile/assets/kit360/${t.file}`);
   }
   if (stale.length) {
     console.error(`${stale.join(', ')} eskirgan — Kit360/viewer/build.mjs ni ishga tushiring`);
@@ -88,7 +102,7 @@ if (process.argv.includes('--check')) {
   await mkdir(dirname(mobileOut), { recursive: true });
   await writeFile(mobileOut, moduleText);
   await mkdir(thumbsDir, { recursive: true });
-  for (const id of teams) await writeFile(resolve(thumbsDir, `${id}.jpg`), await readFile(resolve(framesDir, id, 'f0.jpg')));
+  for (const t of thumbFiles) await writeFile(resolve(thumbsDir, t.file), await readFile(t.src));
   await writeFile(thumbsOut, thumbsText);
-  console.log(`kit360 viewer.html: ${(html.length / 1024).toFixed(0)} KB, kartalar: ${teams.length} surat`);
+  console.log(`kit360 viewer.html: ${(html.length / 1024).toFixed(0)} KB, kartalar: ${thumbFiles.length} surat (uzun yeng: ${longTeams.length})`);
 }

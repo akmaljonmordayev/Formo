@@ -567,6 +567,9 @@ model OrderItem {
   // Klub formasi: buyurtma paytidagi Forma 360° to'plami (admin/sex foto-360° ko'rsatishi uchun). `design` emas —
   // u "maxsus dizayn" belgisi (design bo'lsa admin va ilova qatorni "o'z dizayni" deb ko'rsatadi)
   kit360Id       String?
+  // Buyurtma paytidagi forma turi: kalta/uzun yeng va shortik/shalvar (Forma 360° suratlari f* yoki l*)
+  sleeve         KitSleeve  @default(SHORT)
+  bottom         KitBottom  @default(SHORTS)
 
   @@index([orderId])
   @@index([kitDesignId])

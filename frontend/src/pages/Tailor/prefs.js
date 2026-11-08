@@ -32,7 +32,7 @@ export function loadPrefs(userId) {
   const saved = read(preferencesKey(userId));
   return {
     ...DEFAULT_PREFS,
-    lang: ['uz', 'uz-Cyrl', 'ru'].includes(saved?.lang) ? saved.lang : 'uz',
+    lang: ['uz', 'uz-New', 'uz-Cyrl', 'ru', 'en'].includes(saved?.lang) ? saved.lang : 'uz',
   };
 }
 

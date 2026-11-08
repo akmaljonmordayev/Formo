@@ -187,8 +187,8 @@ export default function Kit360() {
       ghost.style.opacity = '1';
     }
     // 180° kadr hali yuklanmagan yoki xato bo'lsa — joylashuv joriy kadrning o'zidan o'lchanadi
-    // Uzun shalvarda raqam bosilmaydi — faqat orqada ism va raqam
-    paint(canvas, img, frame, { name: shown, number, shortsNumber: variant === 'l' ? '' : undefined, team, style }, backReady ? back : null);
+    // Shortik va shalvarga orqadagi raqam bosiladi (shalvarda — son o'rtasida, measure.js → isPants)
+    paint(canvas, img, frame, { name: shown, number, team, style }, backReady ? back : null);
     if (fade) {
       requestAnimationFrame(() => {
         ghost.style.transition = 'opacity 180ms ease-out';

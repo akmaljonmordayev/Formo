@@ -553,6 +553,35 @@ const LEG_T0 = 0.06;
 // Futbolka pastki cheti — shortik raqamining tepasi bundan yuqoriga chiqmaydi
 const SHORTS_TOP = 424;
 
+// Shalvardagi raqam — son o'rtasi (harflar pastki chizig'i); 12 jamoaning l0/l1/l7 kadrlarida tekshirilgan
+const PANTS_Y = 532;
+// Shortik ostida — maneken soni (neytral kulrang), shalvarda — mato: tizza balandligida ikki oyoq mato bo'lsa, shalvar
+// (soyadagi oq shalvar ham neytral, lekin maneken sonidan ancha yorug': l ≥ PANTS_WHITE_L)
+const PANTS_WHITE_L = 165;
+const pantsPixel = (img, x, y, bg) => {
+  const kind = pixelKind(img, x, y, bg);
+  return kind >= TINTED || (kind === GREY && pixel(img, x, y).l >= PANTS_WHITE_L);
+};
+export function isPants(img) {
+  const width = (y) => {
+    const bg = backgroundRow(img, y);
+    let n = 0;
+    for (let x = 150; x <= 450; x += 1) if (pantsPixel(img, x, y, bg)) n += 1;
+    return n;
+  };
+  return width(600) >= 24 && width(640) >= 24;
+}
+// Shalvarning o'ng (raqamli oyoq) cheti shu qatorda: o'ngdan birinchi 6 px uzluksiz mato; topilmasa null
+function pantsRight(img, y) {
+  const bg = backgroundRow(img, y);
+  let run = 0;
+  for (let x = 450; x >= 150; x -= 1) {
+    run = pantsPixel(img, x, y, bg) ? run + 1 : 0;
+    if (run === 6) return x + 5;
+  }
+  return null;
+}
+
 // Ellips proyeksiyasining yarim kengligi
 export const projectedHalf = ({ a, b, theta }) => Math.hypot(a * Math.cos(theta), b * Math.sin(theta));
 
@@ -566,23 +595,39 @@ export function printLayout(frame, img, backImg, scale = 1) {
     const a = leg.half / Math.hypot(Math.cos(theta), LEG_DEPTH * Math.sin(theta));
     const base = Math.round(a * 0.5);
     const size = Math.round(base * scale);
+    // Uzun shalvar (l* kadrlari): shortikning "pastki cheti" yo'q (o'lchov tasodifiy 430–640 px chiqadi) — raqam son
+    // o'rtasiga (PANTS_Y), o'ng chet shu qatorning o'zidan o'lchanadi (son pastga torayadi, chiziqli ekstrapolyatsiya emas)
+    // (chet topilmagan qatorda — son o'rtasidagi chet, u ham bo'lmasa shortik o'lchovidagi chiziq)
+    const pants = isPants(img);
+    const pantsMid = pants ? pantsRight(img, PANTS_Y - Math.round(size / 2)) : null;
     // Silindr markazi raqamning o'z qatoridagi o'ng chetdan: cx = edge(yPrint) − half
-    const surfaceAt = (y) => ({ mid: leg.edge(y - size / 2) - leg.half, a, b: a * LEG_DEPTH, theta, t0: LEG_T0 });
+    const edgeAt = pants
+      ? (y) => pantsRight(img, y - Math.round(size / 2)) ?? pantsMid ?? leg.edge(y - size / 2)
+      : (y) => leg.edge(y - size / 2);
+    const surfaceAt = (y) => ({ mid: edgeAt(y) - leg.half, a, b: a * LEG_DEPTH, theta, t0: LEG_T0 });
     const centerX = (s) => s.mid + s.a * Math.sin(s.t0) * Math.cos(theta) + s.b * Math.cos(s.t0) * Math.sin(theta);
     // Odatiy joy — pastki chetdan 1.5 raqam balandligida; ostida brend logotipi bo'lsa, undan 6 px yuqoriga ko'tariladi
-    let y = leg.hem - Math.round(base * 1.5);
+    let y = pants ? PANTS_Y : leg.hem - Math.round(base * 1.5);
     const cx = centerX(surfaceAt(y));
-    const logo = logoTop(img, cx - size * 0.65, cx + size * 0.65, leg.hem - 34, leg.hem - 6);
+    const logo = pants ? null : logoTop(img, cx - size * 0.65, cx + size * 0.65, leg.hem - 34, leg.hem - 6);
     if (logo !== null) y = Math.min(y, logo - 6);
     y = Math.max(y, SHORTS_TOP + size);
     // Raqam yonida/ustida logotip yoki gerb bo'lsa (es adidas, psg Nike, juv gerbi) — raqam qutisi (±0.75 balandlik eni)
     // logotip qatorlariga tegmaydigan eng yaqin balandlikka ko'tariladi; bo'sh joy bo'lmasa, avvalgi joyida qoladi
-    const hits = new Set(logoRows(img, cx - size * 0.75, cx + size * 0.75, SHORTS_TOP, leg.hem - 4));
+    const hits = new Set(logoRows(img, cx - size * 0.75, cx + size * 0.75, SHORTS_TOP, pants ? y + 50 : leg.hem - 4));
     const clear = (yy) => {
       for (let r = yy - size - 4; r <= yy + 4; r += 1) if (hits.has(r)) return false;
       return true;
     };
-    if (!clear(y)) {
+    if (pants) {
+      // Shalvar: son bo'ylab eng yaqin toza joy (yuqori ham, past ham — tepada son boshidagi gerb/logotip bor);
+      // yo'q bo'lsa son o'rtasida qoladi
+      for (let d = 1; !clear(y) && d <= 40; d += 1) {
+        if (clear(y + d)) y += d;
+        else if (d <= 24 && clear(y - d)) y -= d;
+      }
+      if (!clear(y)) y = PANTS_Y;
+    } else if (!clear(y)) {
       for (let yy = y - 1; yy >= SHORTS_TOP + size; yy -= 1) {
         if (clear(yy)) {
           y = yy;
@@ -590,7 +635,7 @@ export function printLayout(frame, img, backImg, scale = 1) {
         }
       }
     }
-    return [{ text: 'number', shorts: true, surface: surfaceAt(y), track: 0, size, maxW: a * 1.1, y }];
+    return [{ text: 'number', shorts: true, pants, surface: surfaceAt(y), track: 0, size, maxW: a * 1.1, y }];
   }
   if (!(frame in BACK_FRAMES)) return [];
   const theta = BACK_FRAMES[frame];

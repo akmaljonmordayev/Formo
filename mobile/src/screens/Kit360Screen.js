@@ -1,50 +1,44 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing, TAB_BAR_HEIGHT } from '../constants/theme';
 import { Button, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
 import AddedToCart from '../components/ui/AddedToCart';
 import Kit360Viewer from '../components/ui/Kit360Viewer';
+import KitTypeStep from '../components/ui/kit360/KitTypeStep';
+import { PrintStep, SizeStep } from '../components/ui/kit360/PrintSteps';
 import ShortsNumberStep from '../components/ui/kit360/ShortsNumberStep';
+import StepBar from '../components/ui/kit360/StepBar';
 import { visibleSizes } from '../features/config';
-import { KIT360_TEAMS, findKit360Team, kit360Team } from '../features/kit360';
+import { KIT360_TEAMS, cleanPrintName, cleanPrintNumber, findKit360Team, kit360Team, kit360Variant } from '../features/kit360';
 import { useClub, useClubs } from '../features/products';
 import { errorText } from '../utils/errors';
 
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL', '3XL'];
-const STEPS = [
-  { n: 1, label: 'tabSize', icon: 'ruler' },
-  { n: 2, label: 'tabPrint', icon: 'format-letter-case' },
-  { n: 3, label: 'tabShorts', icon: 'numeric' },
-];
+const STEP_TYPE = { id: 'type', label: 'tabType' };
+const STEP_SIZE = { id: 'size', label: 'tabSize' };
+const STEP_PRINT = { id: 'print', label: 'tabPrint' };
+const STEP_SHORTS = { id: 'bottom', label: 'tabShorts' };
+const STEP_PANTS = { id: 'bottom', label: 'tabPants' };
 
-const cleanPrintName = (s, maxLen = 30) =>
-  String(s ?? '')
-    .replace(/[`'‘’ʻʼ´]/g, "'")
-    .toUpperCase()
-    .replace(/[^A-ZА-ЯЁЎҚҒҲ' .-]/g, '')
-    .replace(/ {2,}/g, ' ')
-    .replace(/^ /, '')
-    .slice(0, maxLen);
-
-const cleanPrintNumber = (s, max = 99) => {
-  const digits = String(s ?? '').replace(/\D/g, '').replace(/^0+(?=\d)/, '');
-  const val = Number(digits);
-  return val > max ? String(max) : digits;
-};
+const sleeveOf = (kit) => (kit?.sleeve === 'LONG' ? 'LONG' : 'SHORT');
 
 /**
  * Forma 360°: jamoa tanlanadi, so'ng bosqichma-bosqich:
- *   1) o'lcham (majburiy) → 2) ism va raqam (ixtiyoriy) → 3) shortikka raqam (toggle; oldindan formadagi raqam) → savatga.
- * Forma komplekt (futbolka + shortik) bitta narx: shortik o'lchami futbolka bilan bir xil, alohida so'ralmaydi.
+ *   1) forma turi — qishki (uzun yeng + shalvar) yoki yozgi (kalta yeng + shortik), suratlari bilan;
+ *      jamoada faqat bitta tur bo'lsa bu bosqich ko'rsatilmaydi;
+ *   2) o'lcham (majburiy) → 3) ism va raqam (ixtiyoriy) → 4) shortik/shalvarga raqam (toggle) → savatga.
+ * Komplekt (futbolka + shortik/shalvar) bitta narx: pastki qism o'lchami futbolka bilan bir xil.
  * Savatga qo'shilganda ekrandan chiqilmaydi — forma savatga "uchadi" va "Savatga o'tish" kartasi chiqadi.
  *
- * Props: t, initialTeam, rules, cart, onBack, onOpenCart()
+ * Props: t, initialTeam, initialSleeve ('SHORT' | 'LONG' — katalogda bosilgan forma), rules, cart, onBack, onOpenCart()
  */
-export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, onBack, onOpenCart }) {
+export default function Kit360Screen({ t, initialTeam = null, initialSleeve = null, rules = {}, cart, onBack, onOpenCart }) {
   const [selectedId, setSelectedId] = useState(initialTeam || 'rm');
   const [side, setSide] = useState('back');
   const [step, setStep] = useState(1);
+  // Mijoz tanlagan tur; katalogdan kelgan bo'lsa — oldindan belgilangan (1-bosqichda o'zgartirsa bo'ladi)
+  const [sleevePick, setSleevePick] = useState(initialSleeve);
   const [name, setName] = useState('');
   const [number, setNumber] = useState('');
   const [shirtSize, setShirtSize] = useState(null);
@@ -81,13 +75,17 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
 
   const team = useMemo(() => findKit360Team(selectedId), [selectedId]);
 
-  // Boshqa jamoa tanlansa — bosqichlar boshidan
+  // Jamoa haqiqatan almashganda — bosqichlar boshidan, tur qayta tanlanadi (StrictMode qayta ishlatsa ham tanlov qoladi)
+  const prevTeam = useRef(team.id);
   useEffect(() => {
+    if (prevTeam.current === team.id) return;
+    prevTeam.current = team.id;
     setStep(1);
     setFeedback(null);
+    setSleevePick(null);
   }, [team.id]);
 
-  // Backend'dagi mos klub va uning formasi
+  // Backend'dagi mos klub va uning formalari
   const matchedClub = useMemo(() => {
     if (!clubs || !clubs.length) return null;
     return clubs.find((c) => c.kit360Id === team.id) || clubs.find((c) => kit360Team(c) === team.id) || null;
@@ -95,15 +93,43 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
 
   // Klublar ro'yxatida formalar yo'q (faqat kitsCount) — haqiqiy kit id, narx va o'lchamlar klub sahifasidan
   const { products: clubKits, isLoading: kitLoading } = useClub(matchedClub?.id);
-  const matchedKit = clubKits[0] || null;
+  // Har tur uchun birinchi forma. Uzun yengli forma suratlari bo'lmasa ham sotiladi (viewer kalta yeng suratini
+  // ko'rsatadi, matnlar — shalvar): admin qo'shgan qishki forma katalogda ko'rinib, buyurtmada yo'qolmasin
+  const kitsBySleeve = useMemo(
+    () => ({
+      SHORT: clubKits.find((k) => sleeveOf(k) === 'SHORT') || null,
+      LONG: clubKits.find((k) => sleeveOf(k) === 'LONG') || null,
+    }),
+    [clubKits],
+  );
+  const hasChoice = Boolean(kitsBySleeve.SHORT && kitsBySleeve.LONG);
+  // Tanlov yo'q — jamoadagi yagona turning o'zi; tur doim buyurtma qilinadigan formadan olinadi (ekran va buyurtma mos)
+  const onlyKit = hasChoice ? null : kitsBySleeve.SHORT || kitsBySleeve.LONG || clubKits[0] || null;
+  const sleeve = hasChoice ? sleevePick : sleeveOf(onlyKit);
+  const long = sleeve === 'LONG';
+  const matchedKit = hasChoice ? (sleeve && kitsBySleeve[sleeve]) || null : onlyKit;
   const kitId = matchedKit?.kitId ?? null;
   const kitPending = clubsLoading || (matchedClub && kitLoading);
+  const variant = kit360Variant(team.id, sleeve || 'SHORT');
 
-  // Komplekt narxi (futbolka + shortik bitta narx); eski API'da shortik alohida kelsa — qo'shiladi
-  const prices = useMemo(() => {
-    const pb = matchedKit?.priceBreakdown || {};
+  const steps = useMemo(() => [...(hasChoice ? [STEP_TYPE] : []), STEP_SIZE, STEP_PRINT, long ? STEP_PANTS : STEP_SHORTS], [hasChoice, long]);
+  const current = steps[Math.min(step, steps.length) - 1].id;
+
+  // Turlar yuklanib "Turi" bosqichi paydo bo'lsa/yo'qolsa — raqamlar siljimasin, boshidan
+  const prevChoice = useRef(hasChoice);
+  useEffect(() => {
+    if (prevChoice.current === hasChoice) return;
+    prevChoice.current = hasChoice;
+    setStep(1);
+  }, [hasChoice]);
+
+  // Komplekt narxi (futbolka + pastki qism bitta narx); eski API'da shortik alohida kelsa — qo'shiladi
+  const priceOf = (kit) => {
+    const pb = kit?.priceBreakdown || {};
     return { kit: (pb.shirt ?? 159000) + (pb.shorts ?? 0), print: pb.print ?? 30000 };
-  }, [matchedKit]);
+  };
+  const prices = priceOf(matchedKit || clubKits[0]);
+  const typePrices = { SHORT: kitsBySleeve.SHORT && priceOf(kitsBySleeve.SHORT).kit, LONG: kitsBySleeve.LONG && priceOf(kitsBySleeve.LONG).kit };
 
   const availableSizes = useMemo(() => {
     const raw = matchedKit?.sizes || SIZES;
@@ -119,7 +145,7 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
   const printName = cleanPrintName(name, rules.printNameMaxLength || 30);
   const printNum = cleanPrintNumber(number, maxNumber);
   const hasPrint = Boolean(printName.trim() || printNum);
-  // Shortik raqami — formaning orqasidagi raqamning o'zi
+  // Shortik/shalvar raqami — formaning orqasidagi raqamning o'zi
   const shortsNum = printNum;
   const numberOnShorts = shortsOn && Boolean(shortsNum);
 
@@ -140,18 +166,35 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
   const goStep = (next) => {
     setFeedback(null);
     setStep(next);
-    setSide(next === 3 ? 'front' : 'back');
+    setSide(steps[next - 1].id === 'bottom' ? 'front' : 'back');
+  };
+
+  // Joriy bosqichni o'tkazmaydigan sabab (yoki null)
+  const blocker = (id) => {
+    if (id === 'type' && !sleeve) return t('kitStepType');
+    if (id === 'size' && !shirtSize) return t('kitStepSize');
+    return null;
   };
 
   const onNext = () => {
-    if (step === 1 && !shirtSize) {
-      setFeedback({ ok: false, text: t('kitStepSize') });
+    const why = blocker(current);
+    if (why) {
+      setFeedback({ ok: false, text: why });
       return;
     }
     goStep(step + 1);
   };
 
-  // Keyingi forma uchun: bosqichlar boshidan; ism/raqam saqlanadi (jamoaga bir nechta forma olinadi)
+  // Bosqichlar paneli: oldingi yoki majburiy bosqichlari to'ldirilgan keyingisiga o'tiladi
+  const openStep = (n) => {
+    if (n <= step) return goStep(n);
+    const missing = steps.slice(0, n - 1).findIndex((s) => blocker(s.id));
+    if (missing === -1) return goStep(n);
+    goStep(missing + 1);
+    return setFeedback({ ok: false, text: blocker(steps[missing].id) });
+  };
+
+  // Keyingi forma uchun: bosqichlar boshidan; ism/raqam va tur saqlanadi (jamoaga bir nechta forma olinadi)
   const resetSelection = () => {
     setStep(1);
     setSide('back');
@@ -162,9 +205,10 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
   const addToCart = async () => {
     // Tez ikki marta bosish — server bir xil qatorlarni birlashtirib miqdorni 2 qilib qo'yardi
     if (!cart || addingRef.current) return;
-    if (!shirtSize) {
-      goStep(1);
-      setFeedback({ ok: false, text: t('kitStepSize') });
+    const missing = steps.findIndex((s) => blocker(s.id));
+    if (missing !== -1) {
+      goStep(missing + 1);
+      setFeedback({ ok: false, text: blocker(steps[missing].id) });
       return;
     }
     if (shortsOn && !shortsNum) {
@@ -194,7 +238,10 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
       setAddedEvent({
         key: Date.now(),
         team: team.id,
-        summary: [team.name, shirtSize, [printName.trim(), printNum].filter(Boolean).join(' ')].filter(Boolean).join(' · '),
+        variant,
+        summary: [team.name, long ? t('sleeveLong') : null, shirtSize, [printName.trim(), printNum].filter(Boolean).join(' ')]
+          .filter(Boolean)
+          .join(' · '),
       });
       resetSelection();
     } catch (err) {
@@ -205,13 +252,15 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
     }
   };
 
-  const stepTitles = { 1: t('kitStepSize'), 2: t('kitStepPrint'), 3: t('shortsNumberAsk') };
-  const canOpen = (s) => s <= step || Boolean(shirtSize);
+  const stepTitles = { type: 'kitStepType', size: 'kitStepSize', print: 'kitStepPrint', bottom: long ? 'pantsNumberAsk' : 'shortsNumberAsk' };
+  const bottomLabel = t(long ? 'kitStepPants' : 'kitStepShorts');
   const summary = [
+    hasChoice && sleeve ? t(long ? 'sleeveLong' : 'sleeveShort') : null,
     shirtSize,
     [printName.trim(), printNum].filter(Boolean).join(' '),
-    step === 3 || shortsTouched.current ? `${t('kitStepShorts')}: ${numberOnShorts ? shortsNum : t('noNumber')}` : null,
+    current === 'bottom' || shortsTouched.current ? `${bottomLabel}: ${numberOnShorts ? shortsNum : t('noNumber')}` : null,
   ].filter(Boolean);
+  const isLast = step >= steps.length;
 
   return (
     <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardWrap}>
@@ -223,7 +272,7 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
             <View>
               <Text style={styles.footerLabel}>{t('total')}</Text>
               <Text style={styles.footerPrice}>{formatMoney(totalPrice)}</Text>
-              <Text style={styles.footerSub}>{t('kitSetIncludes')}</Text>
+              <Text style={styles.footerSub}>{t(long ? 'kitSetIncludesLong' : 'kitSetIncludes')}</Text>
             </View>
             <View style={styles.footerAction}>
               {paused ? (
@@ -235,8 +284,8 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
                   {feedback.text}
                 </Text>
               ) : null}
-              {step < 3 ? (
-                <Button onPress={onNext} disabled={step === 1 && !shirtSize} style={styles.footerButton}>
+              {!isLast ? (
+                <Button onPress={onNext} disabled={Boolean(blocker(current))} style={styles.footerButton}>
                   {`${t('nextStep')} →`}
                 </Button>
               ) : (
@@ -271,10 +320,20 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
           })}
         </ScrollView>
 
-        {/* 360° ko'rinish */}
+        {/* 360° ko'rinish: tanlangan turdagi suratlar (uzun yeng — l0..l7) */}
         <View style={styles.previewBox}>
           <View style={styles.glow} />
-          <Kit360Viewer t={t} team={team.id} name={printName} number={printNum} shortsNumber={numberOnShorts ? shortsNum : ''} view={side} onViewChange={setSide} height={340} />
+          <Kit360Viewer
+            t={t}
+            team={team.id}
+            variant={variant}
+            name={printName}
+            number={printNum}
+            shortsNumber={numberOnShorts ? shortsNum : ''}
+            view={side}
+            onViewChange={setSide}
+            height={340}
+          />
           <View style={styles.previewSide}>
             <Segment
               options={[t('front'), t('rear')]}
@@ -284,36 +343,7 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
           </View>
         </View>
 
-        {/* Bosqichlar: raqamli doiralar + chiziq; bajarilganlari ✓ */}
-        <View style={styles.stepper}>
-          {STEPS.map((s, i) => {
-            const isActive = step === s.n;
-            const isDone = s.n < step;
-            return (
-              <React.Fragment key={s.n}>
-                {i > 0 ? <View style={[styles.stepLine, s.n <= step && styles.stepLineDone]} /> : null}
-                <Pressable
-                  onPress={() => (canOpen(s.n) ? goStep(s.n) : onNext())}
-                  style={styles.stepItem}
-                  accessibilityRole="tab"
-                  accessibilityState={{ selected: isActive }}
-                  hitSlop={6}
-                >
-                  <View style={[styles.stepDot, isDone && styles.stepDotDone, isActive && styles.stepDotActive]}>
-                    {isDone ? (
-                      <MaterialCommunityIcons name="check" size={16} color={colors.accent} />
-                    ) : (
-                      <Text style={[styles.stepNum, isActive && styles.stepNumActive]}>{s.n}</Text>
-                    )}
-                  </View>
-                  <Text style={[styles.stepLabel, (isActive || isDone) && styles.stepLabelOn]} numberOfLines={1}>
-                    {t(s.label)}
-                  </Text>
-                </Pressable>
-              </React.Fragment>
-            );
-          })}
-        </View>
+        <StepBar t={t} steps={steps} step={step} onPress={openStep} />
 
         {/* Joriy bosqich */}
         <View style={styles.panelBox}>
@@ -323,61 +353,45 @@ export default function Kit360Screen({ t, initialTeam = null, rules = {}, cart, 
                 <MaterialCommunityIcons name="chevron-left" size={22} color={colors.accent} />
               </Pressable>
             ) : null}
-            <Text style={styles.stepTitle}>{stepTitles[step]}</Text>
+            <Text style={styles.stepTitle}>{t(stepTitles[current])}</Text>
           </View>
 
-          {step === 1 ? (
-            <>
-              <View style={styles.sizesGrid}>
-                {availableSizes.map((size) => (
-                  <Pressable
-                    key={size}
-                    onPress={() => {
-                      setShirtSize(size);
-                      setFeedback(null);
-                    }}
-                    style={[styles.sizeChip, shirtSize === size && styles.sizeChipActive]}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: shirtSize === size }}
-                  >
-                    <Text style={[styles.sizeText, shirtSize === size && styles.sizeTextActive]}>{size}</Text>
-                  </Pressable>
-                ))}
-              </View>
-              <Text style={styles.hint}>{t('sameSizeHint')}</Text>
-            </>
-          ) : step === 2 ? (
-            <View>
-              <Text style={styles.optionSub}>{t('kitStepPrintSub')}</Text>
-              <View style={styles.inputsRow}>
-                <TextInput
-                  value={name}
-                  onChangeText={setName}
-                  placeholder={t('namePlaceholder')}
-                  placeholderTextColor={colors.dim}
-                  autoCapitalize="characters"
-                  maxLength={rules.printNameMaxLength || 30}
-                  onFocus={() => setSide('back')}
-                  style={[styles.textInput, { flex: 1 }]}
-                />
-                <TextInput
-                  value={number}
-                  onChangeText={setNumber}
-                  placeholder="10"
-                  placeholderTextColor={colors.dim}
-                  keyboardType="number-pad"
-                  maxLength={2}
-                  onFocus={() => setSide('back')}
-                  style={[styles.textInput, styles.numberInput]}
-                />
-              </View>
-              <Text style={styles.hint}>
-                {t('printHint')} · +{formatMoney(prices.print)}
-              </Text>
-            </View>
+          {current === 'type' ? (
+            <KitTypeStep
+              t={t}
+              team={team.id}
+              value={sleeve}
+              prices={typePrices}
+              onChange={(next) => {
+                setSleevePick(next);
+                setFeedback(null);
+              }}
+            />
+          ) : current === 'size' ? (
+            <SizeStep
+              sizes={availableSizes}
+              value={shirtSize}
+              hint={t(long ? 'sameSizeHintLong' : 'sameSizeHint')}
+              onChange={(size) => {
+                setShirtSize(size);
+                setFeedback(null);
+              }}
+            />
+          ) : current === 'print' ? (
+            <PrintStep
+              t={t}
+              name={name}
+              number={number}
+              onName={setName}
+              onNumber={setNumber}
+              onFocus={() => setSide('back')}
+              nameMaxLength={rules.printNameMaxLength || 30}
+              printPrice={prices.print}
+            />
           ) : (
             <ShortsNumberStep
               t={t}
+              pants={long}
               enabled={shortsOn}
               onToggle={(on) => touchShorts(() => setShortsOn(on))}
               number={printNum}
@@ -443,31 +457,6 @@ const styles = StyleSheet.create({
   },
   glow: { position: 'absolute', width: 240, height: 240, borderRadius: 120, backgroundColor: 'rgba(235, 185, 78, 0.08)' },
   previewSide: { position: 'absolute', bottom: 12, alignSelf: 'center' },
-  stepper: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    marginHorizontal: spacing.lg,
-    marginTop: spacing.lg,
-  },
-  stepItem: { width: 84, alignItems: 'center' },
-  stepDot: {
-    width: 34,
-    height: 34,
-    borderRadius: 17,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: colors.surfaceRaised,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-  },
-  stepDotDone: { borderColor: colors.accent, backgroundColor: colors.accentGlow },
-  stepDotActive: { borderColor: colors.accent, backgroundColor: colors.accent },
-  stepNum: { color: colors.muted, fontSize: 14, fontWeight: '900' },
-  stepNumActive: { color: colors.primaryDark },
-  stepLabel: { color: colors.muted, fontSize: 11, fontWeight: '700', marginTop: 6 },
-  stepLabelOn: { color: colors.text, fontWeight: '800' },
-  stepLine: { flex: 1, height: 2, borderRadius: 1, backgroundColor: colors.border, marginTop: 16, marginHorizontal: -18 },
-  stepLineDone: { backgroundColor: colors.accent },
   panelBox: {
     marginHorizontal: spacing.lg,
     marginTop: spacing.md,
@@ -480,34 +469,6 @@ const styles = StyleSheet.create({
   panelHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.sm },
   panelBack: { marginLeft: -6 },
   stepTitle: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '900' },
-  sizesGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: spacing.sm, marginTop: spacing.xs },
-  sizeChip: {
-    width: '31.5%',
-    paddingVertical: 13,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceRaised,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    alignItems: 'center',
-  },
-  sizeChipActive: { borderColor: colors.accent, backgroundColor: colors.accentGlow },
-  sizeText: { color: colors.muted, fontSize: 15, fontWeight: '800' },
-  sizeTextActive: { color: colors.accent, fontWeight: '900' },
-  inputsRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
-  textInput: {
-    height: 50,
-    borderRadius: radii.md,
-    backgroundColor: colors.surfaceRaised,
-    borderWidth: 1,
-    borderColor: colors.border,
-    color: colors.text,
-    paddingHorizontal: spacing.md,
-    fontSize: 15,
-    fontWeight: '800',
-  },
-  numberInput: { width: 84, textAlign: 'center', fontSize: 18 },
-  hint: { color: colors.muted, fontSize: 11, marginTop: spacing.sm },
-  optionSub: { color: colors.muted, fontSize: 12, marginTop: 2 },
   summaryRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

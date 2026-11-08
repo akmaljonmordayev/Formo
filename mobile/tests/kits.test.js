@@ -39,12 +39,25 @@ test('toKitCard: forma + klub → karta (Forma 360° surati, turi, kategoriya, s
       label: 'Uy',
       price: 189000,
       kit360Id: 'rm',
+      sleeve: 'SHORT',
+      variant: 'f',
       kind: 'club',
+      categoryName: 'LaLiga',
       categoryId: 2,
       soldCount: 12,
       search: undefined,
     },
   );
+  // Uzun yengli forma: qishki karta (l0 surati); suratlari yo'q jamoada — kalta yeng surati
+  const long = toKitCard({ ...KIT, sleeve: 'LONG' });
+  assert.equal(long.sleeve, 'LONG');
+  assert.equal(long.variant, 'l');
+  assert.equal(toKitCard({ ...KIT, sleeve: 'LONG', club: { ...KIT.club, kit360Id: 'ars' } }).variant, 'f');
+  // Uzun va kalta yengning yurakchalari alohida
+  const { favKey } = require(src('features/products/kits.js'));
+  assert.notEqual(favKey(long), favKey(toKitCard(KIT)));
+  // Klub turi NATIONAL bo'lsa — terma jamoa
+  assert.equal(toKitCard({ ...KIT, club: { ...KIT.club, kit360Id: null, type: 'NATIONAL', category: null } }).kind, 'national');
   // Forma 360° ro'yxatida bo'lmasa — tur kategoriya nomidan
   const national = toKitCard({ ...KIT, club: { ...KIT.club, kit360Id: null, category: { id: 9, name: 'Afrika terma jamoalari' } } });
   assert.equal(national.kind, 'national');
