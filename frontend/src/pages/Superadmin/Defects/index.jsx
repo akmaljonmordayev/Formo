@@ -20,7 +20,7 @@ export default function SuperadminDefects() {
   const t = useT();
   const [status, setStatus] = useState('');
   const [page, setPage] = useState(1);
-  const [data, setData] = useState({ items: [], total: 0, openCount: 0 });
+  const [data, setData] = useState({ items: [], total: 0, openCount: 0, resolvedCount: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [resolving, setResolving] = useState(null);
@@ -43,7 +43,7 @@ export default function SuperadminDefects() {
   const tabs = [
     { label: 'Barchasi', value: '' },
     { label: 'Ochiq', value: 'OPEN', count: data.openCount },
-    { label: 'Hal qilingan', value: 'RESOLVED' },
+    { label: 'Hal qilingan', value: 'RESOLVED', count: data.resolvedCount },
   ];
 
   return (

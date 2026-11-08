@@ -30,8 +30,9 @@ export const clubsApi = {
   create: (body) => api('/admin/clubs', { method: 'POST', body }),
   update: (id, body) => api(`/admin/clubs/${id}`, { method: 'PATCH', body }),
   remove: (id) => api(`/admin/clubs/${id}`, { method: 'DELETE' }),
-  updateKit: (kitId, body) => api(`/admin/clubs/kits/${kitId}`, { method: 'PATCH', body }),
+  listKits: () => api('/admin/clubs/kits'),
   createKit: (clubId, body) => api(`/admin/clubs/${clubId}/kits`, { method: 'POST', body }),
+  updateKit: (kitId, body) => api(`/admin/clubs/kits/${kitId}`, { method: 'PATCH', body }),
   removeKit: (kitId) => api(`/admin/clubs/kits/${kitId}`, { method: 'DELETE' }),
 };
 

@@ -58,7 +58,7 @@ export default function SuperadminPricing() {
         if (!active) return;
         setKit360Rows(clubs.map((c) => ({ kitId: c.kit.id, clubName: c.name, bgColor: c.kit.bgColor, textColor: c.kit.textColor })));
         const prices = Object.fromEntries(
-          clubs.map((c) => [c.kit.id, { shirtPrice: c.kit.shirtPrice + (c.kit.shortsPrice || 0), printPrice: c.kit.printPrice }]),
+          clubs.map((c) => [c.kit.id, { shirtPrice: c.kit.shirtPrice, printPrice: c.kit.printPrice }]),
         );
         setDraft360(prices);
         setSaved360(prices);

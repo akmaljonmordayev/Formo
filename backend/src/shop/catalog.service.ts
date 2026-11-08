@@ -52,7 +52,7 @@ export function toKitProduct(kit: Kit) {
     bottom: kit.bottom,
     includes: kitIncludes(kit),
     price: fullSetPrice(kit),
-    priceBreakdown: { shirt: kit.shirtPrice, shorts: kit.shortsPrice, print: kit.printPrice },
+    priceBreakdown: { shirt: kit.shirtPrice, print: kit.printPrice },
     sizes: ALL_SIZES.map((size) => ({ size, available: kit.sizes.includes(size) })).filter(
       (s) => s.available || (ADULT_SIZES as readonly string[]).includes(s.size),
     ),

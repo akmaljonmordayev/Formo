@@ -52,10 +52,8 @@ describe('Buyurtma oqimi: operator → tikuv sexi (e2e)', () => {
       'TRUNCATE "Category", "Club", "Kit", "Promocode", "Setting", "AuditLog" RESTART IDENTITY CASCADE',
     );
     admin = (await login(app, SUPERADMIN.phone, SUPERADMIN.password)).accessToken;
-
-    const opPhone = nextPhone();
-    await as(admin).post('/api/admin/operator', { phone: opPhone, password: 'operator123', fullName: 'Dilshod Operator' }).expect(201);
-    operator = (await login(app, opPhone, 'operator123')).accessToken;
+    // OPERATOR roli olib tashlandi — uning huquqlari endi SUPERADMIN'da (operator.controller.ts o'chirilgan)
+    operator = admin;
 
     sexA = await workshop('Ipak Yo‘li Tikuv');
     sexB = await workshop('Chilonzor Sex');
@@ -127,7 +125,7 @@ describe('Buyurtma oqimi: operator → tikuv sexi (e2e)', () => {
       .post(`/api/admin/orders/${orderId}/assign`, { workshopId: sexA.id, note: 'Ertaga tayyor bo‘lsin' })
       .expect(200);
     expect(res.body).toMatchObject({ status: 'SENT_TO_WORKSHOP', workshop: { id: sexA.id } });
-    expect(res.body.statusLogs.at(-1)).toMatchObject({ toStatus: 'SENT_TO_WORKSHOP', note: 'Ertaga tayyor bo‘lsin', actorRole: 'Operator' });
+    expect(res.body.statusLogs.at(-1)).toMatchObject({ toStatus: 'SENT_TO_WORKSHOP', note: 'Ertaga tayyor bo‘lsin', actorRole: 'Super admin' });
 
     const mine = await as(user).get(`/api/orders/${orderId}`).expect(200);
     expect(mine.body).toMatchObject({ status: 'SENT_TO_WORKSHOP', statusLabel: 'Buyurtma qabul qilindi', canCancel: true });

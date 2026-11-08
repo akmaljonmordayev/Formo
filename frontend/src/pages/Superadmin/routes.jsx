@@ -6,9 +6,9 @@ import {
   History,
   LayoutDashboard,
   MessagesSquare,
-  Package,
   Rotate3d,
   Settings,
+  Shirt,
   ShoppingBag,
   Tag,
   Ticket,
@@ -20,13 +20,12 @@ import AdminLayout from './AdminLayout';
 import Dashboard from './Dashboard';
 import CustomersUsers from './Users';
 import Factories_ from './Factories';
-import Operator from './Operator';
 import Orders from './Orders';
 import Production from './Production';
 import Defects from './Defects';
 import Kit360 from './Kit360';
+import Forms from './Forms';
 import Messages from './Messages';
-import Inventory from './Inventory';
 import Pricing from './Pricing';
 import Promocodes from './Promocodes';
 import Campaigns from './Campaigns';
@@ -67,12 +66,15 @@ export const superadminRoutes = [
   { path: 'production', element: <Production /> },
   { path: 'defects', element: <Defects /> },
   { path: 'kit-360', element: <Kit360 /> },
+  { path: 'forms', element: <Forms /> },
+  { path: 'messages', element: <Messages /> },
   // Eski katalog (har klubda 3 forma) olib tashlandi — eski havolalar Forma 360° ga olib boradi
   { path: 'clubs', element: <Navigate to={`${BASE}/kit-360`} replace /> },
   { path: 'categories', element: <Navigate to={`${BASE}/kit-360`} replace /> },
+  // Zaxira Formalar sahifasiga birlashtirildi — eski havolalar shu yerga boradi
+  { path: 'inventory', element: <Navigate to={`${BASE}/forms`} replace /> },
   { path: 'design-studio', element: lazyPage(DesignStudio) },
   { path: 'kit-designs', element: lazyPage(KitDesigns) },
-  { path: 'inventory', element: <Inventory /> },
   { path: 'pricing', element: <Pricing /> },
   { path: 'users', element: legacy(CustomersUsers) },
   { path: 'promocodes', element: <Promocodes /> },
@@ -81,9 +83,6 @@ export const superadminRoutes = [
   { path: 'finance', element: <Finance /> },
   { path: 'topups', element: <TopUps /> },
   { path: 'reports', element: <Reports /> },
-  { path: 'messages', element: <Messages /> },
-  // Operator paneli olib tashlandi: mijozlar va sexlar bilan yozishma — "Xabarlar"; eski havola ishlashda qoladi
-  { path: 'operator', element: legacy(Operator) },
   { path: 'settings', element: <SettingsPage /> },
   { path: 'audit-log', element: <AuditLog /> },
 ];
@@ -97,7 +96,7 @@ export const superadminMenu = [
   { to: `${BASE}/production`, label: 'Ishlab chiqarish', icon: Factory, group: 'Asosiy' },
 
   { to: `${BASE}/kit-360`, label: 'Forma 360°', icon: Rotate3d, group: 'Formalar' },
-  { to: `${BASE}/inventory`, label: 'Zaxira', icon: Package, group: 'Formalar' },
+  { to: `${BASE}/forms`, label: 'Formalar', icon: Shirt, group: 'Formalar' },
   { to: `${BASE}/pricing`, label: 'Narxlar', icon: Tag, group: 'Formalar' },
 
   { to: `${BASE}/factories`, label: 'Sexlar', icon: Factory, group: 'Sex va Sifat' },
@@ -108,6 +107,7 @@ export const superadminMenu = [
   { to: `${BASE}/users`, label: 'Mijozlar', icon: Users, group: 'Moliya va Mijozlar' },
 
   // Kampaniyalar va Hisobotlar menyudan yashirildi — marshrutlari superadminRoutes da qoladi
+  // Operator akkaunti sahifasi olib tashlandi
   { to: `${BASE}/settings`, label: 'Sozlamalar', icon: Settings, group: 'Tizim' },
   { to: `${BASE}/audit-log`, label: 'Audit jurnali', icon: History, group: 'Tizim' },
 ];

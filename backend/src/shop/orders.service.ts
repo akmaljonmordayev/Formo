@@ -518,12 +518,12 @@ export class ShopOrdersService {
     await this.expireStale(user.id);
     const order = await this.own(user.id, id);
     if (!CANCELLABLE.includes(order.status)) {
-      throw new ConflictException('Buyurtma tikuv sexi tomonidan qabul qilingan — bekor qilish uchun operatorga murojaat qiling');
+      throw new ConflictException('Buyurtma tikuv sexi tomonidan qabul qilingan — bekor qilish uchun administratsiyaga murojaat qiling');
     }
     const windowHours = await this.cancelWindow();
     if (!customerCanCancel(order, windowHours)) {
       throw new ConflictException(
-        `Buyurtmani faqat berilgandan keyin ${windowHours} soat ichida bekor qilish mumkin — operatorga murojaat qiling`,
+        `Buyurtmani faqat berilgandan keyin ${windowHours} soat ichida bekor qilish mumkin — administratsiyaga murojaat qiling`,
       );
     }
     // To'langan bo'lsa pul qaytariladi (operator qo'lda qaytaradi)
@@ -531,7 +531,7 @@ export class ShopOrdersService {
     const cancelled = await this.release(id, paymentStatus, order.status, user, 'Mijoz bekor qildi');
     // Shu orada sex qabul qilgan bo'lsa — bekor qilinmaydi (tikish boshlangan)
     if (!cancelled) {
-      throw new ConflictException('Buyurtma tikuv sexi tomonidan qabul qilingan — bekor qilish uchun operatorga murojaat qiling');
+      throw new ConflictException('Buyurtma tikuv sexi tomonidan qabul qilingan — bekor qilish uchun administratsiyaga murojaat qiling');
     }
 
     await this.audit.log({ actor: user, action: 'Buyurtma bekor qilindi', category: AuditCategory.ORDER, context: order.code });

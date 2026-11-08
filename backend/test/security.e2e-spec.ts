@@ -60,7 +60,6 @@ describe('HTTP xavfsizlik (e2e)', () => {
         '/api/auth/logout',
         '/api/auth/refresh',
         '/api/auth/me',
-        '/api/admin/operator',
         '/api/admin/workshops',
         '/api/admin/workshops/{id}',
         '/api/admin/users',

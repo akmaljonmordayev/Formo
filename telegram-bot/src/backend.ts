@@ -45,6 +45,8 @@ export interface ManualTopUp extends TopUpView {
 }
 
 export type MeResult = NotLinked | { linked: true; firstName: string | null; balance: number; activeOrders: number; language: string | null };
+/** `me()`ning yengil versiyasi — faqat menyu/til uchun (buyurtmalar sonisiz) */
+export type StatusResult = NotLinked | { linked: true; language: string | null };
 export type BalanceResult = NotLinked | { linked: true; balance: number; topUps: TopUpView[] };
 export type OrdersResult =
   | NotLinked
@@ -81,6 +83,7 @@ export interface Backend {
   leaseOutbox(limit: number): Promise<OutboxMessage[]>;
   reportOutbox(id: number, result: OutboxResult, error?: string): Promise<void>;
   me(telegramUserId: string): Promise<MeResult>;
+  status(telegramUserId: string): Promise<StatusResult>;
   setLanguage(telegramUserId: string, language: string): Promise<{ linked: boolean }>;
   balance(telegramUserId: string): Promise<BalanceResult>;
   orders(telegramUserId: string): Promise<OrdersResult>;
@@ -176,6 +179,10 @@ export class BackendClient implements Backend {
 
   me(telegramUserId: string) {
     return this.request<MeResult>('POST', '/internal/telegram/me', { telegramUserId }, true);
+  }
+
+  status(telegramUserId: string) {
+    return this.request<StatusResult>('POST', '/internal/telegram/status', { telegramUserId }, true);
   }
 
   setLanguage(telegramUserId: string, language: string) {

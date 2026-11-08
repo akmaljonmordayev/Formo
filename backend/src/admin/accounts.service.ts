@@ -56,12 +56,6 @@ export class AccountsService {
     return toPublicUser(user);
   }
 
-  async findSingle(role: Role) {
-    const user = await this.prisma.user.findFirst({ where: { role } });
-    if (!user) throw new NotFoundException('Akkaunt hali yaratilmagan');
-    return toPublicUser(user);
-  }
-
   async create(role: Role, input: AccountInput & { phone: string; password: string; fullName: string }) {
     await this.ensurePhoneFree(input.phone);
     const { password, ...data } = input;
@@ -69,36 +63,6 @@ export class AccountsService {
       data: { ...data, role, passwordHash: await bcrypt.hash(password, BCRYPT_ROUNDS) },
     });
     return toPublicUser(user);
-  }
-
-  /**
-   * Yagona akkauntli rol (operator) uchun yaratish. Serializable tranzaksiya
-   * bir vaqtda kelgan ikki so'rov ikkita operator yaratib qo'yishiga yo'l qo'ymaydi.
-   */
-  async createSingle(role: Role, input: AccountInput & { phone: string; password: string; fullName: string }) {
-    const { password, ...data } = input;
-    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
-    try {
-      const user = await this.prisma.$transaction(
-        async (tx) => {
-          if (await tx.user.count({ where: { role } })) {
-            throw new ConflictException("Bu akkaunt allaqachon mavjud. Uni tahrirlang yoki o'chiring");
-          }
-          if (await tx.user.findUnique({ where: { phone: data.phone } })) {
-            throw new ConflictException('Bu telefon raqam band');
-          }
-          return tx.user.create({ data: { ...data, role, passwordHash } });
-        },
-        // maxWait: parallel so'rovlarda ulanish kutish (standart 2s) yetmay 500 qaytmasin
-        { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, maxWait: 10_000, timeout: 10_000 },
-      );
-      return toPublicUser(user);
-    } catch (e) {
-      if (e instanceof Prisma.PrismaClientKnownRequestError && ['P2034', 'P2002'].includes(e.code)) {
-        throw new ConflictException("Bu akkaunt allaqachon mavjud. Uni tahrirlang yoki o'chiring");
-      }
-      throw e;
-    }
   }
 
   async update(role: Role, id: number, input: AccountInput) {

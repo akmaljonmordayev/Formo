@@ -8,8 +8,7 @@ datasource db {
 }
 
 enum Role {
-  SUPERADMIN // yagona akkaunt, .env dan seed qilinadi
-  OPERATOR // yagona akkaunt, superadmin yaratadi
+  SUPERADMIN // yagona akkaunt, .env dan seed qilinadi — sexlar va mijozlar bilan yozishmani ham boshqaradi
   TAILOR // tikuv sexlari, superadmin yaratadi
   USER // mobil ilova foydalanuvchilari, o'zi ro'yxatdan o'tadi
 }

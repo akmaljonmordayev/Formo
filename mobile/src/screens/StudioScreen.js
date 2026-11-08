@@ -101,14 +101,15 @@ function PrintInputs({ t, rules, name, setName, number, setNumber, nameStyle, on
   );
 }
 
-function ShortsPanel({ t, rules, sizes, price, s }) {
+function ShortsPanel({ t, rules, sizes, s }) {
   const numberInvalid = isNumberInvalid(s.shortsNumber, rules);
   return (
     <View>
       <View style={styles.panelRow}>
         <View style={{ flex: 1 }}>
           <Text style={styles.rowTitle}>{t('addShorts')}</Text>
-          <Text style={styles.rowSub}>{t('addShortsSub')} · +{formatMoney(price)}</Text>
+          {/* Shortik narxi endi alohida emas — komplekt narxiga qo'shilgan, shu yerda ko'rsatish shart emas */}
+          <Text style={styles.rowSub}>{t('addShortsSub')}</Text>
         </View>
         <Switch
           value={s.withShorts}
@@ -354,7 +355,7 @@ function KitStudio({ t, product, cart, rules, onBack, onPickKit, onOpenCart }) {
         </View>
       );
     }
-    return <ShortsPanel t={t} rules={rules} sizes={sizes} price={prices.shorts} s={{ ...shorts, fallbackNumber: number }} />;
+    return <ShortsPanel t={t} rules={rules} sizes={sizes} s={{ ...shorts, fallbackNumber: number }} />;
   };
 
   return (

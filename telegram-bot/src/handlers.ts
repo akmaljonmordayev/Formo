@@ -76,10 +76,10 @@ async function langOf(deps: Deps, from: TgUser): Promise<Lang> {
   const known = deps.sessions.lang(userId);
   if (known) return known;
   if (deps.sessions.markLangLookup(userId)) {
-    const me = await deps.backend.me(userId).catch(() => null);
-    if (me?.linked && isLang(me.language)) {
-      deps.sessions.setLang(userId, me.language);
-      return me.language;
+    const status = await deps.backend.status(userId).catch(() => null);
+    if (status?.linked && isLang(status.language)) {
+      deps.sessions.setLang(userId, status.language);
+      return status.language;
     }
   }
   return langFromCode(from.language_code);
@@ -136,8 +136,8 @@ async function onMessage(msg: TgMessage, deps: Deps) {
  * (berilmasa xuddi shu matn) menyusiz.
  */
 async function replyWithMenu(deps: Deps, userId: string, chatId: string, lang: Lang, text: string, unlinkedText = text) {
-  const me = await deps.backend.me(userId).catch(() => null);
-  if (me?.linked) return send(deps, chatId, text, { reply_markup: mainMenu(rememberLang(deps, userId, me.language, lang)) });
+  const status = await deps.backend.status(userId).catch(() => null);
+  if (status?.linked) return send(deps, chatId, text, { reply_markup: mainMenu(rememberLang(deps, userId, status.language, lang)) });
   return send(deps, chatId, unlinkedText);
 }
 
@@ -302,9 +302,9 @@ function rememberLang(deps: Deps, userId: string, stored: string | null | undefi
 }
 
 async function showBalance(deps: Deps, userId: string, chatId: string, lang: Lang) {
-  const me = await guarded(deps, chatId, lang, () => deps.backend.me(userId));
-  if (!me.linked) return send(deps, chatId, T[lang].notLinked);
-  lang = rememberLang(deps, userId, me.language, lang);
+  const status = await guarded(deps, chatId, lang, () => deps.backend.status(userId));
+  if (!status.linked) return send(deps, chatId, T[lang].notLinked);
+  lang = rememberLang(deps, userId, status.language, lang);
   const res = await guarded(deps, chatId, lang, () => deps.backend.balance(userId));
   if (!res.linked) return send(deps, chatId, T[lang].notLinked);
   const t = T[lang];
@@ -321,9 +321,9 @@ async function showBalance(deps: Deps, userId: string, chatId: string, lang: Lan
 }
 
 async function startTopUp(deps: Deps, userId: string, chatId: string, lang: Lang) {
-  const me = await guarded(deps, chatId, lang, () => deps.backend.me(userId));
-  if (!me.linked) return send(deps, chatId, T[lang].notLinked);
-  lang = rememberLang(deps, userId, me.language, lang);
+  const status = await guarded(deps, chatId, lang, () => deps.backend.status(userId));
+  if (!status.linked) return send(deps, chatId, T[lang].notLinked);
+  lang = rememberLang(deps, userId, status.language, lang);
   const limits = await topUpLimits(deps, chatId, lang);
   return send(deps, chatId, T[lang].chooseAmount(limits.min, limits.max), { reply_markup: amountKeyboard(lang) });
 }

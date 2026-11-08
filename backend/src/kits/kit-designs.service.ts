@@ -123,7 +123,7 @@ export class KitDesignsService {
       name: row.name,
       thumbnailUrl: row.thumbnailUrl,
       design: toDesignV1(row),
-      prices: { shirt: prices.shirtPrice, shorts: prices.shortsPrice, print: prices.printPrice },
+      prices: { shirt: prices.shirtPrice, print: prices.printPrice },
     };
   }
 
