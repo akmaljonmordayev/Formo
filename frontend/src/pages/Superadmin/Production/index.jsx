@@ -6,8 +6,7 @@ import { useT } from '../i18n';
 const COLUMNS = [
   { key: 'ACCEPTED', step: 1, title: 'Navbatda', sub: 'Bosishni kutmoqda' },
   { key: 'PRINTING', step: 2, title: 'Bosilmoqda', sub: 'Pressda' },
-  { key: 'QUALITY_CHECK', step: 3, title: 'Sifat nazorati', sub: 'Tekshirish va foto' },
-  { key: 'READY', step: 4, title: 'Tayyor', sub: 'Ilovada: «Bosildi va tekshirildi»' },
+  { key: 'READY', step: 3, title: 'Tayyor', sub: 'Ilovada: «Bosildi va tekshirildi»' },
 ];
 
 export default function SuperadminProduction() {
@@ -38,7 +37,7 @@ export default function SuperadminProduction() {
       <div className="sa-head">
         <div>
           <h1>{t("Ishlab chiqarish")}</h1>
-          <p>{t("Bugungi bosma vazifalari: chapdan o'ngga 4 qadam. Kartochkani bosib buyurtmani oching.")}</p>
+          <p>{t("Bugungi bosma vazifalari: chapdan o'ngga 3 qadam. Kartochkani bosib buyurtmani oching.")}</p>
         </div>
       </div>
 

@@ -32,10 +32,11 @@ model User {
   lockedUntil         DateTime?
 
   // Mobil foydalanuvchi profili
-  gender Gender?
-  age    Int?
-  height Int? // sm
-  weight Int? // kg
+  avatarUrl String?
+  gender    Gender?
+  age       Int?
+  height    Int? // sm
+  weight    Int? // kg
 
   // Tikuv sexi ma'lumotlari
   workshopName  String?
@@ -427,6 +428,7 @@ model Address {
   label     String // "Uy", "Ish"
   address   String // "Yunusobod, Amir Temur 108"
   apartment String? // "45-xonadon"
+  region    String? // viloyat kodi (REGIONS, shop/regions.ts) — yetkazish narxi shundan
   latitude  Float?
   longitude Float?
   isDefault Boolean  @default(false)
@@ -512,6 +514,7 @@ model Order {
   deliveryDate    DateTime? @db.Date
   deliverySlot    String? // "10:00-14:00"
   deliveryAddress String?
+  deliveryRegion  String? // manzil viloyati (buyurtma paytidagi nusxa) — delivery.feesByRegion kaliti
   comment         String? // kuryer uchun izoh
 
   paymentExpiresAt DateTime? // Click/Payme: to'lov kutiladigan muddat (30 daqiqa)

@@ -81,4 +81,22 @@ export class PromocodesService {
 
     return promo;
   }
+
+  async remove(id: number, actor: AuditEntry['actor'], ip?: string) {
+    const promo = await this.prisma.promocode.findUnique({ where: { id } });
+    if (!promo) throw new NotFoundException('Promokod topilmadi');
+
+    // Buyurtmalardagi promocodeId onDelete: SetNull — eski buyurtmalar saqlanadi, faqat bog'lanish uziladi
+    await this.prisma.promocode.delete({ where: { id } });
+
+    await this.audit.log({
+      actor,
+      action: "Promokod butunlay o'chirildi",
+      category: AuditCategory.CATALOG,
+      context: promo.code,
+      ip,
+    });
+
+    return { message: "Promokod o'chirildi" };
+  }
 }

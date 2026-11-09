@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
+import { StorageService } from '../storage/storage.service';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { JwtStrategy } from './jwt.strategy';
@@ -19,7 +20,7 @@ import { SuperadminSeed } from './superadmin.seed';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy, SuperadminSeed],
+  providers: [AuthService, JwtStrategy, SuperadminSeed, StorageService],
   exports: [AuthService],
 })
 export class AuthModule {}

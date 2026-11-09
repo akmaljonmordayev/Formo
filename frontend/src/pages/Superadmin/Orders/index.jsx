@@ -20,7 +20,6 @@ const TABS = [
   { label: "To'lov kutilmoqda", status: 'PENDING_PAYMENT' },
   { label: 'Qabul qilindi', status: 'ACCEPTED' },
   { label: 'Ishlab chiqarishda', status: 'PRINTING' },
-  { label: 'Sifat nazorati', status: 'QUALITY_CHECK' },
   { label: 'Tayyor', status: 'READY' },
   { label: 'Yetkazishda', status: 'DELIVERING' },
   { label: 'Yetkazildi', status: 'DELIVERED' },

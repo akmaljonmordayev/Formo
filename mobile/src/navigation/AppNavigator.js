@@ -17,7 +17,6 @@ import OrderDetailScreen from '../screens/OrderDetailScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import ProductScreen from '../screens/ProductScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import SettingsScreen from '../screens/SettingsScreen';
 import StudioScreen from '../screens/StudioScreen';
 import SupportChatScreen from '../screens/SupportChatScreen';
 import WalletScreen from '../screens/WalletScreen';
@@ -215,7 +214,7 @@ export default function AppNavigator({ store, t, auth }) {
     if (route === 'wallet') { navigate(walletFrom); return true; }
     if (route === 'addresses') { navigate('profile'); return true; }
     if (route === 'locationPicker') { navigate(pickerFrom); return true; }
-    if (route === 'settings' || route === 'support') { navigate('profile'); return true; }
+    if (route === 'support') { navigate('profile'); return true; }
     if (route === 'product') { navigateTab('studio'); return true; }
 
     // Any other screen (studio/orders/profile tab roots) — back to the home tab
@@ -327,7 +326,8 @@ export default function AppNavigator({ store, t, auth }) {
       <ProfileScreen
         t={t}
         auth={auth}
-        onSettings={() => navigate('settings')}
+        language={store.language}
+        setLanguage={store.setLanguage}
         onOrders={() => navigate('orders')}
         onAddresses={() => navigate('addresses')}
         onWallet={() => openWallet('profile')}
@@ -356,16 +356,6 @@ export default function AppNavigator({ store, t, auth }) {
           navigate(pickerFrom);
         }}
       />
-    ) : route === 'settings' ? (
-      <SettingsScreen
-        t={t}
-        language={store.language}
-        setLanguage={store.setLanguage}
-        onBack={() => navigate('profile')}
-        onNotifications={() => openNotifications('settings')}
-        general={config.general}
-        auth={auth}
-      />
     ) : (
       <ProductScreen
         t={t}
@@ -382,7 +372,7 @@ export default function AppNavigator({ store, t, auth }) {
 
   // Tab bar stays visible everywhere in the main app (including the design
   // studio — only full-screen detail/settings pages hide it).
-  const hideTabs = ['product', 'settings', 'checkout', 'order', 'notifications', 'addresses', 'locationPicker', 'wallet', 'support'].includes(route);
+  const hideTabs = ['product', 'checkout', 'order', 'notifications', 'addresses', 'locationPicker', 'wallet', 'support'].includes(route);
 
   return (
     <CartContext.Provider value={cartValue}>

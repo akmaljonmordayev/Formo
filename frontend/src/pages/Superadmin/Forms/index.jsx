@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
-import { clubsApi, inventoryApi } from '../../../features/platform/platformApi';
+import { clubsApi, inventoryApi, settingsApi } from '../../../features/platform/platformApi';
 import Modal from '../../../components/ui/Modal';
+import { DEFAULT_REGION_FEE, REGIONS, SETTING_KEYS } from '../adminApi';
 import { useT } from '../i18n';
 
 const KID_SIZES = ['2-3', '4-5', '6-7', '8-9', '10-11', '12-13'];
@@ -112,6 +113,8 @@ export default function SuperadminForms() {
       </div>
 
       {error && <div className="form-error">{error}</div>}
+
+      <DeliveryFeesPanel t={t} />
 
       <div className="sa-tabs" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <input
@@ -328,5 +331,119 @@ function KitForm({ kit, clubs, t, onClose, onSaved }) {
         </div>
       </form>
     </Modal>
+  );
+}
+
+/** Yetkazish narxi — viloyat bo'yicha (delivery.feesByRegion sozlamasi) */
+function DeliveryFeesPanel({ t }) {
+  const [open, setOpen] = useState(false);
+  const [draft, setDraft] = useState(null); // null — hali yuklanmagan
+  const [saved, setSaved] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [notice, setNotice] = useState('');
+  const [err, setErr] = useState('');
+
+  useEffect(() => {
+    settingsApi
+      .all()
+      .then((s) => {
+        const fromSetting = s[SETTING_KEYS.deliveryFeesByRegion] || {};
+        const full = Object.fromEntries(REGIONS.map((r) => [r.code, fromSetting[r.code] ?? DEFAULT_REGION_FEE]));
+        setDraft(full);
+        setSaved(full);
+      })
+      .catch((e) => setErr(e.message))
+      .finally(() => setLoading(false));
+  }, []);
+
+  const setFee = (code, value) => {
+    setDraft((d) => ({ ...d, [code]: value === '' ? '' : Math.max(0, Math.round(Number(value))) }));
+    setNotice('');
+  };
+
+  const dirty = draft && saved && REGIONS.some((r) => draft[r.code] !== saved[r.code]);
+  const invalid = draft && REGIONS.some((r) => draft[r.code] === '' || Number.isNaN(draft[r.code]));
+
+  const save = async () => {
+    setSaving(true);
+    setErr('');
+    setNotice('');
+    try {
+      await settingsApi.update(SETTING_KEYS.deliveryFeesByRegion, draft);
+      setSaved(draft);
+      setNotice(t('Saqlandi ✓'));
+    } catch (e) {
+      setErr(e.message);
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="sa-panel" style={{ marginBottom: 12 }}>
+      <div
+        className="sa-panel__head"
+        style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <div>
+          <span className="sa-panel__title">{t('Yetkazish narxi (viloyat bo‘yicha)')}</span>
+          <p className="sa-table__sub" style={{ marginTop: 4 }}>
+            {t("Har bir viloyat uchun alohida narx — Toshkent shahri ham alohida. Mijoz manzil qo'shayotganda viloyatini tanlaydi.")}
+          </p>
+        </div>
+        <span className="sa-table__sub">{open ? '▲' : '▼'}</span>
+      </div>
+
+      {open && (
+        loading || !draft ? (
+          <div className="sa-table__sub" style={{ padding: '12px 0' }}>{t('Yuklanmoqda...')}</div>
+        ) : (
+          <>
+            {err && <div className="form-error">{err}</div>}
+            <div
+              style={{
+                display: 'grid',
+                gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+                gap: 10,
+                marginTop: 10,
+              }}
+            >
+              {REGIONS.map((r) => (
+                <div
+                  key={r.code}
+                  style={{
+                    display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
+                    padding: '10px 12px', borderRadius: 12, background: 'var(--sa-surface-2)', border: '1px solid var(--sa-line)',
+                  }}
+                >
+                  <span style={{ fontSize: 13.5 }}>{t(r.label)}</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <input
+                      className="sa-input"
+                      type="number"
+                      min={0}
+                      step={1000}
+                      value={draft[r.code]}
+                      onChange={(e) => setFee(r.code, e.target.value)}
+                      aria-label={t('{label} yetkazish narxi', { label: r.label })}
+                      style={{ width: 100, textAlign: 'right', fontFamily: 'var(--font-display)', fontWeight: 700 }}
+                    />
+                    <span className="sa-table__sub" style={{ marginTop: 0 }}>{t("so'm")}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginTop: 14 }}>
+              <button type="button" className="sa-btn" onClick={save} disabled={!dirty || invalid || saving}>
+                {saving ? t('Saqlanmoqda...') : t('Narxlarni saqlash')}
+              </button>
+              {notice && <span className="sa-table__sub" style={{ color: 'var(--sa-teal)' }}>{notice}</span>}
+            </div>
+          </>
+        )
+      )}
+    </div>
   );
 }

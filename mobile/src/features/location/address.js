@@ -5,6 +5,25 @@
  */
 export const ADDRESS_LIMITS = { label: 30, addressMin: 5, address: 200, apartment: 60 };
 
+/** 12 viloyat + Qoraqalpog'iston Respublikasi + Toshkent shahri (alohida) — backend/src/shop/regions.ts bilan bir xil.
+ *  Nomlar i18n'dan (`region_<code>`) — bu yerda faqat kodlar va tartib. */
+export const REGION_CODES = [
+  'TOSHKENT_SHAHRI',
+  'TOSHKENT_VILOYATI',
+  'ANDIJON',
+  'BUXORO',
+  'FARGONA',
+  'JIZZAX',
+  'XORAZM',
+  'NAMANGAN',
+  'NAVOIY',
+  'QASHQADARYO',
+  'SAMARQAND',
+  'SIRDARYO',
+  'SURXONDARYO',
+  'QORAQALPOGISTON',
+];
+
 // Xarita birinchi ochilganda (GPS/saqlangan nuqta bo'lmasa) — Toshkent markazi
 export const DEFAULT_CENTER = { latitude: 41.311081, longitude: 69.240562 };
 export const CITY_DELTA = { latitudeDelta: 0.08, longitudeDelta: 0.08 };
@@ -45,7 +64,7 @@ export function formatGeocode(place) {
 }
 
 /** Forma qiymatlarini tekshiradi: { field: i18nKey } (bo'sh obyekt — xato yo'q). */
-export function validateAddressForm({ label, address, apartment, coords }) {
+export function validateAddressForm({ label, address, apartment, region, coords }) {
   const errors = {};
   const l = String(label || '').trim();
   const a = String(address || '').trim();
@@ -53,6 +72,7 @@ export function validateAddressForm({ label, address, apartment, coords }) {
   if (a.length < ADDRESS_LIMITS.addressMin || a.length > ADDRESS_LIMITS.address) errors.address = 'addrTextInvalid';
   if (String(apartment || '').trim().length > ADDRESS_LIMITS.apartment) errors.apartment = 'addrApartmentInvalid';
   if (/[<>]/.test(l + a + (apartment || ''))) errors.address = 'invalidValue';
+  if (!region || !REGION_CODES.includes(region)) errors.region = 'addrRegionInvalid';
   if (coords && !isValidCoords(coords)) errors.coords = 'locationInvalid';
   return errors;
 }
@@ -61,7 +81,7 @@ export function validateAddressForm({ label, address, apartment, coords }) {
  * POST/PATCH /addresses tanasi — faqat DTO maydonlari. Bo'sh `apartment`
  * yuborilmaydi (create) yoki bo'sh satr bilan tozalanadi (update).
  */
-export function toAddressPayload({ label, address, apartment, coords, isDefault }, { isUpdate = false } = {}) {
+export function toAddressPayload({ label, address, apartment, region, coords, isDefault }, { isUpdate = false } = {}) {
   const body = {
     label: String(label).trim(),
     address: String(address).trim().replace(/\s+/g, ' '),
@@ -69,6 +89,7 @@ export function toAddressPayload({ label, address, apartment, coords, isDefault 
   const apt = String(apartment || '').trim();
   if (apt) body.apartment = apt;
   else if (isUpdate) body.apartment = '';
+  if (region && REGION_CODES.includes(region)) body.region = region;
   if (isValidCoords(coords)) {
     body.latitude = round6(coords.latitude);
     body.longitude = round6(coords.longitude);

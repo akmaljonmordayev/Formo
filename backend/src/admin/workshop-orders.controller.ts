@@ -18,7 +18,7 @@ import { WorkshopOrdersService } from './workshop-orders.service';
 /**
  * Tikuv sexi paneli. Oqim:
  * operator yuboradi (`SENT_TO_WORKSHOP`) → sex qabul qiladi (`ACCEPTED`) yoki rad etadi (operatorga `NEW` bo'lib qaytadi) →
- * `PRINTING` → `QUALITY_CHECK` → `READY` → `DELIVERING`. Sex faqat o'ziga biriktirilgan buyurtmalarni ko'radi.
+ * `PRINTING` → `READY` → `DELIVERING`. Sex faqat o'ziga biriktirilgan buyurtmalarni ko'radi.
  */
 @ApiTags('Tikuv sexi · Buyurtmalar')
 @ApiBearerAuth()

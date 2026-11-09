@@ -59,15 +59,17 @@ async function rawRequest(path, { method = 'GET', body, auth = true } = {}) {
   const token = await storage.getToken();
   const controller = typeof AbortController === 'undefined' ? null : new AbortController();
   const timer = controller ? setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS) : null;
+  // Fayl yuklash (masalan profil rasmi): RN FormData — Content-Type'ni brauzer/RN o'zi boundary bilan qo'yadi
+  const isForm = typeof FormData !== 'undefined' && body instanceof FormData;
 
   try {
     const response = await fetch(`${BASE_URL}${path}`, {
       method,
       headers: {
-        'Content-Type': 'application/json',
+        ...(!isForm && { 'Content-Type': 'application/json' }),
         ...(auth && token ? { Authorization: `Bearer ${token}` } : {}),
       },
-      body: body ? JSON.stringify(body) : undefined,
+      body: isForm ? body : body ? JSON.stringify(body) : undefined,
       ...(controller ? { signal: controller.signal } : {}),
     });
 
@@ -188,6 +190,33 @@ export const auth = {
    */
   updateMe: (fields) => request('/auth/me', { method: 'PATCH', body: fields }),
 
+  /** PATCH /auth/password — joriy parol + yangi parol. Boshqa qurilmalar chiqarib yuboriladi. */
+  changePassword: (currentPassword, newPassword) =>
+    request('/auth/password', { method: 'PATCH', body: { currentPassword, newPassword } }),
+
+  /**
+   * Profil rasmi: PNG/JPEG/WEBP, 2 MB gacha. `file` — { uri, name, type } (expo-image-picker natijasidan).
+   * @returns {Promise<object>} yangilangan user
+   */
+  setAvatar: (file) => {
+    const form = new FormData();
+    form.append('file', file);
+    return request('/auth/me/avatar', { method: 'POST', body: form });
+  },
+
+  /** Profil rasmini o'chiradi (standart harf-belgiga qaytadi) */
+  removeAvatar: () => request('/auth/me/avatar', { method: 'DELETE' }),
+
+  /**
+   * Telefon raqamini almashtirish, 1-qadam: yangi raqamga Telegram orqali tasdiqlash so'rovi.
+   * @returns {Promise<{challengeId: string, botUsername: string, deepLink: string, expiresAt: string}>}
+   */
+  phoneChangeStart: (phone) => request('/auth/telegram/change/start', { method: 'POST', body: { phone: normalizePhone(phone) } }),
+
+  /** Telefon raqamini almashtirish, 2-qadam: botdagi kod. Sessiya ochilmaydi — faqat raqam yangilanadi. */
+  phoneChangeVerify: (challengeId, code) =>
+    request('/auth/telegram/change/verify', { method: 'POST', body: { challengeId, code } }),
+
   /** Invalidate the current session on the server and clear local tokens. */
   async logout() {
     try {
@@ -252,8 +281,8 @@ export const catalog = {
  * { items, count, promocode, summary: { subtotal, discount, delivery, total } }
  */
 export const cart = {
-  /** Promokod berilsa chegirma bilan hisoblanadi (yaroqsiz bo'lsa 400). */
-  view: (promocode) => request(`/cart${query({ promocode })}`),
+  /** Promokod berilsa chegirma bilan hisoblanadi (yaroqsiz bo'lsa 400). Viloyat — yetkazish narxi shundan. */
+  view: (promocode, region) => request(`/cart${query({ promocode, region })}`),
 
   /** @param {{kitId, shirtSize, printName?, printNumber?, numberOnShorts?, withShorts?, shortsSize?, quantity?}} item */
   add: (item) => request('/cart/items', { method: 'POST', body: item }),
@@ -277,7 +306,7 @@ export const addresses = {
 /** Rasmiylashtirish va buyurtmalarim */
 export const orders = {
   /** { fee, days: [{ date: 'YYYY-MM-DD', dayLabel, slots: [{ slot, start, end, remaining, available }] }] } */
-  deliverySlots: (days) => request(`/checkout/delivery-slots${query({ days })}`),
+  deliverySlots: (days, region) => request(`/checkout/delivery-slots${query({ days, region })}`),
 
   /**
    * Savatdan buyurtma: CASH -> NEW (operatorga tushadi), CLICK/PAYME -> PENDING_PAYMENT.

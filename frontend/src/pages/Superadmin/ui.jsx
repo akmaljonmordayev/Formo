@@ -53,14 +53,14 @@ export function Switch({ checked, onChange, label, disabled }) {
       onClick={onChange}
       style={{
         position: 'relative', width: 36, height: 20, borderRadius: 999, border: 'none', padding: 0,
-        cursor: disabled ? 'wait' : 'pointer', background: checked ? 'var(--sa-teal)' : 'rgba(255,255,255,0.12)',
+        cursor: disabled ? 'wait' : 'pointer', background: checked ? 'var(--sa-teal)' : 'rgba(var(--sa-hover-rgb), 0.18)',
         flexShrink: 0,
       }}
     >
       <span
         style={{
           position: 'absolute', top: 2, left: checked ? 18 : 2, width: 16, height: 16, borderRadius: '50%',
-          background: '#fff', transition: 'left .15s ease',
+          background: checked ? '#fff' : 'var(--sa-ink)', transition: 'left .15s ease',
         }}
       />
     </button>

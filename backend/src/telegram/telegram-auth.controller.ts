@@ -1,5 +1,7 @@
 import { Body, Controller, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
 import {
+  ApiBearerAuth,
+  ApiConflictResponse,
   ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
@@ -10,8 +12,9 @@ import {
 } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
+import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
-import { AuthResponseDto } from '../auth/dto/auth-response.dto';
+import { AuthResponseDto, UserResponseDto } from '../auth/dto/auth-response.dto';
 import { TelegramStartDto, TelegramStartResponseDto, TelegramVerifyDto } from './dto/telegram.dto';
 import { TelegramAuthService } from './telegram-auth.service';
 
@@ -55,5 +58,33 @@ export class TelegramAuthController {
   @ApiForbiddenResponse({ description: 'Akkaunt bloklangan / xodim hisobi' })
   verify(@Body() dto: TelegramVerifyDto, @Req() req: Request) {
     return this.telegram.verify(dto.challengeId, dto.code, { userAgent: req.headers['user-agent'], ip: req.ip });
+  }
+
+  @ApiBearerAuth()
+  @Throttle(AUTH_LIMIT)
+  @Post('change/start')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Kirgan mijoz: telefon raqamini almashtirish — so'rov ochish",
+    description: "`start` bilan bir xil — yangi raqam Telegram kontakt bilan tasdiqlanadi, keyin `/verify` emas `/change/verify` chaqiriladi.",
+  })
+  @ApiOkResponse({ type: TelegramStartResponseDto })
+  @ApiConflictResponse({ description: 'Bu raqam allaqachon boshqa hisobda' })
+  @ApiServiceUnavailableResponse({ description: 'Bot serverda sozlanmagan' })
+  @ApiTooManyRequestsResponse({ description: "Juda ko'p urinish" })
+  changeStart(@CurrentUser() user: AuthUser, @Body() dto: TelegramStartDto, @Req() req: Request) {
+    return this.telegram.requestPhoneChange(user.id, dto.phone, { userAgent: req.headers['user-agent'], ip: req.ip });
+  }
+
+  @ApiBearerAuth()
+  @Throttle(AUTH_LIMIT)
+  @Post('change/verify')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Kirgan mijoz: telefon raqamini almashtirish — kodni tasdiqlash' })
+  @ApiOkResponse({ type: UserResponseDto })
+  @ApiUnauthorizedResponse({ description: "Kod noto'g'ri, muddati o'tgan yoki ishlatilgan" })
+  @ApiConflictResponse({ description: 'Bu raqam shu oraliqda boshqa hisobga tegishli bo‘lib qoldi' })
+  changeVerify(@CurrentUser() user: AuthUser, @Body() dto: TelegramVerifyDto) {
+    return this.telegram.confirmPhoneChange(user.id, dto.challengeId, dto.code);
   }
 }

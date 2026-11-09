@@ -3,20 +3,18 @@ import { api } from '../../services/api';
 const PAGE_LIMIT = 100;
 
 // Sexda ikki holat: qabul qilindi → tayyor. SENT_TO_WORKSHOP — sexga yuborilgan, sex hali qabul qilmagan.
-// Yetkazishga chiqarish sex ro'yxatidan tashqarida (DELIVERING sex ro'yxatida yo'q). PRINTING/QUALITY_CHECK — eski
+// Yetkazishga chiqarish sex ro'yxatidan tashqarida (DELIVERING sex ro'yxatida yo'q). PRINTING — eski
 // buyurtmalar uchun, "qabul qilindi" sifatida ko'rsatiladi.
 export const TAILOR_ORDER_STATUS = {
   SENT_TO_WORKSHOP: 'yangi',
   ACCEPTED: 'qabul',
   PRINTING: 'qabul',
-  QUALITY_CHECK: 'qabul',
   READY: 'tayyor',
 };
 
 export const TAILOR_NEXT_STATUS = {
   ACCEPTED: 'READY',
   PRINTING: 'READY',
-  QUALITY_CHECK: 'READY',
 };
 
 const orderToQueueItem = (order) => {

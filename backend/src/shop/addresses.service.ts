@@ -9,6 +9,7 @@ const select = {
   label: true,
   address: true,
   apartment: true,
+  region: true,
   latitude: true,
   longitude: true,
   isDefault: true,

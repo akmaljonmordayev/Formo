@@ -65,6 +65,7 @@ export const promocodesApi = {
   list: () => api('/admin/promocodes'),
   create: (body) => api('/admin/promocodes', { method: 'POST', body }),
   update: (id, body) => api(`/admin/promocodes/${id}`, { method: 'PATCH', body }),
+  remove: (id) => api(`/admin/promocodes/${id}`, { method: 'DELETE' }),
 };
 
 export const campaignsApi = {
@@ -137,7 +138,6 @@ export const ORDER_STATUS = {
   SENT_TO_WORKSHOP: { label: 'Sexga yuborildi', color: 'blue' },
   ACCEPTED: { label: 'Sex qabul qildi', color: 'blue' },
   PRINTING: { label: 'Bosilmoqda', color: 'violet' },
-  QUALITY_CHECK: { label: 'Sifat nazorati', color: 'violet' },
   READY: { label: 'Tayyor', color: 'blue' },
   DELIVERING: { label: 'Yetkazishda', color: 'blue' },
   DELIVERED: { label: 'Yetkazildi', color: 'green' },

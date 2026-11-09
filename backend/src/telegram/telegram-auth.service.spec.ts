@@ -1,6 +1,13 @@
-import { ForbiddenException, HttpException, ServiceUnavailableException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  ForbiddenException,
+  HttpException,
+  ServiceUnavailableException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Role, TelegramAuthChallenge } from '@prisma/client';
+import { Prisma, Role, TelegramAuthChallenge } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { createHash } from 'crypto';
 import { AuthService } from '../auth/auth.service';
@@ -44,6 +51,7 @@ describe('TelegramAuthService', () => {
       updateMany: jest.fn(),
     },
     telegramAccount: { updateMany: jest.fn(), findUnique: jest.fn() },
+    user: { findUniqueOrThrow: jest.fn(), findUnique: jest.fn(), update: jest.fn() },
     $transaction: jest.fn((fn: (t: typeof tx) => unknown) => fn(tx)),
   };
   const auth = { issueTokens: jest.fn() };
@@ -308,6 +316,70 @@ describe('TelegramAuthService', () => {
     it('boshqa so‘rov uchun chiqqan kod ishlamaydi (xesh challengeId ga bog‘langan)', async () => {
       const code = await ready({ id: '22222222-2222-4222-8222-222222222222' });
       await expect(service.verify('22222222-2222-4222-8222-222222222222', code, {})).rejects.toThrow(UnauthorizedException);
+    });
+  });
+
+  describe('requestPhoneChange', () => {
+    it('o‘z joriy raqamiga almashtirish — 400', async () => {
+      prisma.user.findUniqueOrThrow.mockResolvedValue({ id: 7, phone: PHONE });
+      await expect(service.requestPhoneChange(7, PHONE, {})).rejects.toThrow(BadRequestException);
+      expect(prisma.user.findUnique).not.toHaveBeenCalled();
+    });
+
+    it('boshqa hisobga tegishli raqam — 409, so‘rov ochilmaydi', async () => {
+      prisma.user.findUniqueOrThrow.mockResolvedValue({ id: 7, phone: PHONE });
+      prisma.user.findUnique.mockResolvedValue({ id: 8, phone: '+998909999999' });
+      await expect(service.requestPhoneChange(7, '+998909999999', {})).rejects.toThrow(ConflictException);
+      expect(prisma.telegramAuthChallenge.create).not.toHaveBeenCalled();
+    });
+
+    it('band bo‘lmagan yangi raqam — login bilan bir xil start() so‘rovi ochadi', async () => {
+      prisma.user.findUniqueOrThrow.mockResolvedValue({ id: 7, phone: PHONE });
+      prisma.user.findUnique.mockResolvedValue(null);
+      prisma.telegramAuthChallenge.count.mockResolvedValue(0);
+      prisma.telegramAuthChallenge.create.mockResolvedValue(challenge({ phone: '+998909999999' }));
+      const res = await service.requestPhoneChange(7, '+998909999999', {});
+      expect(res).toHaveProperty('challengeId');
+      expect(prisma.telegramAuthChallenge.create.mock.calls[0][0].data.phone).toBe('+998909999999');
+    });
+  });
+
+  describe('confirmPhoneChange', () => {
+    async function readyChange(over: Partial<TelegramAuthChallenge> = {}) {
+      const issued = await issue(over);
+      jest.clearAllMocks();
+      prisma.telegramAuthChallenge.updateMany.mockResolvedValue({ count: 1 });
+      prisma.telegramAuthChallenge.findUnique.mockResolvedValue(
+        challenge({ codeHash: issued.codeHash, codeExpiresAt: issued.codeExpiresAt, phoneVerifiedAt: new Date(), attempts: 1, ...over }),
+      );
+      return issued.code;
+    }
+
+    it('to‘g‘ri kod: joriy foydalanuvchining raqami yangilanadi, sessiya ochilmaydi/hisob yaratilmaydi', async () => {
+      const code = await readyChange();
+      prisma.user.update.mockResolvedValue({ id: 7, phone: PHONE, fullName: 'Aziz' });
+
+      const res = await service.confirmPhoneChange(7, ID, code);
+
+      expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 7 }, data: { phone: PHONE } });
+      expect(res).toMatchObject({ id: 7, phone: PHONE });
+      expect(auth.issueTokens).not.toHaveBeenCalled();
+      expect(tx.user.create).not.toHaveBeenCalled();
+    });
+
+    it('shu oraliqda raqam boshqa hisobga tegishli bo‘lib qolsa (unique xatosi) — 409', async () => {
+      const code = await readyChange();
+      prisma.user.update.mockRejectedValue(
+        new Prisma.PrismaClientKnownRequestError('Unique constraint failed', { code: 'P2002', clientVersion: 'x' }),
+      );
+      await expect(service.confirmPhoneChange(7, ID, code)).rejects.toThrow(ConflictException);
+    });
+
+    it('kod ikkinchi marta ishlatilmaydi (replay) — raqam yangilanmaydi', async () => {
+      const code = await readyChange();
+      prisma.telegramAuthChallenge.updateMany.mockResolvedValueOnce({ count: 1 }).mockResolvedValueOnce({ count: 0 });
+      await expect(service.confirmPhoneChange(7, ID, code)).rejects.toThrow(UnauthorizedException);
+      expect(prisma.user.update).not.toHaveBeenCalled();
     });
   });
 

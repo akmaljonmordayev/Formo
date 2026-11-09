@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Patch, Post, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Req } from '@nestjs/common';
 import { ApiBearerAuth, ApiForbiddenResponse, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { Request } from 'express';
@@ -38,5 +38,11 @@ export class PromocodesController {
     @Req() req: Request,
   ) {
     return this.promocodes.update(id, dto, user, req.ip);
+  }
+
+  @Delete(':id')
+  @ApiOperation({ summary: 'Promokodni butunlay o‘chirish' })
+  remove(@Param('id', ParseIdPipe) id: number, @CurrentUser() user: AuthUser, @Req() req: Request) {
+    return this.promocodes.remove(id, user, req.ip);
   }
 }

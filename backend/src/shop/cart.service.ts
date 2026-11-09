@@ -148,12 +148,12 @@ export class CartService {
     return Promise.all([this.studio.prices(db), loadKitDesignPrices(db)]).then(([studio, kitDesign]) => ({ studio, kitDesign }));
   }
 
-  async view(userId: number, promocode?: string) {
+  async view(userId: number, promocode?: string, region?: string) {
     const [lines, prices] = await Promise.all([this.lines(userId), this.prices()]);
     const items = lines.map((l) => toCartItem(l, prices));
     const subtotal = items.filter((i) => i.available).reduce((s, i) => s + i.totalPrice, 0);
     const promo = promocode ? await this.resolvePromo(promocode, subtotal) : null;
-    const summary = summarize(subtotal, await this.delivery.fee(), promo);
+    const summary = summarize(subtotal, await this.delivery.fee(region), promo);
 
     return {
       items,
