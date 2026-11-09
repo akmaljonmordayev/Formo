@@ -102,7 +102,10 @@ export default function SuperadminLayout({ menu, labels = DEFAULT_LABELS }) {
     <div className={`sa${drawer ? ' is-open' : ''}`} data-theme={theme}>
       <aside className="sa-sb" aria-label="Asosiy menyu">
         <div className="sa-brand">
-          <span className="sa-brand__mark">F</span>
+          <svg className="sa-brand__mark" viewBox="0 0 345 332" aria-hidden="true">
+            <path d="M70,0 L310,0 L242,70 L70,70 L70,120 L250,120 L180,192 L70,192 L70,260 L0,332 L0,70 Z" />
+            <path className="sa-brand__mark-sliver" d="M310,0 L345,0 L277,70 L242,70 Z" />
+          </svg>
           <span className="sa-brand__text">
             Formo
             <small>Admin · {roleLabel}</small>
