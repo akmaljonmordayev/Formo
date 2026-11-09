@@ -29,7 +29,10 @@ const uz = {
 
 
   // ---------- buyurtmalar (navbat / ishlab chiqarish) ----------
-  'orders.title': 'Buyurtmalar',
+  'orders.title': 'Umumiy buyurtmalar',
+  'orders.total': 'Hamma buyurtmalar: {n} ta',
+  'orders.totalLate': 'Kechikkan buyurtmalar: {n} ta',
+  'orders.totalReady': 'Tayyor buyurtmalar: {n} ta',
   'orders.sub': 'Muddat bo‘yicha tartiblangan',
   'q.late': 'Kechikkan buyurtmalar',
   'q.lateHint': "Muddati o'tgan — birinchi navbatda bajaring",
@@ -511,7 +514,10 @@ const ru = {
 
 
   // ---------- заказы (очередь / производство) ----------
-  'orders.title': 'Заказы',
+  'orders.title': 'Общие заказы',
+  'orders.total': 'Все заказы: {n}',
+  'orders.totalLate': 'Просроченные заказы: {n}',
+  'orders.totalReady': 'Готовые заказы: {n}',
   'orders.sub': 'Отсортированы по сроку',
   'q.late': 'Просроченные заказы',
   'q.lateHint': 'Срок прошёл — выполните в первую очередь',

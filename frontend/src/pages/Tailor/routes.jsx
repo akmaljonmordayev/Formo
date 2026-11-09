@@ -45,7 +45,7 @@ export const tailorRoutes = [
 ];
 
 export const tailorMenu = [
-  { to: BASE, label: 'Buyurtmalar', end: true },
+  { to: BASE, label: 'Umumiy buyurtmalar', end: true },
   { to: `${BASE}/kechikkan`, label: 'Kechikkan buyurtmalar' },
   { to: `${BASE}/tayyor`, label: 'Tayyor buyurtmalar' },
   { to: `${BASE}/statistika`, label: 'Statistika' },
