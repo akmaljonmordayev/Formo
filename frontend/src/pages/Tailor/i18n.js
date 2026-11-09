@@ -1,17 +1,13 @@
 import { useCallback } from 'react';
 import { toUzNewLatin } from '../../utils/uzNewLatin';
-import en from './i18n.en';
 import { useTailor } from './prefs';
 
 export const LANGS = [
   { value: 'uz', label: "O'zbekcha", shortLabel: 'UZ' },
-  { value: 'uz-New', label: 'Ōzbekça', shortLabel: 'ŌZ' },
-  { value: 'uz-Cyrl', label: 'Ўзбекча', shortLabel: 'ЎЗ' },
   { value: 'ru', label: 'Русский', shortLabel: 'RU' },
-  { value: 'en', label: 'English', shortLabel: 'EN' },
 ];
 
-export const LOCALES = { uz: 'uz-UZ', 'uz-New': 'uz-UZ', 'uz-Cyrl': 'uz-Cyrl-UZ', ru: 'ru-RU', en: 'en-US' };
+export const LOCALES = { uz: 'uz-UZ', 'uz-New': 'uz-UZ', 'uz-Cyrl': 'uz-Cyrl-UZ', ru: 'ru-RU' };
 
 const uz = {
   // ---------- shell ----------
@@ -30,10 +26,15 @@ const uz = {
   'note.summary.text': 'Jami: {count} · navbatda: {accepted} · tayyor: {ready}',
   'note.currentStatuses': 'Buyurtmalar serverdan jonli ravishda yangilanadi.',
   'shell.lang': 'Til',
+  'note.empty': 'Yangi bildirishnoma yo‘q',
+  'shell.theme': 'Mavzu (yorug‘ / qorong‘i)',
 
 
   // ---------- buyurtmalar (navbat / ishlab chiqarish) ----------
-  'orders.title': 'Buyurtmalar',
+  'orders.title': 'Umumiy buyurtmalar',
+  'orders.total': 'Hamma buyurtmalar: {n} ta',
+  'orders.totalLate': 'Kechikkan buyurtmalar: {n} ta',
+  'orders.totalReady': 'Tayyor buyurtmalar: {n} ta',
   'orders.sub': 'Muddat bo‘yicha tartiblangan',
   'q.late': 'Kechikkan buyurtmalar',
   'q.lateHint': "Muddati o'tgan — birinchi navbatda bajaring",
@@ -149,6 +150,7 @@ const uz = {
   'order.spec.status': 'Status',
   'order.spec.shorts': 'Shortik',
   'order.spec.shortsNumber': 'Shortikda raqam',
+  'order.spec.pantsNumber': 'Shalvarda raqam',
   'brak.orderLabel': 'Buyurtma',
   'order.yes': 'Bor',
   'order.no': 'Yo‘q',
@@ -511,10 +513,15 @@ const ru = {
   'note.summary.text': 'Всего: {count} · в очереди: {accepted} · готово: {ready}',
   'note.currentStatuses': 'Текущие статусы заказов. Отдельного API серверных уведомлений нет.',
   'shell.lang': 'Язык',
+  'note.empty': 'Новых уведомлений нет',
+  'shell.theme': 'Тема (светлая / тёмная)',
 
 
   // ---------- заказы (очередь / производство) ----------
-  'orders.title': 'Заказы',
+  'orders.title': 'Общие заказы',
+  'orders.total': 'Все заказы: {n}',
+  'orders.totalLate': 'Просроченные заказы: {n}',
+  'orders.totalReady': 'Готовые заказы: {n}',
   'orders.sub': 'Отсортированы по сроку',
   'q.late': 'Просроченные заказы',
   'q.lateHint': 'Срок прошёл — выполните в первую очередь',
@@ -630,6 +637,7 @@ const ru = {
   'order.spec.status': 'Статус',
   'order.spec.shorts': 'Шорты',
   'order.spec.shortsNumber': 'Номер на шортах',
+  'order.spec.pantsNumber': 'Номер на штанах',
   'brak.orderLabel': 'Заказ',
   'order.yes': 'Есть',
   'order.no': 'Нет',
@@ -975,7 +983,7 @@ const ru = {
   'emp.loadError': 'Не удалось загрузить список сотрудников.',
 };
 
-const DICTS = { uz, ru, en };
+const DICTS = { uz, ru };
 
 const UZ_CYRILLIC_DIGRAPHS = {
   "o'": 'ў',

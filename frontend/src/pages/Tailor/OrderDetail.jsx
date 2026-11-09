@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Clock } from 'lucide-react';
-import OrderKitView from './OrderKitView';
+import OrderKitView, { orderVariant } from './OrderKitView';
 import { useT, orderDeadline } from './i18n';
 import { cx } from './utils';
 import { getTailorOrder } from './tailorApi';
@@ -46,7 +46,7 @@ export default function OrderDetail({ order }) {
     { label: t('order.spec.number'), value: order.number, isHighlight: true, big: true },
     { label: t('order.spec.size'), value: order.size, big: true },
     { label: t('order.spec.qty'), value: t('order.qtyUnit', { n: order.qty }) },
-    { label: t('order.spec.shortsNumber'), value: order.shortsNumber ? t('order.yes') : t('order.no'), isHighlight: Boolean(order.shortsNumber) },
+    { label: t(orderVariant(order) === 'l' ? 'order.spec.pantsNumber' : 'order.spec.shortsNumber'), value: order.shortsNumber ? t('order.yes') : t('order.no'), isHighlight: Boolean(order.shortsNumber) },
     { label: t('order.spec.club'), value: order.clubName || order.kitDesign?.name },
   ].filter((item) => item.value !== undefined && item.value !== null && item.value !== '');
 

@@ -41,7 +41,7 @@ function deadlineText(t, order, bucket) {
 }
 
 /** Forma rasmi: klubning haqiqiy surati (oldi tomoni), bo'lmasa — rangli chizma */
-function KitThumb({ order }) {
+function KitThumb({ order, compact = false }) {
   const team = teamForClub(order.clubName, order.apiItems?.[0]?.kit360Id);
   const src = team ? frameUrl(team.id, 0, orderVariant(order)) : null;
   if (!src) {
@@ -56,7 +56,7 @@ function KitThumb({ order }) {
     );
   }
   return (
-    <div className="h-44 w-32 shrink-0 overflow-hidden rounded-lg bg-[#b2b2b3]">
+    <div className={cx('shrink-0 overflow-hidden rounded-lg bg-[#b2b2b3]', compact ? 'h-28 w-20' : 'h-44 w-32')}>
       <img src={src} alt={team.name} loading="lazy" className="h-full w-full origin-[50%_36%] scale-[1.4] object-cover" />
     </div>
   );
@@ -69,7 +69,10 @@ export default function OrderCard({ order, index, bucket, onOpen }) {
   return (
     <article
       onClick={() => onOpen(order)}
-      className="relative flex cursor-pointer flex-col gap-3 overflow-hidden rounded-xl border border-white/10 bg-[#121829] py-3 pl-6 pr-4 transition hover:border-teal-400/60 sm:flex-row sm:items-center"
+      className={cx(
+        'relative flex cursor-pointer flex-col gap-3 overflow-hidden rounded-xl border border-white/10 bg-[#121829] pl-6 pr-4 transition hover:border-teal-400/60 sm:flex-row sm:items-center',
+        bucket === 'ready' ? 'py-2' : 'py-3'
+      )}
     >
       <span aria-hidden="true" className={cx('absolute inset-y-0 left-0 w-1.5', STRIP[bucket])} />
       <span
@@ -82,7 +85,7 @@ export default function OrderCard({ order, index, bucket, onOpen }) {
         {index}
       </span>
 
-      <KitThumb order={order} />
+      <KitThumb order={order} compact={bucket === 'ready'} />
 
       <div className="min-w-0 flex-1">
         <p className="truncate text-base font-bold text-white">

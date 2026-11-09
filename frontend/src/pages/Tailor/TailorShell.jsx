@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Bell, Menu } from 'lucide-react';
+import { Bell, Menu, Moon, Sun } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import Sidebar from './Sidebar';
 import { LANGS, translate } from './i18n';
@@ -20,6 +20,51 @@ const OUTER_CHROME_CSS = `
   body.tailor-shell .layout__content { padding: 0 !important; }
   body.tailor-shell .layout__main { background: #0b0f19 !important; }
   body.tailor-shell { background: #0b0f19 !important; }
+
+  /* Yorug' mavzu: qorong'i palitrani qayta moslaydi */
+  body.tailor-shell.tailor-light, body.tailor-shell.tailor-light .layout__main { background: #f1f5f9 !important; }
+  .tl-light { color-scheme: light; }
+  .tl-light img[alt="Formo"] { filter: invert(1) hue-rotate(180deg); mix-blend-mode: multiply !important; }
+  .tl-light .from-\\[\\#0d1322\\] { background-image: none !important; background-color: #ffffff !important; }
+  .tl-light .hover\\:text-white:hover { color: #0f172a !important; }
+  .tl-light .hover\\:bg-white\\/10:hover, .tl-light .hover\\:bg-white\\/5:hover { background-color: rgba(15,23,42,0.07) !important; }
+  .tl-light .bg-rose-600.text-white, .tl-light .bg-rose-500.text-white { color: #ffffff !important; }
+  .tl-light .bg-\\[\\#1e2b4d\\] { background-color: #e2e8f0 !important; }
+  .tl-light .bg-\\[\\#281318\\] { background-color: #fff1f2 !important; }
+  .tl-light .bg-\\[\\#281b10\\] { background-color: #fffbeb !important; }
+  .tl-light .bg-white\\/70 { background-color: #94a3b8 !important; }
+  .tl-light .bg-white\\/\\[0\\.04\\] { background-color: rgba(15,23,42,0.04) !important; }
+  .tl-light .text-amber-200, .tl-light .text-amber-300, .tl-light .text-amber-400, .tl-light .text-amber-400\\/80 { color: #b45309 !important; }
+  .tl-light .text-emerald-200, .tl-light .text-emerald-300, .tl-light .text-emerald-400 { color: #047857 !important; }
+  .tl-light .text-cyan-300, .tl-light .text-cyan-400 { color: #0e7490 !important; }
+  .tl-light .ring-white\\/10, .tl-light .ring-white\\/20 { --tw-ring-color: rgba(15,23,42,0.15) !important; }
+  .tl-light .ring-\\[\\#121829\\] { --tw-ring-color: #ffffff !important; }
+  .tl-light .ring-\\[\\#0b0f19\\] { --tw-ring-color: #f1f5f9 !important; }
+  .tl-light .hover\\:border-white\\/20:hover, .tl-light .hover\\:border-white\\/25:hover { border-color: rgba(15,23,42,0.25) !important; }
+  .tl-light .shadow-2xl { --tw-shadow-color: rgba(15,23,42,0.15); box-shadow: 0 10px 30px -10px rgba(15,23,42,0.25) !important; }
+  .tl-light .text-teal-200 { color: #0f766e !important; }
+  .tl-light .text-slate-800 { color: #1e293b !important; }
+  .tl-light .placeholder-slate-500::placeholder, .tl-light .placeholder\\:text-slate-600::placeholder { color: #94a3b8 !important; }
+  .tl-light .bg-black\\/65, .tl-light .bg-black\\/60 { background-color: rgba(15,23,42,0.35) !important; }
+  .tl-light .from-white { --tw-gradient-from: #0f172a var(--tw-gradient-from-position) !important; }
+  .tl-light .to-slate-300 { --tw-gradient-to: #475569 var(--tw-gradient-to-position) !important; }
+  .tl-light.bg-\\[\\#0b0f19\\], .tl-light .bg-\\[\\#0b0f19\\] { background-color: #f1f5f9 !important; }
+  .tl-light .bg-\\[\\#121829\\], .tl-light .bg-\\[\\#101627\\], .tl-light .tl-glass { background-color: #ffffff !important; }
+  .tl-light .bg-\\[\\#0e1424\\], .tl-light .bg-\\[\\#0e1628\\] { background-color: #f8fafc !important; }
+  .tl-light .bg-\\[\\#121829\\]\\/90 { background-color: rgba(255,255,255,0.95) !important; color: #0f172a !important; }
+  .tl-light .bg-\\[\\#121829\\]\\/80,.tl-light .bg-\\[\\#0d1322\\]\\/80 { background-color: rgba(255,255,255,0.85) !important; }
+  .tl-light .bg-\\[\\#0b0f19\\]\\/70 { background-color: rgba(241,245,249,0.8) !important; }
+  .tl-light .text-white { color: #0f172a !important; }
+  .tl-light .text-slate-200, .tl-light .text-slate-300 { color: #334155 !important; }
+  .tl-light .text-slate-400 { color: #64748b !important; }
+  .tl-light .text-slate-500, .tl-light .text-slate-600 { color: #64748b !important; }
+  .tl-light .bg-teal-400 .text-white, .tl-light .bg-teal-400.text-white, .tl-light .bg-rose-500.text-white, .tl-light .bg-rose-500 .text-white { color: #fff !important; }
+  .tl-light .border-white\\/10, .tl-light .border-white\\/5, .tl-light .border-white\\/20, .tl-light .divide-white\\/10 > * + *, .tl-light .divide-white\\/5 > * + * { border-color: rgba(15,23,42,0.12) !important; }
+  .tl-light .bg-white\\/5 { background-color: rgba(15,23,42,0.04) !important; }
+  .tl-light .bg-white\\/10 { background-color: rgba(15,23,42,0.08) !important; }
+  .tl-light .text-teal-300, .tl-light .text-teal-400 { color: #0f766e !important; }
+  .tl-light .text-rose-200, .tl-light .text-rose-300, .tl-light .text-rose-400 { color: #be123c !important; }
+  .tl-light [class*="[color-scheme:dark]"] { color-scheme: light; }
 
   @keyframes tl-page-in {
     0% { opacity: 0; transform: translateY(14px) scale(0.985); filter: blur(6px); }
@@ -141,6 +186,13 @@ export default function TailorShell({ title, subtitle, children }) {
       setOrderActionLoading(false);
     }
   }, [reloadOrders]);
+  const toggleTheme = async () => {
+    try {
+      await savePrefs({ ...prefs, theme: prefs.theme === 'light' ? 'dark' : 'light' });
+    } catch {
+      setPrefsError(translate(prefs.lang, 'profile.persistError'));
+    }
+  };
   const setLang = async (lang) => {
     try {
       await savePrefs({ ...prefs, lang });
@@ -211,19 +263,34 @@ export default function TailorShell({ title, subtitle, children }) {
     return items;
   }, [orders, prefs.notifications, t]);
 
-  const unreadCount = notes.filter((n) => !noteReadIds.includes(n.id)).length;
+  const unreadNotes = notes.filter((n) => !noteReadIds.includes(n.id));
+  const unreadCount = unreadNotes.length;
   useEffect(() => {
     document.body.classList.add('tailor-shell');
     return () => document.body.classList.remove('tailor-shell');
   }, []);
+  useEffect(() => {
+    document.body.classList.toggle('tailor-light', prefs.theme === 'light');
+    return () => document.body.classList.remove('tailor-light');
+  }, [prefs.theme]);
 
   useEffect(() => {
     reloadOrders();
     // Tab yashirin bo'lsa so'ramaymiz
-    const timer = window.setInterval(() => {
+    const refresh = () => {
       if (!document.hidden) reloadOrders({ silent: true });
-    }, 30_000);
-    return () => window.clearInterval(timer);
+    };
+    const timer = window.setInterval(refresh, 5_000);
+    // Tabga qaytganda yoki internet tiklanganda darhol yangilanadi
+    document.addEventListener('visibilitychange', refresh);
+    window.addEventListener('focus', refresh);
+    window.addEventListener('online', refresh);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', refresh);
+      window.removeEventListener('focus', refresh);
+      window.removeEventListener('online', refresh);
+    };
   }, [reloadOrders]);
 
   useEffect(() => {
@@ -251,7 +318,7 @@ export default function TailorShell({ title, subtitle, children }) {
 
   return (
     <TailorContext.Provider value={ctxValue}>
-      <div className="relative min-h-screen bg-[#0b0f19] text-slate-200">
+      <div className={cx('relative min-h-screen bg-[#0b0f19] text-slate-200', prefs.theme === 'light' && 'tl-light')}>
         <style>{OUTER_CHROME_CSS}</style>
         <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
           <div
@@ -301,6 +368,15 @@ export default function TailorShell({ title, subtitle, children }) {
                     </button>
                   ))}
                 </div>
+                <button
+                  type="button"
+                  aria-label={t('shell.theme')}
+                  title={t('shell.theme')}
+                  onClick={toggleTheme}
+                  className="rounded-xl border border-white/10 bg-[#121829] p-2 text-slate-300 transition hover:bg-white/10"
+                >
+                  {prefs.theme === 'light' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
+                </button>
                 <div className="relative" ref={notesRef}>
                   <button
                     type="button"
@@ -336,7 +412,8 @@ export default function TailorShell({ title, subtitle, children }) {
                         {t('note.currentStatuses')}
                       </p>
                       <div className="max-h-80 overflow-y-auto">
-                        {notes.map((note) => {
+                        {unreadNotes.length === 0 && <p className="px-4 py-6 text-center text-xs text-slate-500">{t('note.empty')}</p>}
+                        {unreadNotes.map((note) => {
                           const unread = !noteReadIds.includes(note.id);
                           return (
                             <button
