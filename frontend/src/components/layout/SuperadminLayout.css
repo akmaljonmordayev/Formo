@@ -72,15 +72,17 @@
 }
 
 .sa-brand__mark {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--sa-blue), #2f3fae);
-  font-family: var(--font-display, sans-serif);
-  font-weight: 800;
-  color: #fff;
+  width: 34px;
+  height: 33px;
+  flex-shrink: 0;
+}
+
+.sa-brand__mark path:first-child {
+  fill: var(--sa-ink);
+}
+
+.sa-brand__mark-sliver {
+  fill: #d9a04a;
 }
 
 .sa-brand__text {
