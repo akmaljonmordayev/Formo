@@ -1,9 +1,11 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, StyleSheet } from 'react-native';
-import { colors, radii } from '../../constants/theme';
+import { Animated, Easing } from 'react-native';
+import { radii } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 
 /** Yuklanish joy egasi: yumshoq "nafas oluvchi" blok (native driver — JS oqimi band bo'lmaydi) */
 export default function Skeleton({ width, height, radius = radii.md, style }) {
+  const { colors } = useTheme();
   const pulse = useRef(new Animated.Value(0)).current;
   useEffect(() => {
     const loop = Animated.loop(
@@ -18,14 +20,10 @@ export default function Skeleton({ width, height, radius = radii.md, style }) {
   return (
     <Animated.View
       style={[
-        styles.block,
+        { backgroundColor: colors.surfaceRaised },
         { width, height, borderRadius: radius, opacity: pulse.interpolate({ inputRange: [0, 1], outputRange: [0.45, 0.9] }) },
         style,
       ]}
     />
   );
 }
-
-const styles = StyleSheet.create({
-  block: { backgroundColor: colors.surfaceRaised },
-});

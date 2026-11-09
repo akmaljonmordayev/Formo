@@ -2,7 +2,8 @@ import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { colors, fonts } from '../../constants/theme';
+import { fonts } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import useNetworkStatus from '../../hooks/useNetworkStatus';
 
 /**
@@ -11,15 +12,16 @@ import useNetworkStatus from '../../hooks/useNetworkStatus';
  * AppNavigator'dan tepada joylashtiriladi).
  */
 export default function OfflineBanner() {
+  const { colors } = useTheme();
   const insets = useSafeAreaInsets();
   const { isOffline } = useNetworkStatus();
 
   if (!isOffline) return null;
 
   return (
-    <View style={[styles.wrap, { paddingTop: insets.top + 6 }]} pointerEvents="none">
-      <MaterialCommunityIcons name="wifi-off" size={14} color={colors.text} />
-      <Text style={styles.text}>Internet aloqasi yo'q</Text>
+    <View style={[styles.wrap, { paddingTop: insets.top + 6, backgroundColor: colors.danger }]} pointerEvents="none">
+      <MaterialCommunityIcons name="wifi-off" size={14} color={colors.white} />
+      <Text style={[styles.text, { color: colors.white }]}>Internet aloqasi yo'q</Text>
     </View>
   );
 }
@@ -36,10 +38,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     gap: 6,
     paddingBottom: 8,
-    backgroundColor: colors.danger,
   },
   text: {
-    color: colors.text,
     fontFamily: fonts.bodySemi,
     fontSize: 12,
   },

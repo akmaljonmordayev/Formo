@@ -13,6 +13,7 @@ import BrandSplash from './components/ui/BrandSplash';
 import OfflineBanner from './components/ui/OfflineBanner';
 import { ToastProvider } from './components/ui/Toast';
 import ErrorBoundary from './components/ErrorBoundary';
+import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import useAuth from './features/auth';
 import { useTranslation } from './i18n';
 import AppNavigator from './navigation/AppNavigator';
@@ -22,9 +23,18 @@ import { useAppStore } from './store/appStore';
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function App() {
+  return (
+    <ThemeProvider>
+      <AppContent />
+    </ThemeProvider>
+  );
+}
+
+function AppContent() {
   const store = useAppStore();
   const { t } = useTranslation(store.language);
   const auth = useAuth();
+  const { theme } = useTheme();
   // Mahalliy .ttf fayllar — tez yuklanadi. Xato bo'lsa tizim shrifti bilan davom etamiz.
   const [fontsLoaded, fontError] = useFonts({
     Unbounded_500Medium,
@@ -39,7 +49,7 @@ export default function App() {
 
   return (
     <SafeAreaProvider>
-      <StatusBar style="light" />
+      <StatusBar style={theme === 'light' ? 'dark' : 'light'} />
       {fontsReady ? (
         <ErrorBoundary>
           <ToastProvider>
