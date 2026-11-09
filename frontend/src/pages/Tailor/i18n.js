@@ -1,17 +1,13 @@
 import { useCallback } from 'react';
 import { toUzNewLatin } from '../../utils/uzNewLatin';
-import en from './i18n.en';
 import { useTailor } from './prefs';
 
 export const LANGS = [
   { value: 'uz', label: "O'zbekcha", shortLabel: 'UZ' },
-  { value: 'uz-New', label: 'Ōzbekça', shortLabel: 'ŌZ' },
-  { value: 'uz-Cyrl', label: 'Ўзбекча', shortLabel: 'ЎЗ' },
   { value: 'ru', label: 'Русский', shortLabel: 'RU' },
-  { value: 'en', label: 'English', shortLabel: 'EN' },
 ];
 
-export const LOCALES = { uz: 'uz-UZ', 'uz-New': 'uz-UZ', 'uz-Cyrl': 'uz-Cyrl-UZ', ru: 'ru-RU', en: 'en-US' };
+export const LOCALES = { uz: 'uz-UZ', 'uz-New': 'uz-UZ', 'uz-Cyrl': 'uz-Cyrl-UZ', ru: 'ru-RU' };
 
 const uz = {
   // ---------- shell ----------
@@ -30,6 +26,8 @@ const uz = {
   'note.summary.text': 'Jami: {count} · navbatda: {accepted} · tayyor: {ready}',
   'note.currentStatuses': 'Buyurtmalar serverdan jonli ravishda yangilanadi.',
   'shell.lang': 'Til',
+  'note.empty': 'Yangi bildirishnoma yo‘q',
+  'shell.theme': 'Mavzu (yorug‘ / qorong‘i)',
 
 
   // ---------- buyurtmalar (navbat / ishlab chiqarish) ----------
@@ -515,6 +513,8 @@ const ru = {
   'note.summary.text': 'Всего: {count} · в очереди: {accepted} · готово: {ready}',
   'note.currentStatuses': 'Текущие статусы заказов. Отдельного API серверных уведомлений нет.',
   'shell.lang': 'Язык',
+  'note.empty': 'Новых уведомлений нет',
+  'shell.theme': 'Тема (светлая / тёмная)',
 
 
   // ---------- заказы (очередь / производство) ----------
@@ -983,7 +983,7 @@ const ru = {
   'emp.loadError': 'Не удалось загрузить список сотрудников.',
 };
 
-const DICTS = { uz, ru, en };
+const DICTS = { uz, ru };
 
 const UZ_CYRILLIC_DIGRAPHS = {
   "o'": 'ў',
