@@ -28,6 +28,20 @@ const OUTER_CHROME_CSS = `
   .tl-light .from-\\[\\#0d1322\\] { background-image: none !important; background-color: #ffffff !important; }
   .tl-light .hover\\:text-white:hover { color: #0f172a !important; }
   .tl-light .hover\\:bg-white\\/10:hover, .tl-light .hover\\:bg-white\\/5:hover { background-color: rgba(15,23,42,0.07) !important; }
+  .tl-light .bg-rose-600.text-white, .tl-light .bg-rose-500.text-white { color: #ffffff !important; }
+  .tl-light .bg-\\[\\#1e2b4d\\] { background-color: #e2e8f0 !important; }
+  .tl-light .bg-\\[\\#281318\\] { background-color: #fff1f2 !important; }
+  .tl-light .bg-\\[\\#281b10\\] { background-color: #fffbeb !important; }
+  .tl-light .bg-white\\/70 { background-color: #94a3b8 !important; }
+  .tl-light .bg-white\\/\\[0\\.04\\] { background-color: rgba(15,23,42,0.04) !important; }
+  .tl-light .text-amber-200, .tl-light .text-amber-300, .tl-light .text-amber-400, .tl-light .text-amber-400\\/80 { color: #b45309 !important; }
+  .tl-light .text-emerald-200, .tl-light .text-emerald-300, .tl-light .text-emerald-400 { color: #047857 !important; }
+  .tl-light .text-cyan-300, .tl-light .text-cyan-400 { color: #0e7490 !important; }
+  .tl-light .ring-white\\/10, .tl-light .ring-white\\/20 { --tw-ring-color: rgba(15,23,42,0.15) !important; }
+  .tl-light .ring-\\[\\#121829\\] { --tw-ring-color: #ffffff !important; }
+  .tl-light .ring-\\[\\#0b0f19\\] { --tw-ring-color: #f1f5f9 !important; }
+  .tl-light .hover\\:border-white\\/20:hover, .tl-light .hover\\:border-white\\/25:hover { border-color: rgba(15,23,42,0.25) !important; }
+  .tl-light .shadow-2xl { --tw-shadow-color: rgba(15,23,42,0.15); box-shadow: 0 10px 30px -10px rgba(15,23,42,0.25) !important; }
   .tl-light .text-teal-200 { color: #0f766e !important; }
   .tl-light .text-slate-800 { color: #1e293b !important; }
   .tl-light .placeholder-slate-500::placeholder, .tl-light .placeholder\\:text-slate-600::placeholder { color: #94a3b8 !important; }
@@ -37,7 +51,8 @@ const OUTER_CHROME_CSS = `
   .tl-light.bg-\\[\\#0b0f19\\], .tl-light .bg-\\[\\#0b0f19\\] { background-color: #f1f5f9 !important; }
   .tl-light .bg-\\[\\#121829\\], .tl-light .bg-\\[\\#101627\\], .tl-light .tl-glass { background-color: #ffffff !important; }
   .tl-light .bg-\\[\\#0e1424\\], .tl-light .bg-\\[\\#0e1628\\] { background-color: #f8fafc !important; }
-  .tl-light .bg-\\[\\#121829\\]\\/80, .tl-light .bg-\\[\\#0d1322\\]\\/80 { background-color: rgba(255,255,255,0.85) !important; }
+  .tl-light .bg-\\[\\#121829\\]\\/90 { background-color: rgba(255,255,255,0.95) !important; color: #0f172a !important; }
+  .tl-light .bg-\\[\\#121829\\]\\/80,.tl-light .bg-\\[\\#0d1322\\]\\/80 { background-color: rgba(255,255,255,0.85) !important; }
   .tl-light .bg-\\[\\#0b0f19\\]\\/70 { background-color: rgba(241,245,249,0.8) !important; }
   .tl-light .text-white { color: #0f172a !important; }
   .tl-light .text-slate-200, .tl-light .text-slate-300 { color: #334155 !important; }
