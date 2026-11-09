@@ -117,12 +117,7 @@ export class RejectOrderDto {
 }
 
 /** Sex o'zi o'rnata oladigan holatlar — faqat oldinga, DELIVERING faqat READY dan keyin */
-export const WORKSHOP_STATUSES = [
-  OrderStatus.PRINTING,
-  OrderStatus.QUALITY_CHECK,
-  OrderStatus.READY,
-  OrderStatus.DELIVERING,
-] as const;
+export const WORKSHOP_STATUSES = [OrderStatus.PRINTING, OrderStatus.READY, OrderStatus.DELIVERING] as const;
 export type WorkshopStatus = (typeof WORKSHOP_STATUSES)[number];
 
 export class WorkshopStatusDto {
@@ -130,7 +125,7 @@ export class WorkshopStatusDto {
     enum: WORKSHOP_STATUSES,
     description:
       'Sex faqat `READY` (tayyor) qo‘yadi; qolganlari 409. Yetkazishga (`DELIVERING`) operator chiqaradi. ' +
-      '`PRINTING`/`QUALITY_CHECK` — eski holatlar, endi ishlatilmaydi',
+      '`PRINTING` — eski holat, endi ishlatilmaydi',
   })
   @IsIn(WORKSHOP_STATUSES)
   status: WorkshopStatus;

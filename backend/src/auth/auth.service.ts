@@ -16,10 +16,16 @@ import { randomBytes } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { toPublicUser } from '../common/utils/user.mapper';
 import { sha256Hex, timingSafeEqualHex } from '../common/utils/timing-safe.util';
+import { detectImage } from '../storage/file-type';
+import { StorageService } from '../storage/storage.service';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { OtpLoginDto } from './dto/otp-login.dto';
 import { RegisterDto, UpdateProfileDto } from './dto/register.dto';
+
+export const MAX_AVATAR_BYTES = 2 * 1024 * 1024;
+/** multer xotirada bergan fayl (servisga faqat shu ikki maydon kerak) */
+export type UploadedImage = { buffer: Buffer; size: number };
 
 export const BCRYPT_ROUNDS = 10;
 // Haqiqiy SMS integratsiyasigacha: faqat shu kod to'g'ri deb hisoblanadi.
@@ -84,6 +90,7 @@ export class AuthService {
     private readonly prisma: PrismaService,
     private readonly jwt: JwtService,
     private readonly config: ConfigService,
+    private readonly storage: StorageService,
   ) {}
 
   /** Faqat mobil ilova foydalanuvchilari o'zi ro'yxatdan o'tadi (role = USER) */
@@ -285,6 +292,27 @@ export class AuthService {
       }),
     ]);
     return { message: 'Parol yangilandi' };
+  }
+
+  /** Profil rasmi: PNG/JPEG/WEBP (haqiqiy turi baytlardan), 2 MB gacha */
+  async setAvatar(userId: number, file: UploadedImage | undefined) {
+    if (!file?.buffer?.length) throw new BadRequestException('Fayl yuborilmadi (maydon nomi: file)');
+    if (file.size > MAX_AVATAR_BYTES) throw new BadRequestException('Fayl 2 MB dan katta');
+    const type = detectImage(file.buffer);
+    if (!type) throw new BadRequestException('Faqat PNG, JPEG yoki WEBP rasm qabul qilinadi');
+
+    const current = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const url = await this.storage.put('avatars', type.ext, file.buffer, type.mime);
+    const user = await this.prisma.user.update({ where: { id: userId }, data: { avatarUrl: url } });
+    await this.storage.remove(current.avatarUrl);
+    return toPublicUser(user);
+  }
+
+  async removeAvatar(userId: number) {
+    const current = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    const user = await this.prisma.user.update({ where: { id: userId }, data: { avatarUrl: null } });
+    await this.storage.remove(current.avatarUrl);
+    return toPublicUser(user);
   }
 
   revokeAllSessions(userId: number) {

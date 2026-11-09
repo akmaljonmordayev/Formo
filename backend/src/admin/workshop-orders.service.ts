@@ -30,30 +30,18 @@ const select = {
 const { statusLogs: _statusLogs, ...listSelect } = select;
 
 /** Sex ishlab chiqarish bosqichlari tartibi — holat faqat oldinga siljiydi */
-const FLOW: OrderStatus[] = [
-  OrderStatus.ACCEPTED,
-  OrderStatus.PRINTING,
-  OrderStatus.QUALITY_CHECK,
-  OrderStatus.READY,
-  OrderStatus.DELIVERING,
-];
+const FLOW: OrderStatus[] = [OrderStatus.ACCEPTED, OrderStatus.PRINTING, OrderStatus.READY, OrderStatus.DELIVERING];
 
 /** Sex qabul qilgan, hali tayyor emas — shu holatlardan "Tayyor" ga o'tadi */
-const IN_WORK: OrderStatus[] = [OrderStatus.ACCEPTED, OrderStatus.PRINTING, OrderStatus.QUALITY_CHECK];
+const IN_WORK: OrderStatus[] = [OrderStatus.ACCEPTED, OrderStatus.PRINTING];
 
-const PRODUCTION_COLUMNS: OrderStatus[] = [
-  OrderStatus.ACCEPTED,
-  OrderStatus.PRINTING,
-  OrderStatus.QUALITY_CHECK,
-  OrderStatus.READY,
-];
+const PRODUCTION_COLUMNS: OrderStatus[] = [OrderStatus.ACCEPTED, OrderStatus.PRINTING, OrderStatus.READY];
 const ACTIVE_STATUSES: OrderStatus[] = [OrderStatus.SENT_TO_WORKSHOP, ...FLOW];
 // Qabul qilingandan 21 soatdan ko'p o'tgan, hali tayyor bo'lmagan vazifalar "kechikkan" (admin paneli bilan bir xil qoida)
 const LATE_AFTER_MS = 21 * 60 * 60 * 1000;
 
 const ACTION: Partial<Record<OrderStatus, string>> = {
   PRINTING: 'Sex: bosish boshlandi',
-  QUALITY_CHECK: 'Sex: sifat nazoratiga o‘tkazildi',
   READY: 'Sex: buyurtma tayyor',
   DELIVERING: 'Sex: yetkazishga berildi',
 };
@@ -191,7 +179,7 @@ export class WorkshopOrdersService {
 
   /**
    * Sexda ikki holat: qabul qilindi (accept) → tayyor. Yetkazishga chiqarishni operator qiladi ("Tayyor
-   * buyurtmalar" sahifasi). Eski oraliq holatlardagi (bosilmoqda, sifat nazorati) buyurtmalar ham tayyor bo'ladi.
+   * buyurtmalar" sahifasi). Eski oraliq holatdagi (bosilmoqda) buyurtmalar ham tayyor bo'ladi.
    */
   async updateStatus(workshop: AuthUser, id: number, dto: WorkshopStatusDto, ip?: string) {
     const order = await this.get(workshop, id);

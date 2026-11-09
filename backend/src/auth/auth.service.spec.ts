@@ -13,6 +13,7 @@ import { Role, User } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 import { createHash } from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
+import { StorageService } from '../storage/storage.service';
 import { AuthService, LEGACY_DUMMY_PASSWORD, MAX_FAILED_LOGIN_ATTEMPTS } from './auth.service';
 
 const sha256 = (v: string) => createHash('sha256').update(v).digest('hex');
@@ -28,10 +29,12 @@ describe('AuthService', () => {
   };
   const jwt = new JwtService({ secret: 'unit-test-secret', signOptions: { expiresIn: '15m' } });
   const config = { get: jest.fn() };
+  const storage = { put: jest.fn(), remove: jest.fn() };
   const service = new AuthService(
     prisma as unknown as PrismaService,
     jwt,
     config as unknown as ConfigService,
+    storage as unknown as StorageService,
   );
 
   let user: User;

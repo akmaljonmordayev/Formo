@@ -18,12 +18,27 @@
   --sa-red: var(--red, #e5596b);
   --sa-green: #39c37b;
   --sa-radius: 16px;
+  /* Hover/track qoplamalari (rgba(var(--sa-hover-rgb), N) sifatida ishlatiladi) — dark fonda oq, light fonda to'q */
+  --sa-hover-rgb: 255, 255, 255;
 
   display: flex;
   min-height: 100vh;
   background: var(--sa-bg);
   color: var(--sa-ink);
   font-family: var(--font-body, 'Onest', system-ui, sans-serif);
+}
+
+/* Yorug' (light) mavzu — header'dagi kun/tun tugmasi bilan almashtiriladi, localStorage'da saqlanadi */
+.sa[data-theme='light'] {
+  --sa-bg: #ffffff;
+  --sa-sb: #f7f8fc;
+  --sa-surface: #ffffff;
+  --sa-surface-2: #f2f4f9;
+  --sa-line: rgba(10, 19, 48, 0.12);
+  --sa-ink: #0a1330;
+  --sa-mu: #5b6684;
+  --sa-mu-2: #818ba8;
+  --sa-hover-rgb: 10, 19, 48;
 }
 
 .sa *,
@@ -118,7 +133,7 @@
 }
 
 .sa-link:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(var(--sa-hover-rgb), 0.05);
   color: var(--sa-ink);
 }
 
@@ -278,7 +293,7 @@
 }
 
 .sa-pop__item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(var(--sa-hover-rgb), 0.06);
 }
 
 .sa-content {
@@ -321,7 +336,7 @@
 }
 
 .sa-legacy .table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(var(--sa-hover-rgb), 0.03);
 }
 
 .sa-legacy .input,
@@ -354,7 +369,7 @@
 }
 
 .sa-legacy .btn--ghost:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--sa-hover-rgb), 0.08);
 }
 
 .sa-legacy .badge--on {
@@ -569,7 +584,7 @@
 .sa-progress {
   height: 7px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--sa-hover-rgb), 0.08);
   overflow: hidden;
 }
 
@@ -803,7 +818,7 @@
   width: 22px;
   height: 22px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--sa-hover-rgb), 0.08);
   font-size: 11px;
   font-weight: 700;
 }

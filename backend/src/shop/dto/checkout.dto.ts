@@ -1,8 +1,9 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { OrderStatus, PaymentMethod } from '@prisma/client';
 import { Transform, Type } from 'class-transformer';
-import { IsDateString, IsEnum, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
+import { IsDateString, IsEnum, IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import { CleanText, NoHtml } from '../../common/utils/no-html';
+import { REGION_CODES } from '../regions';
 
 export class CheckoutDto {
   @ApiProperty({ example: 1, description: 'Saqlangan manzil id (GET /api/addresses)' })
@@ -77,4 +78,9 @@ export class DeliverySlotsQueryDto {
   @Min(1)
   @Max(7)
   days?: number = 3;
+
+  @ApiPropertyOptional({ enum: REGION_CODES, description: "Tanlangan manzil viloyati — to'g'ri yetkazish narxini qaytarish uchun" })
+  @IsOptional()
+  @IsIn(REGION_CODES)
+  region?: string;
 }

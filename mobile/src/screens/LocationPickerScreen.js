@@ -1,8 +1,10 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Modal,
   Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Switch,
   Text,
@@ -21,6 +23,7 @@ import {
   ADDRESS_LIMITS,
   CITY_DELTA,
   DEFAULT_CENTER,
+  REGION_CODES,
   STREET_DELTA,
   addressCoords,
   saveAddress,
@@ -72,6 +75,8 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved, on
   // Foydalanuvchi manzil matnini o'zi tahrir qilgan bo'lsa, geokoder uni almashtirmaydi
   const [textEdited, setTextEdited] = useState(Boolean(address?.address));
   const [apartment, setApartment] = useState(address?.apartment || '');
+  const [region, setRegion] = useState(address?.region || null);
+  const [regionModalOpen, setRegionModalOpen] = useState(false);
   const [isDefault, setIsDefault] = useState(Boolean(address?.isDefault));
   const [query, setQuery] = useState('');
   const [searching, setSearching] = useState(false);
@@ -135,7 +140,7 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved, on
 
   const confirm = async () => {
     if (saving) return;
-    const form = { label, address: text, apartment, coords, isDefault };
+    const form = { label, address: text, apartment, region, coords, isDefault };
     const found = validateAddressForm(form);
     if (!coords) found.coords = 'locationPickPoint';
     setErrors(found);
@@ -323,6 +328,18 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved, on
               style={styles.input}
             />
 
+            <Text style={styles.label}>{t('addrRegion')}</Text>
+            <Pressable
+              onPress={() => setRegionModalOpen(true)}
+              style={[styles.input, styles.regionField, errors.region && styles.inputError]}
+            >
+              <Text style={region ? styles.regionValue : styles.regionPlaceholder}>
+                {region ? t(`region_${region}`) : t('addrRegionPick')}
+              </Text>
+              <MaterialCommunityIcons name="chevron-down" size={18} color={c.muted} />
+            </Pressable>
+            {errors.region && <Text style={styles.fieldError}>{t(errors.region)}</Text>}
+
             <View style={styles.defaultRow}>
               <Text style={styles.defaultText}>{t('addrMakeDefault')}</Text>
               <Switch
@@ -344,6 +361,33 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved, on
             <OutlineButton label={t('addressConfirm')} onPress={confirm} loading={saving} style={styles.flex} />
           </View>
         </View>
+
+      <Modal visible={regionModalOpen} transparent animationType="fade" onRequestClose={() => setRegionModalOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setRegionModalOpen(false)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>{t('addrRegion')}</Text>
+            <ScrollView style={styles.modalList} showsVerticalScrollIndicator={false}>
+              {REGION_CODES.map((code) => {
+                const active = region === code;
+                return (
+                  <Pressable
+                    key={code}
+                    onPress={() => {
+                      setRegion(code);
+                      setErrors((e) => ({ ...e, region: undefined }));
+                      setRegionModalOpen(false);
+                    }}
+                    style={[styles.modalItem, active && styles.modalItemActive]}
+                  >
+                    <Text style={[styles.modalItemText, active && styles.modalItemTextActive]}>{t(`region_${code}`)}</Text>
+                    {active && <MaterialCommunityIcons name="check-circle" size={18} color={c.accent} />}
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </KeyboardAvoider>
   );
 }
@@ -478,6 +522,37 @@ const styles = StyleSheet.create({
   },
   inputMulti: { minHeight: 64, textAlignVertical: 'top' },
   inputError: { borderColor: c.danger },
+  regionField: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  regionValue: { color: c.text, fontFamily: fonts.bodyMedium, fontSize: 15 },
+  regionPlaceholder: { color: c.placeholder, fontFamily: fonts.bodyMedium, fontSize: 15 },
+  modalBackdrop: { flex: 1, backgroundColor: 'rgba(5, 8, 24, 0.78)', justifyContent: 'center', alignItems: 'center', padding: 20 },
+  modalCard: {
+    backgroundColor: c.field,
+    borderRadius: 20,
+    padding: 18,
+    width: '100%',
+    maxWidth: 380,
+    maxHeight: '70%',
+    borderWidth: 1,
+    borderColor: c.line,
+  },
+  modalTitle: { color: c.text, fontFamily: fonts.display, fontSize: 18, marginBottom: 12 },
+  modalList: { flexGrow: 0 },
+  modalItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 13,
+    paddingHorizontal: 14,
+    borderRadius: 12,
+    marginBottom: 6,
+    backgroundColor: '#0B1030',
+    borderWidth: 1,
+    borderColor: 'transparent',
+  },
+  modalItemActive: { borderColor: c.accent, backgroundColor: c.track },
+  modalItemText: { color: c.soft, fontFamily: fonts.bodyMedium, fontSize: 14 },
+  modalItemTextActive: { color: c.accent, fontFamily: fonts.bodySemi },
   fieldError: { color: c.dangerText, fontFamily: fonts.body, fontSize: 12, marginTop: 6 },
   defaultRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: 14, marginBottom: 6 },
   defaultText: { color: c.soft, fontFamily: fonts.bodyMedium, fontSize: 14 },

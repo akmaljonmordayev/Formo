@@ -207,7 +207,6 @@ const en = {
   'stat.col.pieces': 'Pieces',
   'stat.stage.ACCEPTED': 'Accepted',
   'stat.stage.PRINTING': 'Printing',
-  'stat.stage.QUALITY_CHECK': 'Quality check',
   'stat.stage.READY': 'Ready',
   'stat.volumeChart': 'Orders per day',
   'stat.volumeChartHint': 'Orders per day over the last 7 days',

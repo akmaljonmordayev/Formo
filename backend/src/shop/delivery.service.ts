@@ -2,6 +2,7 @@ import { BadRequestException, ConflictException, Injectable } from '@nestjs/comm
 import { OrderStatus, Prisma } from '@prisma/client';
 import { SETTING_DEFAULTS } from '../admin/settings.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { isRegionCode } from './regions';
 
 export const TIMEZONE = 'Asia/Tashkent';
 /** Yetkazish ertadan boshlab shuncha kun ichida tanlanishi mumkin */
@@ -47,9 +48,18 @@ export class DeliveryService {
     return (row?.value ?? SETTING_DEFAULTS[key]) as T;
   }
 
-  async fee(db: Db = this.prisma) {
+  /** Zaxira narx — viloyat ko'rsatilmagan yoki `delivery.feesByRegion`da topilmagan holatda */
+  async flatFee(db: Db = this.prisma) {
     const fee = Number(await this.setting<number>('delivery.fee', db));
     return Number.isFinite(fee) && fee >= 0 ? Math.round(fee) : 0;
+  }
+
+  /** Viloyat berilsa — o'sha viloyat narxi (`delivery.feesByRegion`), aks holda zaxira `delivery.fee` */
+  async fee(region?: string | null, db: Db = this.prisma) {
+    if (!region || !isRegionCode(region)) return this.flatFee(db);
+    const byRegion = await this.setting<Record<string, number>>('delivery.feesByRegion', db);
+    const fee = Number(byRegion?.[region]);
+    return Number.isFinite(fee) && fee >= 0 ? Math.round(fee) : this.flatFee(db);
   }
 
   /** Sozlamalardagi yoqilgan slotlar (noto'g'ri shakldagi yozuvlar tashlab yuboriladi) */

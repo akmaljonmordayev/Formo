@@ -1,10 +1,21 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDown, LogOut, Menu } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, Moon, Sun } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { ROLE_LABELS } from '../../constants/roles';
 import '../ui/ui.css';
 import './SuperadminLayout.css';
+
+const THEME_KEY = 'formo_sa_theme';
+
+function readStoredTheme() {
+  try {
+    const saved = localStorage.getItem(THEME_KEY);
+    return saved === 'light' ? 'light' : 'dark';
+  } catch {
+    return 'dark';
+  }
+}
 
 function initials(name = '') {
   return name
@@ -17,7 +28,13 @@ function initials(name = '') {
 
 // Superadmin uchun alohida (quyuq) layout: guruhlangan sidebar + qidiruv/profil bilan yuqori panel
 // labels — tarjima qilingan tugma matnlari (AdminLayout beradi); berilmasa o'zbekcha
-const DEFAULT_LABELS = { logout: 'Chiqish', leaving: 'Chiqilmoqda...', openMenu: 'Menyuni ochish' };
+const DEFAULT_LABELS = {
+  logout: 'Chiqish',
+  leaving: 'Chiqilmoqda...',
+  openMenu: 'Menyuni ochish',
+  lightMode: "Yorug' mavzu",
+  darkMode: "Qorong'i mavzu",
+};
 
 export default function SuperadminLayout({ menu, labels = DEFAULT_LABELS }) {
   const { user, role, logout } = useAuth();
@@ -26,7 +43,16 @@ export default function SuperadminLayout({ menu, labels = DEFAULT_LABELS }) {
   const [drawer, setDrawer] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
+  const [theme, setTheme] = useState(readStoredTheme);
   const popRef = useRef(null);
+
+  useEffect(() => {
+    try {
+      localStorage.setItem(THEME_KEY, theme);
+    } catch {
+      // Xotira bloklangan (maxfiy oyna va h.k.) — tema shu sessiyada ishlayveradi, saqlanmaydi
+    }
+  }, [theme]);
 
   useEffect(() => {
     setDrawer(false);
@@ -73,7 +99,7 @@ export default function SuperadminLayout({ menu, labels = DEFAULT_LABELS }) {
   const roleLabel = ROLE_LABELS[role] ?? 'Superadmin';
 
   return (
-    <div className={`sa${drawer ? ' is-open' : ''}`}>
+    <div className={`sa${drawer ? ' is-open' : ''}`} data-theme={theme}>
       <aside className="sa-sb" aria-label="Asosiy menyu">
         <div className="sa-brand">
           <span className="sa-brand__mark">F</span>
@@ -121,6 +147,16 @@ export default function SuperadminLayout({ menu, labels = DEFAULT_LABELS }) {
           <div className="sa-crumb">
             {current?.group ?? 'Asosiy'} <span>/</span> <b>{current?.label ?? 'Dashboard'}</b>
           </div>
+
+          <button
+            type="button"
+            className="sa-iconbtn"
+            onClick={() => setTheme((v) => (v === 'light' ? 'dark' : 'light'))}
+            aria-label={theme === 'light' ? labels.darkMode : labels.lightMode}
+            title={theme === 'light' ? labels.darkMode : labels.lightMode}
+          >
+            {theme === 'light' ? <Moon size={17} strokeWidth={1.8} /> : <Sun size={17} strokeWidth={1.8} />}
+          </button>
 
           <div className="sa-pp" ref={popRef}>
             <button
