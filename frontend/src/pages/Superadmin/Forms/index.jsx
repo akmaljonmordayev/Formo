@@ -209,11 +209,12 @@ export default function SuperadminForms() {
                 <button type="button" className="sa-btn sa-btn--ghost" onClick={() => setEditing(kit)}>{t('Tahrirlash')}</button>
               </div>
 
+              <KitPricesPanel kit={kit} priceOf={priceOf} setPrice={setPrice} t={t} />
+
               <div className="sa-table-wrap" style={{ marginTop: 10 }}>
                 <table className="sa-table">
                   <thead>
                     <tr>
-                      <th />
                       {ALL_SIZES.map((s) => (
                         <th key={s} style={{ textAlign: 'center' }}>{s}</th>
                       ))}
@@ -221,24 +222,6 @@ export default function SuperadminForms() {
                   </thead>
                   <tbody>
                     <tr>
-                      <td className="sa-table__sub" style={{ whiteSpace: 'nowrap' }}>{t('Narx')}</td>
-                      {ALL_SIZES.map((s) => (
-                        <td key={s} style={{ textAlign: 'center' }}>
-                          <input
-                            value={priceOf(kit.id, s)}
-                            onChange={(e) => setPrice(kit.id, s, e.target.value)}
-                            inputMode="numeric"
-                            aria-label={t('{size} narxi', { size: s })}
-                            style={{
-                              width: 64, textAlign: 'center', padding: '3px 2px', borderRadius: 7,
-                              background: 'transparent', border: '1px solid var(--sa-line)', color: 'var(--sa-ink)',
-                            }}
-                          />
-                        </td>
-                      ))}
-                    </tr>
-                    <tr>
-                      <td className="sa-table__sub" style={{ whiteSpace: 'nowrap' }}>{t('Zaxira')}</td>
                       {ALL_SIZES.map((s) => {
                         const raw = valueOf(kit.id, s);
                         const v = raw === '' ? null : Number(raw);
@@ -283,6 +266,57 @@ export default function SuperadminForms() {
         />
       )}
     </>
+  );
+}
+
+/** Forma narxi — o'lcham bo'yicha (Yetkazish narxi paneli bilan bir xil uslub, standart — yopiq) */
+function KitPricesPanel({ kit, priceOf, setPrice, t }) {
+  const [open, setOpen] = useState(false);
+
+  return (
+    <div style={{ marginTop: 10 }}>
+      <div
+        style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
+        onClick={() => setOpen((o) => !o)}
+      >
+        <span className="sa-panel__title">{t("Narxlar (o'lcham bo'yicha)")}</span>
+        <span className="sa-table__sub">{open ? '▲' : '▼'}</span>
+      </div>
+
+      {open && (
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+            gap: 10,
+            marginTop: 10,
+          }}
+        >
+          {ALL_SIZES.map((s) => (
+            <div
+              key={s}
+              style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
+                padding: '10px 12px', borderRadius: 12, background: 'var(--sa-surface-2)', border: '1px solid var(--sa-line)',
+              }}
+            >
+              <span style={{ fontSize: 13.5 }}>{s}</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <input
+                  className="sa-input"
+                  value={priceOf(kit.id, s)}
+                  onChange={(e) => setPrice(kit.id, s, e.target.value)}
+                  inputMode="numeric"
+                  aria-label={t('{size} narxi', { size: s })}
+                  style={{ width: 90, textAlign: 'right', fontFamily: 'var(--font-display)', fontWeight: 700 }}
+                />
+                <span className="sa-table__sub" style={{ marginTop: 0 }}>{t("so'm")}</span>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
