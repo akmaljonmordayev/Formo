@@ -29,3 +29,30 @@ describe('ListClubsQueryDto — kit360Id filtri', () => {
     await expect(listQuery({ kit360Id: 'xx' })).rejects.toBeInstanceOf(BadRequestException);
   });
 });
+
+const baseKit = { label: 'Uy', bgColor: '#0e1a3f', textColor: '#ffffff' };
+
+describe("KitDto — sizePrices (o'lcham bo'yicha narx)", () => {
+  it("to'g'ri kalit/qiymat qabul qilinadi", async () => {
+    const sizePrices = { S: 150000, M: 150000, XXL: 170000 };
+    await expect(update({ kits: [{ ...baseKit, sizePrices }] })).resolves.toMatchObject({ kits: [{ sizePrices }] });
+  });
+
+  it("berilmasa ham xato bermaydi (ixtiyoriy)", async () => {
+    await expect(update({ kits: [baseKit] })).resolves.toMatchObject({ kits: [{}] });
+  });
+
+  it("noma'lum o'lcham kaliti — 400", async () => {
+    await expect(update({ kits: [{ ...baseKit, sizePrices: { XXXXL: 150000 } }] })).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("manfiy yoki butun bo'lmagan narx — 400", async () => {
+    await expect(update({ kits: [{ ...baseKit, sizePrices: { S: -1 } }] })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(update({ kits: [{ ...baseKit, sizePrices: { S: 1.5 } }] })).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it("massiv yoki satr — 400", async () => {
+    await expect(update({ kits: [{ ...baseKit, sizePrices: ['S'] }] })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(update({ kits: [{ ...baseKit, sizePrices: 'S' }] })).rejects.toBeInstanceOf(BadRequestException);
+  });
+});

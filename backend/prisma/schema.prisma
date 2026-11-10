@@ -329,9 +329,10 @@ model Kit {
   // Mahsulot sifatidagi ma'lumotlar: to'plam = futbolka + shortik (+ ism/raqam bosmasi)
   colorsLabel String? // "Oq / oltin"
   description String? // "Dry-fit polyester · DTF bosma"
-  shirtPrice  Int       @default(159000) // so'm — KOMPLEKT narxi (futbolka + shortik bitta narx)
+  shirtPrice  Int       @default(159000) // so'm — KOMPLEKT narxi (futbolka + shortik bitta narx), o'lchamda sizePrices'da narx bo'lmasa shu ishlatiladi
   shortsPrice Int       @default(0) // eskirgan: komplekt narxiga qo'shilgan, doim 0
   printPrice  Int       @default(30000) // ism + raqam bosmasi
+  sizePrices  Json      @default("{}") // { "S": 150000, "M": 150000, ... } — o'lcham bo'yicha narx, kiritilmagan o'lcham shirtPrice'dan oladi
   sizes       String[]  @default(["S", "M", "L", "XL", "XXL", "3XL"]) // sotuvda bor o'lchamlar
   sleeve      KitSleeve @default(SHORT) // ustki qism: kalta yoki uzun yengli futbolka
   bottom      KitBottom @default(SHORTS) // pastki qism: shortik yoki shalvar
