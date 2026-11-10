@@ -3,7 +3,7 @@ import { LANGS, orderDeadline, translate } from './i18n';
 
 describe('Tailor translations', () => {
   it('supports Uzbek Cyrillic while preserving API placeholders', () => {
-    expect(LANGS.map((language) => language.value)).toEqual(['uz', 'ru']);
+    expect(LANGS.map((language) => language.value)).toEqual(['uz', 'uz-Cyrl', 'ru']);
     expect(translate('uz-Cyrl', 'nav.queue')).toBe('Бугунги навбат');
     expect(translate('uz-Cyrl', 'api.loading')).toBe('Маълумотлар API дан юкланмоқда...');
     expect(translate('uz-Cyrl', 'stock.cell.nol')).toBe('НОЛ');

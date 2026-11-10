@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import {
-  BellRing, Check, Clock, Edit3, Factory, Gauge, Globe, MapPin, Phone, User,
+  BellRing, Check, Edit3, Factory, Globe, MapPin, Phone, User,
 } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { Toggle } from './ui';
@@ -50,23 +50,6 @@ function InfoRow({ icon: Icon, label, value }) {
   );
 }
 
-function StatTile({ icon: Icon, label, value, delay }) {
-  return (
-    <div
-      className="tl-pop flex items-center gap-3 rounded-2xl border border-white/10 bg-white/[0.04] px-4 py-3.5 transition duration-200 hover:-translate-y-0.5 hover:border-teal-400/30"
-      style={{ '--tl-delay': `${delay}ms` }}
-    >
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-teal-400/25 to-indigo-500/20 text-teal-300 ring-1 ring-inset ring-teal-400/25">
-        <Icon className="h-5 w-5" aria-hidden="true" />
-      </span>
-      <div className="min-w-0">
-        <p className="truncate text-[10px] font-bold uppercase tracking-wider text-slate-400">{label}</p>
-        <p className="truncate text-lg font-black leading-tight text-white">{value}</p>
-      </div>
-    </div>
-  );
-}
-
 export default function Profile() {
   const { user } = useAuth();
   const { prefs, savePrefs } = useTailor();
@@ -80,8 +63,6 @@ export default function Profile() {
   const name = profile?.fullName || user?.fullName || '';
   const workshop = profile?.workshopName || user?.workshopName || '';
   const phone = prettyPhone(profile?.phone || user?.phone || '');
-  const shift = profile?.shiftStart || profile?.shiftEnd ? `${profile.shiftStart || '—'} — ${profile.shiftEnd || '—'}` : '—';
-  const capacity = profile?.dailyCapacity != null ? t('profile.capacityUnit', { n: profile.dailyCapacity }) : '—';
 
   useEffect(() => {
     let cancelled = false;
@@ -120,7 +101,7 @@ export default function Profile() {
   const changeLanguage = async (lang) => {
     try {
       await savePrefs({ ...prefs, lang });
-      setNotice({ text: translate(lang, lang === 'ru' ? 'profile.langToastRu' : 'profile.langToast'), error: false });
+      setNotice({ text: translate(lang, lang === 'ru' ? 'profile.langToastRu' : lang === 'uz-Cyrl' ? 'profile.langToastCyrl' : 'profile.langToast'), error: false });
     } catch {
       setNotice({ text: translate(lang, 'profile.persistError'), error: true });
     }
@@ -205,11 +186,6 @@ export default function Profile() {
         </p>
       )}
 
-      {/* Stats */}
-      <div className="grid gap-3 sm:grid-cols-2">
-        <StatTile icon={Gauge} label={t('profile.capacityLabel')} value={capacity} delay={60} />
-        <StatTile icon={Clock} label={t('profile.shiftLabel')} value={shift} delay={110} />
-      </div>
 
       <div className="grid gap-5 lg:grid-cols-2">
         {/* Ma'lumotlar */}
