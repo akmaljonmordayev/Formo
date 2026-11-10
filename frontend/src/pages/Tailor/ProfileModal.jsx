@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { X, User, Factory, MapPin, Phone, Clock, Check, Loader2, AlertCircle, Globe } from 'lucide-react';
+import { X, User, Factory, MapPin, Phone, Check, Loader2, AlertCircle, Globe } from 'lucide-react';
 import { LANGS, useT } from './i18n';
 import { useTailor } from './prefs';
 import { updateWorkshopProfile } from './tailorApi';
@@ -7,20 +7,17 @@ import { cx, formatPhone, initialsOf } from './utils';
 
 const EXIT_MS = 220;
 const ADDRESS_MAX = 200;
-const EMPTY = { fullName: '', phone: '', workshopName: '', address: '', shiftStart: '', shiftEnd: '' };
+const EMPTY = { fullName: '', phone: '', workshopName: '', address: '' };
 const inputCls =
   'w-full rounded-xl border bg-[#0e1424] pl-10 pr-4 py-2.5 text-sm text-white outline-none transition placeholder:text-slate-600 focus:border-teal-400 focus:ring-4 focus:ring-teal-400/10 [color-scheme:dark]';
 
 /** Serverdan "09:00" yoki "09:00:00" kelishi mumkin — <input type="time"> uchun HH:MM */
-const toTime = (value) => (value ? String(value).slice(0, 5) : '');
 
 const fromProfile = (profile) => ({
   fullName: profile?.fullName ?? '',
   phone: formatPhone(profile?.phone ?? ''),
   workshopName: profile?.workshopName ?? '',
   address: profile?.address ?? '',
-  shiftStart: toTime(profile?.shiftStart),
-  shiftEnd: toTime(profile?.shiftEnd),
 });
 
 const clean = (value) => value.replace(/\s+/g, ' ').trim();
@@ -64,21 +61,16 @@ export default function ProfileModal({ open, profile, onClose, onSaved }) {
       fullName: clean(form.fullName),
       workshopName: clean(form.workshopName),
       address: clean(form.address),
-      shiftStart: form.shiftStart,
-      shiftEnd: form.shiftEnd,
     };
     const base = {
       fullName: clean(initial.fullName),
       workshopName: clean(initial.workshopName),
       address: clean(initial.address),
-      shiftStart: initial.shiftStart,
-      shiftEnd: initial.shiftEnd,
     };
     const diff = {};
     for (const key of Object.keys(next)) {
       if (next[key] === base[key]) continue;
-      // Smena vaqtini bo'shatish — serverda null (bo'sh qator HH:MM tekshiruvidan o'tmaydi)
-      diff[key] = (key === 'shiftStart' || key === 'shiftEnd') && !next[key] ? null : next[key];
+      diff[key] = next[key];
     }
     return diff;
   }, [form, initial]);
@@ -174,17 +166,6 @@ export default function ProfileModal({ open, profile, onClose, onSaved }) {
     );
   };
 
-  const clearBtn = (key) =>
-    form[key] ? (
-      <button
-        type="button"
-        onClick={() => setForm((prev) => ({ ...prev, [key]: '' }))}
-        className="text-[10px] font-bold text-slate-500 transition hover:text-teal-300"
-      >
-        {t('profile.shiftClear')}
-      </button>
-    ) : null;
-
   return (
     <div
       className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-sm"
@@ -242,16 +223,12 @@ export default function ProfileModal({ open, profile, onClose, onSaved }) {
               </span>
             ),
           })}
-          <div className="grid grid-cols-2 gap-3">
-            {field('pf-start', t('emp.shiftStart'), Clock, 'shiftStart', { type: 'time', delay: 240, hint: clearBtn('shiftStart') })}
-            {field('pf-end', t('emp.shiftEnd'), Clock, 'shiftEnd', { type: 'time', delay: 280, hint: clearBtn('shiftEnd') })}
-          </div>
           <div className="tl-pop border-t border-white/10 pt-3.5" style={{ '--tl-delay': '320ms' }} role="group" aria-label={t('profile.langLabel')}>
             <span className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-400">
               <Globe className="h-3.5 w-3.5" aria-hidden="true" />
               {t('profile.langLabel')}
             </span>
-            <div className="grid grid-cols-5 gap-1 rounded-xl border border-white/10 bg-[#0e1424] p-1">
+            <div className="grid grid-cols-3 gap-1 rounded-xl border border-white/10 bg-[#0e1424] p-1">
               {LANGS.map((language) => (
                 <button
                   key={language.value}

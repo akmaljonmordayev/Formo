@@ -54,7 +54,7 @@ export default function OrderDrawer({ order, onClose, onAdvance, onReject, actio
               <p className="font-mono text-xs text-slate-500">#{order.id}</p>
             </div>
 
-            {order.status !== 'yangi' && (
+            {order.status !== 'yangi' && order.status !== 'tayyor' && (
               <button
                 type="button"
                 onClick={() => navigate('/tailor/brak', { state: { order } })}

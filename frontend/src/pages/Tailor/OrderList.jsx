@@ -50,6 +50,7 @@ export default function OrderList({ view }) {
               <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs tabular-nums">{sectionRows.length}</span>
             </h2>
           )}
+          <div className={view === 'ready' ? 'grid gap-3 md:grid-cols-2' : 'space-y-3'}>
           {sectionRows.map(({ order, bucket }, index) => (
             <OrderCard
               key={order.id}
@@ -59,6 +60,7 @@ export default function OrderList({ view }) {
               onOpen={(o) => setOpenId(o.id)}
             />
           ))}
+          </div>
         </section>
       ))}
 

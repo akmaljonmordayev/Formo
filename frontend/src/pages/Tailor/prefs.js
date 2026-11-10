@@ -33,7 +33,7 @@ export function loadPrefs(userId) {
   const saved = read(preferencesKey(userId));
   return {
     ...DEFAULT_PREFS,
-    lang: ['uz', 'ru'].includes(saved?.lang) ? saved.lang : 'uz',
+    lang: ['uz', 'uz-Cyrl', 'ru'].includes(saved?.lang) ? saved.lang : 'uz',
     notifications: { ...DEFAULT_PREFS.notifications, ...(saved?.notifications ?? {}) },
     theme: saved?.theme === 'light' ? 'light' : 'dark',
   };
