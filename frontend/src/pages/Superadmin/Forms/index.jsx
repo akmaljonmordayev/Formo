@@ -89,6 +89,52 @@ export default function SuperadminForms() {
     }
   };
 
+  // ── Narx (har bir formaning o'lcham bo'yicha narxi) — bo'lmasa kit.shirtPrice ────
+  const priceMap = useMemo(
+    () => Object.fromEntries(kits.flatMap((k) => ALL_SIZES.map((s) => [cellKey(k.id, s), String(k.sizePrices?.[s] ?? k.shirtPrice)]))),
+    [kits],
+  );
+  const [priceDraft, setPriceDraft] = useState({});
+  useEffect(() => setPriceDraft(priceMap), [priceMap]);
+  const [priceSaving, setPriceSaving] = useState(false);
+  const [priceSaved, setPriceSaved] = useState(false);
+
+  const priceOf = (kitId, size) => priceDraft[cellKey(kitId, size)] ?? '';
+  const setPrice = (kitId, size, value) => {
+    if (value !== '' && !/^\d{1,7}$/.test(value)) return;
+    setPriceDraft((m) => ({ ...m, [cellKey(kitId, size)]: value }));
+    setPriceSaved(false);
+  };
+  const priceDirty = useMemo(
+    () => Object.keys(priceDraft).some((k) => (priceDraft[k] ?? '') !== (priceMap[k] ?? '')),
+    [priceDraft, priceMap],
+  );
+
+  const savePrices = async () => {
+    const updates = [];
+    kits.forEach((k) => {
+      const changed = ALL_SIZES.some((s) => priceOf(k.id, s) !== (priceMap[cellKey(k.id, s)] ?? ''));
+      if (!changed) return;
+      // shirtPrice bilan teng bo'lgan o'lchamlar sizePrices'ga yozilmaydi — ular shirtPrice'dan o'zi oladi
+      const sizePrices = Object.fromEntries(
+        ALL_SIZES.map((s) => [s, Number(priceOf(k.id, s) || 0)]).filter(([, n]) => n > 0 && n !== k.shirtPrice),
+      );
+      updates.push(clubsApi.updateKit(k.id, { sizePrices }));
+    });
+    if (!updates.length) return;
+    setPriceSaving(true);
+    setError('');
+    try {
+      await Promise.all(updates);
+      await load();
+      setPriceSaved(true);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setPriceSaving(false);
+    }
+  };
+
   // ── Ro'yxat va qidiruv ─────────────────────────────────────────────────────
   const filteredKits = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -104,6 +150,10 @@ export default function SuperadminForms() {
           <p>{t("Barcha klublarning barcha formalari (uy/mehmon/uchinchi) bitta joyda — narx, rang, o'lchamlar va zaxira.")}</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {priceSaved && <span className="sa-table__sub" style={{ color: 'var(--sa-teal)' }}>{t('Saqlandi ✓')}</span>}
+          <button type="button" className="sa-btn sa-btn--ghost" onClick={savePrices} disabled={!priceDirty || priceSaving}>
+            {priceSaving ? t('Saqlanmoqda...') : t('Narxlarni saqlash')}
+          </button>
           {stockSaved && <span className="sa-table__sub" style={{ color: 'var(--sa-teal)' }}>{t('Saqlandi ✓')}</span>}
           <button type="button" className="sa-btn sa-btn--ghost" onClick={saveStock} disabled={!stockDirty || stockSaving}>
             {stockSaving ? t('Saqlanmoqda...') : t('Zaxirani saqlash')}
@@ -163,6 +213,7 @@ export default function SuperadminForms() {
                 <table className="sa-table">
                   <thead>
                     <tr>
+                      <th />
                       {ALL_SIZES.map((s) => (
                         <th key={s} style={{ textAlign: 'center' }}>{s}</th>
                       ))}
@@ -170,6 +221,24 @@ export default function SuperadminForms() {
                   </thead>
                   <tbody>
                     <tr>
+                      <td className="sa-table__sub" style={{ whiteSpace: 'nowrap' }}>{t('Narx')}</td>
+                      {ALL_SIZES.map((s) => (
+                        <td key={s} style={{ textAlign: 'center' }}>
+                          <input
+                            value={priceOf(kit.id, s)}
+                            onChange={(e) => setPrice(kit.id, s, e.target.value)}
+                            inputMode="numeric"
+                            aria-label={t('{size} narxi', { size: s })}
+                            style={{
+                              width: 64, textAlign: 'center', padding: '3px 2px', borderRadius: 7,
+                              background: 'transparent', border: '1px solid var(--sa-line)', color: 'var(--sa-ink)',
+                            }}
+                          />
+                        </td>
+                      ))}
+                    </tr>
+                    <tr>
+                      <td className="sa-table__sub" style={{ whiteSpace: 'nowrap' }}>{t('Zaxira')}</td>
                       {ALL_SIZES.map((s) => {
                         const raw = valueOf(kit.id, s);
                         const v = raw === '' ? null : Number(raw);
@@ -231,10 +300,17 @@ function KitForm({ kit, clubs, t, onClose, onSaved }) {
     isActive: kit?.isActive ?? true,
   });
   const [sizes, setSizes] = useState(kit?.sizes ?? ADULT_SIZES);
+  // O'lcham -> narx: faqat shirtPrice'dan farqli qiymatlar saqlanadi, qolgani shirtPrice'dan oladi
+  const [sizePrices, setSizePrices] = useState(() => ({ ...(kit?.sizePrices ?? {}) }));
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
   const toggleSize = (s) => setSizes((arr) => (arr.includes(s) ? arr.filter((x) => x !== s) : [...arr, s]));
+  const sizePriceOf = (s) => (sizePrices[s] !== undefined && sizePrices[s] !== '' ? String(sizePrices[s]) : String(form.shirtPrice));
+  const setSizePrice = (s, value) => {
+    if (value !== '' && !/^\d{1,7}$/.test(value)) return;
+    setSizePrices((m) => ({ ...m, [s]: value }));
+  };
 
   const submit = async (e) => {
     e.preventDefault();
@@ -250,6 +326,10 @@ function KitForm({ kit, clubs, t, onClose, onSaved }) {
         shirtPrice: Number(form.shirtPrice),
         printPrice: Number(form.printPrice),
         sizes,
+        // shirtPrice bilan teng yoki bo'sh o'lchamlar yuborilmaydi — ular shirtPrice'dan oladi
+        sizePrices: Object.fromEntries(
+          sizes.map((s) => [s, Number(sizePriceOf(s))]).filter(([, n]) => n > 0 && n !== Number(form.shirtPrice)),
+        ),
         isActive: form.isActive,
       };
       if (isEdit) await clubsApi.updateKit(kit.id, body);
@@ -306,17 +386,31 @@ function KitForm({ kit, clubs, t, onClose, onSaved }) {
             <input type="number" min={0} value={form.printPrice} onChange={set('printPrice')} />
           </label>
           <label className="field field--full">
-            <span>{t("O'lchamlar")}</span>
-            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+            <span>{t("O'lchamlar va narxi")}</span>
+            <p className="sa-table__sub" style={{ marginTop: -2, marginBottom: 2 }}>
+              {t("Bo'sh qoldirilsa — komplekt narxidan olinadi")}
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
               {ALL_SIZES.map((s) => (
-                <button
-                  type="button"
-                  key={s}
-                  onClick={() => toggleSize(s)}
-                  className={`sa-tab${sizes.includes(s) ? ' is-active' : ''}`}
-                >
-                  {s}
-                </button>
+                <div key={s} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4 }}>
+                  <button
+                    type="button"
+                    onClick={() => toggleSize(s)}
+                    className={`sa-tab${sizes.includes(s) ? ' is-active' : ''}`}
+                  >
+                    {s}
+                  </button>
+                  {sizes.includes(s) && (
+                    <input
+                      className="sa-input"
+                      value={sizePriceOf(s)}
+                      onChange={(e) => setSizePrice(s, e.target.value)}
+                      inputMode="numeric"
+                      aria-label={t('{size} narxi', { size: s })}
+                      style={{ width: 76, textAlign: 'center', padding: '3px 2px' }}
+                    />
+                  )}
+                </div>
               ))}
             </div>
           </label>

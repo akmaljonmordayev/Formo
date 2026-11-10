@@ -226,9 +226,9 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
       expect(res.body.siblings.map((k: { label: string }) => k.label)).toEqual(['Uy', 'Mehmon', 'Uchinchi']);
       expect(res.body.sizes).toEqual(
         expect.arrayContaining([
-          { size: 'L', available: true },
-          { size: 'XXL', available: false },
-          { size: '8-9', available: true },
+          { size: 'L', available: true, price: 159000 },
+          { size: 'XXL', available: false, price: 159000 },
+          { size: '8-9', available: true, price: 159000 },
         ]),
       );
     });

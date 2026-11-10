@@ -2,7 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { Kit, KitBottom, KitSleeve, OrderStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ListCatalogClubsQueryDto } from './dto/catalog.dto';
-import { ADULT_SIZES, ALL_SIZES, fullSetPrice, KID_SIZES } from './pricing';
+import { ADULT_SIZES, ALL_SIZES, fullSetPrice, KID_SIZES, priceForSize } from './pricing';
 
 /** Mijozga ko'rinadigan klub: faqat faol, kategoriyasi bo'lmasa yoki faol kategoriyada */
 export const visibleClub: Prisma.ClubWhereInput = {
@@ -53,7 +53,8 @@ export function toKitProduct(kit: Kit) {
     includes: kitIncludes(kit),
     price: fullSetPrice(kit),
     priceBreakdown: { shirt: kit.shirtPrice, print: kit.printPrice },
-    sizes: ALL_SIZES.map((size) => ({ size, available: kit.sizes.includes(size) })).filter(
+    // Har bir o'lchamning o'z narxi (sizePrices'da yo'q bo'lsa — shirtPrice, komplekt narxi)
+    sizes: ALL_SIZES.map((size) => ({ size, available: kit.sizes.includes(size), price: priceForSize(kit, size) })).filter(
       (s) => s.available || (ADULT_SIZES as readonly string[]).includes(s.size),
     ),
   };
