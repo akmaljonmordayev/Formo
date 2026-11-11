@@ -7,6 +7,7 @@ export class UserResponseDto {
   @ApiProperty({ enum: Role }) role: Role;
   @ApiProperty() fullName: string;
   @ApiProperty() isActive: boolean;
+  @ApiPropertyOptional({ nullable: true }) avatarUrl: string | null;
   @ApiPropertyOptional({ enum: Gender, nullable: true }) gender: Gender | null;
   @ApiPropertyOptional({ nullable: true }) age: number | null;
   @ApiPropertyOptional({ nullable: true }) height: number | null;

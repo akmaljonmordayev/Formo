@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { AuditCategory, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import { DEFAULT_FEES_BY_REGION } from '../shop/regions';
 import { AuditEntry, AuditService } from './audit.service';
 
 /** Delivery slotlari kabi boshlang'ich sozlamalar — birinchi so'rovda hali yozuv bo'lmasa shu qaytariladi */
@@ -10,7 +11,8 @@ export const SETTING_DEFAULTS: Record<string, Prisma.JsonValue> = {
     { start: '14:00', end: '18:00', cap: 50, on: true },
     { start: '18:00', end: '22:00', cap: 30, on: true },
   ],
-  'delivery.fee': 15000, // so'm, mobil ilovadagi "Yetkazish"
+  'delivery.fee': 15000, // so'm — viloyati noma'lum/eski manzillar uchun zaxira narx
+  'delivery.feesByRegion': DEFAULT_FEES_BY_REGION, // so'm, viloyat kodi -> narx (Superadmin "Formalar")
 };
 
 @Injectable()

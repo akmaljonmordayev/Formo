@@ -50,6 +50,7 @@ export const kitSetPrice = (k) => (Number(k.shirtPrice) || 0) + (Number(k.printP
 /* ---------- Sozlama kalitlari ---------- */
 export const SETTING_KEYS = {
   deliveryFee: 'delivery.fee',
+  deliveryFeesByRegion: 'delivery.feesByRegion',
   deliverySlots: 'delivery.slots',
   orderRules: 'order.rules',
   bannedWords: 'order.bannedWords',
@@ -57,6 +58,26 @@ export const SETTING_KEYS = {
   notifications: 'admin.notifications',
   studio: 'studio.config',
 };
+
+/* ---------- Yetkazish viloyatlari (backend/src/shop/regions.ts bilan bir xil) ---------- */
+export const REGIONS = [
+  { code: 'TOSHKENT_SHAHRI', label: 'Toshkent shahri' },
+  { code: 'TOSHKENT_VILOYATI', label: 'Toshkent viloyati' },
+  { code: 'ANDIJON', label: 'Andijon' },
+  { code: 'BUXORO', label: 'Buxoro' },
+  { code: 'FARGONA', label: "Farg'ona" },
+  { code: 'JIZZAX', label: 'Jizzax' },
+  { code: 'XORAZM', label: 'Xorazm' },
+  { code: 'NAMANGAN', label: 'Namangan' },
+  { code: 'NAVOIY', label: 'Navoiy' },
+  { code: 'QASHQADARYO', label: 'Qashqadaryo' },
+  { code: 'SAMARQAND', label: 'Samarqand' },
+  { code: 'SIRDARYO', label: 'Sirdaryo' },
+  { code: 'SURXONDARYO', label: 'Surxondaryo' },
+  { code: 'QORAQALPOGISTON', label: "Qoraqalpog'iston Respublikasi" },
+];
+
+export const DEFAULT_REGION_FEE = 15000;
 
 export const DEFAULT_ORDER_RULES = {
   acceptOrders: true, // false — ilovada buyurtma vaqtincha to'xtatiladi

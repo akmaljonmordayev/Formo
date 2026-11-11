@@ -5,21 +5,34 @@ export const ADULT_SIZES = ['S', 'M', 'L', 'XL', 'XXL', '3XL'] as const;
 export const KID_SIZES = ['2-3', '4-5', '6-7', '8-9', '10-11', '12-13'] as const;
 export const ALL_SIZES: readonly string[] = [...ADULT_SIZES, ...KID_SIZES];
 
+/** O'lcham -> narx (so'm); kalit bo'lmagan o'lcham KitPrices.shirtPrice'dan oladi */
+export type SizePrices = Record<string, number>;
+
 export interface KitPrices {
   shirtPrice: number;
   printPrice: number;
+  // Prisma'dan kelganda Json (JsonValue) bo'lib keladi — priceForSize ichida xavfsiz o'qiladi
+  sizePrices?: unknown;
 }
 
 export interface ItemOptions {
   printName?: string | null;
   printNumber?: string | null;
+  shirtSize?: string | null;
 }
 
 export const hasPrint = (o: Pick<ItemOptions, 'printName' | 'printNumber'>) => Boolean(o.printName || o.printNumber);
 
-/** Bitta komplekt narxi: komplekt (futbolka + shortik bitta narx — `shirtPrice`) + (ism/raqam bosmasi). */
+/** Komplekt narxi: o'lcham uchun sizePrices'da qiymat bo'lsa shu, bo'lmasa shirtPrice (standart) */
+export function priceForSize(kit: Pick<KitPrices, 'shirtPrice' | 'sizePrices'>, size?: string | null): number {
+  const map = kit.sizePrices;
+  const bySize = size && map && typeof map === 'object' && !Array.isArray(map) ? (map as SizePrices)[size] : undefined;
+  return typeof bySize === 'number' && bySize > 0 ? bySize : kit.shirtPrice;
+}
+
+/** Bitta komplekt narxi: komplekt (o'lchamiga qarab, aks holda `shirtPrice`) + (ism/raqam bosmasi). */
 export function unitPrice(kit: KitPrices, o: ItemOptions) {
-  return kit.shirtPrice + (hasPrint(o) ? kit.printPrice : 0);
+  return priceForSize(kit, o.shirtSize) + (hasPrint(o) ? kit.printPrice : 0);
 }
 
 /**

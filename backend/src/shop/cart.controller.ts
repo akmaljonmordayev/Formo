@@ -29,7 +29,7 @@ export class CartController {
   })
   @ApiBadRequestResponse({ description: 'Promokod yaroqsiz' })
   view(@CurrentUser() user: AuthUser, @Query() query: CartQueryDto) {
-    return this.cart.view(user.id, query.promocode);
+    return this.cart.view(user.id, query.promocode, query.region);
   }
 
   @Post('items')

@@ -106,7 +106,7 @@ export class NotifyService implements OnModuleInit, OnModuleDestroy {
     try {
       const late = await this.prisma.order.findMany({
         where: {
-          status: { in: [OrderStatus.ACCEPTED, OrderStatus.PRINTING, OrderStatus.QUALITY_CHECK] },
+          status: { in: [OrderStatus.ACCEPTED, OrderStatus.PRINTING] },
           createdAt: { lt: new Date(Date.now() - LATE_AFTER_MS) },
         },
         select: { id: true, code: true },

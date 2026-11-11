@@ -211,14 +211,7 @@ describe('AccountsService', () => {
         where: {
           workshopId: 3,
           status: {
-            in: [
-              'SENT_TO_WORKSHOP',
-              'ACCEPTED',
-              'PRINTING',
-              'QUALITY_CHECK',
-              'READY',
-              'DELIVERING',
-            ],
+            in: ['SENT_TO_WORKSHOP', 'ACCEPTED', 'PRINTING', 'READY', 'DELIVERING'],
           },
         },
       });

@@ -249,7 +249,7 @@ export class ShopOrdersService {
           tx,
         );
         const promo = dto.promocode ? await this.cart.resolvePromo(dto.promocode, subtotal, tx) : null;
-        const summary = summarize(subtotal, await this.delivery.fee(tx), promo);
+        const summary = summarize(subtotal, await this.delivery.fee(address.region, tx), promo);
         await this.delivery.assertAvailable(dto.deliveryDate, dto.deliverySlot, tx);
 
         if (promo) {
@@ -307,6 +307,7 @@ export class ShopOrdersService {
             deliveryDate: new Date(`${dto.deliveryDate}T00:00:00Z`),
             deliverySlot: dto.deliverySlot,
             deliveryAddress: formatAddress(address),
+            deliveryRegion: address.region ?? null,
             comment: dto.comment || null,
             items: {
               create: items.map((i) => ({

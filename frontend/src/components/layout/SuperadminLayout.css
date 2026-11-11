@@ -18,12 +18,27 @@
   --sa-red: var(--red, #e5596b);
   --sa-green: #39c37b;
   --sa-radius: 16px;
+  /* Hover/track qoplamalari (rgba(var(--sa-hover-rgb), N) sifatida ishlatiladi) — dark fonda oq, light fonda to'q */
+  --sa-hover-rgb: 255, 255, 255;
 
   display: flex;
   min-height: 100vh;
   background: var(--sa-bg);
   color: var(--sa-ink);
   font-family: var(--font-body, 'Onest', system-ui, sans-serif);
+}
+
+/* Yorug' (light) mavzu — header'dagi kun/tun tugmasi bilan almashtiriladi, localStorage'da saqlanadi */
+.sa[data-theme='light'] {
+  --sa-bg: #ffffff;
+  --sa-sb: #f7f8fc;
+  --sa-surface: #ffffff;
+  --sa-surface-2: #f2f4f9;
+  --sa-line: rgba(10, 19, 48, 0.12);
+  --sa-ink: #0a1330;
+  --sa-mu: #5b6684;
+  --sa-mu-2: #818ba8;
+  --sa-hover-rgb: 10, 19, 48;
 }
 
 .sa *,
@@ -57,15 +72,17 @@
 }
 
 .sa-brand__mark {
-  display: grid;
-  place-items: center;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  background: linear-gradient(135deg, var(--sa-blue), #2f3fae);
-  font-family: var(--font-display, sans-serif);
-  font-weight: 800;
-  color: #fff;
+  width: 34px;
+  height: 33px;
+  flex-shrink: 0;
+}
+
+.sa-brand__mark path:first-child {
+  fill: var(--sa-ink);
+}
+
+.sa-brand__mark-sliver {
+  fill: #d9a04a;
 }
 
 .sa-brand__text {
@@ -118,7 +135,7 @@
 }
 
 .sa-link:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(var(--sa-hover-rgb), 0.05);
   color: var(--sa-ink);
 }
 
@@ -278,7 +295,7 @@
 }
 
 .sa-pop__item:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(var(--sa-hover-rgb), 0.06);
 }
 
 .sa-content {
@@ -321,7 +338,7 @@
 }
 
 .sa-legacy .table tbody tr:hover {
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(var(--sa-hover-rgb), 0.03);
 }
 
 .sa-legacy .input,
@@ -354,7 +371,7 @@
 }
 
 .sa-legacy .btn--ghost:hover:not(:disabled) {
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--sa-hover-rgb), 0.08);
 }
 
 .sa-legacy .badge--on {
@@ -569,7 +586,7 @@
 .sa-progress {
   height: 7px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--sa-hover-rgb), 0.08);
   overflow: hidden;
 }
 
@@ -599,7 +616,7 @@
   background: var(--sa-accent);
 }
 
-/* Dashboard grafigi: ustun + hover tooltip + X o'qidagi sanalar */
+/* Dashboard grafigi: ustun + hover'da yorug'lik + X o'qidagi sanalar + pastdagi kun statistikasi */
 .sa-bars__item {
   position: relative;
   flex: 1;
@@ -607,41 +624,78 @@
   height: 100%;
   display: flex;
   align-items: flex-end;
+  border-radius: 4px 4px 0 0;
+  transition: box-shadow 0.25s cubic-bezier(0.22, 1, 0.36, 1), filter 0.25s ease, transform 0.25s ease,
+    background-color 0.25s ease;
 }
 
 .sa-bars__item .sa-bars__col {
   width: 100%;
+  transition: box-shadow 0.25s cubic-bezier(0.22, 1, 0.36, 1), filter 0.25s ease, transform 0.25s ease,
+    background-color 0.25s ease;
 }
 
-.sa-bars__item:hover .sa-bars__col {
-  filter: brightness(1.25);
+.sa-bars__item:hover,
+.sa-bars__item.is-active {
+  background-color: rgba(91, 124, 250, 0.08);
 }
 
-.sa-bars__tip {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
-  z-index: 5;
+.sa-bars__item:hover .sa-bars__col,
+.sa-bars__item.is-active .sa-bars__col {
+  filter: brightness(1.15);
+  box-shadow: 0 6px 18px rgba(91, 124, 250, 0.45);
+}
+
+.sa-bars__item:hover .sa-bars__col.is-today,
+.sa-bars__item.is-active .sa-bars__col.is-today {
+  box-shadow: 0 6px 18px rgba(242, 163, 58, 0.45);
+}
+
+.sa-bars__info {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--sa-line);
-  background: var(--sa-surface-2);
-  color: var(--sa-ink);
+  align-items: center;
+  gap: 14px;
+  height: 22px;
+  margin-top: 10px;
+  overflow: hidden;
   font-size: 12px;
   white-space: nowrap;
-  pointer-events: none;
+  color: var(--sa-mu-2);
+  transition: color 0.25s ease;
 }
 
-.sa-bars__tip.is-left {
-  left: auto;
-  right: 0;
-}
-
-.sa-bars__tip span {
+.sa-bars__info.is-active {
   color: var(--sa-mu);
+}
+
+.sa-bars__info b {
+  color: var(--sa-ink);
+}
+
+.sa-bars__info-body {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  animation: sa-bars-info-in 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes sa-bars-info-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-bars__item,
+  .sa-bars__item .sa-bars__col,
+  .sa-bars__info {
+    transition: none;
+  }
+
+  .sa-bars__info-body {
+    animation: none;
+  }
 }
 
 .sa-bars__axis {
@@ -803,7 +857,7 @@
   width: 22px;
   height: 22px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.08);
+  background: rgba(var(--sa-hover-rgb), 0.08);
   font-size: 11px;
   font-weight: 700;
 }
