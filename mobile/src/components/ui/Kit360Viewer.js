@@ -1,6 +1,6 @@
 import React, { useCallback, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
-import { colors, radii } from '../../constants/theme';
+import { colors, radii, themedStyles } from '../../constants/theme';
 import useKit360Bridge from './kit360/useKit360Bridge';
 
 // Eski dev-build'da native modul bo'lmasa import xato beradi — unda `fallback` (old tomon surati)
@@ -82,7 +82,7 @@ export default function Kit360Viewer({ height = 360, fallback = null, t = (k) =>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   box: { width: '100%', borderRadius: radii.xl, overflow: 'hidden', backgroundColor: '#b8b8ba' },
   web: { flex: 1, backgroundColor: 'transparent' },
   overlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
@@ -96,4 +96,4 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.6)',
   },
   retryText: { color: '#fff', fontSize: 12, fontWeight: '800' },
-});
+}));

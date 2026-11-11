@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, StyleSheet, View } from 'react-native';
-import { colors, radii } from '../../constants/theme';
+import { colors, radii, themedStyles } from '../../constants/theme';
 import viewerHtml from './kit360/viewerHtml';
 import useKit360Bridge from './kit360/useKit360Bridge';
 
@@ -41,7 +41,7 @@ export default function Kit360Viewer({ height = 360, ...props }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   box: { width: '100%', borderRadius: radii.xl, overflow: 'hidden', backgroundColor: '#b8b8ba' },
   overlay: { ...StyleSheet.absoluteFillObject, alignItems: 'center', justifyContent: 'center' },
-});
+}));

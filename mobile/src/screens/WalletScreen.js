@@ -3,7 +3,7 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, fonts, radii, screenStyles, spacing } from '../constants/theme';
+import { colors, fonts, radii, screenStyles, spacing, themedStyles } from '../constants/theme';
 import { Badge, Button, EmptyState, Header, Overline, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
@@ -45,7 +45,7 @@ export default function WalletScreen({ t, telegramBot, onBack }) {
     }
     return (
       <>
-        <LinearGradient colors={['#1D2F8C', '#0E1A3F']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.balanceCard}>
+        <LinearGradient colors={colors.cardGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.balanceCard}>
           <View style={styles.balanceGlow} />
           <Text style={styles.balanceLabel}>{t('walletBalance')}</Text>
           <Text style={styles.balance} adjustsFontSizeToFit numberOfLines={1}>
@@ -158,7 +158,7 @@ export function WalletChip({ t, balance, onPress }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   headerBar: {
     paddingHorizontal: spacing.lg,
     paddingVertical: spacing.md,
@@ -233,4 +233,4 @@ const styles = StyleSheet.create({
   chipLabel: { color: colors.muted, fontSize: 10, fontWeight: '800', letterSpacing: 0.6, textTransform: 'uppercase' },
   chipValue: { color: colors.text, fontSize: 16, fontWeight: '900', marginTop: 1 },
   chipAction: { color: colors.accent, fontSize: 12, fontWeight: '800' },
-});
+}));

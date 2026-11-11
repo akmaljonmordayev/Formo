@@ -1,12 +1,12 @@
 import React, { useEffect, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { BackButton, ErrorNote, OutlineButton, authColors as c } from '../components/ui/AuthUi';
 import { useToast } from '../components/ui/Toast';
-import { fonts } from '../constants/theme';
+import { fonts, themedStyles } from '../constants/theme';
 import { useAddresses } from '../features/checkout';
-import { addressCoords } from '../features/location';
+import { addressCoords, formatFullAddress } from '../features/location';
 import { errorText } from '../utils/errors';
 
 /**
@@ -86,7 +86,7 @@ export default function AddressesScreen({ t, onBack, onEdit, refreshKey }) {
                       <Text style={styles.cardTitle} numberOfLines={1}>{item.label}</Text>
                       {item.isDefault && <Text style={styles.badge}>{t('addressDefault')}</Text>}
                     </View>
-                    <Text style={styles.cardText}>{[item.address, item.apartment].filter(Boolean).join(', ')}</Text>
+                    <Text style={styles.cardText}>{formatFullAddress(item, t)}</Text>
                     {!addressCoords(item) && <Text style={styles.cardHint}>{t('addressNoPin')}</Text>}
                   </View>
                   <MaterialCommunityIcons name="pencil-outline" size={18} color={c.muted} />
@@ -135,7 +135,7 @@ export default function AddressesScreen({ t, onBack, onEdit, refreshKey }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safe: { flex: 1, backgroundColor: c.bg },
   flex: { flex: 1 },
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 14 },
@@ -176,7 +176,7 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: 6,
     overflow: 'hidden',
-    backgroundColor: 'rgba(242,163,58,0.14)',
+    backgroundColor: c.accentSoft,
   },
   cardText: { color: c.soft, fontFamily: fonts.body, fontSize: 13, lineHeight: 19, marginTop: 4 },
   cardHint: { color: c.muted, fontFamily: fonts.body, fontSize: 12, marginTop: 4 },
@@ -194,4 +194,4 @@ const styles = StyleSheet.create({
   actionText: { color: c.accent, fontFamily: fonts.bodySemi, fontSize: 13 },
   danger: { color: c.danger },
   footer: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 16 },
-});
+}));

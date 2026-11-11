@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { StyleSheet, Text, View, useWindowDimensions } from 'react-native';
+import { Text, View, useWindowDimensions } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, spacing } from '../constants/theme';
+import { colors, radii, spacing, themedStyles } from '../constants/theme';
 import { Button, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
 import Kit360Thumb from '../components/ui/Kit360Thumb';
@@ -149,7 +149,7 @@ export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCusto
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   segment: {
     alignSelf: 'center',
     marginTop: 4,
@@ -258,4 +258,4 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginTop: 40,
   },
-});
+}));

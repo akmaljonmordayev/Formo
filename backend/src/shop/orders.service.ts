@@ -31,7 +31,7 @@ import { dayLabel, DeliveryService, todayLocal } from './delivery.service';
 import { ChangePaymentMethodDto, CheckoutDto, MyOrdersQueryDto } from './dto/checkout.dto';
 import { summarize } from './pricing';
 import { RulesService } from './rules.service';
-import { inTashkentCity } from './tashkent';
+import { inTashkentCity, isPostalDelivery, POSTAL_DAYS } from './tashkent';
 import { CUSTOM_TITLE, designSummary } from './studio';
 import { KIT_DESIGN_TITLE } from '../kits/kit-design';
 import { StudioService } from './studio.service';
@@ -96,6 +96,11 @@ export function customerCanCancel(o: { status: OrderStatus; createdAt: Date }, w
 export function toOrderView(o: OrderRow, cancelWindowHours?: number) {
   const date = o.deliveryDate?.toISOString().slice(0, 10) ?? null;
   const current = customerStageOf(o.status);
+  // Mobil buyurtma sana/vaqtsiz — viloyatga pochta orqali (operator qo'lda kiritgan buyurtmada manzil ham yo'q)
+  const postal =
+    !date &&
+    Boolean(o.deliveryAddress) &&
+    isPostalDelivery({ region: o.deliveryRegion, latitude: o.deliveryLat, longitude: o.deliveryLng });
   // Tarix tartib bilan o'qiladi — keyingi yozuv oldingisini bosadi
   const reached = new Map(o.statusLogs.map((l) => [l.toStatus, l.createdAt]));
   return {
@@ -111,9 +116,20 @@ export function toOrderView(o: OrderRow, cancelWindowHours?: number) {
     delivery: {
       date,
       slot: o.deliverySlot,
-      // "Taxminiy yetkazish: ertaga, 10:00–14:00"
-      label: date && o.deliverySlot ? `${dayLabel(date, todayLocal()).toLowerCase()}, ${o.deliverySlot}` : null,
+      // "Taxminiy yetkazish: ertaga, 10:00–14:00"; viloyatlarga — pochta orqali (kun/vaqt tanlanmaydi)
+      label:
+        date && o.deliverySlot
+          ? `${dayLabel(date, todayLocal()).toLowerCase()}, ${o.deliverySlot}`
+          : postal
+            ? `pochta orqali, ${POSTAL_DAYS.min}–${POSTAL_DAYS.max} ish kuni`
+            : null,
       address: o.deliveryAddress,
+      region: o.deliveryRegion,
+      district: o.deliveryDistrict,
+      latitude: o.deliveryLat,
+      longitude: o.deliveryLng,
+      postal,
+      postalDays: postal ? POSTAL_DAYS : null,
     },
     comment: o.comment,
     itemsCount: o.items.reduce((s, i) => s + i.quantity, 0),
@@ -212,12 +228,19 @@ export class ShopOrdersService {
     ]);
     const online = ONLINE.includes(dto.paymentMethod);
     const fromBalance = dto.paymentMethod === PaymentMethod.BALANCE;
-    // Naqd faqat Toshkent shahri ichiga; shahardan tashqariga — faqat shaxsiy hisobdan
-    if (dto.paymentMethod === PaymentMethod.CASH && !inTashkentCity(address.latitude, address.longitude)) {
+    // Naqd faqat Toshkent shahri ichiga (kuryer); viloyatlarga (pochta) — faqat shaxsiy hisobdan.
+    // Viloyat ko'rsatilgan manzilda — viloyat bo'yicha, eski manzilda — xarita nuqtasi bo'yicha (isPostalDelivery)
+    if (dto.paymentMethod === PaymentMethod.CASH && (!address.region ? !inTashkentCity(address.latitude, address.longitude) : isPostalDelivery(address))) {
       throw new BadRequestException(
         "Naqd to'lov faqat Toshkent shahri ichida. Shahardan tashqariga yetkazishda shaxsiy hisobdan to'lang",
       );
     }
+
+    // Viloyatlarga — pochta bo'limigacha (kun/vaqt tanlanmaydi); Toshkent shahri ichida — kuryer, sana va vaqt majburiy
+    const postal = isPostalDelivery(address);
+    const deliveryDate = postal ? null : (dto.deliveryDate ?? null);
+    const deliverySlot = postal ? null : (dto.deliverySlot ?? null);
+    if (!postal && (!deliveryDate || !deliverySlot)) throw new BadRequestException('Yetkazish kuni va vaqtini tanlang');
 
     const orderId = await retrySerializable(() => this.prisma.$transaction(
       async (tx) => {
@@ -250,7 +273,7 @@ export class ShopOrdersService {
         );
         const promo = dto.promocode ? await this.cart.resolvePromo(dto.promocode, subtotal, tx) : null;
         const summary = summarize(subtotal, await this.delivery.fee(address.region, tx), promo);
-        await this.delivery.assertAvailable(dto.deliveryDate, dto.deliverySlot, tx);
+        if (deliveryDate && deliverySlot) await this.delivery.assertAvailable(deliveryDate, deliverySlot, tx);
 
         if (promo) {
           // Optimistik tekshiruv: boshqa buyurtma shu orada limitni olib qo'ymagan bo'lsin
@@ -304,10 +327,14 @@ export class ShopOrdersService {
             paymentExpiresAt: online ? new Date(Date.now() + PAYMENT_HOLD_MS) : null,
             ...(fromBalance && { paymentStatus: PaymentStatus.PAID, paidAt: new Date() }),
             promocodeId: promo?.id,
-            deliveryDate: new Date(`${dto.deliveryDate}T00:00:00Z`),
-            deliverySlot: dto.deliverySlot,
+            deliveryDate: deliveryDate ? new Date(`${deliveryDate}T00:00:00Z`) : null,
+            deliverySlot,
             deliveryAddress: formatAddress(address),
             deliveryRegion: address.region ?? null,
+            deliveryDistrict: address.district ?? null,
+            // Xaritadagi aniq nuqta — admin panelda "Xaritada ochish"
+            deliveryLat: address.latitude ?? null,
+            deliveryLng: address.longitude ?? null,
             comment: dto.comment || null,
             items: {
               create: items.map((i) => ({

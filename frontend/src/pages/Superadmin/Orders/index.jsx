@@ -256,12 +256,29 @@ function OrderModal({ order, onClose, onSaved }) {
     }
   };
 
+  const hasPoint = typeof order.deliveryLat === 'number' && typeof order.deliveryLng === 'number';
   const rows = [
     [t("Mijoz"), `${order.customerName} · ${prettyPhone(order.customerPhone)}`],
     [t("To'lov"), `${paymentLabel(order.paymentMethod, order.paymentStatus, t)} · ${money(order.totalSum)}`],
     order.discountSum > 0 && [t("Chegirma"), money(order.discountSum)],
     order.deliveryAddress && [t("Manzil"), order.deliveryAddress],
-    order.deliveryDate && [t("Yetkazish"), `${new Date(order.deliveryDate).toLocaleDateString(locale)} ${order.deliverySlot ?? ''}`],
+    // Mijoz xaritada belgilagan aniq nuqta — kuryer/pochta shu yerga olib boradi
+    hasPoint && [
+      t("Xaritadagi nuqta"),
+      <span key="map" style={{ display: 'inline-flex', gap: 12, flexWrap: 'wrap', alignItems: 'center' }}>
+        <a href={`https://yandex.uz/maps/?pt=${order.deliveryLng},${order.deliveryLat}&z=17&l=map`} target="_blank" rel="noopener noreferrer">
+          {t("Yandex xaritada ochish")}
+        </a>
+        <a href={`https://www.google.com/maps?q=${order.deliveryLat},${order.deliveryLng}`} target="_blank" rel="noopener noreferrer">
+          Google Maps
+        </a>
+        <span className="muted">{`${order.deliveryLat.toFixed(5)}, ${order.deliveryLng.toFixed(5)}`}</span>
+      </span>,
+    ],
+    order.deliveryDate
+      ? [t("Yetkazish"), `${new Date(order.deliveryDate).toLocaleDateString(locale)} ${order.deliverySlot ?? ''}`]
+      : // Sana tanlanmagan mobil buyurtma — viloyatga, pochta bo'limigacha
+        order.deliveryAddress && order.deliveryRegion && order.deliveryRegion !== 'TOSHKENT_SHAHRI' && [t("Yetkazish"), t("Pochta orqali (pochta bo'limigacha)")],
     order.comment && [t("Izoh"), order.comment],
     [t("Sana"), formatDateTime(order.createdAt)],
   ].filter(Boolean);

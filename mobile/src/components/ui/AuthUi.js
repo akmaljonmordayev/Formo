@@ -1,15 +1,38 @@
 import React from 'react';
-import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Pressable, Text, View } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { fonts } from '../../constants/theme';
+import { fonts, themedPalette, themedStyles } from '../../constants/theme';
 
 /**
  * Kirish / ro'yxatdan o'tish ekranlari uchun umumiy bloklar — "Formo Prototip"
  * dizaynidagi o'lchamlar: orqaga 44×44 r14, tugma 56 r16, sarlavha 28/26 Unbounded.
  */
-export const authColors = {
+export const authColors = themedPalette({
   // Asosiy ilova palitrasi bilan bir xil (constants/theme.js)
+  light: {
+    bg: '#F3F5FA',
+    field: '#FFFFFF',
+    // Maydon ichidagi "chuqur" joy (input, chip) — qorong'ida #0B1030
+    inset: '#EDF0F8',
+    track: '#E0E5F3',
+    line: 'rgba(10,19,48,0.10)',
+    lineStrong: 'rgba(10,19,48,0.2)',
+    text: '#0A1330',
+    soft: '#3C4566',
+    muted: '#667090',
+    placeholder: '#98A0BC',
+    accent: '#E58A0C',
+    accentSoft: 'rgba(229,138,12,0.1)',
+    teal: '#108F89',
+    tealSoft: 'rgba(16,143,137,0.1)',
+    tealText: '#0E7F7A',
+    danger: '#D9432E',
+    dangerSoft: 'rgba(217,67,46,0.08)',
+    dangerText: '#B93322',
+  },
+  dark: {
   bg: '#050818',
+  inset: '#0B1030',
   field: '#0E1A3F',
   track: '#1B2560',
   line: 'rgba(243,245,249,0.12)',
@@ -26,7 +49,8 @@ export const authColors = {
   danger: '#E8543F',
   dangerSoft: 'rgba(232,84,63,0.1)',
   dangerText: '#FFC5C0',
-};
+  },
+});
 
 export function BackButton({ onPress, label }) {
   return (
@@ -122,7 +146,7 @@ export function StepHeader({ label, step, total, onBack, backLabel, onSkip, skip
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   back: {
     width: 44,
     height: 44,
@@ -196,4 +220,4 @@ const styles = StyleSheet.create({
   progress: { flexDirection: 'row', gap: 6, paddingHorizontal: 20 },
   bar: { flex: 1, height: 4, borderRadius: 2, backgroundColor: authColors.track },
   barDone: { backgroundColor: authColors.accent },
-});
+}));

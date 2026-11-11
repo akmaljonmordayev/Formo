@@ -3,13 +3,12 @@ import {
   Modal,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { colors, radii, spacing } from '../../constants/theme';
+import { colors, radii, spacing, themedStyles } from '../../constants/theme';
 
 // ─── 1. Size Chart Modal ───────────────────────────────────────────────────────
 
@@ -253,7 +252,7 @@ export function AddressModal({ visible, onClose, onSave, initial = null }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(5, 8, 24, 0.78)',
@@ -343,7 +342,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surfaceRaised,
   },
   trAlt: {
-    backgroundColor: 'rgba(27, 37, 96, 0.4)',
+    backgroundColor: colors.rowAlt,
   },
   tdBold: {
     fontSize: 13,
@@ -468,4 +467,4 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
   },
-});
+}));

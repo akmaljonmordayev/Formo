@@ -1,7 +1,7 @@
 import React from 'react';
-import { RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, spacing } from '../constants/theme';
+import { colors, radii, spacing, themedStyles } from '../constants/theme';
 import { Card, EmptyState, Header, Screen } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
@@ -58,7 +58,7 @@ export default function NotificationsScreen({ t, onBack }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   content: { paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 110 },
   list: { gap: spacing.md },
   item: {
@@ -81,4 +81,4 @@ const styles = StyleSheet.create({
   title: { color: colors.text, fontSize: 14, fontWeight: '800' },
   message: { color: colors.textSecondary, fontSize: 12, lineHeight: 18, marginTop: 4 },
   date: { color: colors.muted, fontSize: 11, marginTop: 6 },
-});
+}));

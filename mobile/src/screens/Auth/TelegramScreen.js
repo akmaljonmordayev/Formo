@@ -13,7 +13,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthTitle, BackButton, ErrorNote, InfoNote, OutlineButton, authColors } from '../../components/ui/AuthUi';
 import { useToast } from '../../components/ui/Toast';
-import { fonts } from '../../constants/theme';
+import { fonts, themedStyles } from '../../constants/theme';
 import {
   NEW_REQUEST_COOLDOWN_SEC,
   TELEGRAM_CODE_LENGTH,
@@ -270,7 +270,7 @@ export default function TelegramScreen({ phone, challenge, auth, t, onNewRequest
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safe: { flex: 1, backgroundColor: authColors.bg },
   flex: { flex: 1 },
   scroll: { flexGrow: 1, paddingBottom: 24 },
@@ -336,4 +336,4 @@ const styles = StyleSheet.create({
   actions: { paddingHorizontal: 24, paddingTop: 20 },
   dimmed: { opacity: 0.45 },
   pressed: { opacity: 0.7 },
-});
+}));

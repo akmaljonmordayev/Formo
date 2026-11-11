@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   Pressable,
   ScrollView,
-  StyleSheet,
   Switch,
   Text,
   TextInput,
@@ -10,7 +9,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, spacing } from '../constants/theme';
+import { colors, radii, spacing, themedStyles } from '../constants/theme';
 import { useTabBarSpace } from '../components/ui/BottomTabs';
 import { Button, Header, Overline, Screen, Segment, formatMoney } from '../components/ui/Common';
 import Kit360Thumb, { KIT360_BG } from '../components/ui/Kit360Thumb';
@@ -114,7 +113,7 @@ function ShortsPanel({ t, rules, sizes, s }) {
         <Switch
           value={s.withShorts}
           onValueChange={s.setWithShorts}
-          trackColor={{ false: '#2A3160', true: colors.teal }}
+          trackColor={{ false: colors.switchOff, true: colors.teal }}
           thumbColor="#FFFFFF"
         />
       </View>
@@ -127,7 +126,7 @@ function ShortsPanel({ t, rules, sizes, s }) {
             <Switch
               value={s.numberOnShorts}
               onValueChange={s.setNumberOnShorts}
-              trackColor={{ false: '#2A3160', true: colors.teal }}
+              trackColor={{ false: colors.switchOff, true: colors.teal }}
               thumbColor="#FFFFFF"
             />
           </View>
@@ -398,7 +397,7 @@ function KitStudio({ t, product, cart, rules, onBack, onPickKit, onOpenCart }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   flex: { flex: 1 },
   previewWrap: { marginBottom: spacing.lg },
   // 360° sahna (WebView) butun qutini egallaydi; fon — viewer'dagi suratlar foni bilan bir xil
@@ -486,5 +485,5 @@ const styles = StyleSheet.create({
     padding: spacing.md,
     marginBottom: spacing.md,
   },
-});
+}));
 

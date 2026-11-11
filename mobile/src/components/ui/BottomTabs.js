@@ -1,9 +1,10 @@
 import React, { memo, useEffect, useRef } from 'react';
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors } from '../../constants/theme';
+import { colors, isLightTheme, themedStyles } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import { useKeyboard } from './KeyboardAware';
 
 const TABS = [
@@ -25,6 +26,7 @@ export function useTabBarSpace() {
 
 /** Faol tabda ikonka biroz kattalashadi va tagida oltin nuqta paydo bo'ladi */
 const TabItem = memo(function TabItem({ tab, active, label, onPress }) {
+  useTheme(); // memo: mavzu almashganda qayta chizilsin
   const anim = useRef(new Animated.Value(active ? 1 : 0)).current;
   useEffect(() => {
     Animated.spring(anim, { toValue: active ? 1 : 0, useNativeDriver: true, friction: 7, tension: 140 }).start();
@@ -53,13 +55,14 @@ const TabItem = memo(function TabItem({ tab, active, label, onPress }) {
 export const BottomTabs = memo(function BottomTabs({ active, onChange, t }) {
   const insets = useSafeAreaInsets();
   const kb = useKeyboard();
+  const { theme } = useTheme();
   // Yozish paytida panel klaviatura ustiga chiqib, inputlarni yopmasin
   if (kb.visible) return null;
 
   return (
     <View pointerEvents="box-none" style={[styles.root, { bottom: Math.max(insets.bottom, 12) }]}>
       <LinearGradient
-        colors={['rgba(21, 35, 79, 0.97)', 'rgba(7, 13, 38, 0.98)']}
+        colors={theme === 'light' ? ['rgba(255, 255, 255, 0.98)', 'rgba(246, 248, 252, 0.99)'] : ['rgba(21, 35, 79, 0.97)', 'rgba(7, 13, 38, 0.98)']}
         start={{ x: 0, y: 0 }}
         end={{ x: 0, y: 1 }}
         style={styles.bar}
@@ -73,7 +76,7 @@ export const BottomTabs = memo(function BottomTabs({ active, onChange, t }) {
   );
 });
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   root: {
     position: 'absolute',
     left: SIDE_GAP,
@@ -83,13 +86,13 @@ const styles = StyleSheet.create({
     height: BAR_HEIGHT,
     borderRadius: 26,
     borderWidth: 1,
-    borderColor: 'rgba(242, 163, 58, 0.16)',
+    borderColor: isLightTheme() ? colors.border : 'rgba(242, 163, 58, 0.16)',
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 6,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 10 },
-    shadowOpacity: 0.45,
+    shadowOpacity: isLightTheme() ? 0.14 : 0.45,
     shadowRadius: 18,
     elevation: 16,
   },
@@ -107,7 +110,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconWrapActive: {
-    backgroundColor: 'rgba(242, 163, 58, 0.14)',
+    backgroundColor: colors.accentGlow,
   },
   label: {
     color: colors.muted,
@@ -120,4 +123,4 @@ const styles = StyleSheet.create({
     color: colors.accent,
     fontWeight: '800',
   },
-});
+}));

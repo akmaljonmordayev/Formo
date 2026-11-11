@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useMemo, useState } from 'react';
-import { darkColors, lightColors } from '../constants/theme';
+import { darkColors, lightColors, setActiveTheme } from '../constants/theme';
 import { getItem, setItem } from '../utils/storage';
 
 const THEME_KEY = 'formo_theme';
@@ -20,12 +20,16 @@ export function ThemeProvider({ children }) {
 
   useEffect(() => {
     getItem(THEME_KEY).then((saved) => {
-      if (saved === 'light') setThemeState('light');
+      if (saved !== 'light') return;
+      // Avval global palitra, keyin holat: qayta chizilgan ekranlar yangi ranglarni o'qiydi
+      setActiveTheme('light');
+      setThemeState('light');
     });
   }, []);
 
   const setTheme = (next) => {
     const value = next === 'light' ? 'light' : 'dark';
+    setActiveTheme(value);
     setThemeState(value);
     setItem(THEME_KEY, value).catch(() => {});
   };

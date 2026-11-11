@@ -1,8 +1,8 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { fonts } from '../constants/theme';
+import { fonts, themedStyles } from '../constants/theme';
 import { ThemeContextObject } from '../contexts/ThemeContext';
 
 /**
@@ -60,7 +60,7 @@ export default class ErrorBoundary extends React.Component {
   }
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safe: { flex: 1 },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 14 },
   iconWrap: {
@@ -81,4 +81,4 @@ const styles = StyleSheet.create({
     borderRadius: 14,
   },
   buttonText: { color: '#1A1300', fontFamily: fonts.bodySemi, fontSize: 15 },
-});
+}));

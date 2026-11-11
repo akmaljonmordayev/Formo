@@ -1,5 +1,6 @@
 import React, { useMemo, useRef } from 'react';
 import { PanResponder, StyleSheet, View } from 'react-native';
+import { colors } from '../../constants/theme';
 
 const THUMB = 24;
 
@@ -8,7 +9,7 @@ const THUMB = 24;
  * Bosilgan joyga sakraydi, sudralganda qadam bo'yicha yaxlitlaydi; faqat qiymat
  * o'zgarganda `onChange` chaqiriladi. Ekran o'quvchilar uchun "adjustable".
  */
-export default function RangeSlider({ value, min, max, step = 1, onChange, accessibilityLabel, color = '#F2A33A', trackColor = '#1B2560' }) {
+export default function RangeSlider({ value, min, max, step = 1, onChange, accessibilityLabel, color = colors.accent, trackColor = colors.border }) {
   const widthRef = useRef(0);
   const startRef = useRef(value);
   // PanResponder bir marta yaratiladi — eng so'nggi props ref orqali o'qiladi
@@ -72,7 +73,7 @@ export default function RangeSlider({ value, min, max, step = 1, onChange, acces
       </View>
       <View
         pointerEvents="none"
-        style={[styles.thumb, { left: `${ratio * 100}%`, marginLeft: -ratio * THUMB, backgroundColor: color }]}
+        style={[styles.thumb, { left: `${ratio * 100}%`, marginLeft: -ratio * THUMB, backgroundColor: color, borderColor: colors.background }]}
       />
     </View>
   );

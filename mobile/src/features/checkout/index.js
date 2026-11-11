@@ -57,7 +57,10 @@ export function useAddresses() {
   return { addresses, isLoading, error, refetch, create, update, remove };
 }
 
-/** Yetkazish kunlari va slotlari (GET /api/checkout/delivery-slots): { fee, days }. `region` — tanlangan manzil viloyati (bo'lsa narx shundan). */
+/**
+ * Yetkazish kunlari va slotlari (GET /api/checkout/delivery-slots): { fee, days, postalDays }.
+ * `region` — tanlangan manzil viloyati: narx shundan; viloyatlarga pochta orqali (`postalDays` — ish kunlari).
+ */
 export function useDeliverySlots(days = 3, region) {
   const [data, setData] = useState({ fee: 0, days: [] });
   const [isLoading, setIsLoading] = useState(true);
@@ -79,7 +82,7 @@ export function useDeliverySlots(days = 3, region) {
     refetch();
   }, [refetch]);
 
-  return { fee: data.fee, days: data.days, isLoading, error, refetch };
+  return { fee: data.fee, days: data.days || [], postalDays: data.postalDays || { min: 2, max: 5 }, isLoading, error, refetch };
 }
 
 /** POST /api/orders/checkout — yaratilgan buyurtma (+ payment) yoki ApiError */

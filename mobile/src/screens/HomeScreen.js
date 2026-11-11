@@ -1,7 +1,7 @@
 import React from 'react';
-import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
+import { FlatList, Pressable, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, fonts, radii, spacing } from '../constants/theme';
+import { colors, fonts, radii, spacing, themedStyles } from '../constants/theme';
 import { Badge, Button, Card, Header, Screen, SectionTitle } from '../components/ui/Common';
 import Kit360Thumb from '../components/ui/Kit360Thumb';
 import KitTile from '../components/ui/KitTile';
@@ -190,7 +190,7 @@ export default function HomeScreen({ t, onNavigate, onOrder, onNotifications, on
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   // Lentalar ekran chetigacha; matnli bloklar `padded`
   root: { flex: 1, backgroundColor: colors.background },
   content: { paddingHorizontal: 0 },
@@ -229,7 +229,7 @@ const styles = StyleSheet.create({
     marginBottom: spacing.md,
     gap: 10,
   },
-  pausedText: { flex: 1, color: '#F5A398', fontSize: 12, lineHeight: 18, fontWeight: '600' },
+  pausedText: { flex: 1, color: colors.dangerText, fontSize: 12, lineHeight: 18, fontWeight: '600' },
   heroCard: {
     backgroundColor: colors.surface,
     borderRadius: radii.xl,
@@ -321,4 +321,4 @@ const styles = StyleSheet.create({
   stepHeading: { color: colors.text, fontSize: 13, fontFamily: fonts.bodySemi },
   stepSub: { color: colors.muted, fontSize: 11, marginTop: 2 },
   stepDivider: { height: 1, backgroundColor: colors.border, marginVertical: spacing.md, marginLeft: 46 },
-});
+}));

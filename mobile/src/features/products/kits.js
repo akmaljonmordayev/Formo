@@ -68,6 +68,37 @@ export function matchesSearch(card, text) {
   return !q || card.search.includes(q);
 }
 
+// Ilova ishga tushganda bir marta — tartib sessiya davomida o'zgarmaydi (ekran qayta ochilganda kartalar sakramaydi)
+const SESSION_SEED = Math.floor(Math.random() * 2 ** 31);
+
+/**
+ * Formalarni aralashtiradi (yozgi/qishki, eski/yangi qo'shilganlar bir tekis aralashadi): bir xil `seed` —
+ * bir xil tartib. Bir jamoaning ikki turi (kalta/uzun yeng) yonma-yon tushib qolmasligi uchun keyin suriladi.
+ */
+export function mixKits(list, seed = SESSION_SEED) {
+  const out = [...list];
+  // mulberry32 — kichik deterministik tasodifiy sonlar generatori
+  let a = seed >>> 0;
+  const rand = () => {
+    a = (a + 0x6d2b79f5) >>> 0;
+    let x = a;
+    x = Math.imul(x ^ (x >>> 15), x | 1);
+    x ^= x + Math.imul(x ^ (x >>> 7), x | 61);
+    return ((x ^ (x >>> 14)) >>> 0) / 4294967296;
+  };
+  for (let i = out.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(rand() * (i + 1));
+    [out[i], out[j]] = [out[j], out[i]];
+  }
+  const team = (k) => k.kit360Id ?? k.clubId ?? k.key;
+  for (let i = 1; i < out.length; i += 1) {
+    if (team(out[i]) !== team(out[i - 1])) continue;
+    const swap = out.findIndex((k, j) => j > i && team(k) !== team(out[i]) && (j + 1 >= out.length || team(out[j + 1]) !== team(out[i])));
+    if (swap !== -1) [out[i], out[swap]] = [out[swap], out[i]];
+  }
+  return out;
+}
+
 /**
  * GET /catalog/kits/best-selling — eng ko'p sotilgandan kamiga (Forma 360° jamoalari, har klubdan bitta).
  * Javob keshlanadi: bosh sahifa va Studio bitta so'rovni bo'lishadi.
