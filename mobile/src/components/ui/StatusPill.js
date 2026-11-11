@@ -1,29 +1,32 @@
 import React from 'react';
 import { StyleSheet, Text, View } from 'react-native';
+import { colors, isLightTheme, themedStyles } from '../../constants/theme';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 
 // Buyurtma holatlari: har biriga o'z rangi va belgisi — ro'yxatda bir qarashda ajraladi.
 // Backend OrderStatus (prisma/schema.prisma) bilan bir xil kalitlar.
 const TONES = {
-  PENDING_PAYMENT: { color: '#F5A55E', icon: 'credit-card-clock-outline' },
+  PENDING_PAYMENT: { color: '#F5A55E', light: '#C26A12', icon: 'credit-card-clock-outline' },
   // Mijoz 4 bosqichni ko'radi: yuborildi → qabul qilindi → jarayonda (sex holatlari) → yetkazilmoqda
-  NEW: { color: '#7B93FF', icon: 'send-check-outline' },
-  SENT_TO_WORKSHOP: { color: '#A68BFF', icon: 'clipboard-check-outline' },
-  ACCEPTED: { color: '#F2A33A', icon: 'tshirt-crew-outline' },
-  PRINTING: { color: '#F2A33A', icon: 'tshirt-crew-outline' },
-  QUALITY_CHECK: { color: '#F2A33A', icon: 'tshirt-crew-outline' },
-  READY: { color: '#F2A33A', icon: 'tshirt-crew-outline' },
-  DELIVERING: { color: '#4FC3FF', icon: 'truck-fast-outline' },
-  DELIVERED: { color: '#3FD98A', icon: 'check-decagram' },
-  CANCELLED: { color: '#FF6B57', icon: 'close-circle-outline' },
-  RETURNED: { color: '#FF6B57', icon: 'undo-variant' },
+  NEW: { color: '#7B93FF', light: '#3D5BE0', icon: 'send-check-outline' },
+  SENT_TO_WORKSHOP: { color: '#A68BFF', light: '#6B4FD8', icon: 'clipboard-check-outline' },
+  ACCEPTED: { color: '#F2A33A', light: '#C97A08', icon: 'tshirt-crew-outline' },
+  PRINTING: { color: '#F2A33A', light: '#C97A08', icon: 'tshirt-crew-outline' },
+  QUALITY_CHECK: { color: '#F2A33A', light: '#C97A08', icon: 'tshirt-crew-outline' },
+  READY: { color: '#F2A33A', light: '#C97A08', icon: 'tshirt-crew-outline' },
+  DELIVERING: { color: '#4FC3FF', light: '#0F86C4', icon: 'truck-fast-outline' },
+  DELIVERED: { color: '#3FD98A', light: '#12995A', icon: 'check-decagram' },
+  CANCELLED: { color: '#FF6B57', light: '#D9432E', icon: 'close-circle-outline' },
+  RETURNED: { color: '#FF6B57', light: '#D9432E', icon: 'undo-variant' },
 };
-const FALLBACK = { color: '#838EB8', icon: 'progress-clock' };
+const FALLBACK = { color: '#838EB8', light: '#667090', icon: 'progress-clock' };
 
 /** { color, icon, bg, border } — holat rangi (fon/chegara shaffof variantlari bilan) */
 export function statusTone(status) {
   const tone = TONES[status] || FALLBACK;
-  return { ...tone, bg: `${tone.color}1F`, border: `${tone.color}59` };
+  // Yorug' fonda och ohanglar o'qilmaydi — to'qroq varianti
+  const color = isLightTheme() ? tone.light : tone.color;
+  return { color, icon: tone.icon, bg: `${color}1F`, border: `${color}59` };
 }
 
 /** Holat belgisi: rangli nuqta-ikon + nom. size="large" — kuzatish kartasi uchun */
@@ -96,10 +99,10 @@ export function OrderStepper({ t, status }) {
                 <MaterialCommunityIcons
                   name={done ? 'check' : stage.icon}
                   size={active ? 17 : 15}
-                  color={active ? '#080C24' : reached ? tone.color : '#57628C'}
+                  color={active ? colors.primaryDark : reached ? tone.color : colors.dim}
                 />
               </View>
-              <Text style={[stepper.label, reached && { color: active ? tone.color : '#C5CCE8' }, active && stepper.labelActive]} numberOfLines={2}>
+              <Text style={[stepper.label, reached && { color: active ? tone.color : colors.textSecondary }, active && stepper.labelActive]} numberOfLines={2}>
                 {t(stage.key)}
               </Text>
             </View>
@@ -110,7 +113,7 @@ export function OrderStepper({ t, status }) {
   );
 }
 
-const stepper = StyleSheet.create({
+const stepper = themedStyles(() => ({
   row: { flexDirection: 'row', alignItems: 'flex-start' },
   item: { width: 64, alignItems: 'center' },
   dot: {
@@ -118,12 +121,12 @@ const stepper = StyleSheet.create({
     height: 34,
     borderRadius: 17,
     borderWidth: 1.5,
-    borderColor: '#2D3A7A',
-    backgroundColor: '#0E1A3F',
+    borderColor: colors.borderLight,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  line: { flex: 1, height: 2, borderRadius: 1, backgroundColor: '#212B60', marginTop: 16 },
-  label: { color: '#57628C', fontSize: 10, fontWeight: '700', textAlign: 'center', marginTop: 6, lineHeight: 13 },
+  line: { flex: 1, height: 2, borderRadius: 1, backgroundColor: colors.border, marginTop: 16 },
+  label: { color: colors.dim, fontSize: 10, fontWeight: '700', textAlign: 'center', marginTop: 6, lineHeight: 13 },
   labelActive: { fontWeight: '900' },
-});
+}));

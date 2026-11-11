@@ -2,7 +2,6 @@ import React, { useEffect, useRef, useState } from 'react';
 import {
   BackHandler,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -13,7 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthTitle, ErrorNote, InfoNote, OutlineButton, StepHeader, authColors } from '../../components/ui/AuthUi';
 import RangeSlider from '../../components/ui/RangeSlider';
-import { fonts } from '../../constants/theme';
+import { fonts, themedStyles, isLightTheme } from '../../constants/theme';
 import { errorText as apiErrorText } from '../../utils/errors';
 import { isNameUnsupportedError, joinFullName, realFullName, splitFullName, validateName } from '../../utils/userName';
 
@@ -334,7 +333,7 @@ export default function CompleteProfileScreen({ auth, t, onSkip, onFinish }) {
                   <RangeSlider value={value} min={range.min} max={range.max} onChange={setter} accessibilityLabel={label} />
                 </View>
               ))}
-              <LinearGradient colors={['#1B2560', '#121A42']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.recCard}>
+              <LinearGradient colors={isLightTheme() ? ['#FFFFFF', '#E4EAF8'] : ['#1B2560', '#121A42']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.recCard}>
                 <View style={styles.recBadge}>
                   <Text style={styles.recBadgeText}>{rec}</Text>
                 </View>
@@ -368,7 +367,7 @@ export default function CompleteProfileScreen({ auth, t, onSkip, onFinish }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safe: { flex: 1, backgroundColor: authColors.bg },
   flex: { flex: 1 },
   scroll: { flexGrow: 1, paddingBottom: 16 },
@@ -471,7 +470,7 @@ const styles = StyleSheet.create({
     height: 320,
     borderRadius: 160,
     top: '22%',
-    backgroundColor: 'rgba(29,47,140,0.35)',
+    backgroundColor: isLightTheme() ? 'rgba(229,138,12,0.08)' : 'rgba(29,47,140,0.35)',
   },
   // Dizayndagi conic-gradient (70% to'q sariq / 30% firuza) halqasi taxminan
   ring: {
@@ -498,5 +497,5 @@ const styles = StyleSheet.create({
   chips: { flexDirection: 'row', gap: 8, alignSelf: 'stretch' },
   chip: { flex: 1, alignItems: 'center', gap: 2, paddingVertical: 12, paddingHorizontal: 4, borderRadius: 14, backgroundColor: authColors.field },
   chipValue: { color: authColors.text, fontFamily: fonts.numeric, fontSize: 24 },
-  chipLabel: { color: '#8D95BD', fontFamily: fonts.bodyMedium, fontSize: 11, textAlign: 'center' },
-});
+  chipLabel: { color: authColors.muted, fontFamily: fonts.bodyMedium, fontSize: 11, textAlign: 'center' },
+}));

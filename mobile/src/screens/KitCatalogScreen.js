@@ -1,13 +1,13 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, fonts, radii, spacing } from '../constants/theme';
+import { colors, fonts, radii, spacing, themedStyles } from '../constants/theme';
 import { EmptyState, Header, Screen } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
 import KitTile from '../components/ui/KitTile';
 import Skeleton from '../components/ui/Skeleton';
 import { useCategories } from '../features/products';
-import { matchesSearch, useBestSellingKits } from '../features/products/kits';
+import { matchesSearch, mixKits, useBestSellingKits } from '../features/products/kits';
 
 const SEASONS = [
   { key: 'all', label: 'seasonAll', icon: 'calendar-blank-outline' },
@@ -18,7 +18,8 @@ const SEASONS = [
 /**
  * Formalar (pastki paneldagi "Formalar" tabi): tepada qidiruv, ostida ligalar lentasi (Barchasi, Sevimlilar,
  * Terma jamoalar, LaLiga, Premier League ...), so'ng mavsum: qishki (uzun yeng + shalvar) va yozgi
- * (kalta yeng + shortik). "Barchasi" tanlansa — ikki bo'lim: avval qishki, keyin yozgi formalar.
+ * (kalta yeng + shortik). "Hammasi" tanlansa — barcha formalar aralash chiqadi (yozgi va qishki, eski va yangi
+ * qo'shilganlar bir tekis): faqat shalvarli yoki faqat eski formalar bir joyga to'planib qolmaydi.
  * Formani bosish — Forma 360° ekrani (turi, o'lcham, ism-raqam, shortik/shalvar raqami → savat).
  *
  * Props: t, favorites (useFavoriteKits), onOpenKit(kit)
@@ -82,24 +83,16 @@ export default function KitCatalogScreen({ t, favorites, onOpenKit }) {
         <EmptyState icon="magnify" title={t('noResults')} />
       );
     }
-    if (season !== 'all') return grid(visible);
-    // Barcha mavsumlar: qishki va yozgi formalar alohida bo'limda (bo'sh bo'lim ko'rsatilmaydi)
-    const sections = [
-      { key: 'LONG', title: t('kitsWinter'), icon: 'snowflake' },
-      { key: 'SHORT', title: t('kitsSummer'), icon: 'white-balance-sunny' },
-    ]
-      .map((s) => ({ ...s, list: visible.filter((k) => (k.sleeve || 'SHORT') === s.key) }))
-      .filter((s) => s.list.length);
-    return sections.map((s) => (
-      <View key={s.key} style={styles.section}>
+    // "Hammasi" — aralash tartib (sessiya davomida barqaror); bitta mavsum tanlansa — sotuv bo'yicha
+    return (
+      <>
         <View style={styles.sectionHead}>
-          <MaterialCommunityIcons name={s.icon} size={18} color={colors.accent} />
-          <Text style={styles.sectionTitle}>{s.title}</Text>
-          <Text style={styles.sectionCount}>{s.list.length}</Text>
+          <Text style={styles.sectionTitle}>{t(season === 'LONG' ? 'kitsWinter' : season === 'SHORT' ? 'kitsSummer' : 'kitsAll')}</Text>
+          <Text style={styles.sectionCount}>{visible.length}</Text>
         </View>
-        {grid(s.list)}
-      </View>
-    ));
+        {grid(season === 'all' ? mixKits(visible) : visible)}
+      </>
+    );
   };
 
   return (
@@ -174,7 +167,7 @@ export default function KitCatalogScreen({ t, favorites, onOpenKit }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   content: { paddingHorizontal: 0 },
   padded: { marginHorizontal: spacing.lg },
   search: {
@@ -227,9 +220,8 @@ const styles = StyleSheet.create({
   seasonActive: { backgroundColor: colors.accent },
   seasonText: { color: colors.muted, fontSize: 13, fontFamily: fonts.bodySemi },
   seasonTextActive: { color: colors.primaryDark },
-  section: { marginBottom: spacing.md },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: spacing.md },
   sectionTitle: { flex: 1, color: colors.text, fontSize: 16, fontFamily: fonts.bodySemi, fontWeight: '800' },
   sectionCount: { color: colors.muted, fontSize: 12, fontWeight: '800' },
   grid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between' },
-});
+}));

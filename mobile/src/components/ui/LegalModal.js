@@ -1,9 +1,9 @@
 import React, { useMemo, useState } from 'react';
-import { Linking, Modal, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Linking, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { legalTexts } from '../../content/legal';
-import { fonts } from '../../constants/theme';
+import { fonts, themedStyles } from '../../constants/theme';
 import useAppConfig from '../../features/config';
 import { BackButton, OutlineButton, authColors } from './AuthUi';
 
@@ -104,7 +104,7 @@ function LegalContent({ initialTab, language, t, onClose, onAccept }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safe: { flex: 1, backgroundColor: authColors.bg },
   top: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 12 },
   tabs: {
@@ -138,4 +138,4 @@ const styles = StyleSheet.create({
   contact: { flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 6 },
   contactText: { color: authColors.text, fontFamily: fonts.bodyMedium, fontSize: 14 },
   footer: { paddingHorizontal: 20, paddingTop: 12, paddingBottom: 16, borderTopWidth: 1, borderTopColor: authColors.line },
-});
+}));

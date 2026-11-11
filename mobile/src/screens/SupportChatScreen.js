@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, AppState, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, AppState, FlatList, Pressable, Text, TextInput, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
-import { colors, radii, screenStyles, spacing } from '../constants/theme';
+import { colors, radii, screenStyles, spacing, themedStyles } from '../constants/theme';
 import { Header } from '../components/ui/Common';
 import { KeyboardAvoider } from '../components/ui/KeyboardAware';
 import ErrorView from '../components/ui/ErrorView';
@@ -205,7 +205,7 @@ export default function SupportChatScreen({ t, onBack }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   head: { paddingHorizontal: spacing.lg, paddingTop: 12 },
   center: { flexGrow: 1, alignItems: 'center', justifyContent: 'center', padding: spacing.lg },
   list: { flex: 1 },
@@ -255,4 +255,4 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   sendBtnOff: { opacity: 0.45 },
-});
+}));

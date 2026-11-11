@@ -430,6 +430,8 @@ model Address {
   address   String // "Yunusobod, Amir Temur 108"
   apartment String? // "45-xonadon"
   region    String? // viloyat kodi (REGIONS, shop/regions.ts) — yetkazish narxi shundan
+  district  String? // tuman yoki shahar: "Sergeli tumani" (viloyat ichida)
+  house     String? // uy raqami: "32", "12A"
   latitude  Float?
   longitude Float?
   isDefault Boolean  @default(false)
@@ -516,6 +518,9 @@ model Order {
   deliverySlot    String? // "10:00-14:00"
   deliveryAddress String?
   deliveryRegion  String? // manzil viloyati (buyurtma paytidagi nusxa) — delivery.feesByRegion kaliti
+  deliveryDistrict String? // manzil tumani (buyurtma paytidagi nusxa)
+  deliveryLat     Float? // xaritadagi aniq nuqta (kuryer/pochta uchun)
+  deliveryLng     Float?
   comment         String? // kuryer uchun izoh
 
   paymentExpiresAt DateTime? // Click/Payme: to'lov kutiladigan muddat (30 daqiqa)

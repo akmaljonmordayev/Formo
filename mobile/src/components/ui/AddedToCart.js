@@ -2,7 +2,7 @@ import React, { useEffect, useRef } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, spacing } from '../../constants/theme';
+import { colors, radii, spacing, themedStyles } from '../../constants/theme';
 import Kit360Thumb from './Kit360Thumb';
 
 const AUTO_HIDE_MS = 5000;
@@ -136,7 +136,7 @@ export default function AddedToCart({ event, t, bottom = 0, onOpenCart, onDismis
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   flyer: {
     position: 'absolute',
     left: 0,
@@ -196,4 +196,4 @@ const styles = StyleSheet.create({
   ctaPressed: { opacity: 0.85, transform: [{ scale: 0.97 }] },
   ctaText: { color: colors.primaryDark, fontSize: 12, fontWeight: '900' },
   close: { position: 'absolute', top: 6, right: 6, padding: 2 },
-});
+}));

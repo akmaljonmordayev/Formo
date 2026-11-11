@@ -7,7 +7,7 @@ import {
   View,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { colors } from '../../constants/theme';
+import { darkColors as colors } from '../../constants/theme';
 
 export default function SplashScreen({ onFinish }) {
   const progress = useRef(new Animated.Value(0)).current;

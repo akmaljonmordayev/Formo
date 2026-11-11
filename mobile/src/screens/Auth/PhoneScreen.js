@@ -2,7 +2,6 @@ import React, { useCallback, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
@@ -12,7 +11,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { FontAwesome, MaterialCommunityIcons } from '@expo/vector-icons';
 import { AuthTitle, BackButton, ErrorNote, authColors } from '../../components/ui/AuthUi';
 import LegalModal from '../../components/ui/LegalModal';
-import { fonts } from '../../constants/theme';
+import { fonts, themedStyles } from '../../constants/theme';
 import { telegramErrorText } from '../../features/auth/telegram';
 
 // "90 123 45 67" ko'rinishida formatlash (faqat 9 ta raqam)
@@ -218,7 +217,7 @@ export default function PhoneScreen({ auth, t, language, initialPhone = '', onBa
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   safe: { flex: 1, backgroundColor: authColors.bg },
   flex: { flex: 1 },
   scroll: { flexGrow: 1, paddingBottom: 16 },
@@ -284,7 +283,7 @@ const styles = StyleSheet.create({
     height: 22,
     borderRadius: 7,
     borderWidth: 1.5,
-    borderColor: 'rgba(243,245,249,0.3)',
+    borderColor: authColors.lineStrong,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -305,4 +304,4 @@ const styles = StyleSheet.create({
   ctaText: { color: '#FFFFFF', fontFamily: fonts.bodySemi, fontSize: 16 },
   privacy: { flexDirection: 'row', alignItems: 'flex-start', gap: 6, paddingHorizontal: 4 },
   privacyText: { flex: 1, color: authColors.placeholder, fontFamily: fonts.body, fontSize: 12, lineHeight: 17 },
-});
+}));

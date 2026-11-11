@@ -27,3 +27,6 @@ export const DEFAULT_REGION_FEE = 15000;
 export const DEFAULT_FEES_BY_REGION: Record<RegionCode, number> = Object.fromEntries(
   REGION_CODES.map((code) => [code, DEFAULT_REGION_FEE]),
 ) as Record<RegionCode, number>;
+
+/** Viloyat kodi -> nomi ("Toshkent shahri"); noma'lum kod — null */
+export const regionLabel = (code?: string | null) => REGIONS.find((r) => r.code === code)?.label ?? null;

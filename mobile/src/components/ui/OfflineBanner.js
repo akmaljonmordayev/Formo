@@ -1,8 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { fonts } from '../../constants/theme';
+import { fonts, themedStyles } from '../../constants/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import useNetworkStatus from '../../hooks/useNetworkStatus';
 
@@ -26,7 +26,7 @@ export default function OfflineBanner() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   wrap: {
     position: 'absolute',
     top: 0,
@@ -43,4 +43,4 @@ const styles = StyleSheet.create({
     fontFamily: fonts.bodySemi,
     fontSize: 12,
   },
-});
+}));

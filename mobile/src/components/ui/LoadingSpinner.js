@@ -1,6 +1,7 @@
 import React from 'react';
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native';
+import { ActivityIndicator, Text, View } from 'react-native';
 import { useTheme } from '../../contexts/ThemeContext';
+import { themedStyles } from '../../constants/theme';
 
 /**
  * A centered loading spinner with an optional text label.
@@ -22,7 +23,7 @@ function LoadingSpinner({ size = 'large', label }) {
 export default LoadingSpinner;
 export { LoadingSpinner };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     flex: 1,
     alignItems: 'center',
@@ -32,4 +33,4 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginTop: 10,
   },
-});
+}));

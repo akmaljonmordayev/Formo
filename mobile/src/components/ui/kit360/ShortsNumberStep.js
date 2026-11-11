@@ -1,7 +1,7 @@
 import React from 'react';
-import { StyleSheet, Switch, Text, View } from 'react-native';
+import { Switch, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, spacing } from '../../../constants/theme';
+import { colors, radii, spacing, themedStyles } from '../../../constants/theme';
 
 /**
  * 3-bosqich: shortikka raqam. Toggle yoqilgan bo'lsa formaning orqasidagi raqam (2-bosqich) shortikka ham
@@ -27,7 +27,7 @@ export default function ShortsNumberStep({ t, enabled, onToggle, number, pants =
         <Switch
           value={enabled}
           onValueChange={onToggle}
-          trackColor={{ false: '#2A3160', true: colors.accent }}
+          trackColor={{ false: colors.switchOff, true: colors.accent }}
           thumbColor="#FFFFFF"
           accessibilityLabel={toggleLabel}
         />
@@ -53,7 +53,7 @@ export default function ShortsNumberStep({ t, enabled, onToggle, number, pants =
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   toggleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -106,4 +106,4 @@ const styles = StyleSheet.create({
     borderColor: colors.border,
   },
   offText: { flex: 1, color: colors.textSecondary, fontSize: 12, fontWeight: '700' },
-});
+}));

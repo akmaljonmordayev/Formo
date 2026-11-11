@@ -1,7 +1,7 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { radii, spacing } from '../../constants/theme';
+import { radii, spacing, themedStyles } from '../../constants/theme';
 import { useTheme } from '../../contexts/ThemeContext';
 import { Button } from './Common';
 
@@ -31,7 +31,7 @@ function ErrorView({ message, onRetry, retryLabel = 'Retry' }) {
 export default ErrorView;
 export { ErrorView };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
     borderRadius: radii.lg,
     padding: spacing.xl,
@@ -49,4 +49,4 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     alignSelf: 'stretch',
   },
-});
+}));

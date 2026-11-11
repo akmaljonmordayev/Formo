@@ -1,14 +1,15 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
-import { colors, radii, spacing } from '../../../constants/theme';
+import { Pressable, Text, TextInput, View } from 'react-native';
+import { colors, radii, spacing, themedStyles } from '../../../constants/theme';
 import { formatMoney } from '../Common';
 
 /**
- * Forma 360° o'lcham bosqichi: sotuvdagi o'lchamlar tugmalari.
+ * Forma 360° o'lcham bosqichi: sotuvdagi o'lchamlar tugmalari. O'lcham tanlangach shu o'lchamdagi komplekt
+ * narxi chiqadi (har o'lchamning o'z narxi bo'lishi mumkin) — tanlanmaguncha narx ko'rsatilmaydi.
  *
- * Props: t, sizes, value, onChange(size), hint
+ * Props: sizes, value, onChange(size), hint, price (tanlangan o'lcham narxi | null), priceLabel
  */
-export function SizeStep({ sizes, value, onChange, hint }) {
+export function SizeStep({ sizes, value, onChange, hint, price, priceLabel }) {
   return (
     <>
       <View style={styles.sizesGrid}>
@@ -24,6 +25,12 @@ export function SizeStep({ sizes, value, onChange, hint }) {
           </Pressable>
         ))}
       </View>
+      {value && price != null ? (
+        <View style={styles.priceRow}>
+          <Text style={styles.priceLabel} numberOfLines={1}>{`${value} · ${priceLabel}`}</Text>
+          <Text style={styles.priceValue}>{formatMoney(price)}</Text>
+        </View>
+      ) : null}
       <Text style={styles.hint}>{hint}</Text>
     </>
   );
@@ -67,7 +74,7 @@ export function PrintStep({ t, name, number, onName, onNumber, onFocus, nameMaxL
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   sizesGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: spacing.sm, marginTop: spacing.xs },
   sizeChip: {
     width: '31.5%',
@@ -81,6 +88,21 @@ const styles = StyleSheet.create({
   sizeChipActive: { borderColor: colors.accent, backgroundColor: colors.accentGlow },
   sizeText: { color: colors.muted, fontSize: 15, fontWeight: '800' },
   sizeTextActive: { color: colors.accent, fontWeight: '900' },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: spacing.md,
+    marginTop: spacing.md,
+    paddingHorizontal: spacing.md,
+    paddingVertical: 12,
+    borderRadius: radii.md,
+    backgroundColor: colors.accentGlow,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  priceLabel: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '800' },
+  priceValue: { color: colors.accent, fontSize: 18, fontWeight: '900' },
   inputsRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   textInput: {
     height: 50,
@@ -96,4 +118,4 @@ const styles = StyleSheet.create({
   numberInput: { width: 84, textAlign: 'center', fontSize: 18 },
   hint: { color: colors.muted, fontSize: 11, marginTop: spacing.sm },
   optionSub: { color: colors.muted, fontSize: 12, marginTop: 2 },
-});
+}));

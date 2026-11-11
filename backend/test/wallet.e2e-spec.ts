@@ -514,6 +514,99 @@ describe('Balans, to‘ldirish va to‘lovlar (e2e)', () => {
     });
   });
 
+  describe('aniq manzil va viloyatga pochta orqali yetkazish', () => {
+    const samarqand = {
+      label: 'Uy',
+      region: 'SAMARQAND',
+      district: 'Urgut tumani',
+      address: 'Navbahor mahallasi',
+      house: '32',
+      apartment: '4-xonadon',
+      latitude: 39.4021,
+      longitude: 67.2431,
+    };
+
+    it('manzil tuman va uy raqami bilan saqlanadi; Toshkent shahri tanlanib nuqta boshqa viloyatda — 400', async () => {
+      const c = await customer();
+      const saved = await as(c.token).post('/api/addresses', samarqand).expect(201);
+      expect(saved.body).toMatchObject({ region: 'SAMARQAND', district: 'Urgut tumani', house: '32', latitude: 39.4021, longitude: 67.2431 });
+
+      const wrong = await as(c.token).post('/api/addresses', { ...samarqand, region: 'TOSHKENT_SHAHRI', district: 'Sergeli tumani' }).expect(400);
+      expect(wrong.body.message).toMatch(/Toshkent shahridan tashqarida/);
+      // Tahrirda ham: viloyat alohida o'zgartirilsa — saqlangan nuqta bilan birga tekshiriladi
+      await api(app).patch(`/api/addresses/${saved.body.id}`).set(bearer(c.token)).send({ region: 'TOSHKENT_SHAHRI' }).expect(400);
+      await api(app).patch(`/api/addresses/${saved.body.id}`).set(bearer(c.token)).send({ house: '34A' }).expect(200);
+      await as(c.token).post('/api/addresses', { ...samarqand, house: '<b>1</b>' }).expect(400);
+    });
+
+    it('viloyatga: kun/vaqtsiz buyurtma, viloyat pochta narxi, to‘liq manzil va xarita nuqtasi buyurtmada', async () => {
+      await as(admin).put('/api/admin/settings/delivery.feesByRegion', { value: { SAMARQAND: 28000, TOSHKENT_SHAHRI: 15000 } }).expect(200);
+      const c = await customer();
+      await fund(c, 300000);
+      const address = await as(c.token).post('/api/addresses', samarqand).expect(201);
+
+      const slots = await as(c.token).get('/api/checkout/delivery-slots?region=SAMARQAND').expect(200);
+      expect(slots.body).toMatchObject({ fee: 28000, postalDays: { min: 2, max: 5 } });
+
+      await as(c.token).post('/api/cart/items', { kitId, shirtSize: 'M' }).expect(201);
+      const order = await as(c.token).post('/api/orders/checkout', { addressId: address.body.id, paymentMethod: 'BALANCE' }).expect(201);
+      expect(order.body.summary.delivery).toBe(28000);
+      expect(order.body.delivery).toMatchObject({
+        date: null,
+        slot: null,
+        postal: true,
+        postalDays: { min: 2, max: 5 },
+        label: 'pochta orqali, 2–5 ish kuni',
+        address: 'Samarqand, Urgut tumani, Navbahor mahallasi, 32-uy, 4-xonadon',
+        region: 'SAMARQAND',
+        district: 'Urgut tumani',
+        latitude: 39.4021,
+        longitude: 67.2431,
+      });
+
+      // Admin panel: to'liq manzil va aniq nuqta
+      const row = await prisma.order.findUniqueOrThrow({ where: { id: order.body.id } });
+      expect(row).toMatchObject({ deliveryDate: null, deliverySlot: null, deliveryRegion: 'SAMARQAND', deliveryDistrict: 'Urgut tumani', deliveryLat: 39.4021, deliveryLng: 67.2431 });
+    });
+
+    it('naqd: Toshkent shahri ichida (kuryer) — mumkin; viloyatga (pochta) — 400', async () => {
+      const c = await customer();
+      const city = await as(c.token)
+        .post('/api/addresses', { label: 'Uy', region: 'TOSHKENT_SHAHRI', district: 'Chilonzor tumani', address: 'Qatortol mahallasi', house: '60', latitude: 41.2938, longitude: 69.2125 })
+        .expect(201);
+      const far = await as(c.token).post('/api/addresses', samarqand).expect(201);
+
+      await as(c.token).post('/api/cart/items', { kitId, shirtSize: 'M' }).expect(201);
+      const res = await as(c.token).post('/api/orders/checkout', { addressId: far.body.id, paymentMethod: 'CASH' }).expect(400);
+      expect(res.body.message).toMatch(/Toshkent shahri/);
+
+      const order = await as(c.token)
+        .post('/api/orders/checkout', { addressId: city.body.id, paymentMethod: 'CASH', deliveryDate: addDays(todayLocal(), 1), deliverySlot: '18:00-22:00' })
+        .expect(201);
+      expect(order.body).toMatchObject({ status: 'NEW', paymentMethod: 'CASH', paymentStatus: 'PENDING' });
+    });
+
+    it('Toshkent shahri ichida kun va vaqt majburiy (kuryer)', async () => {
+      const c = await customer();
+      await fund(c, 300000);
+      const city = await as(c.token)
+        .post('/api/addresses', { label: 'Uy', region: 'TOSHKENT_SHAHRI', district: 'Sergeli tumani', address: 'Madadkor mahallasi', house: '32', latitude: 41.2234, longitude: 69.2219 })
+        .expect(201);
+      await as(c.token).post('/api/cart/items', { kitId, shirtSize: 'M' }).expect(201);
+      const missing = await as(c.token).post('/api/orders/checkout', { addressId: city.body.id, paymentMethod: 'BALANCE' }).expect(400);
+      expect(missing.body.message).toMatch(/kuni va vaqtini/);
+
+      const order = await as(c.token)
+        .post('/api/orders/checkout', { addressId: city.body.id, paymentMethod: 'BALANCE', deliveryDate: addDays(todayLocal(), 1), deliverySlot: '18:00-22:00' })
+        .expect(201);
+      expect(order.body.delivery).toMatchObject({
+        slot: '18:00-22:00',
+        postal: false,
+        address: 'Toshkent shahri, Sergeli tumani, Madadkor mahallasi, 32-uy',
+      });
+    });
+  });
+
   it('balans hech qachon manfiy emas (barcha mijozlar)', async () => {
     expect(await prisma.user.count({ where: { balance: { lt: 0 } } })).toBe(0);
   });

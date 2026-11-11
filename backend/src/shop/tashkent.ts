@@ -30,3 +30,39 @@ export function inTashkentCity(lat: number | null | undefined, lng: number | nul
   }
   return inside;
 }
+
+/** Toshkent shahri markazi (Amir Temur xiyoboni) va shahar chetigacha bo'lgan zaxirali radius */
+export const TASHKENT_CENTER = { latitude: 41.311081, longitude: 69.240562 } as const;
+export const TASHKENT_MAX_KM = 30;
+
+/** Ikki nuqta orasidagi masofa, km (haversine) */
+export function distanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const rad = (d: number) => (d * Math.PI) / 180;
+  const dLat = rad(lat2 - lat1);
+  const dLng = rad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.sqrt(a));
+}
+
+type Place = { region?: string | null; latitude?: number | null; longitude?: number | null };
+const hasPoint = (p: Place) => typeof p.latitude === 'number' && typeof p.longitude === 'number';
+
+/** "Toshkent shahri" tanlangan, lekin xaritadagi nuqta shahardan ancha uzoqda — manzil noto'g'ri */
+export function tashkentPointMismatch(p: Place): boolean {
+  if (p.region !== 'TOSHKENT_SHAHRI' || !hasPoint(p)) return false;
+  return distanceKm(p.latitude!, p.longitude!, TASHKENT_CENTER.latitude, TASHKENT_CENTER.longitude) > TASHKENT_MAX_KM;
+}
+
+/**
+ * Pochta orqali yetkazish (viloyatlar): kun/vaqt tanlanmaydi, buyurtma pochta bo'limigacha boradi.
+ * Viloyat ko'rsatilgan — shundan; eski manzilda viloyat yo'q — xarita nuqtasidan; ikkalasi ham yo'q —
+ * avvalgidek kuryer (Toshkent shahri) deb hisoblanadi.
+ * Mobil ilovadagi nusxa: mobile/src/features/location/tashkent.js — ikkalasi bir xil bo'lsin.
+ */
+export function isPostalDelivery(p: Place): boolean {
+  if (p.region) return p.region !== 'TOSHKENT_SHAHRI';
+  return hasPoint(p) && !inTashkentCity(p.latitude, p.longitude);
+}
+
+/** Pochta yetkazish muddati (ish kunlari) — ilova rasmiylashtirish ekranida ko'rsatadi */
+export const POSTAL_DAYS = { min: 2, max: 5 } as const;
