@@ -616,7 +616,7 @@
   background: var(--sa-accent);
 }
 
-/* Dashboard grafigi: ustun + hover tooltip + X o'qidagi sanalar */
+/* Dashboard grafigi: ustun + hover'da yorug'lik + X o'qidagi sanalar + pastdagi kun statistikasi */
 .sa-bars__item {
   position: relative;
   flex: 1;
@@ -624,41 +624,78 @@
   height: 100%;
   display: flex;
   align-items: flex-end;
+  border-radius: 4px 4px 0 0;
+  transition: box-shadow 0.25s cubic-bezier(0.22, 1, 0.36, 1), filter 0.25s ease, transform 0.25s ease,
+    background-color 0.25s ease;
 }
 
 .sa-bars__item .sa-bars__col {
   width: 100%;
+  transition: box-shadow 0.25s cubic-bezier(0.22, 1, 0.36, 1), filter 0.25s ease, transform 0.25s ease,
+    background-color 0.25s ease;
 }
 
-.sa-bars__item:hover .sa-bars__col {
-  filter: brightness(1.25);
+.sa-bars__item:hover,
+.sa-bars__item.is-active {
+  background-color: rgba(91, 124, 250, 0.08);
 }
 
-.sa-bars__tip {
-  position: absolute;
-  bottom: calc(100% + 6px);
-  left: 0;
-  z-index: 5;
+.sa-bars__item:hover .sa-bars__col,
+.sa-bars__item.is-active .sa-bars__col {
+  filter: brightness(1.15);
+  box-shadow: 0 6px 18px rgba(91, 124, 250, 0.45);
+}
+
+.sa-bars__item:hover .sa-bars__col.is-today,
+.sa-bars__item.is-active .sa-bars__col.is-today {
+  box-shadow: 0 6px 18px rgba(242, 163, 58, 0.45);
+}
+
+.sa-bars__info {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 8px 10px;
-  border-radius: 8px;
-  border: 1px solid var(--sa-line);
-  background: var(--sa-surface-2);
-  color: var(--sa-ink);
+  align-items: center;
+  gap: 14px;
+  height: 22px;
+  margin-top: 10px;
+  overflow: hidden;
   font-size: 12px;
   white-space: nowrap;
-  pointer-events: none;
+  color: var(--sa-mu-2);
+  transition: color 0.25s ease;
 }
 
-.sa-bars__tip.is-left {
-  left: auto;
-  right: 0;
-}
-
-.sa-bars__tip span {
+.sa-bars__info.is-active {
   color: var(--sa-mu);
+}
+
+.sa-bars__info b {
+  color: var(--sa-ink);
+}
+
+.sa-bars__info-body {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  animation: sa-bars-info-in 0.25s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes sa-bars-info-in {
+  from {
+    opacity: 0;
+    transform: translateY(3px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-bars__item,
+  .sa-bars__item .sa-bars__col,
+  .sa-bars__info {
+    transition: none;
+  }
+
+  .sa-bars__info-body {
+    animation: none;
+  }
 }
 
 .sa-bars__axis {

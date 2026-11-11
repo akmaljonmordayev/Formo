@@ -889,6 +889,7 @@ const EN = {
   "Qo'ng'iroq": 'Call',
   'Javob yozing...': 'Write a reply...',
   Yuborish: 'Send',
+  "Kun statistikasi uchun ustun ustiga olib boring": "Hover over a bar to see the day's stats",
 };
 
 export default EN;
