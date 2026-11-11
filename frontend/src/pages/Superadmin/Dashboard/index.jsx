@@ -152,17 +152,10 @@ export default function SuperadminDashboard() {
                 {bars.map((b, i) => (
                   <div
                     key={b.date}
-                    className="sa-bars__item"
+                    className={`sa-bars__item${hover === i ? ' is-active' : ''}`}
                     onMouseEnter={() => setHover(i)}
                     aria-label={`${dayLabel(b.date)}: ${t('{n} ta', { n: b.count })}, ${money(b.revenue ?? 0)}`}
                   >
-                    {hover === i && (
-                      <div className={`sa-bars__tip${i > bars.length / 2 ? ' is-left' : ''}`} role="tooltip">
-                        <b>{dayLabel(b.date)}</b>
-                        <span>{t('Buyurtmalar')}: {b.count}</span>
-                        <span>{t('Tushum')}: {money(b.revenue ?? 0)}</span>
-                      </div>
-                    )}
                     <div
                       className={`sa-bars__col${b.date === todayKey ? ' is-today' : ''}`}
                       style={{ height: `${(value(b) / maxBar) * 100}%` }}
@@ -174,6 +167,20 @@ export default function SuperadminDashboard() {
                 {bars.map((b, i) => (
                   <span key={b.date}>{i % labelStep === 0 ? dayLabel(b.date) : ''}</span>
                 ))}
+              </div>
+              {/* Tanlangan kun statistikasi grafik ostida: balandligi doimiy — hover paytida karta sakramaydi */}
+              <div className={`sa-bars__info${hover !== null && bars[hover] ? ' is-active' : ''}`} aria-live="polite">
+                <div key={hover ?? 'hint'} className="sa-bars__info-body">
+                  {hover !== null && bars[hover] ? (
+                    <>
+                      <b>{dayLabel(bars[hover].date)}</b>
+                      <span>{t('Buyurtmalar')}: {bars[hover].count}</span>
+                      <span>{t('Tushum')}: {money(bars[hover].revenue ?? 0)}</span>
+                    </>
+                  ) : (
+                    <span>{t('Kun statistikasi uchun ustun ustiga olib boring')}</span>
+                  )}
+                </div>
               </div>
             </>
           )}

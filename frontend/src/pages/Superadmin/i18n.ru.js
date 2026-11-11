@@ -888,6 +888,7 @@ const RU = {
   "Qo'ng'iroq": 'Позвонить',
   'Javob yozing...': 'Напишите ответ...',
   Yuborish: 'Отправить',
+  "Kun statistikasi uchun ustun ustiga olib boring": "Наведите на столбец, чтобы увидеть статистику дня",
 };
 
 export default RU;
