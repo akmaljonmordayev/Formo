@@ -119,7 +119,7 @@ describe('Auth (e2e)', () => {
 
     it.each([
       ['role', 'SUPERADMIN'],
-      ['role', 'OPERATOR'],
+      ['role', 'TAILOR'],
       ['isActive', false],
       ['id', 1],
       ['passwordHash', '$2a$10$abc'],

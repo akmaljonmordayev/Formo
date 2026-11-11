@@ -1,25 +1,64 @@
 import { PromocodeType } from '@prisma/client';
 import { addDays, dayLabel, todayLocal } from './delivery.service';
-import { DEFAULT_KIT_DESIGN_PRICES, fullSetPrice, loadKitDesignPrices, promoError, PromoCheck, summarize, unitPrice } from './pricing';
+import {
+  DEFAULT_KIT_DESIGN_PRICES,
+  fullSetPrice,
+  loadKitDesignPrices,
+  priceForSize,
+  promoError,
+  PromoCheck,
+  summarize,
+  unitPrice,
+} from './pricing';
 
-const kit = { shirtPrice: 99000, shortsPrice: 60000, printPrice: 30000 };
+const kit = { shirtPrice: 159000, printPrice: 30000 };
 
 describe('narx hisoblash', () => {
-  it("to'plam narxi dizayndagidek: 99 000 + 60 000 + 30 000 = 189 000", () => {
+  it("to'plam narxi dizayndagidek: 159 000 + 30 000 = 189 000", () => {
     expect(fullSetPrice(kit)).toBe(189000);
-    expect(unitPrice(kit, { withShorts: true, printName: 'AZIZ', printNumber: '10' })).toBe(189000);
+    expect(unitPrice(kit, { printName: 'AZIZ', printNumber: '10' })).toBe(189000);
   });
 
   it("ism/raqam bo'lmasa bosma narxi qo'shilmaydi", () => {
-    expect(unitPrice(kit, { withShorts: true })).toBe(159000);
+    expect(unitPrice(kit, {})).toBe(159000);
   });
 
   it("faqat raqam ham bosma hisoblanadi", () => {
-    expect(unitPrice(kit, { withShorts: true, printNumber: '7' })).toBe(189000);
+    expect(unitPrice(kit, { printNumber: '7' })).toBe(189000);
+  });
+});
+
+describe("o'lcham bo'yicha narx (sizePrices)", () => {
+  const withSizePrices = { ...kit, sizePrices: { XXL: 170000, '3XL': 180000 } };
+
+  it("sizePrices'da bor o'lcham — o'z narxi", () => {
+    expect(priceForSize(withSizePrices, 'XXL')).toBe(170000);
+    expect(priceForSize(withSizePrices, '3XL')).toBe(180000);
   });
 
-  it('shortiksiz', () => {
-    expect(unitPrice(kit, { withShorts: false, printName: 'AZIZ' })).toBe(129000);
+  it("sizePrices'da yo'q o'lcham — shirtPrice (standart)", () => {
+    expect(priceForSize(withSizePrices, 'S')).toBe(159000);
+    expect(priceForSize(withSizePrices, undefined)).toBe(159000);
+  });
+
+  it("sizePrices umuman bo'lmasa (eski forma) — shirtPrice", () => {
+    expect(priceForSize(kit, 'XXL')).toBe(159000);
+  });
+
+  it("0 yoki manfiy qiymat e'tiborga olinmaydi — shirtPrice qaytadi", () => {
+    expect(priceForSize({ ...kit, sizePrices: { S: 0 } }, 'S')).toBe(159000);
+  });
+
+  it("unitPrice o'lchamga qarab hisoblaydi, bosma ustiga qo'shiladi", () => {
+    expect(unitPrice(withSizePrices, { shirtSize: 'XXL' })).toBe(170000);
+    expect(unitPrice(withSizePrices, { shirtSize: 'XXL', printNumber: '9' })).toBe(200000);
+    expect(unitPrice(withSizePrices, { shirtSize: 'S' })).toBe(159000);
+  });
+
+  it('Prisma Json ustunidan kelgan qiymat (JsonValue) ham to‘g‘ri o‘qiladi', () => {
+    // Prisma `Json` ustuni runtime'da oddiy obyekt/massiv/primitiv bo'lib keladi — tur xavfsizligi priceForSize ichida
+    expect(priceForSize({ ...kit, sizePrices: null }, 'XXL')).toBe(159000);
+    expect(priceForSize({ ...kit, sizePrices: [] as unknown }, 'XXL')).toBe(159000);
   });
 });
 
@@ -69,10 +108,14 @@ describe('loadKitDesignPrices', () => {
 
   it("jadvalda yo'q kalit — standart narx; bori — jadvaldagi narx", async () => {
     await expect(loadKitDesignPrices(db([]))).resolves.toEqual(DEFAULT_KIT_DESIGN_PRICES);
-    await expect(loadKitDesignPrices(db([{ key: 'club.shorts', price: 70000 }, { key: 'other', price: 1 }]))).resolves.toEqual({
+    await expect(loadKitDesignPrices(db([{ key: 'club.tshirt', price: 170000 }, { key: 'other', price: 1 }]))).resolves.toEqual({
       ...DEFAULT_KIT_DESIGN_PRICES,
-      shortsPrice: 70000,
+      shirtPrice: 170000,
     });
+  });
+
+  it("eskirgan 'club.shorts' kaliti e'tiborga olinmaydi (shortik narxi komplektga qo'shilgan)", async () => {
+    await expect(loadKitDesignPrices(db([{ key: 'club.shorts', price: 70000 }]))).resolves.toEqual(DEFAULT_KIT_DESIGN_PRICES);
   });
 });
 

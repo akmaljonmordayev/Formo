@@ -11,13 +11,19 @@ function TranslatedLayout({ menu }) {
   );
 
   useEffect(() => {
-    document.documentElement.lang = lang === 'oz' ? 'uz-Cyrl' : lang;
+    document.documentElement.lang = lang === 'oz' ? 'uz-Cyrl' : lang === 'uzn' ? 'uz' : lang;
   }, [lang]);
 
   return (
     <SuperadminLayout
       menu={translated}
-      labels={{ logout: t('Chiqish'), leaving: t('Chiqilmoqda...'), openMenu: t('Menyuni ochish') }}
+      labels={{
+        logout: t('Chiqish'),
+        leaving: t('Chiqilmoqda...'),
+        openMenu: t('Menyuni ochish'),
+        lightMode: t("Yorug' mavzu"),
+        darkMode: t("Qorong'i mavzu"),
+      }}
     />
   );
 }

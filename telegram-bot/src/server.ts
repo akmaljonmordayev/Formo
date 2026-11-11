@@ -1,6 +1,8 @@
 import { createHash, timingSafeEqual } from 'crypto';
 import { createServer, IncomingMessage, Server } from 'http';
+import { KeyedQueue } from './keyed-queue';
 import { errorMessage, Logger } from './log';
+import { chatKey } from './polling';
 import { TgUpdate } from './telegram';
 
 const MAX_BODY_BYTES = 1024 * 1024;
@@ -44,6 +46,10 @@ function readBody(req: IncomingMessage): Promise<string> {
 
 /** GET /health va (webhook rejimida) POST <path> */
 export function createBotServer({ webhook, process, log, unhealthy }: ServerOptions): Server {
+  // Polling'dagi kabi — bitta foydalanuvchining updatelari webhook so'rovlari parallel kelsa ham ketma-ket ishlanadi
+  const queue = new KeyedQueue();
+  const processInOrder = (update: TgUpdate): Promise<void> =>
+    queue.run(chatKey(update), () => process(update), (err) => log.error('webhook update xatosi', { error: errorMessage(err) }));
   return createServer(async (req, res) => {
     const reply = (status: number, body: unknown = { ok: status < 400 }) => {
       if (res.headersSent) return;
@@ -68,8 +74,10 @@ export function createBotServer({ webhook, process, log, unhealthy }: ServerOpti
     }
     if (!update || typeof update.update_id !== 'number') return reply(400);
 
-    // handleUpdate xato tashlamaydi; har ehtimolga qarshi — Telegram'ga baribir 200, aks holda u qayta-qayta yuboradi
-    await process(update).catch((err) => log.error('webhook update xatosi', { error: errorMessage(err) }));
+    // Darhol 200: navbatda shu chat uchun oldingi update'lar tugashini kutib o'tirsak, javob Telegram'ning
+    // webhook kutish vaqtidan oshib ketishi mumkin — u esa hali navbatda turgan eski update'ni qayta yuboradi
+    // (chain'ga ikkinchi marta qo'shiladi). handleUpdate xato tashlamaydi — qayta ishlash navbat tartibida fonda davom etadi.
     reply(200);
+    void processInOrder(update);
   });
 }

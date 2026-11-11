@@ -34,7 +34,7 @@ export class ShopOrdersController {
   })
   async deliverySlots(@Query() query: DeliverySlotsQueryDto) {
     await this.orders.expireStale();
-    return { fee: await this.delivery.fee(), days: await this.delivery.slots(query.days) };
+    return { fee: await this.delivery.fee(query.region), days: await this.delivery.slots(query.days) };
   }
 
   @Post('orders/checkout')

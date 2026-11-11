@@ -78,7 +78,7 @@ export default function AddedToCart({ event, t, bottom = 0, onOpenCart, onDismis
           { opacity: flyOpacity, transform: [{ translateX: flyX }, { translateY: flyY }, { scale: flyScale }, { rotate: flyRotate }] },
         ]}
       >
-        <Kit360Thumb team={event.team} width={64} height={80} zoom={1.5} />
+        <Kit360Thumb team={event.team} variant={event.variant} width={64} height={80} zoom={1.5} />
       </Animated.View>
 
       <Animated.View

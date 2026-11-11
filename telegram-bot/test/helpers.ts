@@ -10,6 +10,7 @@ import {
   OutboxMessage,
   OutboxResult,
   ReceiptResult,
+  StatusResult,
 } from '../src/backend';
 import { RecentIds } from '../src/dedupe';
 import { Deps } from '../src/handlers';
@@ -91,6 +92,12 @@ export class FakeBackend implements Backend {
 
   me(...args: [string]) {
     return this.rec('me', args, this.meResult);
+  }
+  /** Berilmasa meResult'dan chiqariladi (linked/language) — testlarda alohida sozlash shart emas */
+  statusResult?: StatusResult;
+  status(...args: [string]) {
+    const value = this.statusResult ?? (this.meResult.linked ? { linked: true, language: this.meResult.language } : { linked: false });
+    return this.rec('status', args, value);
   }
   setLanguage(...args: [string, string]) {
     return this.rec('setLanguage', args, { linked: this.meResult.linked });

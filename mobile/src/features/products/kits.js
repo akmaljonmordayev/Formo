@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api } from '../../services/api';
 import { getCached, setCached } from '../../utils/memCache';
 import * as storage from '../../utils/storage';
-import { KIT360_TEAMS } from '../kit360';
+import { KIT360_LONG, KIT360_TEAMS, kit360Variant } from '../kit360';
 
 /**
  * Forma kartalari (bosh sahifa, Studio katalogi): backend formasi → UI.
@@ -16,6 +16,8 @@ export function toKitCard(kit) {
   const club = kit.club || {};
   const team = KIT360_TEAMS.find((tm) => tm.id === club.kit360Id);
   const name = club.name || team?.name || kit.title;
+  // Eski API'da maydon yo'q — kalta yeng
+  const sleeve = kit.sleeve === 'LONG' ? 'LONG' : 'SHORT';
   return {
     key: `kit:${kit.id}`,
     kitId: kit.id,
@@ -24,8 +26,14 @@ export function toKitCard(kit) {
     label: kit.label,
     price: kit.price ?? null,
     kit360Id: club.kit360Id ?? null,
-    // Terma jamoa yoki klub: Forma 360° ro'yxatidagi turi, bo'lmasa kategoriya nomidan
-    kind: team?.kind ?? (/terma|national|сборн/i.test(club.category?.name || '') ? 'national' : 'club'),
+    // Kalta yeng (yozgi) yoki uzun yeng (qishki); variant — karta surati ('l' — uzun yeng suratlari)
+    sleeve,
+    variant: kit360Variant(club.kit360Id, sleeve),
+    // Terma jamoa yoki klub: Forma 360° ro'yxatidagi turi, bo'lmasa klub turi yoki kategoriya nomidan
+    kind:
+      team?.kind ??
+      (club.type === 'NATIONAL' || /terma|national|сборн/i.test(club.category?.name || '') ? 'national' : 'club'),
+    categoryName: club.category?.name ?? null,
     categoryId: club.category?.id ?? null,
     soldCount: kit.soldCount ?? 0,
     search: norm([name, club.code, team?.name, team?.code].filter(Boolean).join(' ')),
@@ -33,19 +41,26 @@ export function toKitCard(kit) {
 }
 
 /** Backend'da hali forma yo'q (bo'sh baza) — Forma 360° jamoalari ko'rinadi, lekin yoqtirib/buyurtma berib bo'lmaydi */
-const FALLBACK = KIT360_TEAMS.map((team) => ({
-  key: `team:${team.id}`,
+const fallbackCard = (team, sleeve) => ({
+  key: sleeve === 'LONG' ? `team:${team.id}:l` : `team:${team.id}`,
   kitId: null,
   clubId: null,
   name: team.name,
   label: null,
   price: null,
   kit360Id: team.id,
+  sleeve,
+  variant: sleeve === 'LONG' ? 'l' : 'f',
   kind: team.kind,
   categoryId: null,
+  categoryName: null,
   soldCount: 0,
   search: norm(`${team.name} ${team.code}`),
-}));
+});
+const FALLBACK = [
+  ...KIT360_TEAMS.map((team) => fallbackCard(team, 'SHORT')),
+  ...KIT360_TEAMS.filter((team) => KIT360_LONG.includes(team.id)).map((team) => fallbackCard(team, 'LONG')),
+];
 
 /** Matn bo'yicha qidiruv: jamoa nomi va kodi (lotin/kirill farqisiz emas — oddiy "o'z ichiga oladi") */
 export function matchesSearch(card, text) {
@@ -87,7 +102,8 @@ export function useBestSellingKits(limit = 50) {
 
 /** Sevimli kalit: jamoa (Forma 360°) bo'yicha — server formasi ham, zaxira karta ham bir xil kalitga tushadi */
 export const favKey = (card) => {
-  if (card?.kit360Id) return `team:${card.kit360Id}`;
+  // Uzun yengli forma — alohida yurakcha (kalta yengdagi eski kalit o'zgarmaydi)
+  if (card?.kit360Id) return card.sleeve === 'LONG' ? `team:${card.kit360Id}:l` : `team:${card.kit360Id}`;
   return card?.kitId ? `kit:${card.kitId}` : null;
 };
 

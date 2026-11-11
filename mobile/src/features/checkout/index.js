@@ -57,8 +57,8 @@ export function useAddresses() {
   return { addresses, isLoading, error, refetch, create, update, remove };
 }
 
-/** Yetkazish kunlari va slotlari (GET /api/checkout/delivery-slots): { fee, days } */
-export function useDeliverySlots(days = 3) {
+/** Yetkazish kunlari va slotlari (GET /api/checkout/delivery-slots): { fee, days }. `region` — tanlangan manzil viloyati (bo'lsa narx shundan). */
+export function useDeliverySlots(days = 3, region) {
   const [data, setData] = useState({ fee: 0, days: [] });
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -67,13 +67,13 @@ export function useDeliverySlots(days = 3) {
     setIsLoading(true);
     setError(null);
     try {
-      setData((await api.orders.deliverySlots(days)) || { fee: 0, days: [] });
+      setData((await api.orders.deliverySlots(days, region)) || { fee: 0, days: [] });
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
       setIsLoading(false);
     }
-  }, [days]);
+  }, [days, region]);
 
   useEffect(() => {
     refetch();

@@ -6,7 +6,7 @@ import { Badge, Button, Card, EmptyState, Header, Screen, formatMoney } from '..
 import ErrorView from '../components/ui/ErrorView';
 import Kit360Thumb from '../components/ui/Kit360Thumb';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
-import { itemKit360 } from '../features/kit360';
+import { itemKit360, itemVariant } from '../features/kit360';
 import { designText } from '../features/studio';
 import { errorText } from '../utils/errors';
 
@@ -114,7 +114,7 @@ export default function CartScreen({ t, cart, rules, onBack, onCheckout }) {
                   style={[styles.itemCard, !item.available && styles.itemUnavailable]}
                 >
                   <View style={styles.itemThumb}>
-                    <Kit360Thumb team={itemKit360(item)} />
+                    <Kit360Thumb team={itemKit360(item)} variant={itemVariant(item)} />
                   </View>
 
                   <View style={styles.itemInfo}>

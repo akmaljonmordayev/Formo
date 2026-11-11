@@ -38,11 +38,12 @@ export class DefectsService {
   }
 
   async listAll(query: ListDefectsQueryDto) {
-    const [page, open] = await Promise.all([
+    const [page, open, resolved] = await Promise.all([
       this.page(query.status ? { status: query.status } : {}, query),
       this.prisma.defectReport.count({ where: { status: DefectStatus.OPEN } }),
+      this.prisma.defectReport.count({ where: { status: DefectStatus.RESOLVED } }),
     ]);
-    return { ...page, openCount: open };
+    return { ...page, openCount: open, resolvedCount: resolved };
   }
 
   private async page(where: Prisma.DefectReportWhereInput, query: ListDefectsQueryDto) {

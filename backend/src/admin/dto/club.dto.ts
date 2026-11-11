@@ -17,8 +17,10 @@ import {
   MaxLength,
   Min,
   MinLength,
+  registerDecorator,
   ValidateIf,
   ValidateNested,
+  ValidationOptions,
 } from 'class-validator';
 import { CleanText, NoHtml } from '../../common/utils/no-html';
 import { ALL_SIZES } from '../../shop/pricing';
@@ -28,6 +30,34 @@ const MAX_PRICE = 10_000_000;
 
 const HEX_COLOR = /^#[0-9a-fA-F]{3,8}$/;
 const HEX_MESSAGE = 'Rang hex formatida bo\'lishi kerak, masalan #0e1a3f';
+
+/** { "S": 150000, "M": 150000, ... } — kalit faqat ALL_SIZES'dan, qiymat 0..MAX_PRICE butun son */
+function IsSizePrices(options?: ValidationOptions) {
+  return function (object: object, propertyName: string) {
+    registerDecorator({
+      name: 'isSizePrices',
+      target: object.constructor,
+      propertyName,
+      options: {
+        message: `O'lcham narxlari {"S": 150000, ...} ko'rinishida, kalit — ${ALL_SIZES.join('/')}, qiymat 0–${MAX_PRICE} bo'lishi kerak`,
+        ...options,
+      },
+      validator: {
+        validate: (value: unknown) => {
+          if (typeof value !== 'object' || value === null || Array.isArray(value)) return false;
+          return Object.entries(value as Record<string, unknown>).every(
+            ([size, price]) =>
+              (ALL_SIZES as readonly string[]).includes(size) &&
+              typeof price === 'number' &&
+              Number.isInteger(price) &&
+              price >= 0 &&
+              price <= MAX_PRICE,
+          );
+        },
+      },
+    });
+  };
+}
 
 export class KitDto {
   @ApiProperty({ example: 'Uy' })
@@ -71,13 +101,6 @@ export class KitDto {
   @Max(MAX_PRICE)
   shirtPrice?: number;
 
-  @ApiPropertyOptional({ example: 0, description: "Eskirgan: shortik komplekt narxi ichida — 0 yuboring" })
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Max(MAX_PRICE)
-  shortsPrice?: number;
-
   @ApiPropertyOptional({ example: 30000, description: "Ism + raqam bosmasi narxi, so'm" })
   @IsOptional()
   @IsInt()
@@ -92,6 +115,14 @@ export class KitDto {
   @ArrayUnique()
   @IsIn(ALL_SIZES, { each: true, message: "O'lcham noto'g'ri" })
   sizes?: string[];
+
+  @ApiPropertyOptional({
+    example: { S: 150000, M: 150000, L: 160000, XL: 160000, XXL: 170000, '3XL': 180000 },
+    description: "O'lcham bo'yicha narx — kiritilmagan o'lcham shirtPrice'dan oladi",
+  })
+  @IsOptional()
+  @IsSizePrices()
+  sizePrices?: Record<string, number>;
 
   @ApiPropertyOptional({ enum: KitSleeve, default: KitSleeve.SHORT, description: 'Ustki qism: kalta yoki uzun yeng' })
   @IsOptional()

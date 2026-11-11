@@ -3,7 +3,7 @@ import { pricingApi, settingsApi } from '../../features/platform/platformApi';
 /*
  * Superadmin sahifalari uchun umumiy narx/sozlama yordamchilari.
  * Haqiqiy narxlar: GET /admin/pricing (narx jadvali) va GET /admin/settings ('delivery.fee').
- * Mobil ilova klub formasi narxini har bir formaning o'zidan (shirtPrice/shortsPrice/printPrice) oladi —
+ * Mobil ilova klub formasi narxini har bir formaning o'zidan (shirtPrice/printPrice) oladi —
  * shuning uchun yangi forma narxi jadvaldan to'ldiriladi va "Barcha formalarga qo'llash" mavjud.
  */
 
@@ -38,19 +38,19 @@ export async function loadKitPrices() {
     const items = await pricingApi.list();
     return {
       shirtPrice: priceOf(items, PRICE_KEYS.shirt, FALLBACK_PRICES.shirt),
-      shortsPrice: 0,
       printPrice: priceOf(items, PRICE_KEYS.print, FALLBACK_PRICES.print),
     };
   } catch {
-    return { shirtPrice: FALLBACK_PRICES.shirt, shortsPrice: 0, printPrice: FALLBACK_PRICES.print };
+    return { shirtPrice: FALLBACK_PRICES.shirt, printPrice: FALLBACK_PRICES.print };
   }
 }
 
-export const kitSetPrice = (k) => (Number(k.shirtPrice) || 0) + (Number(k.shortsPrice) || 0) + (Number(k.printPrice) || 0);
+export const kitSetPrice = (k) => (Number(k.shirtPrice) || 0) + (Number(k.printPrice) || 0);
 
 /* ---------- Sozlama kalitlari ---------- */
 export const SETTING_KEYS = {
   deliveryFee: 'delivery.fee',
+  deliveryFeesByRegion: 'delivery.feesByRegion',
   deliverySlots: 'delivery.slots',
   orderRules: 'order.rules',
   bannedWords: 'order.bannedWords',
@@ -58,6 +58,26 @@ export const SETTING_KEYS = {
   notifications: 'admin.notifications',
   studio: 'studio.config',
 };
+
+/** 12 viloyat + Qoraqalpog'iston Respublikasi + Toshkent shahri (alohida) — backend/src/shop/regions.ts bilan bir xil */
+export const REGIONS = [
+  { code: 'TOSHKENT_SHAHRI', label: 'Toshkent shahri' },
+  { code: 'TOSHKENT_VILOYATI', label: 'Toshkent viloyati' },
+  { code: 'ANDIJON', label: 'Andijon' },
+  { code: 'BUXORO', label: 'Buxoro' },
+  { code: 'FARGONA', label: "Farg'ona" },
+  { code: 'JIZZAX', label: 'Jizzax' },
+  { code: 'XORAZM', label: 'Xorazm' },
+  { code: 'NAMANGAN', label: 'Namangan' },
+  { code: 'NAVOIY', label: 'Navoiy' },
+  { code: 'QASHQADARYO', label: 'Qashqadaryo' },
+  { code: 'SAMARQAND', label: 'Samarqand' },
+  { code: 'SIRDARYO', label: 'Sirdaryo' },
+  { code: 'SURXONDARYO', label: 'Surxondaryo' },
+  { code: 'QORAQALPOGISTON', label: "Qoraqalpog'iston Respublikasi" },
+];
+
+export const DEFAULT_REGION_FEE = 15000;
 
 export const DEFAULT_ORDER_RULES = {
   acceptOrders: true, // false — ilovada buyurtma vaqtincha to'xtatiladi

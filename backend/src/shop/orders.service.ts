@@ -249,7 +249,7 @@ export class ShopOrdersService {
           tx,
         );
         const promo = dto.promocode ? await this.cart.resolvePromo(dto.promocode, subtotal, tx) : null;
-        const summary = summarize(subtotal, await this.delivery.fee(tx), promo);
+        const summary = summarize(subtotal, await this.delivery.fee(address.region, tx), promo);
         await this.delivery.assertAvailable(dto.deliveryDate, dto.deliverySlot, tx);
 
         if (promo) {
@@ -307,6 +307,7 @@ export class ShopOrdersService {
             deliveryDate: new Date(`${dto.deliveryDate}T00:00:00Z`),
             deliverySlot: dto.deliverySlot,
             deliveryAddress: formatAddress(address),
+            deliveryRegion: address.region ?? null,
             comment: dto.comment || null,
             items: {
               create: items.map((i) => ({
@@ -319,6 +320,8 @@ export class ShopOrdersService {
                 designSnapshot: (i.kitDesign?.design ?? undefined) as unknown as Prisma.InputJsonObject | undefined,
                 // Klub formasi: Forma 360° suratlari to'plami (admin/sex foto-360° ko'rsatadi)
                 kit360Id: i.club?.kit360Id ?? null,
+                // Forma turi (kalta/uzun yeng, shortik/shalvar) — sex va admin aynan shu suratlarni ko'radi
+                ...(i.kit && { sleeve: i.kit.sleeve, bottom: i.kit.bottom }),
                 printName: i.printName,
                 printNumber: i.printNumber,
                 numberOnShorts: i.numberOnShorts,
@@ -516,12 +519,12 @@ export class ShopOrdersService {
     await this.expireStale(user.id);
     const order = await this.own(user.id, id);
     if (!CANCELLABLE.includes(order.status)) {
-      throw new ConflictException('Buyurtma tikuv sexi tomonidan qabul qilingan — bekor qilish uchun operatorga murojaat qiling');
+      throw new ConflictException('Buyurtma tikuv sexi tomonidan qabul qilingan — bekor qilish uchun administratsiyaga murojaat qiling');
     }
     const windowHours = await this.cancelWindow();
     if (!customerCanCancel(order, windowHours)) {
       throw new ConflictException(
-        `Buyurtmani faqat berilgandan keyin ${windowHours} soat ichida bekor qilish mumkin — operatorga murojaat qiling`,
+        `Buyurtmani faqat berilgandan keyin ${windowHours} soat ichida bekor qilish mumkin — administratsiyaga murojaat qiling`,
       );
     }
     // To'langan bo'lsa pul qaytariladi (operator qo'lda qaytaradi)
@@ -529,7 +532,7 @@ export class ShopOrdersService {
     const cancelled = await this.release(id, paymentStatus, order.status, user, 'Mijoz bekor qildi');
     // Shu orada sex qabul qilgan bo'lsa — bekor qilinmaydi (tikish boshlangan)
     if (!cancelled) {
-      throw new ConflictException('Buyurtma tikuv sexi tomonidan qabul qilingan — bekor qilish uchun operatorga murojaat qiling');
+      throw new ConflictException('Buyurtma tikuv sexi tomonidan qabul qilingan — bekor qilish uchun administratsiyaga murojaat qiling');
     }
 
     await this.audit.log({ actor: user, action: 'Buyurtma bekor qilindi', category: AuditCategory.ORDER, context: order.code });

@@ -1,5 +1,5 @@
 /**
- * Lokal (dev) bazaga dashboard'larni sinash uchun test ma'lumotlari: operator, tikuv sexlari,
+ * Lokal (dev) bazaga dashboard'larni sinash uchun test ma'lumotlari: tikuv sexlari,
  * mijozlar, turli holatdagi buyurtmalar, zaxira, qo'lda to'lov kartasi va ochiq to'ldirish so'rovi.
  *
  *   pnpm seed:dev            (avval: pnpm catalog:import — buyurtmalar katalog formalariga bog'lanadi)
@@ -22,7 +22,7 @@ import {
 } from '@prisma/client';
 import * as bcrypt from 'bcryptjs';
 
-const DEV_PASSWORD = { operator: 'operator123', tailor: 'tailor123', customer: 'mijoz123' };
+const DEV_PASSWORD = { tailor: 'tailor123', customer: 'mijoz123' };
 
 function assertSafeTarget() {
   if (process.env.NODE_ENV === 'production') throw new Error('NODE_ENV=production — seed qilinmaydi');
@@ -44,14 +44,14 @@ const FLOW: OrderStatus[] = [
 
 const ACTOR: Partial<Record<OrderStatus, string>> = {
   NEW: 'USER',
-  SENT_TO_WORKSHOP: 'OPERATOR',
+  SENT_TO_WORKSHOP: 'SUPERADMIN',
   ACCEPTED: 'TAILOR',
   PRINTING: 'TAILOR',
   QUALITY_CHECK: 'TAILOR',
   READY: 'TAILOR',
-  DELIVERING: 'OPERATOR',
-  DELIVERED: 'OPERATOR',
-  CANCELLED: 'OPERATOR',
+  DELIVERING: 'SUPERADMIN',
+  DELIVERED: 'SUPERADMIN',
+  CANCELLED: 'SUPERADMIN',
 };
 
 const CUSTOMERS = [
@@ -164,10 +164,9 @@ async function main() {
       created.push(`CLUB ${c.name} (${c.kit360Id})`);
     }
 
-    // ---- Hisoblar (operator — yagona; bor bo'lsa tegilmaydi) ----
-    const operator =
-      (await prisma.user.findFirst({ where: { role: Role.OPERATOR } })) ??
-      (await upsertUser(prisma, { phone: '+998900000010', fullName: 'Malika Operator', role: Role.OPERATOR, passwordHash: '' }, DEV_PASSWORD.operator, created));
+    // ---- Hisoblar (superadmin — backend birinchi ishga tushganda .env dan yaratadi) ----
+    const superadmin = await prisma.user.findFirst({ where: { role: Role.SUPERADMIN } });
+    if (!superadmin) throw new Error('Superadmin topilmadi — avval backendni ishga tushiring (u birinchi marta SUPERADMIN akkauntini .env dan yaratadi)');
 
     const workshops = [
       await upsertUser(
@@ -271,8 +270,8 @@ async function main() {
             },
             statusLogs: {
               create: steps.map((to, s) => {
-                const role = ACTOR[to] ?? 'OPERATOR';
-                const actor = role === 'USER' ? customer : role === 'TAILOR' ? workshop : operator;
+                const role = ACTOR[to] ?? 'SUPERADMIN';
+                const actor = role === 'USER' ? customer : role === 'TAILOR' ? workshop : superadmin;
                 return {
                   fromStatus: s ? steps[s - 1] : null,
                   toStatus: to,

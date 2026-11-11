@@ -50,7 +50,7 @@ describe('Ilova: login oqimi', () => {
     expect(fetch).not.toHaveBeenCalled();
   });
 
-  it('tikuvchi kiradi: raqam +998 formatida ketadi, tokenlar saqlanadi, o‘z paneliga o‘tadi', async () => {
+  it('tikuv sexi kiradi: raqam +998 formatida ketadi, tokenlar saqlanadi, o‘z paneliga o‘tadi', async () => {
     mockBackend({
       'POST /api/auth/login': () => json(200, { accessToken: 'access-1', refreshToken: 'refresh-1', user: tailor }),
     });

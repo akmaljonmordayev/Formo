@@ -30,10 +30,11 @@ const formatAddress = (a) => [a.address, a.apartment].filter(Boolean).join(', ')
  */
 export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPickOnMap, onWallet, initialAddressId }) {
   const { addresses, isLoading: addrLoading, error: addrError, refetch: refetchAddresses } = useAddresses();
-  const { days, isLoading: slotsLoading, error: slotsError, refetch: refetchSlots } = useDeliverySlots(3);
 
   // Xaritadan yangi manzil saqlab qaytilganda — o'sha manzil tanlanadi
   const [addressId, setAddressId] = useState(initialAddressId ?? null);
+  const selectedAddress = addresses.find((a) => a.id === addressId) || null;
+  const { days, isLoading: slotsLoading, error: slotsError, refetch: refetchSlots } = useDeliverySlots(3, selectedAddress?.region);
 
   const [date, setDate] = useState(null);
   const [slot, setSlot] = useState(null);
@@ -48,13 +49,18 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
   // Asosiy usul — balansdan to'lash. Naqd faqat Superadmin yoqib qo'ygan bo'lsa (allowCash) va manzil
   // Toshkent shahri ichida bo'lsa; shahardan tashqariga — faqat shaxsiy hisobdan (server ham tekshiradi).
   // Click/Payme mijozga ko'rsatilmaydi: balans Telegram bot orqali to'ldiriladi.
-  const selectedAddress = addresses.find((a) => a.id === addressId) || null;
   const cityDelivery = Boolean(selectedAddress && inTashkentCity(selectedAddress.latitude, selectedAddress.longitude));
   const cashOutside = Boolean(rules.allowCash && selectedAddress && !cityDelivery);
   const methods = CHECKOUT_METHODS.filter((method) => method !== 'CASH' || (rules.allowCash && cityDelivery));
   useEffect(() => {
     if (!methods.includes(paymentMethod)) setPaymentMethod(methods[0]);
   }, [methods, paymentMethod]);
+
+  // Manzil (va shu bilan viloyat) almashganda savat yakuni (yetkazish narxi) o'sha viloyat bo'yicha qayta hisoblanadi
+  useEffect(() => {
+    cart.setDeliveryRegion(selectedAddress?.region);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedAddress?.region]);
 
   // Asosiy manzil oldindan tanlanadi; manzil yo'q bo'lsa — xaritadan qo'shish kartasi
   useEffect(() => {

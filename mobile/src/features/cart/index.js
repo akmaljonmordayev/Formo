@@ -20,15 +20,18 @@ export default function useCart(enabled) {
   const [error, setError] = useState(null);
   const [promoError, setPromoError] = useState(null);
   const promoRef = useRef(null);
+  // Tanlangan yetkazish manzili viloyati (checkout'da o'rnatiladi) — to'g'ri yetkazish narxi shundan
+  const regionRef = useRef(null);
 
-  /** Javobni qabul qiladi; promokod qo'llangan bo'lsa yakunni u bilan qayta so'raydi */
+  /** Javobni qabul qiladi; promokod va/yoki viloyat tanlangan bo'lsa yakunni ular bilan qayta so'raydi
+   *  (qo'shish/o'zgartirish/o'chirish javoblari ularsiz keladi — server shu yerda to'g'rilaydi) */
   const accept = useCallback(async (view) => {
-    if (!promoRef.current) {
+    if (!promoRef.current && !regionRef.current) {
       setCart(view || EMPTY);
       return view;
     }
     try {
-      const withPromo = await api.cart.view(promoRef.current);
+      const withPromo = await api.cart.view(promoRef.current || undefined, regionRef.current || undefined);
       setCart(withPromo);
       return withPromo;
     } catch (err) {
@@ -43,7 +46,7 @@ export default function useCart(enabled) {
     setIsLoading(true);
     setError(null);
     try {
-      await accept(await api.cart.view());
+      await accept(await api.cart.view(undefined, regionRef.current || undefined));
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
@@ -51,11 +54,24 @@ export default function useCart(enabled) {
     }
   }, [accept]);
 
+  /** Checkout: tanlangan manzil viloyati — yetkazish narxi shundan qayta hisoblanadi */
+  const setDeliveryRegion = useCallback(async (region) => {
+    const next = region || null;
+    if (regionRef.current === next) return;
+    regionRef.current = next;
+    try {
+      setCart(await api.cart.view(promoRef.current || undefined, next || undefined));
+    } catch {
+      // Jim o'tkaziladi — checkout ekrani eski yakun bilan ishlayveradi, buyurtma berishda server baribir to'g'ri hisoblaydi
+    }
+  }, []);
+
   useEffect(() => {
     if (enabled) {
       refresh();
     } else {
       promoRef.current = null;
+      regionRef.current = null;
       setCart(EMPTY);
       setError(null);
       setPromoError(null);
@@ -113,5 +129,6 @@ export default function useCart(enabled) {
     applyPromocode,
     removePromocode,
     afterOrder,
+    setDeliveryRegion,
   };
 }

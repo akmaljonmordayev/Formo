@@ -16,13 +16,14 @@ import { NormalizePhone, UZ_PHONE_MESSAGE, UZ_PHONE_REGEX } from '../../common/u
 
 const PASSWORD_MESSAGE = "Parol kamida 6 belgidan iborat bo'lishi kerak";
 
-export class CreateOperatorDto {
+/** fullName — tikuv sexining mas'ul shaxsi */
+export class CreateWorkshopDto {
   @ApiProperty({ example: '+998902222222' })
   @NormalizePhone()
   @Matches(UZ_PHONE_REGEX, { message: UZ_PHONE_MESSAGE })
   phone: string;
 
-  @ApiProperty({ example: 'operator123', minLength: 6 })
+  @ApiProperty({ example: 'workshop123', minLength: 6 })
   @IsString()
   @MinLength(6, { message: PASSWORD_MESSAGE })
   @MaxLength(64)
@@ -35,17 +36,7 @@ export class CreateOperatorDto {
   @MinLength(2)
   @MaxLength(100)
   fullName: string;
-}
 
-export class UpdateOperatorDto extends PartialType(CreateOperatorDto) {
-  @ApiPropertyOptional({ description: 'false — akkaunt bloklanadi va barcha sessiyalari yopiladi' })
-  @IsOptional()
-  @IsBoolean()
-  isActive?: boolean;
-}
-
-/** fullName — tikuv sexining mas'ul shaxsi */
-export class CreateWorkshopDto extends CreateOperatorDto {
   @ApiProperty({ example: 'Ipak Yo‘li Tikuv' })
   @CleanText()
   @IsString()

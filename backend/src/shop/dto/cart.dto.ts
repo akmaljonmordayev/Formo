@@ -3,6 +3,7 @@ import { Transform, Type } from 'class-transformer';
 import { IsBoolean, IsIn, IsInt, IsObject, IsOptional, IsString, Matches, Max, MaxLength, Min } from 'class-validator';
 import { CleanText, NoHtml } from '../../common/utils/no-html';
 import { ALL_SIZES } from '../pricing';
+import { REGION_CODES } from '../regions';
 
 export const MAX_ITEM_QTY = 20;
 const upper = () => Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value));
@@ -121,6 +122,11 @@ export class CartQueryDto {
   @IsString()
   @MaxLength(20)
   promocode?: string;
+
+  @ApiPropertyOptional({ enum: REGION_CODES, description: "Tanlangan manzil viloyati — yetkazish narxini to'g'ri ko'rsatish uchun" })
+  @IsOptional()
+  @IsIn(REGION_CODES)
+  region?: string;
 }
 
 export class ApplyPromocodeDto {

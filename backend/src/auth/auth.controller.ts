@@ -1,7 +1,10 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Patch, Post, Req } from '@nestjs/common';
+import { Body, Controller, Delete, Get, HttpCode, HttpStatus, Patch, Post, Req, UploadedFile, UseInterceptors } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import {
   ApiBearerAuth,
+  ApiBody,
   ApiConflictResponse,
+  ApiConsumes,
   ApiForbiddenResponse,
   ApiOkResponse,
   ApiOperation,
@@ -13,13 +16,19 @@ import { Throttle } from '@nestjs/throttler';
 import { Request } from 'express';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
 import { Public } from '../common/decorators/public.decorator';
-import { AuthService, ClientInfo } from './auth.service';
+import { AuthService, ClientInfo, MAX_AVATAR_BYTES, UploadedImage } from './auth.service';
 import { AuthResponseDto, MessageResponseDto, UserResponseDto } from './dto/auth-response.dto';
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { OtpLoginDto } from './dto/otp-login.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto, UpdateProfileDto } from './dto/register.dto';
+
+// `dest` berilmagani uchun fayl xotirada (diskka vaqtinchalik yozilmaydi); limitdan katta bo'lsa 413
+const avatarUpload = () => FileInterceptor('file', { limits: { fileSize: MAX_AVATAR_BYTES, files: 1, fields: 0 } });
+const FILE_BODY = {
+  schema: { type: 'object', properties: { file: { type: 'string', format: 'binary' } }, required: ['file'] },
+};
 
 const AUTH_LIMIT = { default: { limit: Number(process.env.THROTTLE_AUTH_LIMIT ?? 10), ttl: 60_000 } };
 
@@ -55,7 +64,7 @@ export class AuthController {
   @ApiOperation({
     summary: 'Telefon + parol bilan kirish',
     description:
-      'Barcha rollar uchun bitta endpoint: SUPERADMIN, OPERATOR, TAILOR (tikuv sexi) va USER. ' +
+      'Barcha rollar uchun bitta endpoint: SUPERADMIN, TAILOR (tikuv sexi) va USER. ' +
       'Javobdagi user.role orqali klient qaysi panelga yo‘naltirishni hal qiladi.',
   })
   @ApiOkResponse({ type: AuthResponseDto })
@@ -135,5 +144,24 @@ export class AuthController {
   @ApiOkResponse({ type: MessageResponseDto })
   changePassword(@CurrentUser() user: AuthUser, @Body() dto: ChangePasswordDto) {
     return this.auth.changePassword(user.id, user.sessionId, dto);
+  }
+
+  @ApiBearerAuth()
+  @Post('me/avatar')
+  @UseInterceptors(avatarUpload())
+  @ApiConsumes('multipart/form-data')
+  @ApiBody(FILE_BODY)
+  @ApiOperation({ summary: 'Profil rasmini yuklash (PNG/JPEG/WEBP, 2 MB gacha)' })
+  @ApiOkResponse({ type: UserResponseDto })
+  setAvatar(@CurrentUser() user: AuthUser, @UploadedFile() file?: UploadedImage) {
+    return this.auth.setAvatar(user.id, file);
+  }
+
+  @ApiBearerAuth()
+  @Delete('me/avatar')
+  @ApiOperation({ summary: "Profil rasmini o'chirish" })
+  @ApiOkResponse({ type: UserResponseDto })
+  removeAvatar(@CurrentUser() user: AuthUser) {
+    return this.auth.removeAvatar(user.id);
   }
 }

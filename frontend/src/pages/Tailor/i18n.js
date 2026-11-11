@@ -1,13 +1,14 @@
 import { useCallback } from 'react';
+import { toUzNewLatin } from '../../utils/uzNewLatin';
 import { useTailor } from './prefs';
 
 export const LANGS = [
   { value: 'uz', label: "O'zbekcha", shortLabel: 'UZ' },
-  { value: 'ru', label: 'Русский', shortLabel: 'RU' },
   { value: 'uz-Cyrl', label: 'Ўзбекча', shortLabel: 'ЎЗ' },
+  { value: 'ru', label: 'Русский', shortLabel: 'RU' },
 ];
 
-export const LOCALES = { uz: 'uz-UZ', 'uz-Cyrl': 'uz-Cyrl-UZ', ru: 'ru-RU' };
+export const LOCALES = { uz: 'uz-UZ', 'uz-New': 'uz-UZ', 'uz-Cyrl': 'uz-Cyrl-UZ', ru: 'ru-RU' };
 
 const uz = {
   // ---------- shell ----------
@@ -26,10 +27,15 @@ const uz = {
   'note.summary.text': 'Jami: {count} · navbatda: {accepted} · tayyor: {ready}',
   'note.currentStatuses': 'Buyurtmalar serverdan jonli ravishda yangilanadi.',
   'shell.lang': 'Til',
+  'note.empty': 'Yangi bildirishnoma yo‘q',
+  'shell.theme': 'Mavzu (yorug‘ / qorong‘i)',
 
 
   // ---------- buyurtmalar (navbat / ishlab chiqarish) ----------
-  'orders.title': 'Buyurtmalar',
+  'orders.title': 'Umumiy buyurtmalar',
+  'orders.total': 'Hamma buyurtmalar: {n} ta',
+  'orders.totalLate': 'Kechikkan buyurtmalar: {n} ta',
+  'orders.totalReady': 'Tayyor buyurtmalar: {n} ta',
   'orders.sub': 'Muddat bo‘yicha tartiblangan',
   'q.late': 'Kechikkan buyurtmalar',
   'q.lateHint': "Muddati o'tgan — birinchi navbatda bajaring",
@@ -64,7 +70,6 @@ const uz = {
 
   // ---------- sidebar ----------
   'nav.queue': 'Bugungi navbat',
-  'nav.batches': 'Ishlab chiqarish',
   'nav.stock': 'Zaxira',
   'nav.stats': 'Statistika',
   'nav.workshops': 'Tikuv sexlari',
@@ -77,8 +82,6 @@ const uz = {
   // ---------- routes ----------
   'route.queue.title': 'Bugungi navbat',
   'route.queue.sub': 'Kechikkan va bugungi buyurtmalar bir joyda',
-  'route.batches.title': 'Ishlab chiqarish',
-  'route.batches.sub': 'Jarayondagi va tayyor buyurtmalar',
   'route.stock.title': 'Zaxira',
   'route.stock.sub': "Mato va material qoldig'i",
   'route.stats.title': 'Statistika',
@@ -145,6 +148,7 @@ const uz = {
   'order.spec.status': 'Status',
   'order.spec.shorts': 'Shortik',
   'order.spec.shortsNumber': 'Shortikda raqam',
+  'order.spec.pantsNumber': 'Shalvarda raqam',
   'brak.orderLabel': 'Buyurtma',
   'order.yes': 'Bor',
   'order.no': 'Yo‘q',
@@ -172,23 +176,6 @@ const uz = {
   'wf.printing': 'Bosish',
   'wf.ready': 'Tayyor',
 
-  // ---------- batches ----------
-  'bat.total': 'Jami partiyalar',
-  'bat.inProgress': 'Bosmada',
-  'bat.ready': 'Tayyor',
-  'bat.ordersQty': '{n} dona buyurtma',
-  'bat.inProgressHint': 'jarayonda',
-  'bat.readyHint': 'pickapga tayyor',
-  'bat.list': "Partiyalar ro'yxati",
-  'bat.listHint': "Model bo'yicha bosma jarayoni",
-  'bat.col.batch': 'Partiya',
-  'bat.col.model': 'Model',
-  'bat.col.qty': 'Miqdor',
-  'bat.col.progress': 'Jarayon',
-  'bat.col.status': 'Holat',
-  'bat.col.deadline': 'Muddat',
-  'bat.qtyUnit': '{n} dona',
-  'bat.doneShort': '({n} bajarildi)',
 
   // ---------- stats ----------
   'stat.title': 'Statistika va Hisobotlar',
@@ -218,7 +205,6 @@ const uz = {
   'stat.col.pieces': 'Dona',
   'stat.stage.ACCEPTED': 'Qabul qilindi',
   'stat.stage.PRINTING': 'Bosilmoqda',
-  'stat.stage.QUALITY_CHECK': 'Sifat nazorati',
   'stat.stage.READY': 'Tayyor',
   'stat.volumeChart': 'Kunlik buyurtmalar soni',
   'stat.volumeChartHint': "Oxirgi 7 kun bo'yicha har kungi buyurtmalar",
@@ -243,7 +229,7 @@ const uz = {
   'profile.phoneLabel': 'Telefon',
   'profile.shiftLabel': 'Ish vaqti',
   'profile.langLabel': 'Interfeys tili',
-  'profile.accountReadOnly': "Telefon raqami o'zgartirilmaydi. Kunlik quvvatni faqat Superadmin belgilaydi.",
+  'profile.accountReadOnly': "Telefon raqami o'zgartirilmaydi.",
   'profile.localNotifications': 'Tanlovlar paneldagi bildirishnomalar ro‘yxatini boshqaradi va shu qurilmada saqlanadi.',
   'profile.backendNote': "Profil ma’lumotlari serverda saqlanadi; bildirishnoma sozlamalari ushbu qurilmada.",
   'profile.persistError': 'Sozlamalarni ushbu qurilmada saqlab bo‘lmadi.',
@@ -260,6 +246,7 @@ const uz = {
   'profile.notifToast': 'Bildirishnoma sozlamasi yangilandi!',
   'profile.langToast': "Interfeys tili O'zbekchaga o'zgardi!",
   'profile.langToastRu': 'Язык интерфейса изменён на Русский!',
+  'profile.langToastCyrl': "Interfeys tili O'zbekcha (kirill)ga o'zgardi!",
 
   // ---------- employee modal ----------
   'emp.title': 'Profilni tahrirlash',
@@ -508,10 +495,15 @@ const ru = {
   'note.summary.text': 'Всего: {count} · в очереди: {accepted} · готово: {ready}',
   'note.currentStatuses': 'Текущие статусы заказов. Отдельного API серверных уведомлений нет.',
   'shell.lang': 'Язык',
+  'note.empty': 'Новых уведомлений нет',
+  'shell.theme': 'Тема (светлая / тёмная)',
 
 
   // ---------- заказы (очередь / производство) ----------
-  'orders.title': 'Заказы',
+  'orders.title': 'Общие заказы',
+  'orders.total': 'Все заказы: {n}',
+  'orders.totalLate': 'Просроченные заказы: {n}',
+  'orders.totalReady': 'Готовые заказы: {n}',
   'orders.sub': 'Отсортированы по сроку',
   'q.late': 'Просроченные заказы',
   'q.lateHint': 'Срок прошёл — выполните в первую очередь',
@@ -546,7 +538,6 @@ const ru = {
 
   // ---------- sidebar ----------
   'nav.queue': 'Очередь на сегодня',
-  'nav.batches': 'Производство',
   'nav.stock': 'Запас',
   'nav.stats': 'Статистика',
   'nav.workshops': 'Швейные цеха',
@@ -559,8 +550,6 @@ const ru = {
   // ---------- routes ----------
   'route.queue.title': 'Очередь на сегодня',
   'route.queue.sub': 'Просроченные и сегодняшние заказы в одном месте',
-  'route.batches.title': 'Производство',
-  'route.batches.sub': 'Заказы в работе и готовые',
   'route.stock.title': 'Запас',
   'route.stock.sub': 'Остаток ткани и материалов',
   'route.stats.title': 'Статистика',
@@ -627,6 +616,7 @@ const ru = {
   'order.spec.status': 'Статус',
   'order.spec.shorts': 'Шорты',
   'order.spec.shortsNumber': 'Номер на шортах',
+  'order.spec.pantsNumber': 'Номер на штанах',
   'brak.orderLabel': 'Заказ',
   'order.yes': 'Есть',
   'order.no': 'Нет',
@@ -654,23 +644,6 @@ const ru = {
   'wf.printing': 'Печать',
   'wf.ready': 'Готов',
 
-  // ---------- batches ----------
-  'bat.total': 'Всего партий',
-  'bat.inProgress': 'В печати',
-  'bat.ready': 'Готово',
-  'bat.ordersQty': 'заказов: {n} шт.',
-  'bat.inProgressHint': 'в процессе',
-  'bat.readyHint': 'готово к выдаче',
-  'bat.list': 'Список партий',
-  'bat.listHint': 'Процесс печати по моделям',
-  'bat.col.batch': 'Партия',
-  'bat.col.model': 'Модель',
-  'bat.col.qty': 'Количество',
-  'bat.col.progress': 'Процесс',
-  'bat.col.status': 'Статус',
-  'bat.col.deadline': 'Срок',
-  'bat.qtyUnit': '{n} шт.',
-  'bat.doneShort': '({n} выполнено)',
 
   // ---------- stats ----------
   'stat.title': 'Статистика и отчёты',
@@ -700,7 +673,6 @@ const ru = {
   'stat.col.pieces': 'Штук',
   'stat.stage.ACCEPTED': 'Принят',
   'stat.stage.PRINTING': 'Печатается',
-  'stat.stage.QUALITY_CHECK': 'Контроль качества',
   'stat.stage.READY': 'Готов',
   'stat.volumeChart': 'Заказы по дням',
   'stat.volumeChartHint': 'Заказы по дням за последние 7 дней',
@@ -725,7 +697,7 @@ const ru = {
   'profile.phoneLabel': 'Телефон',
   'profile.shiftLabel': 'Рабочее время',
   'profile.langLabel': 'Язык интерфейса',
-  'profile.accountReadOnly': 'Номер телефона изменить нельзя. Дневную мощность задаёт только Суперадмин.',
+  'profile.accountReadOnly': 'Номер телефона изменить нельзя.',
   'profile.localNotifications': 'Настройки управляют списком уведомлений в панели и сохраняются на этом устройстве.',
   'profile.backendNote': 'Данные профиля хранятся на сервере; настройки уведомлений — на этом устройстве.',
   'profile.persistError': 'Не удалось сохранить настройки на этом устройстве.',
@@ -1028,7 +1000,8 @@ function transliterateUzbek(text) {
 
 export const translate = (lang, key, vars) => {
   const baseText = DICTS[lang]?.[key] ?? uz[key] ?? key;
-  const text = lang === 'uz-Cyrl' ? transliterateUzbek(baseText) : baseText;
+  // uz-Cyrl — kirill, uz-New — yangi lotin alifbosi (Ō, Ḡ, Ş, Ç): ikkalasi o'zbekcha matndan avtomatik
+  const text = lang === 'uz-Cyrl' ? transliterateUzbek(baseText) : lang === 'uz-New' ? toUzNewLatin(baseText) : baseText;
   return vars ? text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m)) : text;
 };
 

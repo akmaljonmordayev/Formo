@@ -137,6 +137,14 @@ export class ClubsService {
     } satisfies Prisma.KitUpdateManyWithoutClubNestedInput;
   }
 
+  /** "Formalar" sahifasi uchun — barcha klublarning barcha formalari bitta yassi ro'yxatda */
+  async listKits() {
+    return this.prisma.kit.findMany({
+      orderBy: [{ club: { name: 'asc' } }, { sortOrder: 'asc' }],
+      include: { club: { select: { id: true, name: true, code: true, markColor: true, season: true } } },
+    });
+  }
+
   async updateKit(id: number, dto: UpdateKitDto, actor: AuditEntry['actor'], ip?: string) {
     const current = await this.prisma.kit.findUnique({ where: { id }, include: { club: { select: { name: true } } } });
     if (!current) throw new NotFoundException('Forma topilmadi');

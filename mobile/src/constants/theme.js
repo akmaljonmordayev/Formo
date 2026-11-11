@@ -1,5 +1,25 @@
-export const colors = {
-  // Brand foundation
+// Brand/semantic rang-tuslar — ikkala mavzuda ham bir xil (doim o'zining fonida: tugma, nishon va h.k.)
+const brand = {
+  primary: '#F2A33A',
+  primaryDark: '#080C24',
+  accent: '#F2A33A',
+  accentLight: '#F7C27A',
+  accentGlow: 'rgba(242, 163, 58, 0.22)',
+  teal: '#19A7A1',
+  tealLight: '#3FD9B7',
+  tealGlow: 'rgba(25, 167, 161, 0.22)',
+  danger: '#E8543F',
+  dangerGlow: 'rgba(232, 84, 63, 0.22)',
+  success: '#19A7A1',
+  info: '#5D7CFF',
+  warning: '#F5A55E',
+  white: '#FFFFFF',
+  black: '#070A20',
+};
+
+/** Qorong'i mavzu (standart, hozirgi fon) */
+export const darkColors = {
+  ...brand,
   // Formo palitrasi: fon #050818, sirt #0E1A3F, oltin #F2A33A, firuza #19A7A1
   background: '#050818',
   backgroundAlt: '#08102C',
@@ -9,38 +29,39 @@ export const colors = {
   border: '#212B60',
   borderLight: '#2D3A7A',
   borderActive: '#F2A33A',
-
-  // Typography
   text: '#FFFFFF',
   textSecondary: '#C5CCE8',
   muted: '#838EB8',
   dim: '#57628C',
-
-  // Formo athletic brand accents
-  primary: '#F2A33A',
-  primaryDark: '#080C24',
-  accent: '#F2A33A',
-  accentLight: '#F7C27A',
-  accentGlow: 'rgba(242, 163, 58, 0.22)',
-
-  // Athletic performance colors
-  teal: '#19A7A1',
-  tealLight: '#3FD9B7',
-  tealGlow: 'rgba(25, 167, 161, 0.22)',
-  danger: '#E8543F',
-  dangerGlow: 'rgba(232, 84, 63, 0.22)',
-  success: '#19A7A1',
-  info: '#5D7CFF',
-  warning: '#F5A55E',
-
-  // Chrome & Navigation
   chip: '#141C44',
   chipActive: '#1D285E',
   tabBar: '#070D26',
   tabBarBorder: '#18214F',
-  white: '#FFFFFF',
-  black: '#070A20',
 };
+
+/** Yorug' mavzu — fon oq */
+export const lightColors = {
+  ...brand,
+  background: '#FFFFFF',
+  backgroundAlt: '#F4F6FB',
+  surface: '#FFFFFF',
+  surfaceRaised: '#F4F6FB',
+  surfaceSubtle: '#F8F9FC',
+  border: '#E2E6F2',
+  borderLight: '#D3D9EC',
+  borderActive: '#F2A33A',
+  text: '#0A1330',
+  textSecondary: '#3C4566',
+  muted: '#6B7494',
+  dim: '#9BA2BE',
+  chip: '#F0F2F9',
+  chipActive: '#E4E8F5',
+  tabBar: '#FFFFFF',
+  tabBarBorder: '#E2E6F2',
+};
+
+/** Orqaga moslik uchun — qorong'i mavzu standart (statik import qiladigan joylar hali bor bo'lsa) */
+export const colors = darkColors;
 
 export const spacing = {
   xs: 4,

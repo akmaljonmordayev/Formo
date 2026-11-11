@@ -28,7 +28,13 @@ test('reverse geocode natijasi takrorsiz o\'qiladigan manzilga aylanadi', () => 
 });
 
 test('forma tekshiruvi CreateAddressDto chegaralariga mos', () => {
-  const ok = { label: 'Uy', address: 'Yunusobod, Amir Temur 108', apartment: '45', coords: { latitude: 41.36, longitude: 69.28 } };
+  const ok = {
+    label: 'Uy',
+    address: 'Yunusobod, Amir Temur 108',
+    apartment: '45',
+    region: 'TOSHKENT_SHAHRI',
+    coords: { latitude: 41.36, longitude: 69.28 },
+  };
   assert.deepEqual(loc.validateAddressForm(ok), {});
   assert.equal(loc.validateAddressForm({ ...ok, label: ' ' }).label, 'addrLabelInvalid');
   assert.equal(loc.validateAddressForm({ ...ok, label: 'x'.repeat(31) }).label, 'addrLabelInvalid');
@@ -36,6 +42,8 @@ test('forma tekshiruvi CreateAddressDto chegaralariga mos', () => {
   assert.equal(loc.validateAddressForm({ ...ok, apartment: 'x'.repeat(61) }).apartment, 'addrApartmentInvalid');
   assert.equal(loc.validateAddressForm({ ...ok, address: '<script>alert(1)</script>' }).address, 'invalidValue');
   assert.equal(loc.validateAddressForm({ ...ok, coords: { latitude: 120, longitude: 0 } }).coords, 'locationInvalid');
+  assert.equal(loc.validateAddressForm({ ...ok, region: undefined }).region, 'addrRegionInvalid');
+  assert.equal(loc.validateAddressForm({ ...ok, region: 'MARS' }).region, 'addrRegionInvalid');
 });
 
 test('POST tanasi: faqat DTO maydonlari, koordinata 6 xonagacha, bo\'sh xonadon yuborilmaydi', () => {
@@ -51,6 +59,9 @@ test('POST tanasi: faqat DTO maydonlari, koordinata 6 xonagacha, bo\'sh xonadon 
   assert.deepEqual(loc.toAddressPayload({ label: 'Ish', address: 'Mirobod 7-uy' }), { label: 'Ish', address: 'Mirobod 7-uy' });
   // PATCH: bo'shatilgan xonadon '' bilan tozalanadi
   assert.equal(loc.toAddressPayload({ label: 'Uy', address: 'Mirobod 7-uy', apartment: '' }, { isUpdate: true }).apartment, '');
+  // Viloyat: faqat tanish kod yuboriladi
+  assert.equal(loc.toAddressPayload({ label: 'Uy', address: 'Mirobod 7-uy', region: 'TOSHKENT_SHAHRI' }).region, 'TOSHKENT_SHAHRI');
+  assert.equal(loc.toAddressPayload({ label: 'Uy', address: 'Mirobod 7-uy', region: 'MARS' }).region, undefined);
 });
 
 test('saqlangan manzil koordinatasi faqat haqiqiy bo\'lsa qaytadi', () => {

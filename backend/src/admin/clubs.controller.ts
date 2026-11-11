@@ -29,6 +29,12 @@ export class ClubsController {
     return this.clubs.create(dto, user, req.ip);
   }
 
+  @Get('kits')
+  @ApiOperation({ summary: "Barcha formalar — klublar bo'yicha yassi ro'yxat (\"Formalar\" sahifasi uchun)" })
+  listKits() {
+    return this.clubs.listKits();
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: "Klubni tahrirlash" })
   update(

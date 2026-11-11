@@ -69,7 +69,7 @@ export function setupApp(app: INestApplication) {
       .setTitle('Formo API')
       .setDescription(
         'Formo — maxsus futbol formalari platformasi.\n\n' +
-          '**Rollar:** SUPERADMIN (yagona), OPERATOR (yagona), TAILOR (tikuv sexlari), USER (mobil ilova).\n\n' +
+          '**Rollar:** SUPERADMIN (yagona), TAILOR (tikuv sexlari), USER (mobil ilova).\n\n' +
           "Kirish: `POST /api/auth/login` → `accessToken` ni yuqoridagi **Authorize** tugmasiga qo'ying.",
       )
       .setVersion('1.0')

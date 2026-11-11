@@ -50,6 +50,7 @@ export default function OrderList({ view }) {
               <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs tabular-nums">{sectionRows.length}</span>
             </h2>
           )}
+          <div className={view === 'ready' ? 'grid gap-3 md:grid-cols-2' : 'space-y-3'}>
           {sectionRows.map(({ order, bucket }, index) => (
             <OrderCard
               key={order.id}
@@ -59,6 +60,7 @@ export default function OrderList({ view }) {
               onOpen={(o) => setOpenId(o.id)}
             />
           ))}
+          </div>
         </section>
       ))}
 
@@ -67,6 +69,10 @@ export default function OrderList({ view }) {
           {ordersLoading ? t('api.loading') : view === 'ready' ? t('prod.emptyReady') : view === 'late' ? t('q.emptyLate') : t('q.allDone')}
         </div>
       )}
+
+      <p className="sticky bottom-3 z-20 mx-auto w-fit rounded-full border border-white/10 bg-[#121829]/90 px-5 py-2 text-center text-sm font-semibold text-slate-200 shadow-lg backdrop-blur-md">
+        {t(view === 'late' ? 'orders.totalLate' : view === 'ready' ? 'orders.totalReady' : 'orders.total', { n: rows.length })}
+      </p>
 
       <OrderDrawer
         order={opened}

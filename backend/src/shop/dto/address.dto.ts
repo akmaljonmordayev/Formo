@@ -1,6 +1,7 @@
 import { ApiProperty, ApiPropertyOptional, PartialType } from '@nestjs/swagger';
-import { IsBoolean, IsLatitude, IsLongitude, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import { IsBoolean, IsIn, IsLatitude, IsLongitude, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { CleanText, NoHtml } from '../../common/utils/no-html';
+import { REGION_CODES } from '../regions';
 
 export class CreateAddressDto {
   @ApiProperty({ example: 'Uy', description: 'Qisqa nom: Uy, Ish, ...' })
@@ -26,6 +27,11 @@ export class CreateAddressDto {
   @NoHtml()
   @MaxLength(60)
   apartment?: string;
+
+  @ApiPropertyOptional({ enum: REGION_CODES, description: 'Viloyat kodi — yetkazish narxi shundan hisoblanadi' })
+  @IsOptional()
+  @IsIn(REGION_CODES)
+  region?: string;
 
   @ApiPropertyOptional({ example: 41.3667 })
   @IsOptional()

@@ -96,6 +96,7 @@ export default function SuperadminUsers() {
         <table className="table">
           <thead>
             <tr>
+              <th>№</th>
               <th>{t("Foydalanuvchi")}</th>
               <th>{t("Telefon")}</th>
               <th>{t("Profil")}</th>
@@ -107,19 +108,20 @@ export default function SuperadminUsers() {
           <tbody>
             {loading && !data.items.length ? (
               <tr>
-                <td colSpan={6} className="table__empty">
+                <td colSpan={7} className="table__empty">
                   {t("Yuklanmoqda...")}
                 </td>
               </tr>
             ) : !data.items.length ? (
               <tr>
-                <td colSpan={6} className="table__empty">
+                <td colSpan={7} className="table__empty">
                   {t("Foydalanuvchilar topilmadi")}
                 </td>
               </tr>
             ) : (
-              data.items.map((u) => (
+              data.items.map((u, i) => (
                 <tr key={u.id}>
+                  <td className="muted">{(page - 1) * LIMIT + i + 1}</td>
                   <td>
                     <strong>{u.fullName}</strong>
                   </td>

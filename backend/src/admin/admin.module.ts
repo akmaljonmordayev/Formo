@@ -18,7 +18,6 @@ import { DiagnosticsController } from './diagnostics.controller';
 import { InsightsController } from './insights.controller';
 import { InventoryController } from './inventory.controller';
 import { InventoryService } from './inventory.service';
-import { OperatorController } from './operator.controller';
 import { OrdersController } from './orders.controller';
 import { OrderHistoryService } from './order-history.service';
 import { OrdersService } from './orders.service';
@@ -37,7 +36,6 @@ import { WorkshopsController } from './workshops.controller';
 @Module({
   imports: [AuthModule],
   controllers: [
-    OperatorController,
     WorkshopsController,
     UsersController,
     DiagnosticsController,

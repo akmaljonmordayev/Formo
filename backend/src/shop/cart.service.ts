@@ -88,7 +88,7 @@ export function toCartItem(line: CartLine, prices: CartPrices) {
   const print = [line.printName, line.printNumber].filter(Boolean).join(' · ');
   const sizes = line.withShorts ? `${line.shirtSize} / ${line.shortsSize}` : line.shirtSize;
   const title = kit
-    ? `${kit.club.name} · ${kit.label} formasi`
+    ? `${kit.club.name} · ${kit.label} formasi${kit.sleeve === 'LONG' ? ' (uzun yeng)' : ''}`
     : kitDesign
       ? `${kitDesign.name} · ${KIT_DESIGN_TITLE}`
       : `${CUSTOM_TITLE} futbolka`;
@@ -98,7 +98,10 @@ export function toCartItem(line: CartLine, prices: CartPrices) {
     club: kit
       ? { id: kit.club.id, name: kit.club.name, code: kit.club.code, markColor: kit.club.markColor, kit360Id: kit.club.kit360Id }
       : null,
-    kit: kit ? { label: kit.label, bgColor: kit.bgColor, textColor: kit.textColor } : null,
+    // sleeve/bottom — savat/buyurtma kartasi va sex uchun: kalta yeng + shortik yoki uzun yeng + shalvar
+    kit: kit
+      ? { label: kit.label, bgColor: kit.bgColor, textColor: kit.textColor, sleeve: kit.sleeve, bottom: kit.bottom }
+      : null,
     kitDesignId: line.kitDesignId,
     kitDesign: kitDesign ? { id: kitDesign.id, name: kitDesign.name, thumbnailUrl: kitDesign.thumbnailUrl, design: toDesignV1(kitDesign) } : null,
     design,
@@ -145,12 +148,12 @@ export class CartService {
     return Promise.all([this.studio.prices(db), loadKitDesignPrices(db)]).then(([studio, kitDesign]) => ({ studio, kitDesign }));
   }
 
-  async view(userId: number, promocode?: string) {
+  async view(userId: number, promocode?: string, region?: string) {
     const [lines, prices] = await Promise.all([this.lines(userId), this.prices()]);
     const items = lines.map((l) => toCartItem(l, prices));
     const subtotal = items.filter((i) => i.available).reduce((s, i) => s + i.totalPrice, 0);
     const promo = promocode ? await this.resolvePromo(promocode, subtotal) : null;
-    const summary = summarize(subtotal, await this.delivery.fee(), promo);
+    const summary = summarize(subtotal, await this.delivery.fee(region), promo);
 
     return {
       items,

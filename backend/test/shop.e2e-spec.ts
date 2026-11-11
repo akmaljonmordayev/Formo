@@ -142,6 +142,14 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
       await as(admin).post('/api/admin/clubs/99999/kits', kit).expect(404);
       const res = await as(admin).post(`/api/admin/clubs/${real.id}/kits`, kit).expect(201);
       expect(res.body).toMatchObject({ clubId: real.id, sleeve: 'LONG', bottom: 'PANTS', sortOrder: 3, shirtPrice: 159000 });
+      // Mobil ilova: klub sahifasida forma turi va komplekt tarkibi ko'rinadi (qishki forma tanlovi shundan)
+      const club = await api(app).get(`/api/catalog/clubs/${real.id}`).expect(200);
+      expect(club.body.kits.find((k: { id: number }) => k.id === res.body.id)).toMatchObject({
+        sleeve: 'LONG',
+        bottom: 'PANTS',
+        includes: 'Uzun yengli futbolka + shalvar',
+      });
+      expect(club.body.kits.find((k: { sleeve: string }) => k.sleeve === 'SHORT')).toMatchObject({ includes: 'Futbolka + shortik' });
       await as(admin).delete(`/api/admin/clubs/kits/${res.body.id}`).expect(200);
       await as(admin).delete(`/api/admin/clubs/kits/${res.body.id}`).expect(404);
 
@@ -193,7 +201,7 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
           code: 'RMB',
           markColor: '#ffffff',
           kit360Id: 'rm',
-          kits: [{ label: 'Uy', bgColor: '#ffffff', textColor: '#000000', shirtPrice: 1, shortsPrice: 1, printPrice: 1, sizes: ['L'] }],
+          kits: [{ label: 'Uy', bgColor: '#ffffff', textColor: '#000000', shirtPrice: 1, printPrice: 1, sizes: ['L'] }],
         })
         .expect(409);
       expect(other.body.message).toContain('Forma 360°');
@@ -213,14 +221,14 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
 
     it("forma tafsiloti: narx tarkibi, o'lchamlar (XXL tugagan), boshqa formalar", async () => {
       const res = await api(app).get(`/api/catalog/kits/${homeKit}`).expect(200);
-      expect(res.body.priceBreakdown).toEqual({ shirt: 159000, shorts: 0, print: 30000 });
+      expect(res.body.priceBreakdown).toEqual({ shirt: 159000, print: 30000 });
       expect(res.body.club).toMatchObject({ name: 'Real Madrid', season: '2026/27' });
       expect(res.body.siblings.map((k: { label: string }) => k.label)).toEqual(['Uy', 'Mehmon', 'Uchinchi']);
       expect(res.body.sizes).toEqual(
         expect.arrayContaining([
-          { size: 'L', available: true },
-          { size: 'XXL', available: false },
-          { size: '8-9', available: true },
+          { size: 'L', available: true, price: 159000 },
+          { size: 'XXL', available: false, price: 159000 },
+          { size: '8-9', available: true, price: 159000 },
         ]),
       );
     });

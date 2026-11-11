@@ -1,4 +1,4 @@
-import { CatalogService } from './catalog.service';
+import { CatalogService, toKitProduct } from './catalog.service';
 
 // Mobil "Klub formasi" mahsulotni shu javoblardan yig'adi — kit360Id har birida bo'lishi kerak
 describe('CatalogService — kit360Id javobda', () => {
@@ -71,5 +71,35 @@ describe('CatalogService — kit360 filtri', () => {
     expect(rows[0].clubsCount).toBe(2);
     await catalog.categories();
     expect(JSON.stringify(prisma.category.findMany.mock.calls.at(-1))).not.toContain('kit360Id');
+  });
+});
+
+// Mahsulot javobida har bir o'lchamning o'z narxi — Superadmin "Formalar"dagi sizePrices
+describe("toKitProduct — o'lcham bo'yicha narx", () => {
+  const kit = {
+    id: 1,
+    clubId: 1,
+    label: 'Uy',
+    bgColor: '#0e1a3f',
+    textColor: '#ffffff',
+    sortOrder: 0,
+    colorsLabel: null,
+    description: null,
+    shirtPrice: 159000,
+    shortsPrice: 0,
+    printPrice: 30000,
+    sizePrices: { XXL: 170000, '3XL': 180000 },
+    sizes: ['S', 'M', 'L', 'XL', 'XXL', '3XL'],
+    sleeve: 'SHORT',
+    bottom: 'SHORTS',
+    isActive: true,
+  } as unknown as Parameters<typeof toKitProduct>[0];
+
+  it("sizePrices'da bor o'lcham — o'z narxi, bo'lmasa shirtPrice", () => {
+    const bySize = Object.fromEntries(toKitProduct(kit).sizes.map((s) => [s.size, s.price]));
+    expect(bySize.XXL).toBe(170000);
+    expect(bySize['3XL']).toBe(180000);
+    expect(bySize.S).toBe(159000);
+    expect(bySize.M).toBe(159000);
   });
 });

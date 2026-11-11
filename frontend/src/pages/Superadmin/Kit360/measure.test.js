@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { findBadge, garmentMask, healFabricPatch, logoTop, measureShorts, measureTorso, printLayout } from './measure';
+import { findBadge, garmentMask, healFabricPatch, isPants, logoTop, measureShorts, measureTorso, printLayout } from './measure';
 
 const WHITE = [245, 238, 226]; // oq mato — ozgina iliq tus bilan (fon va maneken neytral)
 const GREY_ARM = [120, 120, 120];
@@ -203,5 +203,40 @@ describe('Forma 360° — suratdan bosma joyini o\'lchash', () => {
     expect(at(390, 300)).toBe(0);
     expect(at(300, 300)).toBe(255);
     expect(at(100, 300)).toBe(0);
+  });
+});
+
+describe('uzun shalvar (l* kadrlari)', () => {
+  /* Sun'iy kadr: kulrang fon (183), futbolka (y 150–400), shalvar yoki shortik + maneken soni (kulrang 120) */
+  function kit({ pants, color }) {
+    const width = 600;
+    const height = 800;
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (let y = 0; y < height; y += 1) {
+      for (let x = 0; x < width; x += 1) {
+        const i = (y * width + x) * 4;
+        const shirt = x >= 230 && x <= 370 && y >= 150 && y < 400;
+        const legs = (x >= 235 && x <= 290) || (x >= 310 && x <= 365);
+        const bottom = (y >= 400 && y <= 505 && x >= 225 && x <= 375) || (pants && legs && y > 505 && y < 690);
+        const thigh = !pants && legs && y > 505 && y < 690;
+        const [r, g, b] = shirt || bottom ? color : thigh ? [120, 120, 120] : [183, 183, 183];
+        data[i] = r; data[i + 1] = g; data[i + 2] = b; data[i + 3] = 255;
+      }
+    }
+    return { width, height, data };
+  }
+
+  it("isPants: shalvar (oq — soyada ham, rangli) — ha; shortik ostidagi maneken soni — yo'q", () => {
+    expect(isPants(kit({ pants: true, color: [200, 200, 200] }))).toBe(true);
+    expect(isPants(kit({ pants: true, color: [30, 40, 120] }))).toBe(true);
+    expect(isPants(kit({ pants: false, color: [200, 200, 200] }))).toBe(false);
+    expect(isPants(kit({ pants: false, color: [30, 40, 120] }))).toBe(false);
+  });
+
+  it("shalvardagi raqam son o'rtasida (shortik pastki chetiga bog'lanmaydi), o'ng oyoqda", () => {
+    const [zone] = printLayout(0, kit({ pants: true, color: [30, 40, 120] }), null);
+    expect(zone).toMatchObject({ text: 'number', shorts: true, y: 532 });
+    expect(zone.surface.mid).toBeGreaterThan(310);
+    expect(zone.surface.mid).toBeLessThan(365);
   });
 });

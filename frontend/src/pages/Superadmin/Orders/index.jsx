@@ -14,7 +14,6 @@ import { Pager } from '../ui';
 const KitOrderPreview = lazy(() => import('../KitDesigns/KitOrderPreview'));
 
 const TABS = [
-  { label: 'Barchasi', status: undefined },
   { label: 'Yangi', status: 'NEW' }, // naqd/balans buyurtmalari shu holatda keladi
   { label: 'Sexga yuborildi', status: 'SENT_TO_WORKSHOP' },
   { label: "To'lov kutilmoqda", status: 'PENDING_PAYMENT' },

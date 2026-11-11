@@ -151,7 +151,7 @@ describe('3D forma dizaynlari (e2e)', () => {
         id: designId,
         name: 'Oqim 2026',
         design: { designVersion: 1, primaryColor: '#1f6f8b', pattern: 'fade' },
-        prices: { shirt: 159000, shorts: 0, print: 30000 },
+        prices: { shirt: 159000, print: 30000 },
       });
       expect(res.body[0]).not.toHaveProperty('isActive');
       await api(app).get(`/api/kits/designs/${designId}`).expect(200);

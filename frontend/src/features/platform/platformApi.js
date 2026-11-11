@@ -30,8 +30,9 @@ export const clubsApi = {
   create: (body) => api('/admin/clubs', { method: 'POST', body }),
   update: (id, body) => api(`/admin/clubs/${id}`, { method: 'PATCH', body }),
   remove: (id) => api(`/admin/clubs/${id}`, { method: 'DELETE' }),
-  updateKit: (kitId, body) => api(`/admin/clubs/kits/${kitId}`, { method: 'PATCH', body }),
+  listKits: () => api('/admin/clubs/kits'),
   createKit: (clubId, body) => api(`/admin/clubs/${clubId}/kits`, { method: 'POST', body }),
+  updateKit: (kitId, body) => api(`/admin/clubs/kits/${kitId}`, { method: 'PATCH', body }),
   removeKit: (kitId) => api(`/admin/clubs/kits/${kitId}`, { method: 'DELETE' }),
 };
 
@@ -64,6 +65,7 @@ export const promocodesApi = {
   list: () => api('/admin/promocodes'),
   create: (body) => api('/admin/promocodes', { method: 'POST', body }),
   update: (id, body) => api(`/admin/promocodes/${id}`, { method: 'PATCH', body }),
+  remove: (id) => api(`/admin/promocodes/${id}`, { method: 'DELETE' }),
 };
 
 export const campaignsApi = {
@@ -136,7 +138,6 @@ export const ORDER_STATUS = {
   SENT_TO_WORKSHOP: { label: 'Sexga yuborildi', color: 'blue' },
   ACCEPTED: { label: 'Sex qabul qildi', color: 'blue' },
   PRINTING: { label: 'Bosilmoqda', color: 'violet' },
-  QUALITY_CHECK: { label: 'Sifat nazorati', color: 'violet' },
   READY: { label: 'Tayyor', color: 'blue' },
   DELIVERING: { label: 'Yetkazishda', color: 'blue' },
   DELIVERED: { label: 'Yetkazildi', color: 'green' },

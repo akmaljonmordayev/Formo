@@ -26,16 +26,14 @@ export class WorkshopsController {
   constructor(private readonly accounts: AccountsService) {}
 
   @Get()
-  @Roles(Role.SUPERADMIN, Role.OPERATOR)
-  @ApiOperation({ summary: "Tikuv sexlari ro'yxati (SUPERADMIN, OPERATOR)" })
+  @ApiOperation({ summary: "Tikuv sexlari ro'yxati" })
   @ApiOkResponse({ type: PaginatedUsersDto })
   list(@Query() query: ListQueryDto) {
     return this.accounts.list(Role.TAILOR, query);
   }
 
   @Get(':id')
-  @Roles(Role.SUPERADMIN, Role.OPERATOR)
-  @ApiOperation({ summary: 'Tikuv sexi (SUPERADMIN, OPERATOR)' })
+  @ApiOperation({ summary: 'Tikuv sexi' })
   @ApiOkResponse({ type: UserResponseDto })
   @ApiNotFoundResponse()
   findOne(@Param('id', ParseIdPipe) id: number) {

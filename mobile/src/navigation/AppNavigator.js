@@ -17,7 +17,6 @@ import OrderDetailScreen from '../screens/OrderDetailScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import ProductScreen from '../screens/ProductScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import SettingsScreen from '../screens/SettingsScreen';
 import StudioScreen from '../screens/StudioScreen';
 import SupportChatScreen from '../screens/SupportChatScreen';
 import WalletScreen from '../screens/WalletScreen';
@@ -51,6 +50,8 @@ export default function AppNavigator({ store, t, auth }) {
   // Forma 360° ko'ruvchisi: qaysi jamoa va qaysi ekrandan ochilgani (orqaga qaytish)
   const [kit360TeamId, setKit360TeamId] = useState(null);
   const [kit360From, setKit360From] = useState('studio');
+  // Katalogda bosilgan forma turi (LONG — qishki / SHORT — yozgi) — Forma 360° 1-bosqichida oldindan tanlanadi
+  const [kit360Sleeve, setKit360Sleeve] = useState(null);
 
   // ─── Cart origin (to return where the user came from) ────────────────────────
   const [cartFrom, setCartFrom] = useState('home');
@@ -106,6 +107,7 @@ export default function AppNavigator({ store, t, auth }) {
     setStudioKit(null);
     setOrderId(null);
     setKit360TeamId(null);
+    setKit360Sleeve(null);
     setKit360From('studio');
     setPickerAddress(null);
     setCheckoutAddressId(null);
@@ -139,8 +141,9 @@ export default function AppNavigator({ store, t, auth }) {
     setCartFrom(from);
     setRoute('cart');
   };
-  const openKit360 = (teamId) => {
+  const openKit360 = (teamId, sleeve = null) => {
     setKit360TeamId(teamId || null);
+    setKit360Sleeve(sleeve);
     setKit360From(route === 'kit360' ? kit360From : route);
     setRoute('kit360');
   };
@@ -155,7 +158,7 @@ export default function AppNavigator({ store, t, auth }) {
   };
   // Katalog/bosh sahifadagi forma kartasi: Forma 360° jamoasi bo'lsa — 360° ko'ruvchi, aks holda klub sahifasi
   const openKit = (kit) => {
-    if (kit.kit360Id) openKit360(kit.kit360Id);
+    if (kit.kit360Id) openKit360(kit.kit360Id, kit.sleeve || null);
     else if (kit.clubId) openClub({ id: kit.clubId, name: kit.name }, kit.kitId);
   };
   const openOrder = (id, from = route) => {
@@ -211,7 +214,7 @@ export default function AppNavigator({ store, t, auth }) {
     if (route === 'wallet') { navigate(walletFrom); return true; }
     if (route === 'addresses') { navigate('profile'); return true; }
     if (route === 'locationPicker') { navigate(pickerFrom); return true; }
-    if (route === 'settings' || route === 'support') { navigate('profile'); return true; }
+    if (route === 'support') { navigate('profile'); return true; }
     if (route === 'product') { navigateTab('studio'); return true; }
 
     // Any other screen (studio/orders/profile tab roots) — back to the home tab
@@ -269,7 +272,9 @@ export default function AppNavigator({ store, t, auth }) {
     ) : route === 'kit360' || route === 'catalog' ? (
       <Kit360Screen
         t={t}
+        key={`${kit360TeamId || ''}:${kit360Sleeve || ''}`}
         initialTeam={kit360TeamId}
+        initialSleeve={kit360Sleeve}
         rules={config.rules}
         cart={cart}
         onBack={() => navigate(kit360From)}
@@ -321,7 +326,8 @@ export default function AppNavigator({ store, t, auth }) {
       <ProfileScreen
         t={t}
         auth={auth}
-        onSettings={() => navigate('settings')}
+        language={store.language}
+        setLanguage={store.setLanguage}
         onOrders={() => navigate('orders')}
         onAddresses={() => navigate('addresses')}
         onWallet={() => openWallet('profile')}
@@ -350,16 +356,6 @@ export default function AppNavigator({ store, t, auth }) {
           navigate(pickerFrom);
         }}
       />
-    ) : route === 'settings' ? (
-      <SettingsScreen
-        t={t}
-        language={store.language}
-        setLanguage={store.setLanguage}
-        onBack={() => navigate('profile')}
-        onNotifications={() => openNotifications('settings')}
-        general={config.general}
-        auth={auth}
-      />
     ) : (
       <ProductScreen
         t={t}
@@ -376,7 +372,7 @@ export default function AppNavigator({ store, t, auth }) {
 
   // Tab bar stays visible everywhere in the main app (including the design
   // studio — only full-screen detail/settings pages hide it).
-  const hideTabs = ['product', 'settings', 'checkout', 'order', 'notifications', 'addresses', 'locationPicker', 'wallet', 'support'].includes(route);
+  const hideTabs = ['product', 'checkout', 'order', 'notifications', 'addresses', 'locationPicker', 'wallet', 'support'].includes(route);
 
   return (
     <CartContext.Provider value={cartValue}>

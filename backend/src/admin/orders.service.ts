@@ -14,7 +14,6 @@ export const ACTIVE_STATUSES: OrderStatus[] = [
   OrderStatus.SENT_TO_WORKSHOP,
   OrderStatus.ACCEPTED,
   OrderStatus.PRINTING,
-  OrderStatus.QUALITY_CHECK,
   OrderStatus.READY,
   OrderStatus.DELIVERING,
 ];
@@ -24,7 +23,6 @@ const REVENUE_STATUSES: OrderStatus[] = [
   OrderStatus.SENT_TO_WORKSHOP,
   OrderStatus.ACCEPTED,
   OrderStatus.PRINTING,
-  OrderStatus.QUALITY_CHECK,
   OrderStatus.READY,
   OrderStatus.DELIVERING,
   OrderStatus.DELIVERED,
@@ -270,7 +268,7 @@ export class OrdersService {
       this.previousOrders(r),
       this.prisma.order.count({
         where: {
-          status: { in: [OrderStatus.ACCEPTED, OrderStatus.PRINTING, OrderStatus.QUALITY_CHECK] },
+          status: { in: [OrderStatus.ACCEPTED, OrderStatus.PRINTING] },
           // "muddatga 3 soatdan kam" — qabul qilingandan 21 soatdan ko'p o'tgan, hali tayyor bo'lmagan vazifalar
           createdAt: { lt: new Date(Date.now() - 21 * 60 * 60 * 1000) },
         },
@@ -359,7 +357,7 @@ export class OrdersService {
     };
   }
 
-  /** "Ishlab chiqarish" kanban: workshop (sex) bo'yicha yuk va 4 ustunli bosqichlar */
+  /** "Ishlab chiqarish" kanban: workshop (sex) bo'yicha yuk va 3 ustunli bosqichlar */
   async production() {
     const [workshops, printingOrders] = await Promise.all([
       this.prisma.user.findMany({
@@ -375,7 +373,7 @@ export class OrdersService {
       this.prisma.order.findMany({
         where: {
           status: {
-            in: [OrderStatus.SENT_TO_WORKSHOP, OrderStatus.ACCEPTED, OrderStatus.PRINTING, OrderStatus.QUALITY_CHECK, OrderStatus.READY],
+            in: [OrderStatus.SENT_TO_WORKSHOP, OrderStatus.ACCEPTED, OrderStatus.PRINTING, OrderStatus.READY],
           },
         },
         orderBy: { createdAt: 'asc' },
@@ -403,7 +401,6 @@ export class OrdersService {
         // Sexga biriktirilgan, sex hali "Qabul qilish"ni bosmagan buyurtmalar — birinchi ustun (navbat) bilan birga
         ACCEPTED: printingOrders.filter((o) => o.status === OrderStatus.ACCEPTED || o.status === OrderStatus.SENT_TO_WORKSHOP),
         PRINTING: printingOrders.filter((o) => o.status === OrderStatus.PRINTING),
-        QUALITY_CHECK: printingOrders.filter((o) => o.status === OrderStatus.QUALITY_CHECK),
         READY: printingOrders.filter((o) => o.status === OrderStatus.READY),
       },
     };

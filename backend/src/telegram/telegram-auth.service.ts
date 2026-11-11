@@ -1,4 +1,6 @@
 import {
+  BadRequestException,
+  ConflictException,
   ForbiddenException,
   HttpException,
   HttpStatus,
@@ -11,6 +13,7 @@ import { Prisma, Role, TelegramAuthChallenge, User } from '@prisma/client';
 import { createHmac, randomBytes, randomInt } from 'crypto';
 import { AuthService, ClientInfo, NEW_CUSTOMER_NAME, unusablePasswordHash } from '../auth/auth.service';
 import { normalizePhone } from '../common/utils/phone';
+import { toPublicUser } from '../common/utils/user.mapper';
 import { PrismaService } from '../prisma/prisma.service';
 import { loginTexts } from './bot-texts';
 import { TelegramOutboxService } from './telegram-outbox.service';
@@ -110,9 +113,7 @@ export class TelegramAuthService {
   /** Bot: foydalanuvchi o'z kontaktini yubordi (bot contact.user_id === from.id ni tekshirgan) */
   async contact(telegramUserId: string, rawPhone: string, chatId?: string): Promise<CodeResult> {
     const phone = String(normalizePhone(rawPhone));
-    // Deep-link token kelmagan bo'lsa (masalan, mijoz botga oddiy /start yozgan) — Telegram tasdiqlagan
-    // raqam bo'yicha hali egallanmagan ochiq so'rov shu foydalanuvchiga bog'lanadi
-    const challenge = (await this.activeChallenge(telegramUserId)) ?? (await this.claimByPhone(phone, telegramUserId, chatId ?? null));
+    const challenge = await this.resolveChallenge(telegramUserId, chatId ?? null, phone);
     if (!challenge) return { result: 'NO_CHALLENGE' };
 
     if (phone !== challenge.phone) {
@@ -189,42 +190,123 @@ export class TelegramAuthService {
     return { ...tokens, isNewUser, profileComplete: this.profileComplete(user) };
   }
 
+  /**
+   * Https (ilovada kirgan mijoz): telefon raqamini almashtirish — 1-qadam.
+   * Yangi raqamga xuddi kirishdagi kabi so'rov ochiladi (Telegram kontakt bilan tasdiqlanadi).
+   */
+  async requestPhoneChange(userId: number, phone: string, client: ClientInfo) {
+    const current = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (current.phone === phone) throw new BadRequestException('Bu allaqachon sizning raqamingiz');
+    const taken = await this.prisma.user.findUnique({ where: { phone } });
+    if (taken) throw new ConflictException("Bu raqam allaqachon ro'yxatdan o'tgan");
+    return this.start(phone, client);
+  }
+
+  /** Https: telefon raqamini almashtirish — 2-qadam. Sessiya ochmaydi, faqat raqamni yangilaydi. */
+  async confirmPhoneChange(userId: number, challengeId: string, code: string) {
+    const phone = await this.consumeCodeOnly(challengeId, code);
+    try {
+      const user = await this.prisma.user.update({ where: { id: userId }, data: { phone } });
+      return toPublicUser(user);
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        throw new ConflictException("Bu raqam allaqachon ro'yxatdan o'tgan");
+      }
+      throw e;
+    }
+  }
+
+  /**
+   * Kodni tekshiradi va bir martalik iste'mol qiladi, tasdiqlangan telefon raqamini qaytaradi —
+   * sessiya ochmaydi/hisob yaratmaydi (login `verify()`dan farqli, raqam almashtirish uchun).
+   * Tekshiruv mantig'i `verify()` bilan bir xil (atayin alohida — login oqimi tegilmasin).
+   */
+  private async consumeCodeOnly(challengeId: string, code: string): Promise<string> {
+    const now = new Date();
+    const reserved = await this.prisma.telegramAuthChallenge.updateMany({
+      where: {
+        id: challengeId,
+        consumedAt: null,
+        failedAt: null,
+        codeHash: { not: null },
+        codeExpiresAt: { gt: now },
+        expiresAt: { gt: now },
+        attempts: { lt: MAX_CODE_ATTEMPTS },
+      },
+      data: { attempts: { increment: 1 } },
+    });
+    if (!reserved.count) throw new UnauthorizedException(INVALID_CODE);
+
+    const challenge = await this.prisma.telegramAuthChallenge.findUnique({ where: { id: challengeId } });
+    if (!challenge?.codeHash || !challenge.telegramUserId || !this.hashMatches(this.codeHash(challenge.id, code), challenge.codeHash)) {
+      if (challenge && challenge.attempts >= MAX_CODE_ATTEMPTS) {
+        await this.prisma.telegramAuthChallenge.updateMany({ where: { id: challengeId, failedAt: null }, data: { failedAt: now } });
+      }
+      throw new UnauthorizedException("Tasdiqlash kodi noto'g'ri");
+    }
+
+    const consumed = await this.prisma.telegramAuthChallenge.updateMany({
+      where: { id: challenge.id, consumedAt: null, failedAt: null },
+      data: { consumedAt: now },
+    });
+    if (!consumed.count) throw new UnauthorizedException(INVALID_CODE);
+
+    return challenge.phone;
+  }
+
   /** Bot: /start (payloadsiz) — ulangan bo'lsa xabarlarni qayta yoqadi (masalan /stop yoki bloklashdan keyin) */
   /**
    * login — ilovada ochilgan, shu Telegram foydalanuvchisiga tegishli kirish so'rovi (bo'lsa bot raqamni so'raydi):
    * avval egallangani, aks holda ulangan hisob raqamiga ochilgan so'rov (token botga yetib kelmagan holat).
    */
   async hello(telegramUserId: string, chatId: string) {
-    const { count } = await this.prisma.telegramAccount.updateMany({ where: { telegramUserId }, data: { chatId } });
-    const account = count
-      ? await this.prisma.telegramAccount.findUnique({
-          where: { telegramUserId },
-          select: { language: true, user: { select: { phone: true } } },
-        })
-      : null;
-    let challenge = await this.activeChallenge(telegramUserId);
-    if (!challenge && account?.user.phone) challenge = await this.claimByPhone(account.user.phone, telegramUserId, chatId);
+    // account va activeChallenge bir-biriga bog'liq emas — parallel so'raladi
+    const accountLookup = this.prisma.telegramAccount.updateMany({ where: { telegramUserId }, data: { chatId } }).then(({ count }) =>
+      count
+        ? this.prisma.telegramAccount.findUnique({
+            where: { telegramUserId },
+            select: { language: true, user: { select: { phone: true } } },
+          })
+        : null,
+    );
+    const [account, activeChallenge] = await Promise.all([accountLookup, this.activeChallenge(telegramUserId)]);
+    const challenge = await this.resolveChallenge(telegramUserId, chatId, account?.user.phone, activeChallenge);
     return {
-      linked: Boolean(count),
+      linked: Boolean(account),
       language: account?.language ?? null,
       login: challenge ? { maskedPhone: maskPhone(challenge.phone) } : null,
     };
   }
 
-  /** Raqam bo'yicha eng oxirgi, hali hech kim egallamagan ochiq so'rovni atomik ravishda shu foydalanuvchiga bog'laydi */
+  /**
+   * Shu Telegram foydalanuvchisiga tegishli ochiq so'rovni topadi: avval egallangani (yoki oldindan
+   * hisoblangani — `prefetchedActive`, ikki marta so'ramaslik uchun), aks holda — raqam berilgan bo'lsa —
+   * shu raqamga ochilgan so'rov(lar) shu foydalanuvchiga bog'lanadi.
+   */
+  private async resolveChallenge(
+    telegramUserId: string,
+    chatId: string | null,
+    phone: string | null | undefined,
+    prefetchedActive?: TelegramAuthChallenge | null,
+  ) {
+    const active = prefetchedActive !== undefined ? prefetchedActive : await this.activeChallenge(telegramUserId);
+    return active ?? (phone ? this.claimByPhone(phone, telegramUserId, chatId) : null);
+  }
+
+  /**
+   * Raqam bo'yicha hali hech kim egallamagan BARCHA ochiq so'rovlarni shu foydalanuvchiga bog'laydi
+   * (bitta emas — masalan ilova qayta uringan yoki ikkita qurilmada ochilgan bo'lsa, har biri ilovada
+   * boshqa challengeId bilan kutilayotgan bo'lishi mumkin; faqat "eng oxirgisi"ni bog'lasak, boshqa
+   * qurilma/urinishda to'g'ri kod kiritilsa ham "noto'g'ri kod" xatosi chiqardi). Kod esa issueCode
+   * orqali shu foydalanuvchining barcha bog'langan ochiq so'rovlariga ko'chiriladi (mirrorCodeToSiblings).
+   */
   private async claimByPhone(phone: string, telegramUserId: string, chatId: string | null) {
     const now = new Date();
-    const found = await this.prisma.telegramAuthChallenge.findFirst({
+    await this.prisma.telegramAuthChallenge.updateMany({
       where: { phone, telegramUserId: null, consumedAt: null, failedAt: null, expiresAt: { gt: now } },
-      orderBy: { createdAt: 'desc' },
-    });
-    if (!found) return null;
-    const { count } = await this.prisma.telegramAuthChallenge.updateMany({
-      where: { id: found.id, telegramUserId: null },
       data: { telegramUserId, chatId, claimedAt: now },
     });
-    if (!count) return null;
-    return this.prisma.telegramAuthChallenge.findUnique({ where: { id: found.id } });
+    return this.activeChallenge(telegramUserId);
   }
 
   /** Bot: /stop — xabarlar o'chiriladi, ulanish saqlanadi */
@@ -266,12 +348,41 @@ export class TelegramAuthService {
       },
     });
     if (!count) return { result: 'COOLDOWN', retryAfterSec: Math.ceil(RESEND_COOLDOWN_MS / 1000) };
+    if (challenge.telegramUserId) await this.mirrorCodeToSiblings(challenge, code, codeExpiresAt, new Date(now));
     return {
       result: 'CODE',
       code,
       expiresInSec: Math.round((codeExpiresAt.getTime() - now) / 1000),
       maskedPhone: maskPhone(challenge.phone),
     };
+  }
+
+  /**
+   * Shu foydalanuvchiga bog'langan, hali ochiq boshqa so'rovlarga (bo'lsa) bir xil kodni yozadi —
+   * claimByPhone bir nechta so'rovni bog'lagan bo'lishi mumkin, ilova esa ulardan qaysi birini
+   * kutayotganidan qat'iy nazar shu kod ishlashi kerak. codeHash har bir so'rov o'z id'si bilan
+   * HMAC qilingani uchun har biriga alohida hisoblanadi.
+   */
+  private async mirrorCodeToSiblings(challenge: TelegramAuthChallenge, code: string, codeExpiresAt: Date, sentAt: Date) {
+    const siblings = await this.prisma.telegramAuthChallenge.findMany({
+      where: {
+        phone: challenge.phone,
+        telegramUserId: challenge.telegramUserId,
+        id: { not: challenge.id },
+        consumedAt: null,
+        failedAt: null,
+        expiresAt: { gt: sentAt },
+      },
+    });
+    if (!siblings.length) return;
+    await this.prisma.$transaction(async (tx) => {
+      for (const s of siblings) {
+        await tx.telegramAuthChallenge.update({
+          where: { id: s.id },
+          data: { codeHash: this.codeHash(s.id, code), codeExpiresAt, codeSentAt: sentAt, codeSends: { increment: 1 } },
+        });
+      }
+    });
   }
 
   private async findOrCreateUser(tx: Prisma.TransactionClient, phone: string): Promise<{ user: User; isNewUser: boolean }> {

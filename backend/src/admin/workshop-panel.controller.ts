@@ -38,7 +38,7 @@ export class WorkshopPanelController {
   ) {}
 
   @Get('production')
-  @ApiOperation({ summary: "Sexning ishlab chiqarish taxtasi: ACCEPTED / PRINTING / QUALITY_CHECK / READY ustunlari" })
+  @ApiOperation({ summary: 'Sexning ishlab chiqarish taxtasi: ACCEPTED / PRINTING / READY ustunlari' })
   @ApiOkResponse()
   production(@CurrentUser() user: AuthUser) {
     return this.orders.production(user);

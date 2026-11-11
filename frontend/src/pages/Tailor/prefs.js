@@ -6,6 +6,7 @@ const preferencesKey = (userId) => userId ? `${PREFS_KEY}_${userId}` : PREFS_KEY
 
 export const DEFAULT_PREFS = {
   lang: 'uz',
+  theme: 'dark',
   notifications: { newOrders: true, deadline: true, summary: true },
 };
 
@@ -33,6 +34,8 @@ export function loadPrefs(userId) {
   return {
     ...DEFAULT_PREFS,
     lang: ['uz', 'uz-Cyrl', 'ru'].includes(saved?.lang) ? saved.lang : 'uz',
+    notifications: { ...DEFAULT_PREFS.notifications, ...(saved?.notifications ?? {}) },
+    theme: saved?.theme === 'light' ? 'light' : 'dark',
   };
 }
 

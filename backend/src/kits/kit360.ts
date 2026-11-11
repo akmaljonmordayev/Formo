@@ -11,6 +11,12 @@ export const KIT360_IDS = [
 ] as const;
 export type Kit360Id = (typeof KIT360_IDS)[number];
 
+/**
+ * Uzun yeng + shalvar suratlari (frames/<id>/l0..l7) bor jamoalar — mobil ilovada "Uzun yeng (qishki)" formasi.
+ * Ro'yxat frontend/src/pages/Superadmin/Kit360/frames va mobile/src/features/kit360 (KIT360_LONG) bilan bir xil.
+ */
+export const KIT360_LONG_IDS: readonly Kit360Id[] = ['es', 'ar', 'fr', 'en', 'pt', 'uz', 'de', 'rm', 'fcb', 'mu', 'psg', 'mci'];
+
 /** id → klub nomi/kodining variantlari (kichik harfda: lotin, kirill, inglizcha, qisqa kod) */
 export const KIT360_ALIASES: Record<Kit360Id, readonly string[]> = {
   es: ['ispaniya', 'испания', 'spain', 'espana', 'españa'],

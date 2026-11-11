@@ -8,8 +8,7 @@ datasource db {
 }
 
 enum Role {
-  SUPERADMIN // yagona akkaunt, .env dan seed qilinadi
-  OPERATOR // yagona akkaunt, superadmin yaratadi
+  SUPERADMIN // yagona akkaunt, .env dan seed qilinadi — sexlar va mijozlar bilan yozishmani ham boshqaradi
   TAILOR // tikuv sexlari, superadmin yaratadi
   USER // mobil ilova foydalanuvchilari, o'zi ro'yxatdan o'tadi
 }
@@ -33,10 +32,11 @@ model User {
   lockedUntil         DateTime?
 
   // Mobil foydalanuvchi profili
-  gender Gender?
-  age    Int?
-  height Int? // sm
-  weight Int? // kg
+  avatarUrl String?
+  gender    Gender?
+  age       Int?
+  height    Int? // sm
+  weight    Int? // kg
 
   // Tikuv sexi ma'lumotlari
   workshopName  String?
@@ -329,9 +329,10 @@ model Kit {
   // Mahsulot sifatidagi ma'lumotlar: to'plam = futbolka + shortik (+ ism/raqam bosmasi)
   colorsLabel String? // "Oq / oltin"
   description String? // "Dry-fit polyester · DTF bosma"
-  shirtPrice  Int       @default(159000) // so'm — KOMPLEKT narxi (futbolka + shortik bitta narx)
+  shirtPrice  Int       @default(159000) // so'm — KOMPLEKT narxi (futbolka + shortik bitta narx), o'lchamda sizePrices'da narx bo'lmasa shu ishlatiladi
   shortsPrice Int       @default(0) // eskirgan: komplekt narxiga qo'shilgan, doim 0
   printPrice  Int       @default(30000) // ism + raqam bosmasi
+  sizePrices  Json      @default("{}") // { "S": 150000, "M": 150000, ... } — o'lcham bo'yicha narx, kiritilmagan o'lcham shirtPrice'dan oladi
   sizes       String[]  @default(["S", "M", "L", "XL", "XXL", "3XL"]) // sotuvda bor o'lchamlar
   sleeve      KitSleeve @default(SHORT) // ustki qism: kalta yoki uzun yengli futbolka
   bottom      KitBottom @default(SHORTS) // pastki qism: shortik yoki shalvar
@@ -428,6 +429,7 @@ model Address {
   label     String // "Uy", "Ish"
   address   String // "Yunusobod, Amir Temur 108"
   apartment String? // "45-xonadon"
+  region    String? // viloyat kodi (REGIONS, shop/regions.ts) — yetkazish narxi shundan
   latitude  Float?
   longitude Float?
   isDefault Boolean  @default(false)
@@ -513,6 +515,7 @@ model Order {
   deliveryDate    DateTime? @db.Date
   deliverySlot    String? // "10:00-14:00"
   deliveryAddress String?
+  deliveryRegion  String? // manzil viloyati (buyurtma paytidagi nusxa) — delivery.feesByRegion kaliti
   comment         String? // kuryer uchun izoh
 
   paymentExpiresAt DateTime? // Click/Payme: to'lov kutiladigan muddat (30 daqiqa)
@@ -567,6 +570,9 @@ model OrderItem {
   // Klub formasi: buyurtma paytidagi Forma 360° to'plami (admin/sex foto-360° ko'rsatishi uchun). `design` emas —
   // u "maxsus dizayn" belgisi (design bo'lsa admin va ilova qatorni "o'z dizayni" deb ko'rsatadi)
   kit360Id       String?
+  // Buyurtma paytidagi forma turi: kalta/uzun yeng va shortik/shalvar (Forma 360° suratlari f* yoki l*)
+  sleeve         KitSleeve  @default(SHORT)
+  bottom         KitBottom  @default(SHORTS)
 
   @@index([orderId])
   @@index([kitDesignId])

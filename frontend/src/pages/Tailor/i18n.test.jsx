@@ -3,7 +3,7 @@ import { LANGS, orderDeadline, translate } from './i18n';
 
 describe('Tailor translations', () => {
   it('supports Uzbek Cyrillic while preserving API placeholders', () => {
-    expect(LANGS.map((language) => language.value)).toEqual(['uz', 'ru', 'uz-Cyrl']);
+    expect(LANGS.map((language) => language.value)).toEqual(['uz', 'uz-Cyrl', 'ru']);
     expect(translate('uz-Cyrl', 'nav.queue')).toBe('Бугунги навбат');
     expect(translate('uz-Cyrl', 'api.loading')).toBe('Маълумотлар API дан юкланмоқда...');
     expect(translate('uz-Cyrl', 'stock.cell.nol')).toBe('НОЛ');
@@ -31,5 +31,13 @@ describe('orderDeadline', () => {
   it('tayyor buyurtma', () => {
     const text = orderDeadline(t, { deliveryTime: '2026-11-01', deadline: { time: '10:00-14:00', done: true } }, now);
     expect(text).toBe("Bugun, 10:00-14:00 · Tayyor bo'ldi");
+  });
+});
+
+describe('Tailor: yangi alifbo', () => {
+  it("yangi alifbo — o'zbekcha matndan avtomatik (Ō, Ḡ, Ş, Ç)", () => {
+    expect(translate('uz-New', 'nav.queue')).toBe('Bugungi navbat');
+    expect(translate('uz-New', 'nav.logout')).toBe(translate('uz', 'nav.logout').replace(/Ch/g, 'Ç').replace(/ch/g, 'ç').replace(/Sh/g, 'Ş').replace(/sh/g, 'ş').replace(/[oO]['‘’ʻ]/g, (m) => (m[0] === 'o' ? 'ō' : 'Ō')).replace(/[gG]['‘’ʻ]/g, (m) => (m[0] === 'g' ? 'ḡ' : 'Ḡ')));
+    expect(translate('uz-New', 'shell.markAllRead')).not.toMatch(/o[‘'’ʻ]/);
   });
 });

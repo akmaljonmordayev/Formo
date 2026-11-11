@@ -1,12 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, screenStyles, spacing } from '../../constants/theme';
+import { radii, spacing } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import { HeaderCart } from './CartButton';
 import { KeyboardAvoider, KeyboardAwareScrollView, useKeyboard } from './KeyboardAware';
 
 export function Screen({ children, scroll = true, contentStyle, footer, footerStyle }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const kb = useKeyboard();
   const Content = scroll ? KeyboardAwareScrollView : View;
@@ -15,12 +18,12 @@ export function Screen({ children, scroll = true, contentStyle, footer, footerSt
   const lead = scroll && items[0]?.type === Header ? items.shift() : null;
 
   return (
-    <SafeAreaView edges={['top', 'left', 'right']} style={screenStyles.safe}>
+    <SafeAreaView edges={['top', 'left', 'right']} style={[styles.safe, { backgroundColor: colors.background }]}>
       <KeyboardAvoider>
         {lead ? <View style={styles.stickyHeader}>{React.cloneElement(lead, { sticky: true })}</View> : null}
         <Content
-          contentContainerStyle={scroll ? [screenStyles.content, lead && styles.contentUnderHeader, contentStyle] : undefined}
-          style={!scroll ? [screenStyles.content, contentStyle] : undefined}
+          contentContainerStyle={scroll ? [styles.content, lead && styles.contentUnderHeader, contentStyle] : undefined}
+          style={!scroll ? [styles.content, contentStyle] : undefined}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
@@ -39,6 +42,8 @@ export function Screen({ children, scroll = true, contentStyle, footer, footerSt
 
 /** cart — o'ng burchakda savat tugmasi (soni bilan; CartContext orqali, har ekranga prop uzatmasdan) */
 export function Header({ title, subtitle, overline, onBack, right, logo, cart = false, sticky = false }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const hasLead = Boolean(onBack || logo);
   const actions = cart ? (
     <>
@@ -82,6 +87,8 @@ export function Button({
   style,
   textStyle,
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const isSmall = small || size === 'small';
   const isLarge = size === 'large';
 
@@ -126,6 +133,8 @@ export function Button({
 }
 
 export function Segment({ options, value, onChange, wide = false, style }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={[styles.segment, style]}>
       {options.map((option) => {
@@ -151,10 +160,14 @@ export function Segment({ options, value, onChange, wide = false, style }) {
 }
 
 export function Overline({ children, style }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return <Text style={[styles.overline, style]}>{children}</Text>;
 }
 
 export function SectionTitle({ eyebrow, title, action, onAction }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={styles.sectionRow}>
       <View style={styles.sectionCopy}>
@@ -172,10 +185,14 @@ export function SectionTitle({ eyebrow, title, action, onAction }) {
 }
 
 export function Card({ children, raised = false, style }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return <View style={[styles.card, raised && styles.cardRaised, style]}>{children}</View>;
 }
 
 export function Badge({ label, variant = 'teal', style }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   const isTeal = variant === 'teal';
   const isOrange = variant === 'orange';
   const isRed = variant === 'red';
@@ -212,6 +229,8 @@ export function EmptyState({
   onAction,
   style,
 }) {
+  const { colors } = useTheme();
+  const styles = useMemo(() => makeStyles(colors), [colors]);
   return (
     <View style={[styles.emptyContainer, style]}>
       <View style={styles.emptyIconCircle}>
@@ -233,7 +252,13 @@ export function formatMoney(value) {
   return `${Number(value).toLocaleString('uz-UZ')} so‘m`;
 }
 
-const styles = StyleSheet.create({
+const makeStyles = (colors) => StyleSheet.create({
+  safe: { flex: 1 },
+  content: {
+    paddingTop: 16,
+    paddingHorizontal: spacing.lg,
+    paddingBottom: 115,
+  },
   header: {
     flexDirection: 'row',
     alignItems: 'center',
