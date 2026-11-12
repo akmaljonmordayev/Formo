@@ -3,7 +3,6 @@ import { auditLogApi } from '../../../features/platform/platformApi';
 import { useDebounced } from '../../../hooks/useDebounced';
 import { downloadCsv } from '../../../utils/csvExport';
 import { useLang } from '../i18n';
-import { Pager } from '../ui';
 
 const CATEGORY_LABEL = {
   ORDER: 'Buyurtma',
@@ -132,7 +131,26 @@ export default function SuperadminAuditLog() {
           </tbody>
         </table>
       </div>
-      <Pager page={page} total={data.total} limit={LIMIT} onPage={setPage} />
+      {/* Mijozlar sahifasidagi kabi — bitta sahifa bo'lsa ham doim ko'rinadi */}
+      <div className="pager">
+        <span>{t('Jami')}: {data.total}</span>
+        <div>
+          <button type="button" className="btn btn--ghost btn--sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+            ←
+          </button>
+          <span className="btn btn--ghost btn--sm">
+            {page} / {Math.max(1, Math.ceil(data.total / LIMIT))}
+          </span>
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            disabled={page >= Math.ceil(data.total / LIMIT)}
+            onClick={() => setPage(page + 1)}
+          >
+            →
+          </button>
+        </div>
+      </div>
     </>
   );
 }
