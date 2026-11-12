@@ -1,4 +1,4 @@
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { clubsApi, inventoryApi, settingsApi } from '../../../features/platform/platformApi';
 import Modal from '../../../components/ui/Modal';
 import { DEFAULT_REGION_FEE, REGIONS, SETTING_KEYS } from '../adminApi';
@@ -261,7 +261,7 @@ export default function SuperadminForms() {
       {sizeEdit && (
         <SizeModal
           kit={sizeEdit.kit}
-          focus={sizeEdit.size}
+          size={sizeEdit.size}
           t={t}
           valueOf={valueOf}
           setQty={setQty}
@@ -269,10 +269,10 @@ export default function SuperadminForms() {
           setPrice={setPrice}
           busy={stockSaving || priceSaving}
           onCancel={() => {
-            // modalda yozilgan, saqlanmagan qiymatlarni shu forma uchun qaytaramiz
-            const keys = ALL_SIZES.map((s) => cellKey(sizeEdit.kit.id, s));
-            setDraft((m) => ({ ...m, ...Object.fromEntries(keys.map((k) => [k, qtyMap[k]])) }));
-            setPriceDraft((m) => ({ ...m, ...Object.fromEntries(keys.map((k) => [k, priceMap[k]])) }));
+            // modalda yozilgan, saqlanmagan qiymatni shu katak uchun qaytaramiz
+            const key = cellKey(sizeEdit.kit.id, sizeEdit.size);
+            setDraft((m) => ({ ...m, [key]: qtyMap[key] }));
+            setPriceDraft((m) => ({ ...m, [key]: priceMap[key] }));
             setSizeEdit(null);
           }}
           onSave={async () => {
@@ -321,37 +321,25 @@ function SleeveIcon({ kit, t }) {
   );
 }
 
-/** O'lcham bosilganda: har bir o'lcham uchun soni va narxi bitta oynada */
-function SizeModal({ kit, focus, t, valueOf, setQty, priceOf, setPrice, busy, onCancel, onSave }) {
+/** O'lcham bosilganda: faqat shu o'lchamning soni va narxi */
+function SizeModal({ kit, size, t, valueOf, setQty, priceOf, setPrice, busy, onCancel, onSave }) {
   return (
-    <Modal title={`${kit.club.name} · ${kit.label}`} onClose={onCancel}>
-      <div style={{ display: 'grid', gridTemplateColumns: 'auto minmax(0, 1fr) minmax(0, 1fr)', gap: '8px 12px', alignItems: 'center' }}>
-        <span className="muted">{t("O'lcham")}</span>
-        <span className="muted">{t('Soni')}</span>
-        <span className="muted">{t("Narxi (so'm)")}</span>
-        {ALL_SIZES.map((s) => (
-          <Fragment key={s}>
-            <b style={s === focus ? { color: 'var(--accent, #e8a33d)' } : undefined}>{s}</b>
-            <label className="field">
-              <input
-                value={valueOf(kit.id, s)}
-                onChange={(e) => setQty(kit.id, s, e.target.value)}
-                inputMode="numeric"
-                placeholder="—"
-                autoFocus={s === focus}
-                aria-label={t('{size} soni', { size: s })}
-              />
-            </label>
-            <label className="field">
-              <input
-                value={priceOf(kit.id, s)}
-                onChange={(e) => setPrice(kit.id, s, e.target.value)}
-                inputMode="numeric"
-                aria-label={t('{size} narxi', { size: s })}
-              />
-            </label>
-          </Fragment>
-        ))}
+    <Modal title={`${kit.club.name} · ${kit.label} · ${size}`} onClose={onCancel}>
+      <div className="form-grid">
+        <label className="field">
+          <span>{t('Soni')}</span>
+          <input
+            value={valueOf(kit.id, size)}
+            onChange={(e) => setQty(kit.id, size, e.target.value)}
+            inputMode="numeric"
+            placeholder="—"
+            autoFocus
+          />
+        </label>
+        <label className="field">
+          <span>{t("Narxi (so'm)")}</span>
+          <input value={priceOf(kit.id, size)} onChange={(e) => setPrice(kit.id, size, e.target.value)} inputMode="numeric" />
+        </label>
       </div>
       <div className="modal__foot" style={{ padding: '14px 0 0' }}>
         <button type="button" className="btn btn--ghost" onClick={onCancel}>{t('Bekor qilish')}</button>
