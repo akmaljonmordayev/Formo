@@ -892,6 +892,12 @@ const RU = {
   'Javob yozing...': 'Напишите ответ...',
   Yuborish: 'Отправить',
   "Kun statistikasi uchun ustun ustiga olib boring": "Наведите на столбец, чтобы увидеть статистику дня",
+  "Mavzu": "Тема",
+  "Uzun yengli": "Длинный рукав",
+  "Kalta yengli": "Короткий рукав",
+  "{size}: soni va narxi": "{size}: количество и цена",
+  "{size} soni": "{size}: количество",
+  "Narxi (so'm)": "Цена (сум)",
 };
 
 export default RU;

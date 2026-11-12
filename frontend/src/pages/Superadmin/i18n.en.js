@@ -893,6 +893,12 @@ const EN = {
   'Javob yozing...': 'Write a reply...',
   Yuborish: 'Send',
   "Kun statistikasi uchun ustun ustiga olib boring": "Hover over a bar to see the day's stats",
+  "Mavzu": "Theme",
+  "Uzun yengli": "Long sleeve",
+  "Kalta yengli": "Short sleeve",
+  "{size}: soni va narxi": "{size}: quantity and price",
+  "{size} soni": "{size} quantity",
+  "Narxi (so'm)": "Price (UZS)",
 };
 
 export default EN;
