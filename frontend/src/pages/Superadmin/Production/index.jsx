@@ -121,10 +121,11 @@ export default function SuperadminProduction() {
                           <span>{j.printNumber ?? ''}</span>
                         </div>
                         <div className="sa-kjob__meta">
-                          <div><span>{t("Klub")}</span><b>{j.club?.name ?? j.kitLabel ?? t("O'z dizayni")}</b></div>
-                          <div><span>{t("O'lcham")}</span><b>{j.size}</b></div>
-                          <div><span>{t("Turi")}</span><b>{j.productType === 'CLUB_KIT' ? t('Klub formasi') : j.productType === 'KIT_DESIGN' ? t('3D dizayn') : t("O'z dizayni")}</b></div>
-                          <div><span>{t("Soni")}</span><b>{t('{n} dona', { n: j.quantity })}</b></div>
+                          {/* ixcham: barcha ma'lumot bitta qatorda */}
+                          <b>{j.club?.name ?? j.kitLabel ?? t("O'z dizayni")}</b>
+                          <span>{j.size}</span>
+                          <span>{j.productType === 'CLUB_KIT' ? t('Klub formasi') : j.productType === 'KIT_DESIGN' ? t('3D dizayn') : t("O'z dizayni")}</span>
+                          <span>{t('{n} dona', { n: j.quantity })}</span>
                         </div>
                       </div>
                     );
