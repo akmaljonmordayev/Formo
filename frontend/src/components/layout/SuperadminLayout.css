@@ -61,7 +61,11 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  overflow-y: auto;
+  /* Ekran balandligida qotiriladi — bo'limlar ro'yxati sahifadan alohida aylantiriladi */
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .sa-brand {
@@ -104,6 +108,14 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--sa-hover-rgb), 0.18) transparent;
+  margin-right: -8px;
+  padding-right: 8px;
 }
 
 .sa-group {
@@ -758,6 +770,12 @@
   color: var(--sa-mu);
   font-size: 12px;
   margin-top: 2px;
+}
+
+/* Jadval katagiga qo'yilganda ham katak bo'lib qolsin — block bo'lsa qator chizig'idan siljib ketadi (Promokodlar №) */
+td.sa-table__sub {
+  display: table-cell;
+  margin-top: 0;
 }
 
 .sa-badge {
