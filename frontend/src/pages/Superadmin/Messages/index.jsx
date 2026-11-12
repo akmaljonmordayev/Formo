@@ -4,50 +4,9 @@ import { supportApi } from '../../../features/platform/platformApi';
 import { prettyPhone } from '../../../features/accounts/accountsApi';
 import { useDebounced } from '../../../hooks/useDebounced';
 import { useLang, useT } from '../i18n';
+import { CHAT_READ_EVENT, usePolling } from '../ui';
 
-const POLL_MS = 5000;
 const NEAR_BOTTOM = 120;
-
-// Sahifa ko'rinib turgandagina `fn` ni har POLL_MS da chaqiradi; tab yashirilsa yoki unmount bo'lsa to'xtaydi
-function usePolling(fn) {
-  const ref = useRef(fn);
-  useEffect(() => {
-    ref.current = fn;
-  });
-  useEffect(() => {
-    let timer = null;
-    let busy = false;
-    const stop = () => {
-      if (timer) clearInterval(timer);
-      timer = null;
-    };
-    const start = () => {
-      stop();
-      timer = setInterval(async () => {
-        if (busy) return;
-        busy = true;
-        try {
-          await ref.current();
-        } finally {
-          busy = false;
-        }
-      }, POLL_MS);
-    };
-    const onVis = () => {
-      if (document.hidden) stop();
-      else {
-        ref.current();
-        start();
-      }
-    };
-    if (!document.hidden) start();
-    document.addEventListener('visibilitychange', onVis);
-    return () => {
-      stop();
-      document.removeEventListener('visibilitychange', onVis);
-    };
-  }, []);
-}
 
 // Mijozlar (mobil ilova) bilan qo'llab-quvvatlash yozishmasi.
 // Tikuv sexi (Otabek) bilan yozishma — uning o'z paneli: https://admin.formo.uz/tailor
@@ -123,6 +82,7 @@ export default function SuperadminMessages() {
         lastIdRef.current = res.items.reduce((mx, m) => Math.max(mx, m.id), 0);
         setMessages(res.items);
         loadThreads();
+        window.dispatchEvent(new Event(CHAT_READ_EVENT)); // menyudagi o'qilmaganlar sonini darhol yangilash
       })
       .catch((err) => !cancelled && setError(err.message));
     return () => {

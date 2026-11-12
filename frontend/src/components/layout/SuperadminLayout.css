@@ -134,6 +134,7 @@
 }
 
 .sa-link {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -164,18 +165,37 @@
   white-space: nowrap;
 }
 
+/* Telegram kabi: son belgi (ikonka) ustida, yon panel rangida halqa bilan */
 .sa-link__badge {
+  position: absolute;
+  left: 22px;
+  top: 2px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
   border-radius: 999px;
-  background: var(--sa-accent);
-  color: var(--sa-accent-ink);
-  font-size: 10.5px;
+  background: var(--sa-red);
+  color: #fff;
+  font-size: 10px;
   font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--sa-sb);
+  animation: sa-badge-pop 0.2s ease-out;
+}
+
+@keyframes sa-badge-pop {
+  from {
+    transform: scale(0.4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-link__badge {
+    animation: none;
+  }
 }
 
 .sa-ov {

@@ -1,5 +1,51 @@
+import { useEffect, useRef } from 'react';
 import Modal from '../../components/ui/Modal';
 import { useT } from './i18n';
+
+const POLL_MS = 3000;
+// Xabarlar sahifasi chatni ochganda yuboradi — menyu belgisi kutmasdan yangilanadi
+export const CHAT_READ_EVENT = 'formo-sa-chat-read';
+
+// Sahifa ko'rinib turgandagina `fn` ni har POLL_MS da chaqiradi; tab yashirilsa yoki unmount bo'lsa to'xtaydi
+export function usePolling(fn) {
+  const ref = useRef(fn);
+  useEffect(() => {
+    ref.current = fn;
+  });
+  useEffect(() => {
+    let timer = null;
+    let busy = false;
+    const stop = () => {
+      if (timer) clearInterval(timer);
+      timer = null;
+    };
+    const start = () => {
+      stop();
+      timer = setInterval(async () => {
+        if (busy) return;
+        busy = true;
+        try {
+          await ref.current();
+        } finally {
+          busy = false;
+        }
+      }, POLL_MS);
+    };
+    const onVis = () => {
+      if (document.hidden) stop();
+      else {
+        ref.current();
+        start();
+      }
+    };
+    if (!document.hidden) start();
+    document.addEventListener('visibilitychange', onVis);
+    return () => {
+      stop();
+      document.removeEventListener('visibilitychange', onVis);
+    };
+  }, []);
+}
 
 /** Sahifalash: "Jami: N" va ← sahifa / jami → (bitta sahifa bo'lsa ko'rinmaydi) */
 export function Pager({ page, total, limit, onPage }) {
