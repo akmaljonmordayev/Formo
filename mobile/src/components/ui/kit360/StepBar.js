@@ -1,7 +1,7 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, spacing } from '../../../constants/theme';
+import { colors, spacing, themedStyles } from '../../../constants/theme';
 
 /**
  * Forma 360° bosqichlari: raqamli doiralar + chiziq; bajarilganlari ✓.
@@ -43,7 +43,7 @@ export default function StepBar({ t, steps, step, onPress }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   stepper: { flexDirection: 'row', alignItems: 'flex-start', marginHorizontal: spacing.lg, marginTop: spacing.lg },
   item: { width: 72, alignItems: 'center' },
   dot: {
@@ -64,4 +64,4 @@ const styles = StyleSheet.create({
   labelOn: { color: colors.text, fontWeight: '800' },
   line: { flex: 1, height: 2, borderRadius: 1, backgroundColor: colors.border, marginTop: 16, marginHorizontal: -14 },
   lineDone: { backgroundColor: colors.accent },
-});
+}));

@@ -12,15 +12,21 @@ export class CheckoutDto {
   @Min(1)
   addressId: number;
 
-  @ApiProperty({ example: '2026-10-16', description: 'Yetkazish sanasi (GET /api/checkout/delivery-slots dan)' })
+  @ApiPropertyOptional({
+    example: '2026-10-16',
+    description:
+      'Yetkazish sanasi (GET /api/checkout/delivery-slots dan). Toshkent shahri ichida majburiy; viloyatlarga pochta orqali — kerak emas',
+  })
+  @IsOptional()
   @IsDateString({ strict: true })
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Sana YYYY-MM-DD formatida bo‘lishi kerak' })
-  deliveryDate: string;
+  deliveryDate?: string;
 
-  @ApiProperty({ example: '10:00-14:00' })
+  @ApiPropertyOptional({ example: '10:00-14:00', description: 'Toshkent shahri ichida majburiy; viloyatlarga pochta orqali — kerak emas' })
+  @IsOptional()
   @IsString()
   @Matches(/^\d{2}:\d{2}-\d{2}:\d{2}$/, { message: "Yetkazish vaqti noto'g'ri" })
-  deliverySlot: string;
+  deliverySlot?: string;
 
   @ApiProperty({ enum: PaymentMethod, example: PaymentMethod.CLICK })
   @IsEnum(PaymentMethod)

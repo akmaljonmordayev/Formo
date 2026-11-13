@@ -1,7 +1,7 @@
 import React, { useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Animated, Easing, Pressable, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, spacing } from '../../constants/theme';
+import { colors, radii, spacing, themedStyles } from '../../constants/theme';
 import { STAGE_COUNT, stageOf, statusTone } from './StatusPill';
 
 /**
@@ -78,7 +78,7 @@ export default function ActiveOrderBar({ t, order, label, bottom = 0, onPress })
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   wrap: { position: 'absolute', left: spacing.lg, right: spacing.lg },
   card: {
     flexDirection: 'row',
@@ -105,4 +105,4 @@ const styles = StyleSheet.create({
   segmentCurrent: { opacity: 0.85 },
   track: { flexDirection: 'row', alignItems: 'center' },
   trackText: { color: colors.accent, fontSize: 12, fontWeight: '800' },
-});
+}));

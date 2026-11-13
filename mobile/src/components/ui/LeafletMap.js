@@ -1,5 +1,5 @@
 import React, { forwardRef, useImperativeHandle, useMemo, useRef } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { View } from 'react-native';
 
 let WebView = null;
 try {
@@ -14,14 +14,21 @@ const TILES = 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
 
 const zoomFor = (region) => Math.max(3, Math.min(18, Math.log2(360 / (region.longitudeDelta || 0.08))));
 
-function html(region) {
+// Xarita foni: qorong'i mavzuda plitkalar teskari ranglanadi, yorug'da — OSM'ning o'z ranglari
+const BG = { dark: '#0b0f2a', light: '#e8ecf4' };
+
+function html(region, dark) {
+  const bg = dark ? BG.dark : BG.light;
+  const tileFilter = dark ? '.leaflet-tile-pane{filter:invert(1) hue-rotate(200deg) brightness(.95) contrast(.9) saturate(.6)}' : '';
+  const attribution = dark
+    ? '.leaflet-control-attribution{font-size:9px;background:rgba(5,8,24,.6)!important;color:#8d95bd}.leaflet-control-attribution a{color:#8d95bd}'
+    : '.leaflet-control-attribution{font-size:9px}';
   return `<!doctype html><html><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 <link rel="stylesheet" href="${LEAFLET}/leaflet.css">
-<style>html,body,#map{margin:0;width:100%;height:100%;background:#0b0f2a}
-.leaflet-tile-pane{filter:invert(1) hue-rotate(200deg) brightness(.95) contrast(.9) saturate(.6)}
-.leaflet-control-attribution{font-size:9px;background:rgba(5,8,24,.6)!important;color:#8d95bd}
-.leaflet-control-attribution a{color:#8d95bd}</style>
+<style>html,body,#map{margin:0;width:100%;height:100%;background:${bg}}
+${tileFilter}
+${attribution}</style>
 </head><body><div id="map"></div>
 <script src="${LEAFLET}/leaflet.js"></script>
 <script>
@@ -51,14 +58,16 @@ function html(region) {
  * build manzil ekranida crash qiladi. Bu komponent WebView ichida Leaflet (OpenStreetMap) bilan ishlaydi.
  * MapView'ning manzil tanlash ekrani ishlatadigan qismi bilan mos: initialRegion, onPress, onPanDrag,
  * onRegionChangeComplete(region, { isGesture }) va ref.animateToRegion(region, ms).
+ * `dark` — xarita ranglari (birinchi chizishda; standart — qorong'i).
  */
 const LeafletMap = forwardRef(function LeafletMap(
-  { initialRegion, onPress, onPanDrag, onRegionChangeComplete, style },
+  { initialRegion, onPress, onPanDrag, onRegionChangeComplete, style, dark = true },
   ref,
 ) {
   const webRef = useRef(null);
   // Faqat birinchi chizishdagi markaz — keyin xarita o'zi boshqaradi
-  const source = useMemo(() => ({ html: html(initialRegion) }), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const source = useMemo(() => ({ html: html(initialRegion, dark) }), []); // eslint-disable-line react-hooks/exhaustive-deps
+  const background = { backgroundColor: dark ? BG.dark : BG.light };
 
   useImperativeHandle(ref, () => ({
     animateToRegion(region, ms = 450) {
@@ -85,12 +94,12 @@ const LeafletMap = forwardRef(function LeafletMap(
     }
   };
 
-  if (!WebView) return <View style={[styles.empty, style]} />;
+  if (!WebView) return <View style={[background, style]} />;
 
   return (
     <WebView
       ref={webRef}
-      style={[styles.web, style]}
+      style={[background, style]}
       source={source}
       originWhitelist={['*']}
       // Faqat shu ichki sahifa — havolalar (OSM atributsiyasi) ilova ichida ochilmaydi
@@ -107,8 +116,3 @@ const LeafletMap = forwardRef(function LeafletMap(
 });
 
 export default LeafletMap;
-
-const styles = StyleSheet.create({
-  web: { backgroundColor: '#0b0f2a' },
-  empty: { backgroundColor: '#0b0f2a' },
-});

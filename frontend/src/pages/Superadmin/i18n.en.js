@@ -194,6 +194,9 @@ const EN = {
   'Buyurtma topilmadi': 'No orders found',
   Chegirma: 'Discount',
   Manzil: 'Address',
+  "Xaritadagi nuqta": "Point on the map",
+  "Yandex xaritada ochish": "Open in Yandex Maps",
+  "Pochta orqali (pochta bo'limigacha)": "By post (to the post office)",
   Izoh: 'Comment',
   'Buyurtma {code}': 'Order {code}',
   Mahsulotlar: 'Products',
@@ -204,7 +207,6 @@ const EN = {
   'Qabul qilindi': 'Accepted',
   'Ishlab chiqarishda': 'In production',
   Bosilmoqda: 'Printing',
-  'Sifat nazorati': 'Quality check',
   Tayyor: 'Ready',
   Yetkazishda: 'Out for delivery',
   Yetkazildi: 'Delivered',
@@ -839,6 +841,8 @@ const EN = {
   'Kamida 6 belgi. Tikuv sexiga yetkazing.': 'At least 6 characters. Share it with the workshop.',
   Chiqish: 'Sign out',
   'Menyuni ochish': 'Open menu',
+  "Yorug' mavzu": 'Light theme',
+  "Qorong'i mavzu": 'Dark theme',
   Balans: 'Balance',
   kutilmoqda: 'pending',
   "to'landi": 'paid',
@@ -888,6 +892,7 @@ const EN = {
   "Qo'ng'iroq": 'Call',
   'Javob yozing...': 'Write a reply...',
   Yuborish: 'Send',
+  "Kun statistikasi uchun ustun ustiga olib boring": "Hover over a bar to see the day's stats",
 };
 
 export default EN;

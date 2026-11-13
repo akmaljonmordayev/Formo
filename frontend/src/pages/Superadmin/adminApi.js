@@ -59,7 +59,7 @@ export const SETTING_KEYS = {
   studio: 'studio.config',
 };
 
-/* ---------- Yetkazish viloyatlari (backend/src/shop/regions.ts bilan bir xil) ---------- */
+/** 12 viloyat + Qoraqalpog'iston Respublikasi + Toshkent shahri (alohida) — backend/src/shop/regions.ts bilan bir xil */
 export const REGIONS = [
   { code: 'TOSHKENT_SHAHRI', label: 'Toshkent shahri' },
   { code: 'TOSHKENT_VILOYATI', label: 'Toshkent viloyati' },

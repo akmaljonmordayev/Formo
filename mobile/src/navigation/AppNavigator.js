@@ -1,10 +1,11 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, StyleSheet, View } from 'react-native';
+import { BackHandler, View } from 'react-native';
 import { BottomTabs } from '../components/ui/BottomTabs';
 import { CartContext } from '../components/ui/CartButton';
-import { colors } from '../constants/theme';
+import { colors, themedStyles } from '../constants/theme';
 import OtpLoginScreen from '../screens/Auth/OtpLoginScreen';
 import CompleteProfileScreen from '../screens/Login/CompleteProfileScreen';
+import AccountScreen from '../screens/AccountScreen';
 import AddressesScreen from '../screens/AddressesScreen';
 import CartScreen from '../screens/CartScreen';
 import Kit360Screen from '../screens/Kit360Screen';
@@ -17,7 +18,6 @@ import OrderDetailScreen from '../screens/OrderDetailScreen';
 import OrdersScreen from '../screens/OrdersScreen';
 import ProductScreen from '../screens/ProductScreen';
 import ProfileScreen from '../screens/ProfileScreen';
-import SettingsScreen from '../screens/SettingsScreen';
 import StudioScreen from '../screens/StudioScreen';
 import SupportChatScreen from '../screens/SupportChatScreen';
 import WalletScreen from '../screens/WalletScreen';
@@ -214,8 +214,9 @@ export default function AppNavigator({ store, t, auth }) {
     if (route === 'notifications') { navigate(notifFrom); return true; }
     if (route === 'wallet') { navigate(walletFrom); return true; }
     if (route === 'addresses') { navigate('profile'); return true; }
+    if (route === 'account') { navigate('profile'); return true; }
     if (route === 'locationPicker') { navigate(pickerFrom); return true; }
-    if (route === 'settings' || route === 'support') { navigate('profile'); return true; }
+    if (route === 'support') { navigate('profile'); return true; }
     if (route === 'product') { navigateTab('studio'); return true; }
 
     // Any other screen (studio/orders/profile tab roots) — back to the home tab
@@ -314,6 +315,7 @@ export default function AppNavigator({ store, t, auth }) {
           openOrder(order.id, 'orders');
         }}
         onPickOnMap={() => openPicker(null, 'checkout')}
+        onEditAddress={(address) => openPicker(address, 'checkout')}
         onWallet={() => openWallet('checkout')}
         initialAddressId={checkoutAddressId}
       />
@@ -327,11 +329,19 @@ export default function AppNavigator({ store, t, auth }) {
       <ProfileScreen
         t={t}
         auth={auth}
-        onSettings={() => navigate('settings')}
+        language={store.language}
+        setLanguage={store.setLanguage}
+        onAccount={() => navigate('account')}
         onOrders={() => navigate('orders')}
         onAddresses={() => navigate('addresses')}
         onWallet={() => openWallet('profile')}
         onSupport={() => navigate('support')}
+      />
+    ) : route === 'account' ? (
+      <AccountScreen
+        t={t}
+        auth={auth}
+        onBack={() => navigate('profile')}
       />
     ) : route === 'support' ? (
       <SupportChatScreen t={t} onBack={() => navigate('profile')} />
@@ -347,6 +357,7 @@ export default function AppNavigator({ store, t, auth }) {
     ) : route === 'locationPicker' ? (
       <LocationPickerScreen
         t={t}
+        key={pickerAddress?.id ?? 'new'}
         address={pickerAddress}
         onBackIntercept={setBackIntercept}
         onCancel={() => navigate(pickerFrom)}
@@ -355,16 +366,6 @@ export default function AppNavigator({ store, t, auth }) {
           if (pickerFrom === 'checkout' && saved?.id) setCheckoutAddressId(saved.id);
           navigate(pickerFrom);
         }}
-      />
-    ) : route === 'settings' ? (
-      <SettingsScreen
-        t={t}
-        language={store.language}
-        setLanguage={store.setLanguage}
-        onBack={() => navigate('profile')}
-        onNotifications={() => openNotifications('settings')}
-        general={config.general}
-        auth={auth}
       />
     ) : (
       <ProductScreen
@@ -382,7 +383,7 @@ export default function AppNavigator({ store, t, auth }) {
 
   // Tab bar stays visible everywhere in the main app (including the design
   // studio — only full-screen detail/settings pages hide it).
-  const hideTabs = ['product', 'settings', 'checkout', 'order', 'notifications', 'addresses', 'locationPicker', 'wallet', 'support'].includes(route);
+  const hideTabs = ['product', 'checkout', 'order', 'notifications', 'addresses', 'account', 'locationPicker', 'wallet', 'support'].includes(route);
 
   return (
     <CartContext.Provider value={cartValue}>
@@ -395,11 +396,11 @@ export default function AppNavigator({ store, t, auth }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   loadingContainer: {
     flex: 1,
     backgroundColor: colors.background,
     alignItems: 'center',
     justifyContent: 'center',
   },
-});
+}));

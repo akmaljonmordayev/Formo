@@ -33,6 +33,22 @@ export class CreateAddressDto {
   @IsIn(REGION_CODES)
   region?: string;
 
+  @ApiPropertyOptional({ example: 'Sergeli tumani', description: 'Tuman yoki shahar (viloyat ichida)' })
+  @IsOptional()
+  @CleanText()
+  @IsString()
+  @NoHtml()
+  @MaxLength(60)
+  district?: string;
+
+  @ApiPropertyOptional({ example: '32', description: 'Uy raqami — kuryer/pochta aniq topishi uchun' })
+  @IsOptional()
+  @CleanText()
+  @IsString()
+  @NoHtml()
+  @MaxLength(20)
+  house?: string;
+
   @ApiPropertyOptional({ example: 41.3667 })
   @IsOptional()
   @IsLatitude()

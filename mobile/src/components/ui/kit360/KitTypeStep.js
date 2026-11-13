@@ -1,8 +1,7 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, spacing } from '../../../constants/theme';
-import { formatMoney } from '../Common';
+import { colors, radii, spacing, themedStyles } from '../../../constants/theme';
 import Kit360Thumb from '../Kit360Thumb';
 
 const OPTIONS = [
@@ -12,11 +11,11 @@ const OPTIONS = [
 
 /**
  * 1-bosqich (jamoaning ikkala turi bo'lsa): qishki — uzun yeng + shalvar, yozgi — kalta yeng + shortik.
- * Har kartada shu jamoaning o'sha turdagi surati va komplekt narxi.
+ * Har kartada shu jamoaning o'sha turdagi surati. Narx bu yerda ko'rsatilmaydi — o'lcham tanlangach chiqadi.
  *
- * Props: t, team (kit360Id), value ('SHORT' | 'LONG' | null), prices ({ SHORT, LONG } — so'm yoki null), onChange(sleeve)
+ * Props: t, team (kit360Id), value ('SHORT' | 'LONG' | null), onChange(sleeve)
  */
-export default function KitTypeStep({ t, team, value, prices = {}, onChange }) {
+export default function KitTypeStep({ t, team, value, onChange }) {
   return (
     <View>
       <Text style={styles.sub}>{t('kitStepTypeSub')}</Text>
@@ -49,7 +48,6 @@ export default function KitTypeStep({ t, team, value, prices = {}, onChange }) {
               <Text style={styles.cardSub} numberOfLines={2}>
                 {t(o.sub)}
               </Text>
-              {prices[o.sleeve] != null ? <Text style={styles.price}>{formatMoney(prices[o.sleeve])}</Text> : null}
             </Pressable>
           );
         })}
@@ -58,7 +56,7 @@ export default function KitTypeStep({ t, team, value, prices = {}, onChange }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   sub: { color: colors.muted, fontSize: 12, marginTop: 2 },
   row: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   card: {
@@ -86,5 +84,4 @@ const styles = StyleSheet.create({
   title: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '900' },
   titleActive: { color: colors.accent },
   cardSub: { color: colors.muted, fontSize: 11, marginTop: 3, lineHeight: 15 },
-  price: { color: colors.accent, fontSize: 13, fontWeight: '900', marginTop: 6 },
-});
+}));

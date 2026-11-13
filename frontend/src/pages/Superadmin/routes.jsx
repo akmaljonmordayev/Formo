@@ -10,7 +10,6 @@ import {
   Settings,
   Shirt,
   ShoppingBag,
-  Tag,
   Ticket,
   Users,
   Wallet,
@@ -97,7 +96,7 @@ export const superadminMenu = [
 
   { to: `${BASE}/kit-360`, label: 'Forma 360°', icon: Rotate3d, group: 'Formalar' },
   { to: `${BASE}/forms`, label: 'Formalar', icon: Shirt, group: 'Formalar' },
-  { to: `${BASE}/pricing`, label: 'Narxlar', icon: Tag, group: 'Formalar' },
+  // Narxlar menyudan olib tashlandi (narx Formalar sahifasida tahrirlanadi) — marshrut saqlanib qoladi
 
   { to: `${BASE}/factories`, label: 'Sexlar', icon: Factory, group: 'Sex va Sifat' },
   { to: `${BASE}/defects`, label: 'Nuqsonlar (brak)', icon: AlertTriangle, group: 'Sex va Sifat' },

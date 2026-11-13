@@ -194,6 +194,9 @@ const RU = {
   'Buyurtma topilmadi': 'Заказы не найдены',
   Chegirma: 'Скидка',
   Manzil: 'Адрес',
+  "Xaritadagi nuqta": "Точка на карте",
+  "Yandex xaritada ochish": "Открыть в Яндекс Картах",
+  "Pochta orqali (pochta bo'limigacha)": "Почтой (до почтового отделения)",
   Izoh: 'Комментарий',
   'Buyurtma {code}': 'Заказ {code}',
   Mahsulotlar: 'Товары',
@@ -205,7 +208,6 @@ const RU = {
   'Qabul qilindi': 'Принят',
   'Ishlab chiqarishda': 'В производстве',
   Bosilmoqda: 'Печатается',
-  'Sifat nazorati': 'Контроль качества',
   Tayyor: 'Готов',
   Yetkazishda: 'Доставляется',
   Yetkazildi: 'Доставлен',
@@ -840,6 +842,8 @@ const RU = {
   "Kamida 6 belgi. Tikuv sexiga yetkazing.": "Минимум 6 символов. Передайте цеху.",
   "Chiqish": "Выйти",
   "Menyuni ochish": "Открыть меню",
+  "Yorug' mavzu": "Светлая тема",
+  "Qorong'i mavzu": "Тёмная тема",
   "Balans": "Баланс",
   "kutilmoqda": "ожидается",
   "to'landi": "оплачено",
@@ -887,6 +891,7 @@ const RU = {
   "Qo'ng'iroq": 'Позвонить',
   'Javob yozing...': 'Напишите ответ...',
   Yuborish: 'Отправить',
+  "Kun statistikasi uchun ustun ustiga olib boring": "Наведите на столбец, чтобы увидеть статистику дня",
 };
 
 export default RU;

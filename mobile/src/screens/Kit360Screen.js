@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, spacing, TAB_BAR_HEIGHT } from '../constants/theme';
+import { colors, radii, spacing, TAB_BAR_HEIGHT, themedStyles } from '../constants/theme';
 import { Button, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
 import AddedToCart from '../components/ui/AddedToCart';
 import Kit360Viewer from '../components/ui/Kit360Viewer';
@@ -123,13 +123,14 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
     setStep(1);
   }, [hasChoice]);
 
-  // Komplekt narxi (futbolka + pastki qism bitta narx); eski API'da shortik alohida kelsa — qo'shiladi
-  const priceOf = (kit) => {
-    const pb = kit?.priceBreakdown || {};
-    return { kit: (pb.shirt ?? 159000) + (pb.shorts ?? 0), print: pb.print ?? 30000 };
-  };
-  const prices = priceOf(matchedKit || clubKits[0]);
-  const typePrices = { SHORT: kitsBySleeve.SHORT && priceOf(kitsBySleeve.SHORT).kit, LONG: kitsBySleeve.LONG && priceOf(kitsBySleeve.LONG).kit };
+  // Komplekt narxi (futbolka + pastki qism bitta narx) o'lchamga bog'liq: serverdagi `sizes[].price`
+  // (Superadmin har o'lchamga o'z narxini qo'yadi); eski API'da yo'q bo'lsa — umumiy narx
+  const priceKit = matchedKit || clubKits[0];
+  const pb = priceKit?.priceBreakdown || {};
+  const printPrice = pb.print ?? 30000;
+  const sizeRow = (priceKit?.sizes || []).find((s) => typeof s === 'object' && s.size === shirtSize);
+  // O'lcham tanlanmaguncha narx ko'rsatilmaydi (hamma o'lchamda narx har xil)
+  const kitPrice = shirtSize ? (sizeRow?.price ?? (pb.shirt ?? 159000) + (pb.shorts ?? 0)) : null;
 
   const availableSizes = useMemo(() => {
     const raw = matchedKit?.sizes || SIZES;
@@ -160,7 +161,7 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
     fn();
   };
 
-  const totalPrice = prices.kit + (hasPrint ? prices.print : 0);
+  const totalPrice = kitPrice == null ? null : kitPrice + (hasPrint ? printPrice : 0);
   const paused = Boolean(rules && rules.acceptOrders === false);
 
   const goStep = (next) => {
@@ -270,8 +271,12 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
         footer={
           <View style={styles.footerBar}>
             <View>
-              <Text style={styles.footerLabel}>{t('total')}</Text>
-              <Text style={styles.footerPrice}>{formatMoney(totalPrice)}</Text>
+              <Text style={styles.footerLabel}>{t(totalPrice == null ? 'priceWord' : 'total')}</Text>
+              {totalPrice == null ? (
+                <Text style={styles.footerPending}>{t('priceAfterSize')}</Text>
+              ) : (
+                <Text style={styles.footerPrice}>{formatMoney(totalPrice)}</Text>
+              )}
               <Text style={styles.footerSub}>{t(long ? 'kitSetIncludesLong' : 'kitSetIncludes')}</Text>
             </View>
             <View style={styles.footerAction}>
@@ -361,7 +366,6 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
               t={t}
               team={team.id}
               value={sleeve}
-              prices={typePrices}
               onChange={(next) => {
                 setSleevePick(next);
                 setFeedback(null);
@@ -372,6 +376,8 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
               sizes={availableSizes}
               value={shirtSize}
               hint={t(long ? 'sameSizeHintLong' : 'sameSizeHint')}
+              price={kitPrice}
+              priceLabel={t('shirtPrice')}
               onChange={(size) => {
                 setShirtSize(size);
                 setFeedback(null);
@@ -386,7 +392,7 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
               onNumber={setNumber}
               onFocus={() => setSide('back')}
               nameMaxLength={rules.printNameMaxLength || 30}
-              printPrice={prices.print}
+              printPrice={printPrice}
             />
           ) : (
             <ShortsNumberStep
@@ -424,7 +430,7 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   keyboardWrap: { flex: 1, backgroundColor: colors.background },
   screenContent: { paddingBottom: 190 },
   teamRail: { paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.sm },
@@ -493,7 +499,8 @@ const styles = StyleSheet.create({
   footerButton: { alignSelf: 'stretch' },
   footerLabel: { color: colors.muted, fontSize: 11, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase' },
   footerPrice: { color: colors.accent, fontSize: 18, fontWeight: '900', marginTop: 2 },
+  footerPending: { color: colors.textSecondary, fontSize: 13, fontWeight: '800', marginTop: 3, maxWidth: 150 },
   footerSub: { color: colors.muted, fontSize: 10, fontWeight: '700', marginTop: 1 },
   feedback: { color: colors.tealLight, fontSize: 12, fontWeight: '800', textAlign: 'right' },
   errorFeedback: { color: colors.danger },
-});
+}));

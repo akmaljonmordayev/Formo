@@ -1,25 +1,28 @@
 import React, { useMemo, useState } from 'react';
 import {
   Alert,
+  Image,
   Modal,
   Pressable,
-  StyleSheet,
   Text,
   TextInput,
   View,
 } from 'react-native';
 import { KeyboardAvoider, KeyboardAwareScrollView } from '../components/ui/KeyboardAware';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, spacing } from '../constants/theme';
+import { colors, radii, spacing, themedStyles } from '../constants/theme';
 import { Button, Card, Header, Screen, Segment } from '../components/ui/Common';
+import LanguagePicker from '../components/ui/LanguagePicker';
+import ThemeToggle from '../components/ui/ThemeToggle';
+import { useTheme } from '../contexts/ThemeContext';
 import { useAddresses } from '../features/checkout';
 import useWallet from '../features/wallet';
+import { assetUrl } from '../services/api';
 import { WalletChip } from './WalletScreen';
 import { errorText } from '../utils/errors';
 import { formatUzPhone } from '../utils/phone';
-import { displayName, isNameUnsupportedError, joinFullName, nameInitial, realFullName, splitFullName, validateName } from '../utils/userName';
+import { displayName, nameInitial, realFullName } from '../utils/userName';
 
-/** dd.mm.yyyy without relying on full ICU date formatting. */
 function formatDate(value) {
   if (!value) return '—';
   const date = new Date(value);
@@ -31,11 +34,12 @@ function formatDate(value) {
 
 /**
  * ProfileScreen — real data from GET /auth/me only; no mock fallback.
- * "Personal data" opens a modal that saves via auth.updateUser (PATCH /auth/me:
- * gender/age/height/weight). Profilda manzil maydoni yo'q — "Manzillarim"
- * rasmiylashtirishda saqlangan manzillarni ko'rsatadi (GET /addresses).
+ * Hisob sozlamalari (rasm, ism-familiya, parol, telefon, ko'rinish, til) — alohida sahifa (AccountScreen),
+ * bu yerda faqat "Hisob sozlamalari" tugmasi. "Shaxsiy ma'lumotlar" modali — jins/yosh/bo'y/vazn.
  */
-export default function ProfileScreen({ t, onSettings, onOrders, onAddresses, onWallet, onSupport, auth }) {
+export default function ProfileScreen({ t, language, setLanguage, onOrders, onAddresses, onWallet, onSupport, onAccount, auth }) {
+  // Mavzu shu sahifada almashadi — sahifa o'zi ham qayta chizilsin (ota komponentga bog'liq bo'lmasin)
+  useTheme();
   const wallet = useWallet();
   const [editVisible, setEditVisible] = useState(false);
   const [logoutRequested, setLogoutRequested] = useState(false);
@@ -45,6 +49,7 @@ export default function ProfileScreen({ t, onSettings, onOrders, onAddresses, on
   const name = displayName(user, t('nameMissing'));
   const phone = user.phone ? formatUzPhone(user.phone) : '—';
   const avatarInitial = nameInitial(user);
+  const avatarUri = assetUrl(user.avatarUrl);
 
   const stats = useMemo(
     () => [
@@ -70,19 +75,11 @@ export default function ProfileScreen({ t, onSettings, onOrders, onAddresses, on
 
   return (
     <Screen>
-      <Header
-        cart
-        title={t('myProfile')}
-        right={
-          <Pressable onPress={onSettings} style={styles.headerButton} hitSlop={8}>
-            <MaterialCommunityIcons name="cog-outline" size={20} color={colors.text} />
-          </Pressable>
-        }
-      />
+      <Header cart title={t('myProfile')} right={<LanguagePicker t={t} language={language} setLanguage={setLanguage} />} />
 
       <Card style={styles.profile}>
         <View style={styles.avatar}>
-          <Text style={styles.avatarText}>{avatarInitial}</Text>
+          {avatarUri ? <Image source={{ uri: avatarUri }} style={styles.avatarImg} /> : <Text style={styles.avatarText}>{avatarInitial}</Text>}
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.name, !realFullName(user) && styles.nameMissing]}>{name}</Text>
@@ -104,6 +101,8 @@ export default function ProfileScreen({ t, onSettings, onOrders, onAddresses, on
           </View>
         ))}
       </View>
+
+      <ThemeToggle t={t} />
 
       <View style={styles.group}>
         <Row
@@ -130,8 +129,17 @@ export default function ProfileScreen({ t, onSettings, onOrders, onAddresses, on
           }}
         />
         <Row icon="clipboard-list-outline" title={t('myOrders')} onPress={onOrders} />
-        <Row icon="message-text-outline" title={t('supportChat')} sub={t('supportChatSub')} onPress={onSupport} />
-        <Row icon="cog-outline" title={t('settings')} sub={t('languageSub')} onPress={onSettings} last />
+        <Row icon="message-text-outline" title={t('supportChat')} sub={t('supportChatSub')} onPress={onSupport} last />
+      </View>
+
+      <View style={styles.group}>
+        <Row
+          icon="account-cog-outline"
+          title={t('accountSettings')}
+          sub={t('accountSettingsSub')}
+          onPress={onAccount}
+          last
+        />
       </View>
 
       <Button
@@ -174,10 +182,8 @@ function Row({ icon, title, sub, onPress, last, expanded }) {
   return onPress ? <Pressable onPress={onPress}>{content}</Pressable> : content;
 }
 
-/** Modal-style editor for the name and measurements collected during registration. */
+/** Modal-style editor faqat jins/yosh/bo'y/vazn uchun — ism endi sahifada, "Hisob" bo'limida. */
 function EditProfileModal({ visible, onClose, user, auth, t }) {
-  const [firstName, setFirstName] = useState(() => splitFullName(realFullName(user)).first);
-  const [lastName, setLastName] = useState(() => splitFullName(realFullName(user)).last);
   const [gender, setGender] = useState(user.gender || null);
   const [age, setAge] = useState(user.age != null ? String(user.age) : '');
   const [height, setHeight] = useState(user.height != null ? String(user.height) : '');
@@ -189,9 +195,6 @@ function EditProfileModal({ visible, onClose, user, auth, t }) {
   // Re-hydrate from the latest server user whenever the modal opens
   React.useEffect(() => {
     if (visible) {
-      const parts = splitFullName(realFullName(user));
-      setFirstName(parts.first);
-      setLastName(parts.last);
       setGender(user.gender || null);
       setAge(user.age != null ? String(user.age) : '');
       setHeight(user.height != null ? String(user.height) : '');
@@ -220,32 +223,9 @@ function EditProfileModal({ visible, onClose, user, auth, t }) {
       return;
     }
 
-    // Ism faqat o'zgargan bo'lsa yuboriladi — bo'sh qoldirilsa mavjud ism o'chirilmaydi
-    const fullName = joinFullName(firstName, lastName);
-    const nameChanged = fullName !== (realFullName(user) || '');
-    if (nameChanged && fullName) {
-      const nameError = validateName(firstName, lastName);
-      if (nameError) {
-        setError(t(nameError));
-        return;
-      }
-    }
-
-    const fields = { gender, age: ageValue, height: heightValue, weight: weightValue };
-    if (nameChanged && fullName) fields.fullName = fullName;
-
     setSaving(true);
     try {
-      try {
-        await auth.updateUser(fields);
-      } catch (err) {
-        // Server hali `fullName`ni qabul qilmasa: o'lchamlarni saqlaymiz, ism saqlanmaganini aytamiz
-        if (!fields.fullName || !isNameUnsupportedError(err)) throw err;
-        const { fullName: _omit, ...rest } = fields;
-        await auth.updateUser(rest);
-        setError(t('nameNotSupported'));
-        return;
-      }
+      await auth.updateUser({ gender, age: ageValue, height: heightValue, weight: weightValue });
       setSavedFlash(true);
       setTimeout(() => {
         setSavedFlash(false);
@@ -272,23 +252,6 @@ function EditProfileModal({ visible, onClose, user, auth, t }) {
           </View>
 
           <KeyboardAwareScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            <View style={styles.modalMetrics}>
-              <ModalInput
-                label={t('firstName')}
-                value={firstName}
-                onChangeText={setFirstName}
-                placeholder={t('firstNamePlaceholder')}
-                text
-              />
-              <ModalInput
-                label={t('lastName')}
-                value={lastName}
-                onChangeText={setLastName}
-                placeholder={t('lastNamePlaceholder')}
-                text
-              />
-            </View>
-
             <Text style={styles.modalLabel}>{t('gender')}</Text>
             <Segment
               wide
@@ -317,8 +280,8 @@ function EditProfileModal({ visible, onClose, user, auth, t }) {
   );
 }
 
-/** `text` — ism maydoni (harflar, 50 belgigacha); aks holda 3 xonali son. */
-function ModalInput({ label, value, onChangeText, placeholder, text }) {
+/** 3 xonali son (yosh/bo'y/vazn) maydoni. */
+function ModalInput({ label, value, onChangeText, placeholder }) {
   return (
     <View style={styles.modalMetric}>
       <Text style={styles.modalLabel}>{label}</Text>
@@ -327,10 +290,9 @@ function ModalInput({ label, value, onChangeText, placeholder, text }) {
         onChangeText={onChangeText}
         placeholder={placeholder}
         placeholderTextColor={colors.muted}
-        keyboardType={text ? 'default' : 'number-pad'}
-        autoCapitalize={text ? 'words' : 'none'}
+        keyboardType="number-pad"
         autoCorrect={false}
-        maxLength={text ? 50 : 3}
+        maxLength={3}
         style={styles.modalInput}
         selectionColor={colors.accent}
       />
@@ -338,17 +300,7 @@ function ModalInput({ label, value, onChangeText, placeholder, text }) {
   );
 }
 
-const styles = StyleSheet.create({
-  headerButton: {
-    width: 40,
-    height: 40,
-    borderRadius: radii.md,
-    backgroundColor: '#141A3E',
-    borderWidth: 1,
-    borderColor: '#232A57',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
+const styles = themedStyles(() => ({
   profile: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -362,24 +314,26 @@ const styles = StyleSheet.create({
     width: 56,
     height: 56,
     borderRadius: 28,
-    backgroundColor: '#151B42',
+    backgroundColor: colors.surfaceRaised,
     borderWidth: 1.5,
     borderColor: colors.accent,
     alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
+  avatarImg: { width: '100%', height: '100%' },
   avatarText: { color: colors.accent, fontWeight: '900', fontSize: 22 },
   name: { color: colors.text, fontSize: 16, fontWeight: '800' },
   nameMissing: { color: colors.muted, fontWeight: '600' },
   phone: { color: colors.muted, fontSize: 12, marginTop: 4 },
-  memberSince: { color: '#59618D', fontSize: 10, marginTop: 3 },
+  memberSince: { color: colors.dim, fontSize: 10, marginTop: 3 },
   stats: { flexDirection: 'row', gap: spacing.sm, marginBottom: spacing.lg, marginTop: spacing.md },
   stat: {
     flex: 1,
     backgroundColor: colors.surface,
     borderRadius: radii.md,
     borderWidth: 1,
-    borderColor: '#1B2150',
+    borderColor: colors.border,
     paddingVertical: 10,
     paddingHorizontal: 6,
     alignItems: 'center',
@@ -417,9 +371,9 @@ const styles = StyleSheet.create({
   },
   rowTitle: { color: colors.text, fontSize: 13, fontWeight: '700' },
   rowSub: { color: colors.muted, fontSize: 11, marginTop: 3 },
-  logout: { marginTop: spacing.sm },
+  logout: { marginTop: spacing.lg, marginBottom: spacing.sm },
 
-  // Edit modal
+  // Edit modal (jins/yosh/bo'y/vazn)
   modalBackdrop: {
     flex: 1,
     backgroundColor: 'rgba(4, 6, 20, 0.75)',
@@ -467,4 +421,4 @@ const styles = StyleSheet.create({
   modalError: { color: colors.danger, fontSize: 12, marginTop: spacing.md },
   modalSaved: { color: colors.tealLight, fontSize: 12, marginTop: spacing.md, fontWeight: '700' },
   modalSave: { marginTop: spacing.lg },
-});
+}));

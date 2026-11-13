@@ -1,19 +1,23 @@
 import React from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { colors, fonts } from '../constants/theme';
+import { fonts, themedStyles } from '../constants/theme';
+import { ThemeContextObject } from '../contexts/ThemeContext';
 
 /**
  * Global ErrorBoundary — kutilmagan render xatosida butun ilova oq ekranga
  * aylanib qolmasligi uchun. `componentDidCatch`/`getDerivedStateFromError`
  * class component orqali amalga oshiriladi — bu React'da hook bilan bo'lmaydi.
+ * Shu sabab mavzu rangini `useTheme()` o'rniga `static contextType` orqali oladi.
  *
  * "Qayta urinish" — faqat o'z holatini tozalaydi (daraxt qayta render bo'ladi);
  * agar xato yana takrorlansa (masalan global holatda buzilgan ma'lumot bo'lsa),
  * `onReset` prop orqali ilova darajasidagi holatni ham tozalash mumkin.
  */
 export default class ErrorBoundary extends React.Component {
+  static contextType = ThemeContextObject;
+
   state = { error: null };
 
   static getDerivedStateFromError(error) {
@@ -34,19 +38,20 @@ export default class ErrorBoundary extends React.Component {
 
   render() {
     if (!this.state.error) return this.props.children;
+    const colors = this.context.colors;
 
     return (
-      <SafeAreaView style={styles.safe}>
+      <SafeAreaView style={[styles.safe, { backgroundColor: colors.background }]}>
         <View style={styles.content}>
           <View style={styles.iconWrap}>
             <MaterialCommunityIcons name="alert-circle-outline" size={40} color={colors.accent} />
           </View>
-          <Text style={styles.title}>Nimadir xato ketdi</Text>
-          <Text style={styles.subtitle}>
+          <Text style={[styles.title, { color: colors.text }]}>Nimadir xato ketdi</Text>
+          <Text style={[styles.subtitle, { color: colors.muted }]}>
             Ilovada kutilmagan xatolik yuz berdi. Qayta urinib ko'ring — agar
             takrorlansa, ilovani to'liq qayta ishga tushiring.
           </Text>
-          <Pressable style={styles.button} onPress={this.handleRetry} accessibilityRole="button">
+          <Pressable style={[styles.button, { backgroundColor: colors.accent }]} onPress={this.handleRetry} accessibilityRole="button">
             <Text style={styles.buttonText}>Qayta urinish</Text>
           </Pressable>
         </View>
@@ -55,8 +60,8 @@ export default class ErrorBoundary extends React.Component {
   }
 }
 
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: colors.background },
+const styles = themedStyles(() => ({
+  safe: { flex: 1 },
   content: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 14 },
   iconWrap: {
     width: 72,
@@ -67,14 +72,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 6,
   },
-  title: { color: colors.text, fontFamily: fonts.display, fontSize: 19, textAlign: 'center' },
-  subtitle: { color: colors.muted, fontFamily: fonts.body, fontSize: 14, lineHeight: 21, textAlign: 'center' },
+  title: { fontFamily: fonts.display, fontSize: 19, textAlign: 'center' },
+  subtitle: { fontFamily: fonts.body, fontSize: 14, lineHeight: 21, textAlign: 'center' },
   button: {
     marginTop: 10,
     paddingHorizontal: 24,
     paddingVertical: 13,
     borderRadius: 14,
-    backgroundColor: colors.accent,
   },
   buttonText: { color: '#1A1300', fontFamily: fonts.bodySemi, fontSize: 15 },
-});
+}));

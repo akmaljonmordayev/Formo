@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Animated, Easing, Image, StyleSheet, useWindowDimensions } from 'react-native';
 import * as SplashScreen from 'expo-splash-screen';
-import { colors } from '../../constants/theme';
+import { darkColors as colors } from '../../constants/theme';
 
 const LOGO = require('../../../assets/formologo.png'); // 687×472, shaffof fon
 const MIN_VISIBLE_MS = 1100;

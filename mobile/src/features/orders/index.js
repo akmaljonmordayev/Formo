@@ -10,9 +10,20 @@ export const FINAL_STATUSES = ['DELIVERED', 'CANCELLED', 'RETURNED'];
 export const isFinal = (order) => FINAL_STATUSES.includes(order?.status);
 
 // Backend `PaymentMethod`: BALANCE | CASH | CLICK | PAYME (prisma/schema.prisma).
-// Mijoz ilovasida faqat balans (asosiy) va naqd (Superadmin allowCash) — Click/Payme ko'rsatilmaydi,
-// balans Telegram bot orqali to'ldiriladi. Eski CLICK/PAYME buyurtmalari nomi bilan ko'rinaveradi.
+// Mijoz ilovasida: balans (asosiy) va naqd — naqd faqat Toshkent shahri ichida kuryerga (Superadmin allowCash);
+// viloyatlarga (pochta) — faqat balansdan. Click/Payme ko'rsatilmaydi, balans Telegram bot orqali to'ldiriladi.
 export const CHECKOUT_METHODS = ['BALANCE', 'CASH'];
+
+/** Buyurtmaning yetkazish qatori: "20.10.2026 · 18:00–22:00" yoki viloyatga "Pochta orqali · 2–5 ish kuni" */
+export function deliveryText(t, delivery) {
+  if (!delivery) return '—';
+  if (delivery.date) return [delivery.date.split('-').reverse().join('.'), delivery.slot?.replace('-', '–')].filter(Boolean).join(' · ');
+  if (delivery.postal) {
+    const days = delivery.postalDays || { min: 2, max: 5 };
+    return `${t('postShort')} · ${t('postDaysValue').replace('{min}', days.min).replace('{max}', days.max)}`;
+  }
+  return '—';
+}
 
 /**
  * Holat nomi joriy tilda. Backend `statusLabel` faqat o'zbekcha — tarjima

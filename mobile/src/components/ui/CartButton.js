@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useRef } from 'react';
-import { Animated, Easing, Pressable, StyleSheet, Text } from 'react-native';
+import { Animated, Easing, Pressable, Text } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors } from '../../constants/theme';
+import { colors, themedStyles } from '../../constants/theme';
 
 /** { count, open, t } — AppNavigator beradi; Header `cart` bo'lsa shu orqali savatni ochadi */
 export const CartContext = createContext(null);
@@ -55,7 +55,7 @@ export default function CartButton({ count = 0, onPress, t }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   btn: {
     width: 42,
     height: 42,
@@ -90,4 +90,4 @@ const styles = StyleSheet.create({
     opacity: 0.8,
     transform: [{ scale: 0.95 }],
   },
-});
+}));

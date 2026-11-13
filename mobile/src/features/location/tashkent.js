@@ -30,3 +30,28 @@ export function inTashkentCity(lat, lng) {
   }
   return inside;
 }
+
+/** Toshkent shahri markazi (Amir Temur xiyoboni) va shahar chetigacha bo'lgan zaxirali radius */
+export const TASHKENT_CENTER = { latitude: 41.311081, longitude: 69.240562 };
+export const TASHKENT_MAX_KM = 30;
+
+/** Ikki nuqta orasidagi masofa, km (haversine) */
+export function distanceKm(lat1, lng1, lat2, lng2) {
+  const rad = (d) => (d * Math.PI) / 180;
+  const dLat = rad(lat2 - lat1);
+  const dLng = rad(lng2 - lng1);
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(rad(lat1)) * Math.cos(rad(lat2)) * Math.sin(dLng / 2) ** 2;
+  return 6371 * 2 * Math.asin(Math.sqrt(a));
+}
+
+/**
+ * Pochta orqali yetkazish (viloyatlar): kun/vaqt tanlanmaydi, buyurtma pochta bo'limigacha boradi.
+ * Viloyat ko'rsatilgan — shundan; eski manzilda viloyat yo'q — xarita nuqtasidan; ikkalasi ham yo'q — kuryer.
+ * Server: backend/src/shop/tashkent.ts isPostalDelivery — ikkalasi bir xil bo'lsin.
+ */
+export function isPostalDelivery(address) {
+  if (!address) return false;
+  if (address.region) return address.region !== 'TOSHKENT_SHAHRI';
+  const hasPoint = typeof address.latitude === 'number' && typeof address.longitude === 'number';
+  return hasPoint && !inTashkentCity(address.latitude, address.longitude);
+}

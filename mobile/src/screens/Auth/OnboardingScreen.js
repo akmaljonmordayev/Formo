@@ -8,7 +8,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Kit360Thumb from '../../components/ui/Kit360Thumb';
-import { colors } from '../../constants/theme';
+import { darkColors as colors } from '../../constants/theme';
 
 const SLIDES = [
   {

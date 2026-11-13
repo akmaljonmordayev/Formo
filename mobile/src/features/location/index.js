@@ -4,8 +4,11 @@ import * as Location from 'expo-location';
 import { api } from '../../services/api';
 import { getCached, setCached } from '../../utils/memCache';
 import { formatGeocode, toAddressPayload } from './address';
+import { reversePlace, searchPlaces } from './geocode';
 
 export * from './address';
+export * from './districts';
+export { lookupArea } from './geocode';
 
 /**
  * Xaritada nuqta tanlash uchun joylashuv yordamchilari (expo-location).
@@ -72,8 +75,8 @@ export function useDeviceLocation() {
 }
 
 /**
- * Pin nuqtasi uchun manzil matni. Har bir yangi nuqtada oldingi so'rov natijasi
- * e'tiborga olinmaydi (eski javob yangisini bosib ketmasin).
+ * Pin nuqtasi uchun manzil: `resolve(coords)` -> { text, house } | null. Har bir yangi nuqtada oldingi
+ * so'rov natijasi e'tiborga olinmaydi (eski javob yangisini bosib ketmasin).
  */
 export function useReverseGeocode() {
   const [resolving, setResolving] = useState(false);
@@ -85,11 +88,21 @@ export function useReverseGeocode() {
     setResolving(true);
     setFailed(false);
     try {
-      const [place] = await Location.reverseGeocodeAsync(coords);
+      // Asosiy manba — OpenStreetMap (mahalla, ko'cha va uy raqami alohida); ishlamasa qurilma geokoderi
+      let found = null;
+      try {
+        found = await reversePlace(coords);
+      } catch {
+        found = null;
+      }
       if (id !== requestId.current) return null;
-      const text = formatGeocode(place);
-      if (!text) setFailed(true);
-      return text || null;
+      if (!found?.text) {
+        const [place] = await Location.reverseGeocodeAsync(coords);
+        if (id !== requestId.current) return null;
+        found = { text: formatGeocode(place), house: String(place?.streetNumber || '').trim() };
+      }
+      if (!found.text) setFailed(true);
+      return found.text ? found : null;
     } catch {
       if (id === requestId.current) setFailed(true);
       return null;
@@ -132,4 +145,18 @@ export async function searchPlace(query) {
   if (text.length < 3) return null;
   const [hit] = await Location.geocodeAsync(text);
   return hit ? { latitude: hit.latitude, longitude: hit.longitude } : null;
+}
+
+/**
+ * Xarita qidiruvi: "Madadkor mahallasi" -> tanlangan tuman ichidan boshlab natijalar ro'yxati
+ * [{ id, title, subtitle, latitude, longitude }]. `context` — "Sergeli tumani, Toshkent shahri",
+ * `area` — tuman hududi. OpenStreetMap topmasa qurilma geokoderi sinaladi.
+ */
+export function searchAddress(query, { context, area, region, bounds } = {}) {
+  const deviceFallback = async (q) => {
+    const text = context ? `${q}, ${context}` : q;
+    const hit = await searchPlace(text);
+    return hit ? [{ id: `device:${hit.latitude},${hit.longitude}`, title: q, subtitle: context || '', ...hit }] : [];
+  };
+  return searchPlaces(query, { context, area, region, bounds, fallback: deviceFallback });
 }

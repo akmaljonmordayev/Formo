@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, spacing } from '../constants/theme';
+import { colors, radii, spacing, themedStyles } from '../constants/theme';
 import { Button, Card, Header, Overline, Screen, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
 import Kit360Thumb from '../components/ui/Kit360Thumb';
@@ -11,6 +11,7 @@ import LoadingSpinner from '../components/ui/LoadingSpinner';
 import StatusPill, { OrderStepper, statusTone } from '../components/ui/StatusPill';
 import {
   CHECKOUT_METHODS,
+  deliveryText,
   paymentText,
   statusText,
   useOrder,
@@ -208,7 +209,7 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
         </Card>
 
         <Card style={styles.block}>
-          <Row label={t('delivery')} value={order.delivery.date ? `${order.delivery.date.split('-').reverse().join('.')} · ${order.delivery.slot}` : '—'} />
+          <Row label={t('delivery')} value={deliveryText(t, order.delivery)} />
           <Row label={t('address')} value={order.delivery.address || '—'} />
           {order.comment ? <Row label={t('comment')} value={order.comment} /> : null}
           <Row label={t('paymentMethod')} value={paymentText(t, order.paymentMethod)} />
@@ -257,7 +258,7 @@ function Row({ label, value, strong }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   content: { paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 50 },
   payCard: { backgroundColor: colors.surfaceRaised, borderColor: colors.accent, marginBottom: spacing.lg },
   payTitle: { color: colors.accent, fontSize: 16, fontWeight: '800' },
@@ -311,4 +312,4 @@ const styles = StyleSheet.create({
   error: { color: colors.danger, fontSize: 12, textAlign: 'center', marginBottom: spacing.md },
   backLink: { alignItems: 'center', padding: spacing.lg },
   backText: { color: colors.muted, fontSize: 13, fontWeight: '700' },
-});
+}));

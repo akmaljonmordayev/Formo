@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { promocodesApi } from '../../../features/platform/platformApi';
 import Modal from '../../../components/ui/Modal';
 import { useLang, useT } from '../i18n';
-import { Switch } from '../ui';
+import { ConfirmModal, Switch } from '../ui';
 
 const TYPE_LABEL = { PERCENT: 'Foiz', FIXED: "Qat'iy", FREE_SHIPPING: 'Bepul yetkazish' };
 
@@ -20,6 +20,8 @@ export default function SuperadminPromocodes() {
   const [error, setError] = useState('');
   const [busyId, setBusyId] = useState(null);
   const [editing, setEditing] = useState(null); // null | 'new' | promocode
+  const [deleting, setDeleting] = useState(null);
+  const [removing, setRemoving] = useState(false);
 
   const load = () =>
     promocodesApi
@@ -41,6 +43,19 @@ export default function SuperadminPromocodes() {
       setError(e.message);
     } finally {
       setBusyId(null);
+    }
+  };
+
+  const remove = async () => {
+    setRemoving(true);
+    try {
+      await promocodesApi.remove(deleting.id);
+      setDeleting(null);
+      await load();
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setRemoving(false);
     }
   };
 
@@ -67,6 +82,7 @@ export default function SuperadminPromocodes() {
           <table className="sa-table">
             <thead>
               <tr>
+                <th>№</th>
                 <th>{t("Kod")}</th>
                 <th>{t("Turi")}</th>
                 <th>{t("Qiymat")}</th>
@@ -77,8 +93,9 @@ export default function SuperadminPromocodes() {
               </tr>
             </thead>
             <tbody>
-              {codes.map((c) => (
+              {codes.map((c, i) => (
                 <tr key={c.id}>
+                  <td className="sa-table__sub">{i + 1}</td>
                   <td><b>{c.code}</b></td>
                   <td>{TYPE_LABEL[c.type] ? t(TYPE_LABEL[c.type]) : c.type}</td>
                   <td>{c.type === 'FREE_SHIPPING' ? '—' : c.type === 'PERCENT' ? `${c.value}%` : c.value.toLocaleString(locale)}</td>
@@ -95,6 +112,9 @@ export default function SuperadminPromocodes() {
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <button type="button" className="sa-btn sa-btn--ghost" style={{ marginRight: 10, verticalAlign: 'middle' }} onClick={() => setEditing(c)}>
                       {t("Tahrirlash")}
+                    </button>
+                    <button type="button" className="sa-btn sa-btn--ghost" style={{ marginRight: 10, verticalAlign: 'middle', color: 'var(--sa-red)' }} onClick={() => setDeleting(c)}>
+                      {t("O'chirish")}
                     </button>
                     <span style={{ display: 'inline-flex', verticalAlign: 'middle' }}>
                       <Switch
@@ -120,6 +140,16 @@ export default function SuperadminPromocodes() {
             setEditing(null);
             load();
           }}
+        />
+      )}
+
+      {deleting && (
+        <ConfirmModal
+          title={t("Promokodni o'chirish")}
+          text={t("{code} butunlay o'chiriladi, qaytarib bo'lmaydi.", { code: deleting.code })}
+          busy={removing}
+          onConfirm={remove}
+          onClose={() => setDeleting(null)}
         />
       )}
     </>

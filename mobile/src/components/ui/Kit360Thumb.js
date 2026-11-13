@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Image, StyleSheet, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors } from '../../constants/theme';
+import { colors, themedStyles } from '../../constants/theme';
 import thumbs from './kit360/thumbs';
 
 // Kadr 600×800 (3:4), forma o'rtada: gorizontal markazda, vertikal ~41% balandlikda
@@ -49,7 +49,7 @@ export default function Kit360Thumb({ team, variant = 'f', width, height, zoom =
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   box: { overflow: 'hidden', backgroundColor: KIT360_BG },
   empty: { backgroundColor: colors.surfaceRaised, alignItems: 'center', justifyContent: 'center' },
-});
+}));

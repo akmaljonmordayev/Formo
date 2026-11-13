@@ -51,7 +51,15 @@ export default function OrderDetail({ order }) {
   ].filter((item) => item.value !== undefined && item.value !== null && item.value !== '');
 
   const notes = [
-    { label: t('order.address'), value: fullOrder?.deliveryAddress },
+    {
+      label: t('order.address'),
+      value: fullOrder?.deliveryAddress,
+      // Mijoz xaritada belgilagan aniq nuqta (bo'lsa) — manzil bosilganda xaritada ochiladi
+      href:
+        typeof fullOrder?.deliveryLat === 'number' && typeof fullOrder?.deliveryLng === 'number'
+          ? `https://yandex.uz/maps/?pt=${fullOrder.deliveryLng},${fullOrder.deliveryLat}&z=17&l=map`
+          : null,
+    },
     { label: t('order.comment'), value: fullOrder?.comment },
   ].filter((item) => item.value);
 
@@ -83,6 +91,11 @@ export default function OrderDetail({ order }) {
           <div key={item.label} className="rounded-2xl border border-white/10 bg-[#0e1424] p-4">
             <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400">{item.label}</span>
             <p className="mt-1 break-words text-sm font-bold text-white">{item.value}</p>
+            {item.href ? (
+              <a href={item.href} target="_blank" rel="noopener noreferrer" className="mt-2 inline-block text-xs font-bold text-amber-400 underline">
+                {t('order.openMap')}
+              </a>
+            ) : null}
           </div>
         ))}
       </div>

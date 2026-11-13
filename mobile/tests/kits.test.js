@@ -93,3 +93,21 @@ test('API: eng ko‘p sotilganlar (kit360) va formani yoqtirish yo‘llari', asy
     ],
   );
 });
+
+test('mixKits: formalar aralashadi (bir xil seed — bir xil tartib), hech biri yo\'qolmaydi, bir jamoa yonma-yon tushmaydi', () => {
+  const { mixKits } = require(src('features/products/kits.js'));
+  const teams = ['rm', 'fcb', 'mu', 'ars', 'liv', 'psg', 'uzb', 'arg'];
+  // Serverdagi tartib: avval barcha kalta yenglilar, oxirida uzun yenglilar (ilovada "shalvarlar bir joyda" muammosi)
+  const list = [
+    ...teams.map((id) => ({ key: `kit:${id}`, kit360Id: id, sleeve: 'SHORT' })),
+    ...teams.map((id) => ({ key: `kit:${id}:l`, kit360Id: id, sleeve: 'LONG' })),
+  ];
+  const mixed = mixKits(list, 42);
+  assert.deepEqual(mixKits(list, 42), mixed);
+  assert.deepEqual(mixed.map((k) => k.key).sort(), list.map((k) => k.key).sort());
+  assert.notDeepEqual(mixed.map((k) => k.key), list.map((k) => k.key));
+  // Uzun yenglilar endi oxirida to'planib turmaydi
+  assert.ok(mixed.slice(0, 8).some((k) => k.sleeve === 'LONG') && mixed.slice(8).some((k) => k.sleeve === 'SHORT'));
+  assert.ok(mixed.every((k, i) => i === 0 || k.kit360Id !== mixed[i - 1].kit360Id));
+  assert.deepEqual(mixKits([], 1), []);
+});

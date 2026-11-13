@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, spacing } from '../constants/theme';
-import useOrders, { isFinal, progressOf, statusText } from '../features/orders';
+import { colors, radii, spacing, themedStyles } from '../constants/theme';
+import useOrders, { deliveryText, isFinal, progressOf, statusText } from '../features/orders';
 import { Card, EmptyState, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
 import Kit360Thumb from '../components/ui/Kit360Thumb';
@@ -68,9 +68,7 @@ export default function OrdersScreen({ t, onOrder }) {
                         {statusText(t, activeOrder.status, activeOrder.statusLabel)}
                       </Text>
                       <Text style={styles.trackerSub}>
-                        {activeOrder.delivery.date
-                          ? `${activeOrder.delivery.date.split('-').reverse().join('.')} · ${activeOrder.delivery.slot}`
-                          : '—'}
+                        {deliveryText(t, activeOrder.delivery)}
                       </Text>
                     </View>
                     <MaterialCommunityIcons name="chevron-right" size={22} color={colors.muted} />
@@ -165,7 +163,7 @@ export default function OrdersScreen({ t, onOrder }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   content: {
     paddingTop: 16,
     paddingHorizontal: spacing.lg,
@@ -295,4 +293,4 @@ const styles = StyleSheet.create({
     opacity: 0.85,
     transform: [{ scale: 0.985 }],
   },
-});
+}));

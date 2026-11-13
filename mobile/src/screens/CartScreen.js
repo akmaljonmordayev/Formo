@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
-import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, Text, TextInput, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, spacing } from '../constants/theme';
+import { colors, radii, spacing, themedStyles } from '../constants/theme';
 import { Badge, Button, Card, EmptyState, Header, Screen, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
 import Kit360Thumb from '../components/ui/Kit360Thumb';
@@ -280,7 +280,7 @@ export default function CartScreen({ t, cart, rules, onBack, onCheckout }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   alertBox: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -294,7 +294,7 @@ const styles = StyleSheet.create({
   },
   alertText: {
     flex: 1,
-    color: '#F5A398',
+    color: colors.dangerText,
     fontSize: 12,
     fontWeight: '700',
     lineHeight: 18,
@@ -492,4 +492,4 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
   },
-});
+}));

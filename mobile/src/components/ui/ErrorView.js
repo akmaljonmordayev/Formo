@@ -1,7 +1,8 @@
 import React from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, spacing } from '../../constants/theme';
+import { radii, spacing, themedStyles } from '../../constants/theme';
+import { useTheme } from '../../contexts/ThemeContext';
 import { Button } from './Common';
 
 /**
@@ -13,10 +14,11 @@ import { Button } from './Common';
  *   retryLabel — localized label for the retry button
  */
 function ErrorView({ message, onRetry, retryLabel = 'Retry' }) {
+  const { colors } = useTheme();
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: colors.surface }]}>
       <MaterialCommunityIcons name="alert-circle-outline" size={32} color="#E8543F" />
-      <Text style={styles.message}>{message}</Text>
+      <Text style={[styles.message, { color: colors.muted }]}>{message}</Text>
       {onRetry ? (
         <Button onPress={onRetry} style={styles.button}>
           {retryLabel}
@@ -29,9 +31,8 @@ function ErrorView({ message, onRetry, retryLabel = 'Retry' }) {
 export default ErrorView;
 export { ErrorView };
 
-const styles = StyleSheet.create({
+const styles = themedStyles(() => ({
   container: {
-    backgroundColor: colors.surface,
     borderRadius: radii.lg,
     padding: spacing.xl,
     alignItems: 'center',
@@ -40,7 +41,6 @@ const styles = StyleSheet.create({
     gap: spacing.md,
   },
   message: {
-    color: colors.muted,
     fontSize: 13,
     textAlign: 'center',
     lineHeight: 20,
@@ -49,4 +49,4 @@ const styles = StyleSheet.create({
     marginTop: spacing.sm,
     alignSelf: 'stretch',
   },
-});
+}));
