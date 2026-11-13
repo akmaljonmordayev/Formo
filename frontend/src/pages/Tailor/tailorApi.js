@@ -75,7 +75,8 @@ const orderToQueueItem = (order) => {
 };
 
 export async function listTailorOrders() {
-  const params = new URLSearchParams({ page: '1', limit: String(PAGE_LIMIT) });
+  // Faqat navbatdagilar: yetkazilgan/bekor qilingan tarix baribir ko'rsatilmaydi (TAILOR_ORDER_STATUS)
+  const params = new URLSearchParams({ page: '1', limit: String(PAGE_LIMIT), active: 'true' });
 
   const first = await api(`/workshop/orders?${params}`);
   const records = [...(first.items ?? [])];

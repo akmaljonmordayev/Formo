@@ -717,8 +717,6 @@ const RU = {
   'gradient': 'градиент',
   'Patch': 'Нашивка',
   'Paket': 'Пакет',
-  'Nuqsonlar (brak)': 'Дефекты (брак)',
-  "Sexlar xabar bergan nuqsonlar. Muammo hal bo'lgach «Hal qilindi» deb belgilang.": 'Дефекты, о которых сообщили цеха. После решения отметьте «Решено».',
   'Ochiq': 'Открытые',
   'Hal qilingan': 'Решённые',
   'Hal qilindi': 'Решено',

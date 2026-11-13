@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from './audit.service';
 import { RejectOrderDto, WorkshopOrdersQueryDto, WorkshopStatusDto } from './dto/order.dto';
 import { OrderHistoryService } from './order-history.service';
+import { resolveRange, tashkentDayKey } from './orders.service';
 
 // Sex ko'radigan ma'lumot: mahsulot, yetkazish va mijoz kontakti; to'lov/promokod tafsilotlarisiz
 const select = {
@@ -40,6 +41,8 @@ const FLOW: OrderStatus[] = [OrderStatus.ACCEPTED, OrderStatus.PRINTING, OrderSt
 const IN_WORK: OrderStatus[] = [OrderStatus.ACCEPTED, OrderStatus.PRINTING];
 
 const PRODUCTION_COLUMNS: OrderStatus[] = [OrderStatus.ACCEPTED, OrderStatus.PRINTING, OrderStatus.READY];
+/** Sex panelidagi navbat (frontend TAILOR_ORDER_STATUS bilan bir xil) */
+const QUEUE_STATUSES: OrderStatus[] = [OrderStatus.SENT_TO_WORKSHOP, ...PRODUCTION_COLUMNS];
 const ACTIVE_STATUSES: OrderStatus[] = [OrderStatus.SENT_TO_WORKSHOP, ...FLOW];
 // Qabul qilingandan 21 soatdan ko'p o'tgan, hali tayyor bo'lmagan vazifalar "kechikkan" (admin paneli bilan bir xil qoida)
 const LATE_AFTER_MS = 21 * 60 * 60 * 1000;
@@ -59,8 +62,10 @@ export class WorkshopOrdersService {
   ) {}
 
   async list(workshop: AuthUser, query: WorkshopOrdersQueryDto) {
-    const { search, status, page = 1, limit = 20 } = query;
+    const { search, status, active, page = 1, limit = 20 } = query;
     const where: Prisma.OrderWhereInput = { workshopId: workshop.id };
+    // Sex paneli har 5 soniyada yangilanadi — yetkazilgan/bekor qilingan tarix har safar yuklanmasin
+    if (active) where.status = { in: QUEUE_STATUSES };
     if (status) where.status = status;
     if (search) {
       const digits = search.replace(/\D/g, '');
@@ -114,8 +119,8 @@ export class WorkshopOrdersService {
 
   /** Sex statistikasi: davr bo'yicha buyurtmalar soni va kunlik dinamika (faqat o'z buyurtmalari) */
   async stats(workshop: AuthUser, days: number) {
-    const from = new Date();
-    from.setDate(from.getDate() - days);
+    // Toshkent kunlari bo'yicha (admin dashboard bilan bir xil) — tungi buyurtma kechagi kunga tushmasin
+    const { from, dayKeys } = resolveRange({ days });
     const lateBefore = new Date(Date.now() - LATE_AFTER_MS);
     // Faqat sonlar kerak — buyurtmalarni (mahsulot qatorlari bilan) yuklamaymiz; so'rovlar bir vaqtda ketadi
     const [inPeriod, activeCount, lateCount, me] = await Promise.all([
@@ -129,14 +134,9 @@ export class WorkshopOrdersService {
     ]);
     const capacity = me?.dailyCapacity ?? null;
 
-    const buckets = new Map<string, number>();
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      buckets.set(d.toISOString().slice(0, 10), 0);
-    }
+    const buckets = new Map(dayKeys.map((k) => [k, 0]));
     for (const o of inPeriod) {
-      const key = o.createdAt.toISOString().slice(0, 10);
+      const key = tashkentDayKey(o.createdAt);
       if (buckets.has(key)) buckets.set(key, (buckets.get(key) ?? 0) + 1);
     }
 

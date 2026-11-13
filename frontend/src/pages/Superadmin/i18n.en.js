@@ -716,8 +716,6 @@ const EN = {
   gradient: 'gradient',
   Patch: 'Patch',
   Paket: 'Bag',
-  'Nuqsonlar (brak)': 'Defects',
-  "Sexlar xabar bergan nuqsonlar. Muammo hal bo'lgach «Hal qilindi» deb belgilang.": 'Defects reported by workshops. Mark them «Resolved» once fixed.',
   Ochiq: 'Open',
   'Hal qilingan': 'Resolved',
   'Hal qilindi': 'Resolved',

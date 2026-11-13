@@ -4,6 +4,7 @@ import { OrderStatus, PaymentStatus } from '@prisma/client';
 import {
   ArrayMaxSize,
   IsArray,
+  IsBoolean,
   IsEnum,
   IsIn,
   IsInt,
@@ -105,7 +106,15 @@ export class AssignWorkshopDto {
 }
 
 /** Tikuv sexi o'z buyurtmalari ro'yxatida — boshqa sex bo'yicha filtr kerak emas */
-export class WorkshopOrdersQueryDto extends OmitType(ListOrdersQueryDto, ['workshopId', 'paymentStatus'] as const) {}
+export class WorkshopOrdersQueryDto extends OmitType(ListOrdersQueryDto, ['workshopId', 'paymentStatus'] as const) {
+  @ApiPropertyOptional({
+    description: 'true — faqat sex navbatidagi buyurtmalar (SENT_TO_WORKSHOP, ACCEPTED, PRINTING, READY); tarixsiz',
+  })
+  @IsOptional()
+  @Transform(({ value }) => (value === 'true' ? true : value === 'false' ? false : value))
+  @IsBoolean()
+  active?: boolean;
+}
 
 export class RejectOrderDto {
   @ApiProperty({ description: 'Rad etish sababi (operatorga ko‘rinadi)', example: "Bu o'lchamdagi mato tugagan", maxLength: 500 })

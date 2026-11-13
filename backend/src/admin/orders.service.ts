@@ -410,7 +410,7 @@ export class OrdersService {
   private groupByDay(orders: { totalSum: number; status: OrderStatus; createdAt: Date }[], dayKeys: string[]) {
     const buckets = new Map(dayKeys.map((k) => [k, { date: k, count: 0, revenue: 0 }]));
     for (const o of orders) {
-      const b = buckets.get(o.createdAt.toISOString().slice(0, 10));
+      const b = buckets.get(tashkentDayKey(o.createdAt));
       if (!b) continue;
       if (o.status !== OrderStatus.CANCELLED) b.count++;
       if (REVENUE_STATUSES.includes(o.status)) b.revenue += o.totalSum;
@@ -429,26 +429,31 @@ export interface RangeInput {
   all?: boolean;
 }
 
-const utcDay = (d: Date) => new Date(`${d.toISOString().slice(0, 10)}T00:00:00.000Z`);
+/** Toshkent vaqti UTC+5, yozgi vaqt yo'q — kun chegarasi doimiy siljish bilan hisoblanadi */
+const TASHKENT_OFFSET_MS = 5 * 60 * 60 * 1000;
+/** Sana qaysi Toshkent kuniga tegishli: "2026-11-12" */
+export const tashkentDayKey = (d: Date) => new Date(d.getTime() + TASHKENT_OFFSET_MS).toISOString().slice(0, 10);
+/** Toshkent kunining boshlanishi (00:00 Toshkent = oldingi kun 19:00 UTC) */
+const dayStart = (key: string) => new Date(Date.parse(`${key}T00:00:00.000Z`) - TASHKENT_OFFSET_MS);
 
 /**
  * Dashboard davri. `all` — birinchi buyurtma kunidan bugungacha (buyurtma yo'q bo'lsa — bugun);
- * from/to — shu oraliq; aks holda oxirgi `days` kun. Har doim butun UTC kunlari: `from` birinchi kun
+ * from/to — shu oraliq; aks holda oxirgi `days` kun. Har doim butun Toshkent kunlari: `from` birinchi kun
  * 00:00 dan, shuning uchun kartochkalar (ordersCount, revenue) grafikdagi kunlar yig'indisiga teng.
  */
 export function resolveRange(range: RangeInput, firstOrderAt?: Date | null) {
   if (range.all) {
-    const today = utcDay(new Date());
-    const from = firstOrderAt ? utcDay(firstOrderAt) : today;
-    const count = Math.round((today.getTime() - from.getTime()) / DAY_MS) + 1;
-    return { from, to: new Date(today.getTime() + DAY_MS - 1), dayKeys: dayKeysFrom(from, count) };
+    const today = tashkentDayKey(new Date());
+    const from = dayStart(firstOrderAt ? tashkentDayKey(firstOrderAt) : today);
+    const count = Math.round((dayStart(today).getTime() - from.getTime()) / DAY_MS) + 1;
+    return { from, to: new Date(dayStart(today).getTime() + DAY_MS - 1), dayKeys: dayKeysFrom(from, count) };
   }
   if (range.from || range.to) {
     if (!range.from || !range.to) throw new BadRequestException("from va to birga yuborilishi kerak");
-    const from = new Date(`${range.from}T00:00:00.000Z`);
-    const toStart = new Date(`${range.to}T00:00:00.000Z`);
+    const from = dayStart(range.from);
+    const toStart = dayStart(range.to);
     // 2026-02-31 kabi sanalar JS'da jimgina 03-03 ga o'tib ketadi — qaytib solishtirib ushlaymiz
-    const valid = (d: Date, s: string) => !Number.isNaN(d.getTime()) && d.toISOString().slice(0, 10) === s;
+    const valid = (d: Date, s: string) => !Number.isNaN(d.getTime()) && tashkentDayKey(d) === s;
     if (!valid(from, range.from) || !valid(toStart, range.to)) throw new BadRequestException("Sana noto'g'ri");
     const count = Math.round((toStart.getTime() - from.getTime()) / DAY_MS) + 1;
     if (count < 1) throw new BadRequestException("from sanasi to dan keyin bo'lmasligi kerak");
@@ -456,12 +461,12 @@ export function resolveRange(range: RangeInput, firstOrderAt?: Date | null) {
     return { from, to: new Date(toStart.getTime() + DAY_MS - 1), dayKeys: dayKeysFrom(from, count) };
   }
   const days = range.days ?? 30;
-  const from = new Date(utcDay(new Date()).getTime() - (days - 1) * DAY_MS);
+  const from = new Date(dayStart(tashkentDayKey(new Date())).getTime() - (days - 1) * DAY_MS);
   return { from, to: undefined as Date | undefined, dayKeys: dayKeysFrom(from, days) };
 }
 
 const dayKeysFrom = (start: Date, count: number) =>
-  Array.from({ length: count }, (_, i) => new Date(start.getTime() + i * DAY_MS).toISOString().slice(0, 10));
+  Array.from({ length: count }, (_, i) => tashkentDayKey(new Date(start.getTime() + i * DAY_MS)));
 
 const revenueOf = (orders: { totalSum: number; status: OrderStatus }[]) =>
   orders.filter((o) => REVENUE_STATUSES.includes(o.status)).reduce((s, o) => s + o.totalSum, 0);
