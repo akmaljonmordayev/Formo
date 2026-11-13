@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDown, Globe, LogOut, Menu, Moon, Sun } from 'lucide-react';
+import { ChevronDown, Globe, KeyRound, LogOut, Menu, Moon, Sun } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { ROLE_LABELS } from '../../constants/roles';
 import '../ui/ui.css';
@@ -32,8 +32,8 @@ const DEFAULT_LABELS = {
   logout: 'Chiqish',
   leaving: 'Chiqilmoqda...',
   openMenu: 'Menyuni ochish',
-  lightMode: "Yorug' mavzu",
-  darkMode: "Qorong'i mavzu",
+  changePassword: 'Parolni almashtirish',
+  toggleTheme: 'Mavzuni almashtirish',
 };
 
 export default function SuperadminLayout({ menu, labels = DEFAULT_LABELS, lang, setLang, langs = [] }) {
@@ -170,11 +170,11 @@ export default function SuperadminLayout({ menu, labels = DEFAULT_LABELS, lang, 
             <button
               type="button"
               className="sa-iconbtn"
-              onClick={() => setTheme((v) => (v === 'light' ? 'dark' : 'light'))}
-              aria-label={theme === 'light' ? labels.darkMode : labels.lightMode}
-              title={theme === 'light' ? labels.darkMode : labels.lightMode}
+              onClick={() => setTheme((v) => (v === 'dark' ? 'light' : 'dark'))}
+              aria-label={labels.toggleTheme}
+              title={labels.toggleTheme}
             >
-              {theme === 'light' ? <Moon size={17} strokeWidth={1.8} /> : <Sun size={17} strokeWidth={1.8} />}
+              {theme === 'dark' ? <Sun size={17} strokeWidth={1.8} /> : <Moon size={17} strokeWidth={1.8} />}
             </button>
 
             {langs.length > 0 && (
@@ -229,6 +229,15 @@ export default function SuperadminLayout({ menu, labels = DEFAULT_LABELS, lang, 
               </button>
               {profileOpen && (
                 <div className="sa-pop" role="menu">
+                  <button
+                    type="button"
+                    className="sa-pop__item"
+                    role="menuitem"
+                    onClick={() => navigate('/superadmin/settings')}
+                  >
+                    <KeyRound size={15} strokeWidth={1.8} aria-hidden="true" />
+                    {labels.changePassword}
+                  </button>
                   <button type="button" className="sa-pop__item" role="menuitem" onClick={handleLogout} disabled={leaving}>
                     <LogOut size={15} strokeWidth={1.8} aria-hidden="true" />
                     {leaving ? labels.leaving : labels.logout}
