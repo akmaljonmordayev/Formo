@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto';
 import { Injectable } from '@nestjs/common';
 import { OrderStatus, Prisma, TelegramMessageStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
@@ -67,6 +68,35 @@ export class TelegramOutboxService {
       create: { userId, chatId: account.chatId, text: body, dedupeKey, menuLang: lang },
       update: {},
     });
+  }
+
+  /** Botga ulangan har bir mijoz uchun outbox sonini qaytaradi (admin oldindan ko'rish uchun) */
+  async linkedCount() {
+    return this.prisma.telegramAccount.count({ where: { chatId: { not: null } } });
+  }
+
+  /**
+   * Admin panel xabari — botga ulangan (chatId bor) barcha mijozlarga bir xil matn yuboriladi.
+   * runId har chaqiriqda yangi — qayta chaqirilsa (masalan admin ikkinchi marta yuborsa) yangi partiya hisoblanadi.
+   */
+  async enqueueBroadcast(text: string) {
+    const accounts = await this.prisma.telegramAccount.findMany({
+      where: { chatId: { not: null } },
+      select: { userId: true, chatId: true, language: true },
+    });
+    if (accounts.length === 0) return { sent: 0 };
+
+    const runId = randomUUID();
+    await this.prisma.telegramOutbox.createMany({
+      data: accounts.map((a) => ({
+        userId: a.userId,
+        chatId: a.chatId as string,
+        text,
+        dedupeKey: `broadcast:${runId}:${a.userId}`,
+        menuLang: asBotLang(a.language),
+      })),
+    });
+    return { sent: accounts.length };
   }
 
   /** Navbatdagi xabarlarni band qiladi; SKIP LOCKED — bir nechta bot nusxasi bir xabarni olmaydi */
