@@ -897,6 +897,19 @@ const EN = {
   "{size}: soni va narxi": "{size}: quantity and price",
   "{size} soni": "{size} quantity",
   "Narxi (so'm)": "Price (UZS)",
+  // Grafik o'qi: oy nomi bosh kelishikda ("Noyabr 13")
+  Yanvar: "January",
+  Fevral: "February",
+  Mart: "March",
+  Aprel: "April",
+  May: "May",
+  Iyun: "June",
+  Iyul: "July",
+  Avgust: "August",
+  Sentabr: "September",
+  Oktabr: "October",
+  Noyabr: "November",
+  Dekabr: "December",
 };
 
 export default EN;
