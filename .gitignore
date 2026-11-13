@@ -73,3 +73,6 @@ web-build/
 
 # Vite cache
 .vite/
+
+# Claude Code: shaxsiy sozlamalar (ruxsat qoidalari va h.k.) — jamoaviy emas
+.claude/settings.local.json
