@@ -42,6 +42,8 @@ function TranslatedLayout({ menu }) {
         logout: t('Chiqish'),
         leaving: t('Chiqilmoqda...'),
         openMenu: t('Menyuni ochish'),
+        changePassword: t('Parolni almashtirish'),
+        toggleTheme: t('Mavzuni almashtirish'),
       }}
       lang={lang}
       setLang={setLang}
