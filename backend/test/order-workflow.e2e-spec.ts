@@ -217,9 +217,9 @@ describe('Buyurtma oqimi: operator → tikuv sexi (e2e)', () => {
 
     await as(sexB.token).patch(`/api/workshop/orders/${orderId}/status`, { status: 'DELIVERING' }).expect(409);
 
-    // Sex paneli navbati (active=true) yetkazilgan tarixni yuklamaydi; to'liq ro'yxatda u bor
+    // Sex paneli navbati (statuses=...) yetkazilgan tarixni yuklamaydi; to'liq ro'yxatda u bor
     const all = (await as(sexB.token).get('/api/workshop/orders').expect(200)).body.items.map((o: { id: number }) => o.id);
-    const queue = (await as(sexB.token).get('/api/workshop/orders?active=true').expect(200)).body.items.map((o: { id: number }) => o.id);
+    const queue = (await as(sexB.token).get('/api/workshop/orders?statuses=SENT_TO_WORKSHOP,ACCEPTED,PRINTING,READY').expect(200)).body.items.map((o: { id: number }) => o.id);
     expect(all).toContain(orderId);
     expect(queue).not.toContain(orderId);
   });

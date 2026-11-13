@@ -1,7 +1,8 @@
 import { ChevronRight } from 'lucide-react';
-import { useT } from './i18n';
+import { memo } from 'react';
+import { bottomStatus, useT } from './i18n';
 import { JerseyMini } from './ui';
-import { frameUrl, orderVariant, teamForClub } from './OrderKitView';
+import { frameUrl, lineVariant, teamForClub } from './OrderKitView';
 import { cx } from './utils';
 
 const STRIP = {
@@ -41,30 +42,35 @@ function deadlineText(t, order, bucket) {
 }
 
 /** Forma rasmi: klubning haqiqiy surati (oldi tomoni), bo'lmasa — rangli chizma */
-function KitThumb({ order, compact = false }) {
-  const team = teamForClub(order.clubName, order.apiItems?.[0]?.kit360Id);
-  const src = team ? frameUrl(team.id, 0, orderVariant(order)) : null;
+function KitThumb({ line, compact = false }) {
+  const team = teamForClub(line.clubName, line.kit360Id);
+  const src = team ? frameUrl(team.id, 0, lineVariant(line)) : null;
   if (!src) {
     return (
       <JerseyMini
-        color={order.design?.color?.hex || order.kitDesign?.primaryColor || order.jerseyColor}
-        number={order.number}
-        name={order.apiPrintName}
-        shorts={order.withShorts}
-        shortsNumber={order.shortsNumber}
+        color={line.jerseyColor}
+        number={line.number}
+        name={line.name}
+        shorts={line.withBottom}
+        pants={line.bottom === 'pants'}
+        shortsNumber={line.bottomNumber}
       />
     );
   }
   return (
     <div className={cx('shrink-0 overflow-hidden rounded-lg bg-[#b2b2b3]', compact ? 'h-28 w-20' : 'h-44 w-32')}>
-      <img src={src} alt={team.name} loading="lazy" className="h-full w-full origin-[50%_36%] scale-[1.4] object-cover" />
+      <img src={src} alt={team.name} loading="lazy" decoding="async" className="h-full w-full origin-[50%_36%] scale-[1.4] object-cover" />
     </div>
   );
 }
 
+// Kartada ko'rsatiladigan forma qatorlari soni (qolgani "+N" bilan — to'liq ro'yxat buyurtma ichida)
+const MAX_LINES = 3;
+
 /** Ixcham qator: tartib raqami · forma · mijoz va kod · muddat · holat. Qabul va tayyor qilish — faqat buyurtma ochilgandan keyin (formani ko'rib) */
-export default function OrderCard({ order, index, bucket, onOpen }) {
+function OrderCard({ order, index, bucket, onOpen }) {
   const t = useT();
+  const lines = order.lines ?? [];
 
   return (
     <article
@@ -85,18 +91,35 @@ export default function OrderCard({ order, index, bucket, onOpen }) {
         {index}
       </span>
 
-      <KitThumb order={order} compact={bucket === 'ready'} />
+      {lines[0] && <KitThumb line={lines[0]} compact={bucket === 'ready'} />}
 
       <div className="min-w-0 flex-1">
         <p className="truncate text-base font-bold text-white">
           {order.customer} <span className="ml-1 font-mono text-xs font-normal text-slate-500">#{order.id}</span>
         </p>
-        {order.apiSummary && <p className="mt-0.5 truncate text-xs text-slate-400">{order.apiSummary}</p>}
-        {(order.apiPrintName || order.number) && (
-          <p className="mt-0.5 text-sm font-bold text-cyan-300">
-            {[order.apiPrintName, order.number].filter(Boolean).join(' · ')}
-          </p>
+        {lines.length > 1 && (
+          <p className="mt-0.5 text-xs font-bold text-amber-300">{t('order.itemsShort', { n: lines.length })}</p>
         )}
+        {/* Har forma alohida qator: nima tikiladi, ism · raqam va pastki qism (shortik/shalvar, raqamli yoki yo'q) */}
+        {lines.slice(0, MAX_LINES).map((line) => (
+          <div key={line.key} className="mt-1">
+            <p className="truncate text-xs text-slate-400">
+              {[line.clubName, line.kitLabel, line.size, `×${line.qty}`].filter(Boolean).join(' · ')}
+            </p>
+            <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm font-bold text-cyan-300">
+              {(line.name || line.number) && <span>{[line.name, line.number].filter(Boolean).join(' · ')}</span>}
+              <span
+                className={cx(
+                  'rounded-full px-2 py-0.5 text-[11px] font-bold',
+                  line.bottom === 'pants' && line.withBottom ? 'bg-cyan-400/15 text-cyan-300' : 'bg-white/10 text-slate-300'
+                )}
+              >
+                {bottomStatus(t, line)}
+              </span>
+            </p>
+          </div>
+        ))}
+        {lines.length > MAX_LINES && <p className="mt-0.5 text-xs font-bold text-slate-400">+{lines.length - MAX_LINES}</p>}
         <p className={cx('mt-0.5 text-sm font-semibold', DEADLINE_TEXT[bucket])}>{deadlineText(t, order, bucket)}</p>
       </div>
 
@@ -109,3 +132,6 @@ export default function OrderCard({ order, index, bucket, onOpen }) {
     </article>
   );
 }
+
+// Ro'yxat har 5 soniyada yangilanadi — o'zgarmagan kartalar qayta chizilmaydi
+export default memo(OrderCard);

@@ -41,8 +41,6 @@ const FLOW: OrderStatus[] = [OrderStatus.ACCEPTED, OrderStatus.PRINTING, OrderSt
 const IN_WORK: OrderStatus[] = [OrderStatus.ACCEPTED, OrderStatus.PRINTING];
 
 const PRODUCTION_COLUMNS: OrderStatus[] = [OrderStatus.ACCEPTED, OrderStatus.PRINTING, OrderStatus.READY];
-/** Sex panelidagi navbat (frontend TAILOR_ORDER_STATUS bilan bir xil) */
-const QUEUE_STATUSES: OrderStatus[] = [OrderStatus.SENT_TO_WORKSHOP, ...PRODUCTION_COLUMNS];
 const ACTIVE_STATUSES: OrderStatus[] = [OrderStatus.SENT_TO_WORKSHOP, ...FLOW];
 // Qabul qilingandan 21 soatdan ko'p o'tgan, hali tayyor bo'lmagan vazifalar "kechikkan" (admin paneli bilan bir xil qoida)
 const LATE_AFTER_MS = 21 * 60 * 60 * 1000;
@@ -62,11 +60,11 @@ export class WorkshopOrdersService {
   ) {}
 
   async list(workshop: AuthUser, query: WorkshopOrdersQueryDto) {
-    const { search, status, active, page = 1, limit = 20 } = query;
+    const { search, status, statuses, page = 1, limit = 20 } = query;
     const where: Prisma.OrderWhereInput = { workshopId: workshop.id };
-    // Sex paneli har 5 soniyada yangilanadi — yetkazilgan/bekor qilingan tarix har safar yuklanmasin
-    if (active) where.status = { in: QUEUE_STATUSES };
     if (status) where.status = status;
+    // Sex paneli faqat faol holatlarni so'raydi — tugagan buyurtmalar tarixi har yangilanishda yuklanmaydi
+    else if (statuses?.length) where.status = { in: statuses };
     if (search) {
       const digits = search.replace(/\D/g, '');
       where.OR = [

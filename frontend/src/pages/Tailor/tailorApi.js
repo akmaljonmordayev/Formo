@@ -17,17 +17,42 @@ export const TAILOR_NEXT_STATUS = {
   PRINTING: 'READY',
 };
 
-const orderToQueueItem = (order) => {
+/**
+ * Buyurtmaning bitta qatori (forma) — sex aynan shuni tikadi. Bitta buyurtmada bir nechta qator bo'lishi mumkin
+ * (masalan, biri shortikli, biri shalvarli) — har biri alohida ko'rsatiladi.
+ */
+const lineToItem = (line, order) => {
+  const number = line?.printNumber ?? order.printNumber ?? '';
+  // withShorts — pastki qism (shortik yoki shalvar) futbolka bilan birga tikiladimi
+  const withBottom = line?.withShorts ?? true;
+  return {
+    key: line?.id ?? 0,
+    clubName: line?.clubName ?? '',
+    kitLabel: line?.kitLabel ?? '',
+    kit360Id: line?.kit360Id ?? null,
+    sleeve: line?.sleeve === 'LONG' ? 'long' : 'short',
+    bottom: line?.bottom === 'PANTS' ? 'pants' : 'shorts',
+    withBottom,
+    // Pastki qismdagi raqam (null raqam — futbolkadagi raqam); '' — raqamsiz
+    bottomNumber: withBottom && line?.numberOnShorts ? String(line.shortsNumber ?? number ?? '') : '',
+    bottomSize: withBottom ? line?.shortsSize ?? '' : '',
+    name: line?.printName ?? order.printName ?? '',
+    number: number === null ? '' : String(number),
+    size: line?.shirtSize ?? order.size ?? '',
+    qty: line?.quantity ?? order.quantity ?? 0,
+    // 3D dizayn: buyurtma paytidagi nusxa — sex aynan shu ranglar bilan tikadi
+    jerseyColor: line?.design?.color?.hex || line?.designSnapshot?.primaryColor || '#172238',
+    kitDesign: line?.designSnapshot ?? null,
+  };
+};
+
+export const orderToQueueItem = (order) => {
   const line = order.items?.[0];
   const status = TAILOR_ORDER_STATUS[order.status];
   if (!status) return null;
 
-  const details = [
-    line?.clubName,
-    line?.kitLabel,
-    line?.shirtSize && `${line.shirtSize}`,
-    `×${line?.quantity ?? order.quantity}`,
-  ].filter(Boolean);
+  const lines = (order.items?.length ? order.items : [undefined]).map((item) => lineToItem(item, order));
+  const qty = lines.reduce((sum, item) => sum + (Number(item.qty) || 0), 0);
   const deliveryTime = order.deliveryDate
     ? new Date(order.deliveryDate).toLocaleDateString('en-CA', { timeZone: 'UTC' })
     : null;
@@ -46,10 +71,11 @@ const orderToQueueItem = (order) => {
     size: line?.shirtSize ?? order.size ?? '',
     fabric: '',
     composition: '',
-    qty: line?.quantity ?? order.quantity ?? 0,
+    // Barcha qatorlar bo'yicha jami dona
+    qty: qty || order.quantity || 0,
+    lines,
     printColor: '',
-    // 3D dizayn: buyurtma paytidagi nusxa — sex aynan shu ranglar bilan tikadi
-    jerseyColor: line?.designSnapshot?.primaryColor ?? '#172238',
+    jerseyColor: lines[0].jerseyColor,
     jerseyColorName: '',
     location: '',
     status,
@@ -59,24 +85,18 @@ const orderToQueueItem = (order) => {
     deadline: order.deliverySlot
       ? { time: order.deliverySlot, done: status === 'tayyor' }
       : null,
-    design: line?.design ?? null,
-    kitDesign: line?.designSnapshot ?? null,
-    clubName: line?.clubName ?? '',
-    kitLabel: line?.kitLabel ?? '',
-    isCustomDesign: Boolean(line && (line.kitId == null || line.design)),
-    // Shortik: futbolka bilan birga tikiladimi va unda raqam bormi (null raqam — futbolkadagi raqam)
-    withShorts: line?.withShorts ?? true,
-    shortsNumber: line?.numberOnShorts ? String(line.shortsNumber ?? line.printNumber ?? order.printNumber ?? '') : '',
-    apiItems: order.items ?? [],
-    apiSummary: details.join(' · '),
-    apiPrintName: line?.printName ?? order.printName ?? '',
+    // Manzil, izoh va xaritadagi nuqta — buyurtma tafsilotida ko'rsatiladi
     apiOrder: order,
   };
 };
 
 export async function listTailorOrders() {
-  // Faqat navbatdagilar: yetkazilgan/bekor qilingan tarix baribir ko'rsatilmaydi (TAILOR_ORDER_STATUS)
-  const params = new URLSearchParams({ page: '1', limit: String(PAGE_LIMIT), active: 'true' });
+  // Faqat sex ko'radigan holatlar so'raladi — yetkazilgan/bekor qilingan eski buyurtmalar har 5 soniyada yuklanmaydi
+  const params = new URLSearchParams({
+    page: '1',
+    limit: String(PAGE_LIMIT),
+    statuses: Object.keys(TAILOR_ORDER_STATUS).join(','),
+  });
 
   const first = await api(`/workshop/orders?${params}`);
   const records = [...(first.items ?? [])];
