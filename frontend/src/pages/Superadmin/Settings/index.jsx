@@ -10,12 +10,12 @@ import {
   loadSettings,
   saveSetting,
 } from '../adminApi';
-import { LANGS, useLang } from '../i18n';
+import { useLang } from '../i18n';
 import { Switch } from '../ui';
 import { loadAdminPrefs, storeAdminPrefs } from '../prefs';
 
 const GROUPS = [
-  { title: 'Admin', items: [['profile', 'Profil va til'], ['general', 'Umumiy sozlamalar']] },
+  { title: 'Admin', items: [['profile', 'Profil'], ['general', 'Umumiy sozlamalar']] },
   { title: 'Yetkazish', items: [['slots', "Slotlar va sig'im"]] },
   { title: 'Buyurtma', items: [['orderRules', 'Buyurtma qoidalari'], ['banned', "Taqiqlangan so'zlar"]] },
   { title: 'Xabarlar', items: [['notifications', 'Bildirishnomalar']] },
@@ -218,7 +218,7 @@ function SwitchRow({ label, hint, checked, onChange }) {
 
 /* ---------- Admin: profil va til (shu brauzerda) ---------- */
 function ProfileSection() {
-  const { t, lang, setLang } = useLang();
+  const { t } = useLang();
   const { theme, setTheme } = useOutletContext() ?? {}; // mavzu holati SuperadminLayout'da
   const { user, role } = useAuth();
   const [prefs, setPrefs] = useState(loadAdminPrefs);
@@ -250,21 +250,6 @@ function ProfileSection() {
           {t('Rol')}
           <b>{role || '—'}</b>
         </div>
-      </div>
-
-      <div className="sa-panel__title" style={{ fontSize: 14, marginBottom: 8 }}>{t('Panel tili')}</div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 22 }}>
-        {LANGS.map((l) => (
-          <button
-            key={l.value}
-            type="button"
-            className={`sa-tab${lang === l.value ? ' is-active' : ''}`}
-            aria-pressed={lang === l.value}
-            onClick={() => setLang(l.value)}
-          >
-            {l.label}
-          </button>
-        ))}
       </div>
 
       <div className="sa-panel__title" style={{ fontSize: 14, marginBottom: 8 }}>{t('Mavzu')}</div>

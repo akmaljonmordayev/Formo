@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDown, LogOut, Menu } from 'lucide-react';
+import { ChevronDown, Globe, LogOut, Menu } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { ROLE_LABELS } from '../../constants/roles';
 import '../ui/ui.css';
@@ -34,15 +34,17 @@ const DEFAULT_LABELS = {
   openMenu: 'Menyuni ochish',
 };
 
-export default function SuperadminLayout({ menu, labels = DEFAULT_LABELS }) {
+export default function SuperadminLayout({ menu, labels = DEFAULT_LABELS, lang, setLang, langs = [] }) {
   const { user, role, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [drawer, setDrawer] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [langOpen, setLangOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [theme, setTheme] = useState(readStoredTheme);
   const popRef = useRef(null);
+  const langRef = useRef(null);
 
   useEffect(() => {
     try {
@@ -55,6 +57,7 @@ export default function SuperadminLayout({ menu, labels = DEFAULT_LABELS }) {
   useEffect(() => {
     setDrawer(false);
     setProfileOpen(false);
+    setLangOpen(false);
   }, [pathname]);
 
   useEffect(() => {
@@ -68,6 +71,18 @@ export default function SuperadminLayout({ menu, labels = DEFAULT_LABELS }) {
       document.removeEventListener('keydown', onKey);
     };
   }, [profileOpen]);
+
+  useEffect(() => {
+    if (!langOpen) return undefined;
+    const onDown = (e) => !langRef.current?.contains(e.target) && setLangOpen(false);
+    const onKey = (e) => e.key === 'Escape' && setLangOpen(false);
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [langOpen]);
 
   const groups = useMemo(() => {
     const out = [];
@@ -149,29 +164,66 @@ export default function SuperadminLayout({ menu, labels = DEFAULT_LABELS }) {
             {current?.group ?? 'Asosiy'} <span>/</span> <b>{current?.label ?? 'Dashboard'}</b>
           </div>
 
-          <div className="sa-pp" ref={popRef}>
-            <button
-              type="button"
-              className="sa-user"
-              onClick={() => setProfileOpen((v) => !v)}
-              aria-haspopup="menu"
-              aria-expanded={profileOpen}
-            >
-              <span className="sa-avatar">{initials(name)}</span>
-              <span className="sa-user__who">
-                <b>{name}</b>
-                <small>{roleLabel}</small>
-              </span>
-              <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
-            </button>
-            {profileOpen && (
-              <div className="sa-pop" role="menu">
-                <button type="button" className="sa-pop__item" role="menuitem" onClick={handleLogout} disabled={leaving}>
-                  <LogOut size={15} strokeWidth={1.8} aria-hidden="true" />
-                  {leaving ? labels.leaving : labels.logout}
+          <div className="sa-top__right">
+            {langs.length > 0 && (
+              <div className="sa-pp" ref={langRef}>
+                <button
+                  type="button"
+                  className="sa-user sa-user--lang"
+                  onClick={() => setLangOpen((v) => !v)}
+                  aria-haspopup="menu"
+                  aria-expanded={langOpen}
+                >
+                  <Globe size={15} strokeWidth={1.8} aria-hidden="true" />
+                  {langs.find((l) => l.value === lang)?.short ?? lang}
+                  <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
                 </button>
+                {langOpen && (
+                  <div className="sa-pop" role="menu">
+                    {langs.map((l) => (
+                      <button
+                        key={l.value}
+                        type="button"
+                        className="sa-pop__item"
+                        role="menuitem"
+                        aria-pressed={lang === l.value}
+                        onClick={() => {
+                          setLang?.(l.value);
+                          setLangOpen(false);
+                        }}
+                      >
+                        {l.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
+
+            <div className="sa-pp" ref={popRef}>
+              <button
+                type="button"
+                className="sa-user"
+                onClick={() => setProfileOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={profileOpen}
+              >
+                <span className="sa-avatar">{initials(name)}</span>
+                <span className="sa-user__who">
+                  <b>{name}</b>
+                  <small>{roleLabel}</small>
+                </span>
+                <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
+              </button>
+              {profileOpen && (
+                <div className="sa-pop" role="menu">
+                  <button type="button" className="sa-pop__item" role="menuitem" onClick={handleLogout} disabled={leaving}>
+                    <LogOut size={15} strokeWidth={1.8} aria-hidden="true" />
+                    {leaving ? labels.leaving : labels.logout}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 

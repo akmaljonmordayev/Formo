@@ -1,12 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { supportApi } from '../../features/platform/platformApi';
 import SuperadminLayout from '../../components/layout/SuperadminLayout';
-import { LangProvider, useLang } from './i18n';
+import { LANGS, LangProvider, useLang } from './i18n';
 import { CHAT_READ_EVENT, usePolling } from './ui';
 
-// Umumiy SuperadminLayout'ni o'zgartirmasdan: menyu tarjima qilinadi (til — Sozlamalar → Profil va til)
+// Umumiy SuperadminLayout'ni o'zgartirmasdan: menyu tarjima qilinadi (til — yuqori header'da)
 function TranslatedLayout({ menu }) {
-  const { t, lang } = useLang();
+  const { t, lang, setLang } = useLang();
   // Mijozlardan kelgan o'qilmagan xabarlar — Telegram kabi «Xabarlar» belgisi ustida
   const [unread, setUnread] = useState(0);
   const loadUnread = useCallback(
@@ -43,6 +43,9 @@ function TranslatedLayout({ menu }) {
         leaving: t('Chiqilmoqda...'),
         openMenu: t('Menyuni ochish'),
       }}
+      lang={lang}
+      setLang={setLang}
+      langs={LANGS}
     />
   );
 }
