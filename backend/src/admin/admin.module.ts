@@ -12,6 +12,8 @@ import { CategoriesController } from './categories.controller';
 import { CategoriesService } from './categories.service';
 import { CampaignsController } from './campaigns.controller';
 import { CampaignsService } from './campaigns.service';
+import { BroadcastController } from './broadcast.controller';
+import { BroadcastService } from './broadcast.service';
 import { ClubsController } from './clubs.controller';
 import { ClubsService } from './clubs.service';
 import { DiagnosticsController } from './diagnostics.controller';
@@ -53,11 +55,13 @@ import { WorkshopsController } from './workshops.controller';
     PricingController,
     PromocodesController,
     CampaignsController,
+    BroadcastController,
     AuditController,
     SettingsController,
   ],
   providers: [
     AccountsService,
+    BroadcastService,
     AuditService,
     CategoriesService,
     ClubsService,

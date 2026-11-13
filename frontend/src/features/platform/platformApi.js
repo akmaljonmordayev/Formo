@@ -74,6 +74,12 @@ export const campaignsApi = {
   update: (id, body) => api(`/admin/campaigns/${id}`, { method: 'PATCH', body }),
 };
 
+// Botga ulangan barcha mijozlarga bir martalik Telegram xabari
+export const broadcastApi = {
+  recipients: () => api('/admin/broadcast/recipients'),
+  send: (message) => api('/admin/broadcast', { method: 'POST', body: { message } }),
+};
+
 export const auditLogApi = {
   list: (params) => api(`/admin/audit-log${qs(params)}`),
 };

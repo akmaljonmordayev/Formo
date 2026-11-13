@@ -6,6 +6,7 @@ import {
   LayoutDashboard,
   MessagesSquare,
   Rotate3d,
+  Send,
   Settings,
   Shirt,
   ShoppingBag,
@@ -26,6 +27,7 @@ import Messages from './Messages';
 import Pricing from './Pricing';
 import Promocodes from './Promocodes';
 import Campaigns from './Campaigns';
+import Broadcast from './Broadcast';
 import Finance from './Finance';
 import TopUps from './TopUps';
 import Reports from './Reports';
@@ -75,6 +77,7 @@ export const superadminRoutes = [
   { path: 'users', element: legacy(CustomersUsers) },
   { path: 'promocodes', element: <Promocodes /> },
   { path: 'campaigns', element: <Campaigns /> },
+  { path: 'broadcast', element: <Broadcast /> },
   { path: 'factories', element: legacy(Factories_) },
   { path: 'finance', element: <Finance /> },
   { path: 'topups', element: <TopUps /> },
@@ -88,6 +91,7 @@ export const superadminMenu = [
   { to: BASE, label: 'Dashboard', end: true, icon: LayoutDashboard, group: 'Asosiy' },
   { to: `${BASE}/orders`, label: 'Buyurtmalar', icon: ShoppingBag, group: 'Asosiy' },
   { to: `${BASE}/messages`, label: 'Xabarlar', icon: MessagesSquare, group: 'Asosiy' },
+  { to: `${BASE}/broadcast`, label: 'Telegram xabar', icon: Send, group: 'Asosiy' },
   { to: `${BASE}/topups`, label: "Balans to'ldirish", icon: CreditCard, group: 'Asosiy' },
   { to: `${BASE}/production`, label: 'Ishlab chiqarish', icon: Factory, group: 'Asosiy' },
 
