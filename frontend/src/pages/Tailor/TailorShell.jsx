@@ -9,6 +9,7 @@ import { cx } from './utils';
 import {
   acceptTailorOrder,
   listTailorOrders,
+  orderToQueueItem,
   rejectTailorOrder,
   TAILOR_NEXT_STATUS,
   updateTailorOrderStatus,
@@ -66,9 +67,10 @@ const OUTER_CHROME_CSS = `
   .tl-light .text-rose-200, .tl-light .text-rose-300, .tl-light .text-rose-400 { color: #be123c !important; }
   .tl-light [class*="[color-scheme:dark]"] { color-scheme: light; }
 
+  /* Qisqa va blur'siz: butun sahifani xiralashtirish kuchsiz kompyuterda sahifa ochilishini sekinlashtirardi */
   @keyframes tl-page-in {
-    0% { opacity: 0; transform: translateY(14px) scale(0.985); filter: blur(6px); }
-    100% { opacity: 1; transform: none; filter: none; }
+    0% { opacity: 0; transform: translateY(6px); }
+    100% { opacity: 1; transform: none; }
   }
   @keyframes tl-fade { from { opacity: 0; } to { opacity: 1; } }
   @keyframes tl-fade-out { from { opacity: 1; } to { opacity: 0; } }
@@ -81,7 +83,7 @@ const OUTER_CHROME_CSS = `
     50% { transform: translate3d(40px, 30px, 0); }
   }
   /* backwards: animatsiyadan keyin transform/filter qolmasin — aks holda ichidagi fixed oynalar (modal) sahifa balandligiga cho'zilib, tugmalar ekrandan tashqarida qoladi */
-  .tl-page { animation: tl-page-in 0.45s cubic-bezier(0.22, 1, 0.36, 1) backwards; }
+  .tl-page { animation: tl-page-in 0.16s ease-out backwards; }
   .tl-pop { animation: tl-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards; animation-delay: var(--tl-delay, 0ms); }
   .tl-drop { animation: tl-drop 0.2s ease-out both; }
   .tl-glass { background: rgba(18, 24, 41, 0.72); backdrop-filter: blur(14px); }
@@ -144,20 +146,35 @@ export default function TailorShell({ title, subtitle, children }) {
     setPrefsError('');
   }, [user?.id]);
 
+  // Har so'rov tartib raqami oladi: eskirgan javob (masalan, qabul qilishdan oldin ketgan fon so'rovi) yangi holatni bosib ketmaydi
+  const loadSeq = useRef(0);
+  const loadsInFlight = useRef(0);
   // silent — fon yangilanishi: yuklanish holati ko'rsatilmaydi (sahifa sakramaydi)
   const reloadOrders = useCallback(async ({ silent = false } = {}) => {
+    const seq = ++loadSeq.current;
+    loadsInFlight.current += 1;
     if (!silent) setOrdersLoading(true);
-    setOrdersError('');
     try {
       const freshOrders = await listTailorOrders();
+      if (seq !== loadSeq.current) return;
       // Fon yangilanishida hech narsa o'zgarmagan bo'lsa — qayta chizilmaydi
       setOrdersState((prev) => (JSON.stringify(prev) === JSON.stringify(freshOrders) ? prev : freshOrders));
+      setOrdersError('');
     } catch (requestError) {
-      setOrdersError(requestError.message);
+      if (seq === loadSeq.current) setOrdersError(requestError.message);
     } finally {
+      loadsInFlight.current -= 1;
       setOrdersLoading(false);
     }
   }, []);
+
+  // Server javobi darhol ro'yxatga qo'llanadi (butun ro'yxat qayta yuklanishi kutilmaydi), keyin fon rejimida tekshiriladi
+  const applyOrder = useCallback((apiId, updated) => {
+    loadSeq.current += 1;
+    const next = updated ? orderToQueueItem(updated) : null;
+    setOrdersState((prev) => prev.flatMap((item) => (item.apiId !== apiId ? [item] : next ? [next] : [])));
+    reloadOrders({ silent: true });
+  }, [reloadOrders]);
 
   const processOrder = useCallback(async (order) => {
     if (!order.apiBacked || !order.apiId || !order.apiStatus) {
@@ -169,23 +186,33 @@ export default function TailorShell({ title, subtitle, children }) {
     if (!isNew && !nextStatus) return;
     setOrderActionLoading(true);
     try {
-      if (isNew) await acceptTailorOrder(order.apiId);
-      else await updateTailorOrderStatus(order.apiId, nextStatus);
-      await reloadOrders();
+      const updated = isNew
+        ? await acceptTailorOrder(order.apiId)
+        : await updateTailorOrderStatus(order.apiId, nextStatus);
+      if (updated?.items) applyOrder(order.apiId, updated);
+      else await reloadOrders({ silent: true });
+    } catch (requestError) {
+      // Holat boshqa joyda o'zgargan bo'lishi mumkin (409) — ro'yxat serverdagi bilan tenglashtiriladi
+      reloadOrders({ silent: true });
+      throw requestError;
     } finally {
       setOrderActionLoading(false);
     }
-  }, [reloadOrders]);
+  }, [applyOrder, reloadOrders]);
 
   const rejectOrder = useCallback(async (order, reason) => {
     setOrderActionLoading(true);
     try {
       await rejectTailorOrder(order.apiId, reason);
-      await reloadOrders();
+      // Rad etilgan buyurtma endi bu sexga tegishli emas — ro'yxatdan darhol olinadi
+      applyOrder(order.apiId, null);
+    } catch (requestError) {
+      reloadOrders({ silent: true });
+      throw requestError;
     } finally {
       setOrderActionLoading(false);
     }
-  }, [reloadOrders]);
+  }, [applyOrder, reloadOrders]);
   const toggleTheme = async () => {
     try {
       await savePrefs({ ...prefs, theme: prefs.theme === 'light' ? 'dark' : 'light' });
@@ -278,7 +305,8 @@ export default function TailorShell({ title, subtitle, children }) {
     reloadOrders();
     // Tab yashirin bo'lsa so'ramaymiz
     const refresh = () => {
-      if (!document.hidden) reloadOrders({ silent: true });
+      // Oldingi so'rov hali tugamagan bo'lsa (sekin internet) — ustiga yangisi yuborilmaydi
+      if (!document.hidden && loadsInFlight.current === 0) reloadOrders({ silent: true });
     };
     const timer = window.setInterval(refresh, 5_000);
     // Tabga qaytganda yoki internet tiklanganda darhol yangilanadi

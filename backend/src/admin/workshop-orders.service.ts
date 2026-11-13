@@ -59,9 +59,11 @@ export class WorkshopOrdersService {
   ) {}
 
   async list(workshop: AuthUser, query: WorkshopOrdersQueryDto) {
-    const { search, status, page = 1, limit = 20 } = query;
+    const { search, status, statuses, page = 1, limit = 20 } = query;
     const where: Prisma.OrderWhereInput = { workshopId: workshop.id };
     if (status) where.status = status;
+    // Sex paneli faqat faol holatlarni so'raydi — tugagan buyurtmalar tarixi har yangilanishda yuklanmaydi
+    else if (statuses?.length) where.status = { in: statuses };
     if (search) {
       const digits = search.replace(/\D/g, '');
       where.OR = [

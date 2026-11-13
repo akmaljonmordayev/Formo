@@ -150,6 +150,21 @@ const uz = {
   'order.spec.shorts': 'Shortik',
   'order.spec.shortsNumber': 'Shortikda raqam',
   'order.spec.pantsNumber': 'Shalvarda raqam',
+  'order.spec.shirtSize': "FUTBOLKA O'LCHAMI",
+  'order.spec.shortsSize': "SHORTIK O'LCHAMI",
+  'order.spec.pantsSize': "SHALVAR O'LCHAMI",
+  'order.spec.top': 'USTKI QISM',
+  'order.spec.bottom': 'PASTKI QISM',
+  'order.sleeve.short': 'Kalta yeng',
+  'order.sleeve.long': 'Uzun yeng',
+  'order.bottom.shorts': 'Shortik',
+  'order.bottom.pants': 'Shalvar',
+  'order.bottom.numbered': '{bottom} · raqam {n}',
+  'order.bottom.plain': '{bottom} · raqamsiz',
+  'order.bottom.shirtOnly': 'Faqat futbolka',
+  'order.items': 'Buyurtmada {n} xil forma · jami {qty} dona',
+  'order.itemsShort': '{n} xil forma',
+  'order.photoApprox': "Surat taxminiy — tikishda yonidagi yozuvlarga qarang",
   'brak.orderLabel': 'Buyurtma',
   'order.yes': 'Bor',
   'order.no': 'Yo‘q',
@@ -619,6 +634,21 @@ const ru = {
   'order.spec.shorts': 'Шорты',
   'order.spec.shortsNumber': 'Номер на шортах',
   'order.spec.pantsNumber': 'Номер на штанах',
+  'order.spec.shirtSize': 'РАЗМЕР ФУТБОЛКИ',
+  'order.spec.shortsSize': 'РАЗМЕР ШОРТ',
+  'order.spec.pantsSize': 'РАЗМЕР ШТАНОВ',
+  'order.spec.top': 'ВЕРХ',
+  'order.spec.bottom': 'НИЗ',
+  'order.sleeve.short': 'Короткий рукав',
+  'order.sleeve.long': 'Длинный рукав',
+  'order.bottom.shorts': 'Шорты',
+  'order.bottom.pants': 'Штаны',
+  'order.bottom.numbered': '{bottom} · номер {n}',
+  'order.bottom.plain': '{bottom} · без номера',
+  'order.bottom.shirtOnly': 'Только футболка',
+  'order.items': 'В заказе форм: {n} · всего {qty} шт.',
+  'order.itemsShort': 'Форм: {n}',
+  'order.photoApprox': 'Фото приблизительное — при пошиве смотрите данные рядом',
   'brak.orderLabel': 'Заказ',
   'order.yes': 'Есть',
   'order.no': 'Нет',
@@ -1017,6 +1047,13 @@ export function useT() {
   t.locale = LOCALES[lang] ?? LOCALES.uz;
   return t;
 }
+
+/** Pastki qism holati: 'Shalvar · raqam 7' | 'Shortik · raqamsiz' | 'Faqat futbolka' */
+export const bottomStatus = (t, line) => {
+  if (!line.withBottom) return t('order.bottom.shirtOnly');
+  const bottom = t(`order.bottom.${line.bottom}`);
+  return line.bottomNumber ? t('order.bottom.numbered', { bottom, n: line.bottomNumber }) : t('order.bottom.plain', { bottom });
+};
 
 /** 'Futbolka · 7 · qizil XL · 1 dona' */
 export const orderSummary = (t, order) =>
