@@ -716,8 +716,6 @@ const EN = {
   gradient: 'gradient',
   Patch: 'Patch',
   Paket: 'Bag',
-  'Nuqsonlar (brak)': 'Defects',
-  "Sexlar xabar bergan nuqsonlar. Muammo hal bo'lgach «Hal qilindi» deb belgilang.": 'Defects reported by workshops. Mark them «Resolved» once fixed.',
   Ochiq: 'Open',
   'Hal qilingan': 'Resolved',
   'Hal qilindi': 'Resolved',
@@ -899,6 +897,19 @@ const EN = {
   "{size}: soni va narxi": "{size}: quantity and price",
   "{size} soni": "{size} quantity",
   "Narxi (so'm)": "Price (UZS)",
+  // Grafik o'qi: oy nomi bosh kelishikda ("Noyabr 13")
+  Yanvar: "January",
+  Fevral: "February",
+  Mart: "March",
+  Aprel: "April",
+  May: "May",
+  Iyun: "June",
+  Iyul: "July",
+  Avgust: "August",
+  Sentabr: "September",
+  Oktabr: "October",
+  Noyabr: "November",
+  Dekabr: "December",
 };
 
 export default EN;

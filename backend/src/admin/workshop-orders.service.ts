@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from './audit.service';
 import { RejectOrderDto, WorkshopOrdersQueryDto, WorkshopStatusDto } from './dto/order.dto';
 import { OrderHistoryService } from './order-history.service';
+import { resolveRange, tashkentDayKey } from './orders.service';
 
 // Sex ko'radigan ma'lumot: mahsulot, yetkazish va mijoz kontakti; to'lov/promokod tafsilotlarisiz
 const select = {
@@ -116,8 +117,8 @@ export class WorkshopOrdersService {
 
   /** Sex statistikasi: davr bo'yicha buyurtmalar soni va kunlik dinamika (faqat o'z buyurtmalari) */
   async stats(workshop: AuthUser, days: number) {
-    const from = new Date();
-    from.setDate(from.getDate() - days);
+    // Toshkent kunlari bo'yicha (admin dashboard bilan bir xil) — tungi buyurtma kechagi kunga tushmasin
+    const { from, dayKeys } = resolveRange({ days });
     const lateBefore = new Date(Date.now() - LATE_AFTER_MS);
     // Faqat sonlar kerak — buyurtmalarni (mahsulot qatorlari bilan) yuklamaymiz; so'rovlar bir vaqtda ketadi
     const [inPeriod, activeCount, lateCount, me] = await Promise.all([
@@ -131,14 +132,9 @@ export class WorkshopOrdersService {
     ]);
     const capacity = me?.dailyCapacity ?? null;
 
-    const buckets = new Map<string, number>();
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      buckets.set(d.toISOString().slice(0, 10), 0);
-    }
+    const buckets = new Map(dayKeys.map((k) => [k, 0]));
     for (const o of inPeriod) {
-      const key = o.createdAt.toISOString().slice(0, 10);
+      const key = tashkentDayKey(o.createdAt);
       if (buckets.has(key)) buckets.set(key, (buckets.get(key) ?? 0) + 1);
     }
 
