@@ -219,9 +219,15 @@
   display: none;
 }
 
+.sa-top__right {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+}
+
 .sa-pp {
   position: relative;
-  margin-left: auto;
 }
 
 .sa-user {
@@ -234,6 +240,13 @@
   background: var(--sa-surface);
   color: var(--sa-ink);
   cursor: pointer;
+}
+
+.sa-user--lang {
+  padding: 7px 12px;
+  gap: 6px;
+  font-size: 13px;
+  font-weight: 600;
 }
 
 .sa-avatar {

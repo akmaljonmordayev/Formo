@@ -1,10 +1,10 @@
 import { useEffect, useMemo } from 'react';
 import SuperadminLayout from '../../components/layout/SuperadminLayout';
-import { LangProvider, useLang } from './i18n';
+import { LANGS, LangProvider, useLang } from './i18n';
 
-// Umumiy SuperadminLayout'ni o'zgartirmasdan: menyu tarjima qilinadi (til — Sozlamalar → Profil va til)
+// Umumiy SuperadminLayout'ni o'zgartirmasdan: menyu tarjima qilinadi (til — yuqori header'da)
 function TranslatedLayout({ menu }) {
-  const { t, lang } = useLang();
+  const { t, lang, setLang } = useLang();
   const translated = useMemo(
     () => menu.map((m) => ({ ...m, label: t(m.label), group: m.group ? t(m.group) : m.group })),
     [menu, t],
@@ -24,6 +24,9 @@ function TranslatedLayout({ menu }) {
         lightMode: t("Yorug' mavzu"),
         darkMode: t("Qorong'i mavzu"),
       }}
+      lang={lang}
+      setLang={setLang}
+      langs={LANGS}
     />
   );
 }

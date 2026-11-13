@@ -8,7 +8,6 @@ import {
   MessagesSquare,
   Rotate3d,
   Send,
-  Settings,
   Shirt,
   ShoppingBag,
   Ticket,
@@ -111,6 +110,6 @@ export const superadminMenu = [
 
   // Kampaniyalar va Hisobotlar menyudan yashirildi — marshrutlari superadminRoutes da qoladi
   // Operator akkaunti sahifasi olib tashlandi
-  { to: `${BASE}/settings`, label: 'Sozlamalar', icon: Settings, group: 'Tizim' },
+  // Sozlamalar menyudan yashirildi (til endi header'da) — marshruti superadminRoutes da qoladi
   { to: `${BASE}/audit-log`, label: 'Audit jurnali', icon: History, group: 'Tizim' },
 ];
