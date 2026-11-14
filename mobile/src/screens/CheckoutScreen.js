@@ -3,21 +3,23 @@ import { Pressable, Text, TextInput, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing, themedStyles } from '../constants/theme';
 import AddressPicker, { isAddressComplete } from '../components/checkout/AddressPicker';
-import DeliveryWhen, { defaultSlot } from '../components/checkout/DeliveryWhen';
+import DeliveryWhen from '../components/checkout/DeliveryWhen';
 import { Button, Card, Header, Screen, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { ConfirmModal } from '../components/ui/Modals';
 import { placeOrder, useAddresses, useDeliverySlots } from '../features/checkout';
+import { formatFullAddress } from '../features/location/address';
 import { isPostalDelivery } from '../features/location/tashkent';
 import useWallet, { canPayFromBalance } from '../features/wallet';
-import { ApiError } from '../services/api';
 import { errorText } from '../utils/errors';
 
 /**
  * Rasmiylashtirish — 3 qadam:
  *   1) Qayerga? — tanlangan manzil bitta kartada; "Boshqa manzil" ro'yxati pastdan ochiladi, "Yangi manzil" — xaritadan.
- *   2) Qachon? — Toshkent shahri: kuryer, eng erta ertaga (kun va vaqt); viloyatlar: pochta bo'limigacha,
- *      viloyat bo'yicha pochta narxi (GET /api/checkout/delivery-slots) va 2–5 ish kuni.
+ *   2) Qachon? — kun/vaqt tanlanmaydi, faqat muddat ko'rsatiladi. Toshkent shahri: kuryer uygacha 2–3 kunda;
+ *      viloyatlar: pochta bo'limigacha (topshirish punkti) 2–5 ish kunida, viloyat bo'yicha pochta narxi
+ *      (GET /api/checkout/delivery-slots).
  *   3) To'lov — balans (asosiy); Toshkent shahri ichida kuryerga naqd ham (Superadmin allowCash). Viloyatlarga —
  *      faqat balansdan. Balans yetmasa "To'ldirish".
  * Narx serverda qayta hisoblanadi; savatdagi promokod buyurtmaga uzatiladi.
@@ -32,25 +34,26 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
   const addressOk = isAddressComplete(selectedAddress);
   const {
     fee,
-    days,
     postalDays,
+    courierDays,
+    legacySlot,
     isLoading: slotsLoading,
     error: slotsError,
     refetch: refetchSlots,
   } = useDeliverySlots(3, selectedAddress?.region);
 
-  const [date, setDate] = useState(null);
   // Naqd — faqat Toshkent shahri ichida (kuryer) va Superadmin yoqib qo'ygan bo'lsa; server ham tekshiradi
   const cashAllowed = Boolean(rules.allowCash && selectedAddress && !postal);
   const [paymentMethod, setPaymentMethod] = useState('BALANCE');
   const method = paymentMethod === 'CASH' && !cashAllowed ? 'BALANCE' : paymentMethod;
-  const [slot, setSlot] = useState(null);
   // Balans serverdan; ilovaga (Telegram'dan) qaytganda yangilanadi
   const wallet = useWallet();
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const inFlight = useRef(false);
   const [submitError, setSubmitError] = useState(null);
+  // Buyurtma berishdan oldin: "aynan shu manzilga yetkazilsinmi?"
+  const [addressAsk, setAddressAsk] = useState(false);
 
   // Manzil (va shu bilan viloyat) almashganda savat yakuni (yetkazish narxi) o'sha viloyat bo'yicha qayta hisoblanadi
   useEffect(() => {
@@ -66,29 +69,14 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
     }
   }, [addresses, addrLoading, addressId]);
 
-  // Birinchi bo'sh kun (eng erta — ertaga) tanlanadi
-  useEffect(() => {
-    if (!days.length || days.some((d) => d.date === date)) return;
-    const first = days.find((d) => d.slots.some((s) => s.available)) || days[0];
-    setDate(first.date);
-  }, [days, date]);
-
-  const selectedDay = days.find((d) => d.date === date);
-  // Kun almashsa yoki tanlangan vaqt band bo'lib qolsa — shu kunning kechki bo'sh vaqti
-  useEffect(() => {
-    if (!selectedDay) return;
-    if (!selectedDay.slots.some((s) => s.slot === slot && s.available)) setSlot(defaultSlot(selectedDay));
-  }, [selectedDay, slot]);
-
   const { summary } = cart;
   const paused = !rules.acceptOrders;
   const total = summary?.total ?? 0;
   const balanceKnown = wallet.balance != null;
   const byBalance = method === 'BALANCE';
   const balanceShort = byBalance && balanceKnown && !canPayFromBalance(wallet.balance, total);
-  const whenReady = postal || Boolean(date && slot);
   const ready =
-    Boolean(addressId && addressOk && whenReady && cart.items.length) && !submitting && !paused && (!byBalance || (balanceKnown && !balanceShort));
+    Boolean(addressId && addressOk && cart.items.length) && !submitting && !paused && (!byBalance || (balanceKnown && !balanceShort));
 
   const submit = async () => {
     // Tez ikki marta bosish: `submitting` holati keyingi render'gacha o'zgarmaydi — ref darhol
@@ -99,8 +87,8 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
     try {
       const order = await placeOrder({
         addressId,
-        // Viloyatlarga pochta orqali — kun/vaqt yuborilmaydi
-        ...(postal ? {} : { deliveryDate: date, deliverySlot: slot }),
+        // Kun/vaqt tanlanmaydi; faqat eski server Toshkent shahriga talab qiladi (useDeliverySlots.legacySlot)
+        ...(!postal && legacySlot ? legacySlot : {}),
         paymentMethod: method,
         ...(cart.promocode ? { promocode: cart.promocode } : {}),
         ...(comment.trim() ? { comment: comment.trim() } : {}),
@@ -112,8 +100,6 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
     } catch (err) {
       setSubmitError(errorText(err, t));
       wallet.refetch({ silent: true });
-      // Vaqt band bo'lib qolgan (409) — bo'sh joylarni qayta yuklaymiz
-      if (err instanceof ApiError && err.status === 409) refetchSlots();
     } finally {
       inFlight.current = false;
       setSubmitting(false);
@@ -127,11 +113,9 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
       ? t('checkoutNeedAddress')
       : !addressOk
         ? t('addrIncomplete')
-        : !whenReady
-          ? t('checkoutNeedTime')
-          : balanceShort
-            ? t('balanceShort')
-            : null;
+        : balanceShort
+          ? t('balanceShort')
+          : null;
 
   return (
     <Screen
@@ -142,7 +126,7 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
             <Text style={styles.footerLabel}>{t('total')}</Text>
             <Text style={styles.footerPrice}>{formatMoney(total)}</Text>
           </View>
-          <Button disabled={!ready} onPress={submit} style={styles.footerButton}>
+          <Button disabled={!ready} onPress={() => setAddressAsk(true)} style={styles.footerButton}>
             {submitting ? t('checkingOut') : t('placeOrder')}
           </Button>
         </View>
@@ -168,12 +152,12 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
       )}
 
       {/* ── 2. Qachon? ── */}
-      <StepHead n={2} title={t('checkoutStepTime')} done={Boolean(selectedAddress) && whenReady} style={styles.sectionGap} />
+      <StepHead n={2} title={t('checkoutStepTime')} done={Boolean(selectedAddress)} style={styles.sectionGap} />
       {!selectedAddress ? (
         <Text style={styles.note}>{t('checkoutTimeNeedsAddress')}</Text>
       ) : slotsError ? (
         <ErrorView message={errorText(slotsError, t)} onRetry={refetchSlots} retryLabel={t('retry')} />
-      ) : slotsLoading && !days.length ? (
+      ) : slotsLoading && fee == null ? (
         <LoadingSpinner size="small" />
       ) : (
         <DeliveryWhen
@@ -182,11 +166,7 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
           regionName={selectedAddress.region ? t(`region_${selectedAddress.region}`) : ''}
           fee={fee}
           postalDays={postalDays}
-          days={days}
-          date={date}
-          slot={slot}
-          onDate={setDate}
-          onSlot={setSlot}
+          courierDays={courierDays}
         />
       )}
 
@@ -242,6 +222,16 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
       ) : blocker ? (
         <Text style={[paused ? styles.error : styles.note, styles.centered]}>{blocker}</Text>
       ) : null}
+
+      <ConfirmModal
+        visible={addressAsk}
+        title={t('confirmAddressTitle')}
+        message={`${formatFullAddress(selectedAddress, t)}\n\n${t('confirmAddressQuestion')}`}
+        confirmText={t('confirmAddressYes')}
+        cancelText={t('confirmAddressNo')}
+        onClose={() => setAddressAsk(false)}
+        onConfirm={submit}
+      />
     </Screen>
   );
 }

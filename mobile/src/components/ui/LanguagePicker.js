@@ -1,96 +1,92 @@
-import React, { useState } from 'react';
-import { Modal, Pressable, Text, View } from 'react-native';
+import React from 'react';
+import { Pressable, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing, themedStyles } from '../../constants/theme';
 import { languageOptions } from '../../i18n';
 
-// Sarlavhadagi tugmada qisqa kod
+// Tugmadagi qisqa kod va nom (ro'yxatdagi to'liq nom — "Ōzbekça (yangi alifbo)" — tugmaga sig'maydi)
 const SHORT = { uz: 'UZ', uzn: 'ŌZ', ru: 'RU', en: 'EN' };
+const NAMES = { uzn: 'Ōzbekça' };
 
 /**
- * Sarlavhadagi til tanlagich (savat tugmasi yonida): "UZ ▾" — bosilsa tepadan kichik ro'yxat ochiladi.
+ * Ilova tili (profil sahifasida, ko'rinish almashtirgich ostida): ro'yxat emas — har bir til alohida
+ * to'rtburchak tugma; bosilgan tugma tiliga darhol o'tiladi.
  *
  * Props: t, language, setLanguage
  */
 export default function LanguagePicker({ t, language, setLanguage }) {
-  const [open, setOpen] = useState(false);
   return (
-    <>
-      <Pressable
-        onPress={() => setOpen(true)}
-        hitSlop={6}
-        accessibilityRole="button"
-        accessibilityLabel={t('language')}
-        style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
-      >
-        <MaterialCommunityIcons name="translate" size={16} color={colors.accent} />
-        <Text style={styles.code}>{SHORT[language] || 'UZ'}</Text>
-        <MaterialCommunityIcons name="chevron-down" size={14} color={colors.muted} />
-      </Pressable>
-
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <Pressable style={styles.backdrop} onPress={() => setOpen(false)}>
-          <View style={styles.menu}>
-            <Text style={styles.menuTitle}>{t('language')}</Text>
-            {languageOptions.map((option) => {
-              const on = option.code === language;
-              return (
-                <Pressable
-                  key={option.code}
-                  onPress={() => {
-                    setLanguage(option.code);
-                    setOpen(false);
-                  }}
-                  style={({ pressed }) => [styles.item, on && styles.itemOn, pressed && styles.pressed]}
-                  accessibilityRole="radio"
-                  accessibilityState={{ selected: on }}
-                >
-                  <Text style={[styles.itemCode, on && styles.itemTextOn]}>{SHORT[option.code]}</Text>
-                  <Text style={[styles.itemText, on && styles.itemTextOn]} numberOfLines={1}>{option.label}</Text>
-                  {on ? <MaterialCommunityIcons name="check" size={18} color={colors.accent} /> : null}
-                </Pressable>
-              );
-            })}
-          </View>
-        </Pressable>
-      </Modal>
-    </>
+    <View style={styles.card}>
+      <View style={styles.head}>
+        <View style={styles.icon}>
+          <MaterialCommunityIcons name="translate" size={20} color={colors.accent} />
+        </View>
+        <Text style={styles.title}>{t('language')}</Text>
+      </View>
+      <View style={styles.buttons} accessibilityRole="radiogroup">
+        {languageOptions.map((option) => {
+          const on = option.code === language;
+          return (
+            <Pressable
+              key={option.code}
+              onPress={() => setLanguage(option.code)}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: on }}
+              accessibilityLabel={option.label}
+              style={({ pressed }) => [styles.btn, on && styles.btnOn, pressed && styles.pressed]}
+            >
+              <Text style={[styles.code, on && styles.codeOn]}>{SHORT[option.code]}</Text>
+              <Text style={[styles.name, on && styles.nameOn]} numberOfLines={1}>
+                {NAMES[option.code] || option.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
   );
 }
 
 const styles = themedStyles(() => ({
-  pressed: { opacity: 0.75 },
-  btn: {
-    height: 42,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    paddingHorizontal: 10,
-    borderRadius: radii.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-  },
-  code: { color: colors.text, fontSize: 13, fontWeight: '900', letterSpacing: 0.5 },
-  backdrop: { flex: 1, backgroundColor: 'rgba(5, 8, 24, 0.45)', alignItems: 'flex-end', paddingTop: 100, paddingHorizontal: spacing.lg },
-  menu: {
-    width: 240,
-    padding: spacing.sm,
+  pressed: { opacity: 0.8 },
+  card: {
+    gap: spacing.md,
+    paddingVertical: spacing.md,
+    paddingHorizontal: spacing.lg,
+    marginBottom: spacing.md,
     borderRadius: radii.lg,
     backgroundColor: colors.surface,
     borderWidth: 1,
     borderColor: colors.border,
-    gap: 4,
-    shadowColor: '#000',
-    shadowOpacity: 0.25,
-    shadowRadius: 16,
-    shadowOffset: { width: 0, height: 8 },
-    elevation: 12,
   },
-  menuTitle: { color: colors.muted, fontSize: 11, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase', padding: spacing.sm },
-  item: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, paddingVertical: 11, paddingHorizontal: spacing.md, borderRadius: radii.md },
-  itemOn: { backgroundColor: colors.accentGlow },
-  itemCode: { width: 26, color: colors.muted, fontSize: 12, fontWeight: '900' },
-  itemText: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '700' },
-  itemTextOn: { color: colors.accent },
+  head: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  icon: {
+    width: 36,
+    height: 36,
+    borderRadius: 10,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: colors.accentGlow,
+  },
+  title: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  // 2 × 2: tor ekranda ham til nomi to'liq sig'adi
+  buttons: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
+  btn: {
+    flexGrow: 1,
+    flexBasis: '46%',
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.sm,
+    paddingVertical: 11,
+    paddingHorizontal: spacing.md,
+    borderRadius: radii.md,
+    backgroundColor: colors.surfaceRaised,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+  },
+  btnOn: { backgroundColor: colors.accentGlow, borderColor: colors.accent },
+  code: { color: colors.muted, fontSize: 12, fontWeight: '900', letterSpacing: 0.5 },
+  codeOn: { color: colors.accent },
+  name: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '700' },
+  nameOn: { color: colors.accent, fontWeight: '900' },
 }));

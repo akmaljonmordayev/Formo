@@ -66,3 +66,6 @@ export function isPostalDelivery(p: Place): boolean {
 
 /** Pochta yetkazish muddati (ish kunlari) — ilova rasmiylashtirish ekranida ko'rsatadi */
 export const POSTAL_DAYS = { min: 2, max: 5 } as const;
+
+/** Toshkent shahri ichida kuryer uygacha olib kelish muddati (kun) — kun/vaqt tanlanmaydi */
+export const COURIER_DAYS = { min: 2, max: 3 } as const;

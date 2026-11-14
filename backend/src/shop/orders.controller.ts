@@ -15,7 +15,7 @@ import { ParseIdPipe } from '../common/pipes/parse-id.pipe';
 import { DeliveryService } from './delivery.service';
 import { ChangePaymentMethodDto, CheckoutDto, DeliverySlotsQueryDto, MyOrdersQueryDto } from './dto/checkout.dto';
 import { ShopOrdersService } from './orders.service';
-import { POSTAL_DAYS } from './tashkent';
+import { COURIER_DAYS, POSTAL_DAYS } from './tashkent';
 
 @ApiTags('Mobil · Rasmiylashtirish va buyurtmalar')
 @ApiBearerAuth()
@@ -35,8 +35,14 @@ export class ShopOrdersController {
   })
   async deliverySlots(@Query() query: DeliverySlotsQueryDto) {
     await this.orders.expireStale();
-    // postalDays — viloyatlarga pochta orqali yetkazish muddati (ish kunlari)
-    return { fee: await this.delivery.fee(query.region), days: await this.delivery.slots(query.days), postalDays: POSTAL_DAYS };
+    // postalDays — viloyatlarga pochta orqali (ish kunlari); courierDays — Toshkent shahri ichida kuryer (kun).
+    // `days` (slotlar) — ilovaning eski versiyalari uchun: yangisida kun/vaqt tanlanmaydi
+    return {
+      fee: await this.delivery.fee(query.region),
+      days: await this.delivery.slots(query.days),
+      postalDays: POSTAL_DAYS,
+      courierDays: COURIER_DAYS,
+    };
   }
 
   @Post('orders/checkout')

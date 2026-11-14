@@ -31,7 +31,7 @@ import { dayLabel, DeliveryService, todayLocal } from './delivery.service';
 import { ChangePaymentMethodDto, CheckoutDto, MyOrdersQueryDto } from './dto/checkout.dto';
 import { summarize } from './pricing';
 import { RulesService } from './rules.service';
-import { inTashkentCity, isPostalDelivery, POSTAL_DAYS } from './tashkent';
+import { COURIER_DAYS, inTashkentCity, isPostalDelivery, POSTAL_DAYS } from './tashkent';
 import { CUSTOM_TITLE, designSummary } from './studio';
 import { KIT_DESIGN_TITLE } from '../kits/kit-design';
 import { StudioService } from './studio.service';
@@ -44,8 +44,9 @@ export const MAX_UNPAID_ONLINE_ORDERS = 3;
 
 const ONLINE: PaymentMethod[] = [PaymentMethod.CLICK, PaymentMethod.PAYME];
 const FINAL: OrderStatus[] = [OrderStatus.DELIVERED, OrderStatus.CANCELLED, OrderStatus.RETURNED];
-// Sex qabul qilgunga qadar mijoz o'zi bekor qila oladi
-const CANCELLABLE: OrderStatus[] = [OrderStatus.PENDING_PAYMENT, OrderStatus.NEW, OrderStatus.SENT_TO_WORKSHOP];
+// Mijoz o'zi faqat admin buyurtmani qabul qilguncha bekor qila oladi: "Buyurtma qabul qilindi"
+// (SENT_TO_WORKSHOP — operator sexga yuborgan) holatidan boshlab — faqat administratsiya orqali
+const CANCELLABLE: OrderStatus[] = [OrderStatus.PENDING_PAYMENT, OrderStatus.NEW];
 
 export { STATUS_LABEL };
 
@@ -83,7 +84,7 @@ export const demoPaymentEnabled = () =>
   process.env.NODE_ENV !== 'production' && process.env.PAYMENT_DEMO !== 'false';
 
 /**
- * Mijoz o'zi bekor qila oladimi: to'lanmagan buyurtma — har doim; qolganlari sex qabul qilguncha va
+ * Mijoz o'zi bekor qila oladimi: to'lanmagan buyurtma — har doim; qolganlari admin qabul qilguncha (NEW) va
  * Superadmin sozlamasidagi muddat (`cancelWindowHours`, buyurtmadan keyin) ichida.
  * `windowHours` berilmasa — faqat holat bo'yicha.
  */
@@ -101,6 +102,8 @@ export function toOrderView(o: OrderRow, cancelWindowHours?: number) {
     !date &&
     Boolean(o.deliveryAddress) &&
     isPostalDelivery({ region: o.deliveryRegion, latitude: o.deliveryLat, longitude: o.deliveryLng });
+  // Toshkent shahri ichida kuryer: kun/vaqt tanlanmaydi (eski buyurtmalarda sana va vaqt bor — o'shanisi ko'rsatiladi)
+  const courier = !date && Boolean(o.deliveryAddress) && !postal;
   // Tarix tartib bilan o'qiladi — keyingi yozuv oldingisini bosadi
   const reached = new Map(o.statusLogs.map((l) => [l.toStatus, l.createdAt]));
   return {
@@ -116,13 +119,16 @@ export function toOrderView(o: OrderRow, cancelWindowHours?: number) {
     delivery: {
       date,
       slot: o.deliverySlot,
-      // "Taxminiy yetkazish: ertaga, 10:00–14:00"; viloyatlarga — pochta orqali (kun/vaqt tanlanmaydi)
+      // Viloyatlarga — pochta bo'limigacha, Toshkent shahri ichida — kuryer uygacha (kun/vaqt tanlanmaydi);
+      // eski buyurtmalarda: "ertaga, 10:00–14:00"
       label:
         date && o.deliverySlot
           ? `${dayLabel(date, todayLocal()).toLowerCase()}, ${o.deliverySlot}`
           : postal
             ? `pochta orqali, ${POSTAL_DAYS.min}–${POSTAL_DAYS.max} ish kuni`
-            : null,
+            : courier
+              ? `kuryer orqali, ${COURIER_DAYS.min}–${COURIER_DAYS.max} kun`
+              : null,
       address: o.deliveryAddress,
       region: o.deliveryRegion,
       district: o.deliveryDistrict,
@@ -130,6 +136,7 @@ export function toOrderView(o: OrderRow, cancelWindowHours?: number) {
       longitude: o.deliveryLng,
       postal,
       postalDays: postal ? POSTAL_DAYS : null,
+      courierDays: courier ? COURIER_DAYS : null,
     },
     comment: o.comment,
     itemsCount: o.items.reduce((s, i) => s + i.quantity, 0),
@@ -236,11 +243,12 @@ export class ShopOrdersService {
       );
     }
 
-    // Viloyatlarga — pochta bo'limigacha (kun/vaqt tanlanmaydi); Toshkent shahri ichida — kuryer, sana va vaqt majburiy
+    // Viloyatlarga — pochta bo'limigacha; Toshkent shahri ichida — kuryer uygacha 2–3 kunda. Kun/vaqt tanlanmaydi;
+    // ilovaning eski versiyasi yuborsa (Toshkent shahri) — avvalgidek tekshirilib saqlanadi
     const postal = isPostalDelivery(address);
     const deliveryDate = postal ? null : (dto.deliveryDate ?? null);
     const deliverySlot = postal ? null : (dto.deliverySlot ?? null);
-    if (!postal && (!deliveryDate || !deliverySlot)) throw new BadRequestException('Yetkazish kuni va vaqtini tanlang');
+    if (Boolean(deliveryDate) !== Boolean(deliverySlot)) throw new BadRequestException('Yetkazish kuni va vaqti birga yuboriladi');
 
     const orderId = await retrySerializable(() => this.prisma.$transaction(
       async (tx) => {
@@ -546,7 +554,7 @@ export class ShopOrdersService {
     await this.expireStale(user.id);
     const order = await this.own(user.id, id);
     if (!CANCELLABLE.includes(order.status)) {
-      throw new ConflictException('Buyurtma tikuv sexi tomonidan qabul qilingan — bekor qilish uchun administratsiyaga murojaat qiling');
+      throw new ConflictException('Buyurtma qabul qilingan — bekor qilish uchun administratsiyaga murojaat qiling');
     }
     const windowHours = await this.cancelWindow();
     if (!customerCanCancel(order, windowHours)) {
@@ -557,9 +565,9 @@ export class ShopOrdersService {
     // To'langan bo'lsa pul qaytariladi (operator qo'lda qaytaradi)
     const paymentStatus = order.paymentStatus === PaymentStatus.PAID ? PaymentStatus.REFUNDED : order.paymentStatus;
     const cancelled = await this.release(id, paymentStatus, order.status, user, 'Mijoz bekor qildi');
-    // Shu orada sex qabul qilgan bo'lsa — bekor qilinmaydi (tikish boshlangan)
+    // Shu orada admin qabul qilgan bo'lsa — bekor qilinmaydi
     if (!cancelled) {
-      throw new ConflictException('Buyurtma tikuv sexi tomonidan qabul qilingan — bekor qilish uchun administratsiyaga murojaat qiling');
+      throw new ConflictException('Buyurtma qabul qilingan — bekor qilish uchun administratsiyaga murojaat qiling');
     }
 
     await this.audit.log({ actor: user, action: 'Buyurtma bekor qilindi', category: AuditCategory.ORDER, context: order.code });

@@ -55,8 +55,8 @@ export default function en({ rules, general }) {
         {
           title: '6. Cancelling an order',
           items: [
-            'The Buyer can cancel an order in the app until the workshop accepts it (status “Accepted” or “Sent to workshop”).',
-            'After the workshop accepts the order, the kit is made individually for the Buyer, so it can no longer be cancelled. This applies to both cash and balance payments.',
+            'The Buyer can cancel an order in the app until the Seller accepts it (status “Sent”).',
+            'After the order is accepted (status “Accepted”), the kit is made individually for the Buyer, so it can no longer be cancelled. This applies to both cash and balance payments.',
             'For a cancelled order, the amount paid from the balance is fully returned to the Formo balance.',
             'If a Buyer repeatedly refuses to accept finished cash-on-delivery orders without reason, the Seller may restrict cash payment for that Buyer.',
           ],

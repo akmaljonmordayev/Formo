@@ -9,18 +9,32 @@ export const POLL_MS = 20000;
 export const FINAL_STATUSES = ['DELIVERED', 'CANCELLED', 'RETURNED'];
 export const isFinal = (order) => FINAL_STATUSES.includes(order?.status);
 
+// Mijoz faqat admin buyurtmani qabul qilguncha bekor qila oladi: "Qabul qilindi" (SENT_TO_WORKSHOP) holatidan
+// boshlab — yo'q. Muddatni (`cancelWindowHours`) server `canCancel` orqali o'zi tekshiradi.
+const CUSTOMER_CANCELLABLE = ['PENDING_PAYMENT', 'NEW'];
+export const canCancelOrder = (order) => Boolean(order?.canCancel) && CUSTOMER_CANCELLABLE.includes(order.status);
+
+/** Admin "Qaytarildi" deb belgilagan buyurtma mijozga "Bekor qilindi" bo'lib ko'rinadi */
+export const toCustomerOrder = (order) =>
+  order?.status === 'RETURNED' ? { ...order, status: 'CANCELLED', statusLabel: null, canCancel: false } : order;
+
 // Backend `PaymentMethod`: BALANCE | CASH | CLICK | PAYME (prisma/schema.prisma).
 // Mijoz ilovasida: balans (asosiy) va naqd — naqd faqat Toshkent shahri ichida kuryerga (Superadmin allowCash);
 // viloyatlarga (pochta) — faqat balansdan. Click/Payme ko'rsatilmaydi, balans Telegram bot orqali to'ldiriladi.
 export const CHECKOUT_METHODS = ['BALANCE', 'CASH'];
 
-/** Buyurtmaning yetkazish qatori: "20.10.2026 · 18:00–22:00" yoki viloyatga "Pochta orqali · 2–5 ish kuni" */
+/** Buyurtmaning yetkazish qatori: viloyatga "Pochta orqali · 2–5 ish kuni", Toshkent shahriga "Kuryer orqali · 2–3 kun"
+ *  (kun/vaqt tanlangan eski buyurtmada — "20.10.2026 · 18:00–22:00") */
 export function deliveryText(t, delivery) {
   if (!delivery) return '—';
   if (delivery.date) return [delivery.date.split('-').reverse().join('.'), delivery.slot?.replace('-', '–')].filter(Boolean).join(' · ');
   if (delivery.postal) {
     const days = delivery.postalDays || { min: 2, max: 5 };
     return `${t('postShort')} · ${t('postDaysValue').replace('{min}', days.min).replace('{max}', days.max)}`;
+  }
+  if (delivery.address) {
+    const days = delivery.courierDays || { min: 2, max: 3 };
+    return `${t('courierShort')} · ${t('courierDaysValue').replace('{min}', days.min).replace('{max}', days.max)}`;
   }
   return '—';
 }
@@ -70,7 +84,7 @@ export default function useOrders() {
     if (!silent) setIsLoading(true);
     try {
       const data = await api.orders.list({ limit: 50 });
-      setOrders(setCached('orders', data?.items || []));
+      setOrders(setCached('orders', (data?.items || []).map(toCustomerOrder)));
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
@@ -98,7 +112,7 @@ export function useActiveOrder() {
   const fetchActive = useCallback(async () => {
     try {
       const data = await api.orders.active();
-      setOrder(setCached('activeOrder', data?.order || null));
+      setOrder(setCached('activeOrder', toCustomerOrder(data?.order) || null));
       setError(null);
     } catch (err) {
       setError(err instanceof Error ? err : new Error(String(err)));
@@ -130,7 +144,7 @@ export function useOrder(id) {
       if (!id) return;
       if (!silent) setIsLoading(true);
       try {
-        setOrder(await api.orders.get(id));
+        setOrder(toCustomerOrder(await api.orders.get(id)));
         setError(null);
       } catch (err) {
         setError(err instanceof Error ? err : new Error(String(err)));
@@ -149,7 +163,7 @@ export function useOrder(id) {
   usePolling(() => fetchOrder({ silent: true }), Boolean(order) && !isFinal(order));
 
   const run = useCallback(async (call) => {
-    const updated = await call();
+    const updated = toCustomerOrder(await call());
     setOrder(updated);
     return updated;
   }, []);

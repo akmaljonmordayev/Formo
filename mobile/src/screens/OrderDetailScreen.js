@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing, themedStyles } from '../constants/theme';
 import { Button, Card, Header, Overline, Screen, formatMoney } from '../components/ui/Common';
@@ -8,9 +8,11 @@ import Kit360Thumb from '../components/ui/Kit360Thumb';
 import { itemKit360, itemVariant } from '../features/kit360';
 import { designText } from '../features/studio';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
+import { ConfirmModal } from '../components/ui/Modals';
 import StatusPill, { OrderStepper, statusTone } from '../components/ui/StatusPill';
 import {
   CHECKOUT_METHODS,
+  canCancelOrder,
   deliveryText,
   paymentText,
   statusText,
@@ -49,11 +51,8 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
     }
   };
 
-  const askCancel = () =>
-    Alert.alert(t('cancelOrder'), t('cancelConfirm'), [
-      { text: t('back'), style: 'cancel' },
-      { text: t('cancelOrder'), style: 'destructive', onPress: () => run('cancel', cancel) },
-    ]);
+  // "Rostdan ham bekor qilmoqchimisiz?" — tasdiqlanmaguncha bekor qilinmaydi
+  const [cancelAsk, setCancelAsk] = useState(false);
 
   if (!order) {
     return (
@@ -224,19 +223,20 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
 
         {actionError ? <Text style={styles.error}>{actionError}</Text> : null}
 
-        {order.canCancel ? (
-          <Button variant="danger" disabled={busy != null} onPress={askCancel}>
+        {canCancelOrder(order) ? (
+          <Button variant="danger" disabled={busy != null} onPress={() => setCancelAsk(true)}>
             {busy === 'cancel' ? t('checkingOut') : t('cancelOrder')}
           </Button>
         ) : !stopped && order.status !== 'DELIVERED' ? (
-          // Sex qabul qildi — tikish boshlangan: bekor qilib bo'lmaydi (server ham rad etadi)
+          // Admin buyurtmani qabul qilgan (yoki bekor qilish muddati o'tgan) — tugma o'chiq
           <View>
             <Button variant="danger" disabled onPress={() => {}}>
               {t('cancelOrder')}
             </Button>
             <View style={styles.lockNote}>
               <MaterialCommunityIcons name="lock-outline" size={16} color={colors.muted} />
-              <Text style={styles.lockText}>{t('cancelLocked')}</Text>
+              {/* Hali qabul qilinmagan, lekin server ruxsat bermayapti — bekor qilish muddati o'tgan */}
+              <Text style={styles.lockText}>{t(['PENDING_PAYMENT', 'NEW'].includes(order.status) ? 'cancelWindowOver' : 'cancelLocked')}</Text>
             </View>
           </View>
         ) : null}
@@ -245,6 +245,17 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
           <Text style={styles.backText}>{t('myOrders')}</Text>
         </Pressable>
       </ScrollView>
+
+      <ConfirmModal
+        visible={cancelAsk}
+        danger
+        title={t('cancelOrder')}
+        message={t('cancelConfirm')}
+        confirmText={t('cancelYes')}
+        cancelText={t('back')}
+        onClose={() => setCancelAsk(false)}
+        onConfirm={() => run('cancel', cancel)}
+      />
     </Screen>
   );
 }

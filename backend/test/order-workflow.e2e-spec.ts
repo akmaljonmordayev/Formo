@@ -128,7 +128,7 @@ describe('Buyurtma oqimi: operator → tikuv sexi (e2e)', () => {
     expect(res.body.statusLogs.at(-1)).toMatchObject({ toStatus: 'SENT_TO_WORKSHOP', note: 'Ertaga tayyor bo‘lsin', actorRole: 'Super admin' });
 
     const mine = await as(user).get(`/api/orders/${orderId}`).expect(200);
-    expect(mine.body).toMatchObject({ status: 'SENT_TO_WORKSHOP', statusLabel: 'Buyurtma qabul qilindi', canCancel: true });
+    expect(mine.body).toMatchObject({ status: 'SENT_TO_WORKSHOP', statusLabel: 'Buyurtma qabul qilindi', canCancel: false });
   });
 
   it('sex o‘z ro‘yxatida ko‘radi; boshqa sex ko‘rmaydi', async () => {
@@ -224,13 +224,18 @@ describe('Buyurtma oqimi: operator → tikuv sexi (e2e)', () => {
     expect(queue).not.toContain(orderId);
   });
 
-  it('mijoz sexga yuborilgan (hali tasdiqlanmagan) buyurtmani bekor qila oladi — sexda CANCELLED ko‘rinadi', async () => {
+  it('mijoz faqat admin qabul qilguncha bekor qila oladi: sexga yuborilgan («Qabul qilindi») buyurtma — 409', async () => {
+    const fresh = await placeOrder();
+    expect((await as(user).get(`/api/orders/${fresh}`).expect(200)).body.canCancel).toBe(true);
+    await as(user).post(`/api/orders/${fresh}/cancel`).expect(200);
+
     const id = await placeOrder();
     await as(operator).post(`/api/admin/orders/${id}/assign`, { workshopId: sexA.id }).expect(200);
-    await as(user).post(`/api/orders/${id}/cancel`).expect(200);
+    const denied = await as(user).post(`/api/orders/${id}/cancel`).expect(409);
+    expect(denied.body.message).toMatch(/qabul qilingan/);
     const res = await as(sexA.token).get(`/api/workshop/orders/${id}`).expect(200);
-    expect(res.body.status).toBe('CANCELLED');
-    await as(sexA.token).post(`/api/workshop/orders/${id}/accept`).expect(409);
+    expect(res.body.status).toBe('SENT_TO_WORKSHOP');
+    await as(sexA.token).post(`/api/workshop/orders/${id}/accept`).expect(200);
   });
 
   it('har o‘tish audit jurnaliga yoziladi', async () => {

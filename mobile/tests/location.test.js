@@ -224,6 +224,21 @@ test('POST tanasi: tuman faqat shu viloyatniki bo\'lsa, uy raqami bilan birga yu
   assert.equal(loc.toAddressPayload({ ...base, district: 'Urgut tumani' }).district, undefined);
 });
 
+test('viloyat manzili (pochta bo\'limigacha): faqat viloyat va tuman — ko\'cha, uy raqami va xarita nuqtasi shart emas', () => {
+  assert.equal(loc.isPostalRegion('SAMARQAND'), true);
+  assert.equal(loc.isPostalRegion('TOSHKENT_SHAHRI'), false);
+  assert.equal(loc.isPostalRegion(undefined), false);
+
+  const form = { label: 'Uy', address: '', house: '', region: 'SAMARQAND', district: 'Urgut tumani', coords: null };
+  assert.deepEqual(loc.validateAddressForm(form), {});
+  // server `address`ni majburiy qiladi — tuman nomi yuboriladi
+  assert.deepEqual(loc.toAddressPayload(form), { label: 'Uy', address: 'Urgut tumani', region: 'SAMARQAND', district: 'Urgut tumani' });
+  assert.equal(loc.formatFullAddress({ ...form, address: 'Urgut tumani' }, (k) => (k === 'region_SAMARQAND' ? 'Samarqand' : k)), 'Samarqand, Urgut tumani');
+  // Toshkent shahrida avvalgidek: ko'cha va uy raqami majburiy
+  const city = { ...form, region: 'TOSHKENT_SHAHRI', district: 'Sergeli tumani' };
+  assert.deepEqual(Object.keys(loc.validateAddressForm(city)).sort(), ['address', 'house']);
+});
+
 test('yetkazish turi: viloyat — pochta, Toshkent shahri — kuryer; eski manzil nuqtasi bo\'yicha', () => {
   const { isPostalDelivery } = require(src('features/location/tashkent.js'));
   assert.equal(isPostalDelivery({ region: 'SAMARQAND' }), true);
