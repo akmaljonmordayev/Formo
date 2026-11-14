@@ -225,21 +225,11 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
       await as(user).post('/api/workshop/defects', { orderId, reason: 'FABRIC' }).expect(403);
     });
 
-    it('superadmin ko‘radi (openCount), hal qiladi; sex o‘z ro‘yxatida ko‘radi', async () => {
-      const list = await as(admin).get('/api/admin/defects?status=OPEN').expect(200);
-      expect(list.body.openCount).toBe(1);
-      expect(list.body.items[0]).toMatchObject({ reason: 'PRINT_SHIFT', order: { id: orderId } });
-      const id = list.body.items[0].id;
-
-      await as(sexA.token).patch(`/api/admin/defects/${id}/resolve`, {}).expect(403);
-      const done = await as(admin).patch(`/api/admin/defects/${id}/resolve`, { note: 'Qayta bosildi' }).expect(200);
-      expect(done.body).toMatchObject({ status: 'RESOLVED', resolvedNote: 'Qayta bosildi' });
-      expect((await as(admin).get('/api/admin/defects').expect(200)).body.openCount).toBe(0);
-
+    it('sex o‘z ro‘yxatida ko‘radi, boshqa sex ko‘rmaydi', async () => {
       const mine = await as(sexA.token).get('/api/workshop/defects').expect(200);
       expect(mine.body.total).toBe(1);
+      expect(mine.body.items[0]).toMatchObject({ reason: 'PRINT_SHIFT', status: 'OPEN', order: { id: orderId } });
       expect((await as(sexB.token).get('/api/workshop/defects').expect(200)).body.total).toBe(0);
-      await as(admin).patch('/api/admin/defects/999999/resolve', {}).expect(404);
     });
   });
 

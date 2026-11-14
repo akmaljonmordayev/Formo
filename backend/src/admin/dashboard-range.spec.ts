@@ -1,34 +1,37 @@
 import { BadRequestException } from '@nestjs/common';
 import { OrderStatus } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { OrdersService, resolveRange } from './orders.service';
+import { OrdersService, resolveRange, tashkentDayKey } from './orders.service';
 
 describe('Dashboard davri (resolveRange)', () => {
   it('from/to — ikkala chekka kun ham kiradi', () => {
     const r = resolveRange({ from: '2026-10-30', to: '2026-11-02' });
     expect(r.dayKeys).toEqual(['2026-10-30', '2026-10-31', '2026-11-01', '2026-11-02']);
-    expect(r.from.toISOString()).toBe('2026-10-30T00:00:00.000Z');
-    expect(r.to?.toISOString()).toBe('2026-11-02T23:59:59.999Z');
+    // Toshkent kuni: 00:00 (UTC+5) = oldingi kun 19:00 UTC
+    expect(r.from.toISOString()).toBe('2026-10-29T19:00:00.000Z');
+    expect(r.to?.toISOString()).toBe('2026-11-02T18:59:59.999Z');
   });
 
   it('days — oxirgi N kun, bugun bilan tugaydi; from birinchi kunning 00:00 i (grafik bilan bir xil chegara)', () => {
     for (const days of [1, 7, 30]) {
       const r = resolveRange({ days });
       expect(r.dayKeys).toHaveLength(days);
-      expect(r.dayKeys[days - 1]).toBe(new Date().toISOString().slice(0, 10));
-      expect(r.from.toISOString()).toBe(`${r.dayKeys[0]}T00:00:00.000Z`);
+      expect(r.dayKeys[days - 1]).toBe(tashkentDayKey(new Date()));
+      expect(tashkentDayKey(r.from)).toBe(r.dayKeys[0]);
+      expect(r.from.getUTCHours()).toBe(19);
       expect(r.to).toBeUndefined();
     }
   });
 
   it('all — birinchi buyurtma kunidan bugungacha; buyurtma yo\'q bo\'lsa faqat bugun', () => {
-    const today = new Date().toISOString().slice(0, 10);
+    const today = tashkentDayKey(new Date());
     const first = new Date(Date.now() - 400 * 24 * 60 * 60 * 1000 + 5 * 60 * 60 * 1000);
     const r = resolveRange({ all: true }, first);
-    expect(r.from.toISOString()).toBe(`${first.toISOString().slice(0, 10)}T00:00:00.000Z`);
-    expect(r.dayKeys[0]).toBe(first.toISOString().slice(0, 10));
+    expect(tashkentDayKey(r.from)).toBe(tashkentDayKey(first));
+    expect(r.dayKeys[0]).toBe(tashkentDayKey(first));
     expect(r.dayKeys.at(-1)).toBe(today);
-    expect(r.to?.toISOString()).toBe(`${today}T23:59:59.999Z`);
+    expect(tashkentDayKey(r.to!)).toBe(today);
+    expect(r.to?.getUTCHours()).toBe(18);
     expect(resolveRange({ all: true }, null).dayKeys).toEqual([today]);
   });
 
@@ -68,9 +71,20 @@ describe('dashboardStats — kunlik tushum', () => {
       { date: '2026-11-02', count: 1, revenue: 70 },
     ]);
     expect(prisma.order.findMany.mock.calls[0][0].where.createdAt).toEqual({
-      gte: new Date('2026-11-01T00:00:00.000Z'),
-      lte: new Date('2026-11-02T23:59:59.999Z'),
+      gte: new Date('2026-10-31T19:00:00.000Z'),
+      lte: new Date('2026-11-02T18:59:59.999Z'),
     });
+  });
+
+  it('tungi buyurtma (02:00 Toshkent = 21:00 UTC kechagi) o‘z Toshkent kuniga tushadi', async () => {
+    prisma.order.findMany
+      .mockResolvedValueOnce([{ totalSum: 90, status: OrderStatus.DELIVERED, createdAt: new Date('2026-11-01T21:00:00.000Z') }])
+      .mockResolvedValueOnce([]);
+    const stats = await service.dashboardStats({ from: '2026-11-01', to: '2026-11-02' });
+    expect(stats.dailyTrend).toEqual([
+      { date: '2026-11-01', count: 0, revenue: 0 },
+      { date: '2026-11-02', count: 1, revenue: 90 },
+    ]);
   });
 
   it("butun davr: birinchi buyurtmadan bugungacha, ordersCount va revenue grafik yig'indisiga teng, delta — null", async () => {

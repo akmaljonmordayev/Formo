@@ -11,8 +11,8 @@ export const RANGES = [
 export const rangeParams = (range, from, to) =>
   from && to ? { from, to } : range.all ? { all: true } : { days: range.days };
 
-// backend kunlarni UTC bo'yicha guruhlaydi
-export const todayKey = () => new Date().toISOString().slice(0, 10);
+// backend kunlarni Toshkent vaqti (UTC+5, yozgi vaqtsiz) bo'yicha guruhlaydi
+export const todayKey = () => new Date(Date.now() + 5 * 60 * 60 * 1000).toISOString().slice(0, 10);
 
 /** Tezkor davr tugmalari + ixtiyoriy oraliq (boshlanish tanlansa, tugash bugun bilan to'ldiriladi) */
 export default function RangePicker({ range, onRange, from, to, onFrom, onTo }) {

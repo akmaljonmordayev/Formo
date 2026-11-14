@@ -1,16 +1,16 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { AuditCategory, DefectStatus, Prisma } from '@prisma/client';
+import { AuditCategory, Prisma } from '@prisma/client';
 import { AuthUser } from '../common/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from './audit.service';
-import { CreateDefectDto, ListDefectsQueryDto, ResolveDefectDto } from './dto/workshop-panel.dto';
+import { CreateDefectDto, ListDefectsQueryDto } from './dto/workshop-panel.dto';
 
 const include = {
   order: { select: { id: true, code: true, customerName: true, status: true } },
   workshop: { select: { id: true, fullName: true, workshopName: true } },
 } satisfies Prisma.DefectReportInclude;
 
-/** Sex topgan nuqson (brak) hisobotlari: sex yaratadi, operator/superadmin ko'rib hal qiladi */
+/** Sex topgan nuqson (brak) hisobotlari: sex yaratadi va o'z ro'yxatida ko'radi */
 @Injectable()
 export class DefectsService {
   constructor(
@@ -37,15 +37,6 @@ export class DefectsService {
     return this.page({ workshopId: workshop.id, ...(query.status && { status: query.status }) }, query);
   }
 
-  async listAll(query: ListDefectsQueryDto) {
-    const [page, open, resolved] = await Promise.all([
-      this.page(query.status ? { status: query.status } : {}, query),
-      this.prisma.defectReport.count({ where: { status: DefectStatus.OPEN } }),
-      this.prisma.defectReport.count({ where: { status: DefectStatus.RESOLVED } }),
-    ]);
-    return { ...page, openCount: open, resolvedCount: resolved };
-  }
-
   private async page(where: Prisma.DefectReportWhereInput, query: ListDefectsQueryDto) {
     const { page = 1, limit = 20 } = query;
     const [items, total] = await this.prisma.$transaction([
@@ -53,17 +44,5 @@ export class DefectsService {
       this.prisma.defectReport.count({ where }),
     ]);
     return { items, total, page, limit };
-  }
-
-  async resolve(id: number, dto: ResolveDefectDto, actor: AuthUser, ip?: string) {
-    const report = await this.prisma.defectReport.findUnique({ where: { id }, include: { order: { select: { code: true } } } });
-    if (!report) throw new NotFoundException('Hisobot topilmadi');
-    const updated = await this.prisma.defectReport.update({
-      where: { id },
-      data: { status: DefectStatus.RESOLVED, resolvedNote: dto.note?.trim() || null, resolvedAt: new Date() },
-      include,
-    });
-    await this.audit.log({ actor, action: 'Nuqson (brak) hal qilindi', category: AuditCategory.ORDER, context: report.order.code, ip });
-    return updated;
   }
 }

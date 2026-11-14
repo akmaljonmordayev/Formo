@@ -5,6 +5,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { AuditService } from './audit.service';
 import { RejectOrderDto, WorkshopOrdersQueryDto, WorkshopStatusDto } from './dto/order.dto';
 import { OrderHistoryService } from './order-history.service';
+import { resolveRange, tashkentDayKey } from './orders.service';
 
 // Sex ko'radigan ma'lumot: mahsulot, yetkazish va mijoz kontakti; to'lov/promokod tafsilotlarisiz
 const select = {
@@ -116,8 +117,8 @@ export class WorkshopOrdersService {
 
   /** Sex statistikasi: davr bo'yicha buyurtmalar soni va kunlik dinamika (faqat o'z buyurtmalari) */
   async stats(workshop: AuthUser, days: number) {
-    const from = new Date();
-    from.setDate(from.getDate() - days);
+    // Toshkent kunlari bo'yicha (admin dashboard bilan bir xil) — tungi buyurtma kechagi kunga tushmasin
+    const { from, dayKeys } = resolveRange({ days });
     const lateBefore = new Date(Date.now() - LATE_AFTER_MS);
     // Faqat hisob uchun kerakli maydonlar (forma nomi, o'lcham, dona) — to'liq buyurtma yuklanmaydi; so'rovlar bir vaqtda ketadi
     const [inPeriod, activeCount, lateCount, me] = await Promise.all([
@@ -131,12 +132,7 @@ export class WorkshopOrdersService {
     ]);
     const capacity = me?.dailyCapacity ?? null;
 
-    const buckets = new Map<string, { count: number; pieces: number }>();
-    for (let i = days - 1; i >= 0; i--) {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
-      buckets.set(d.toISOString().slice(0, 10), { count: 0, pieces: 0 });
-    }
+    const buckets = new Map(dayKeys.map((k) => [k, { count: 0, pieces: 0 }]));
     // Davr ichida: jami dona, qaysi forma va qaysi o'lcham ko'p tikilgani
     const models = new Map<string, number>();
     const sizes = new Map<string, number>();
@@ -144,7 +140,7 @@ export class WorkshopOrdersService {
     for (const o of inPeriod) {
       const pieces = o.items.length ? o.items.reduce((sum, item) => sum + item.quantity, 0) : o.quantity;
       piecesCount += pieces;
-      const bucket = buckets.get(o.createdAt.toISOString().slice(0, 10));
+      const bucket = buckets.get(tashkentDayKey(o.createdAt));
       if (bucket) {
         bucket.count += 1;
         bucket.pieces += pieces;

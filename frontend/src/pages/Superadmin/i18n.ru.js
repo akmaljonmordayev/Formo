@@ -717,8 +717,6 @@ const RU = {
   'gradient': 'градиент',
   'Patch': 'Нашивка',
   'Paket': 'Пакет',
-  'Nuqsonlar (brak)': 'Дефекты (брак)',
-  "Sexlar xabar bergan nuqsonlar. Muammo hal bo'lgach «Hal qilindi» deb belgilang.": 'Дефекты, о которых сообщили цеха. После решения отметьте «Решено».',
   'Ochiq': 'Открытые',
   'Hal qilingan': 'Решённые',
   'Hal qilindi': 'Решено',
@@ -898,6 +896,19 @@ const RU = {
   "{size}: soni va narxi": "{size}: количество и цена",
   "{size} soni": "{size}: количество",
   "Narxi (so'm)": "Цена (сум)",
+  // Grafik o'qi: oy nomi bosh kelishikda ("Noyabr 13")
+  Yanvar: "Январь",
+  Fevral: "Февраль",
+  Mart: "Март",
+  Aprel: "Апрель",
+  May: "Май",
+  Iyun: "Июнь",
+  Iyul: "Июль",
+  Avgust: "Август",
+  Sentabr: "Сентябрь",
+  Oktabr: "Октябрь",
+  Noyabr: "Ноябрь",
+  Dekabr: "Декабрь",
 };
 
 export default RU;
