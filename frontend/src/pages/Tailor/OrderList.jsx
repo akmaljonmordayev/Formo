@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import OrderCard from './OrderCard';
 import OrderDrawer from './OrderDrawer';
 import { groupActiveOrders } from './orderBuckets';
@@ -34,6 +34,9 @@ export default function OrderList({ view }) {
   }, [rows, view, t]);
 
   const opened = orders.find((o) => o.id === openId) ?? null;
+  // Barqaror havola — OrderCard (memo) har yangilanishda qayta chizilmasin
+  const open = useCallback((o) => setOpenId(o.id), []);
+  const close = useCallback(() => setOpenId(null), []);
 
   return (
     <div className="space-y-3">
@@ -57,7 +60,7 @@ export default function OrderList({ view }) {
               index={index + 1}
               order={order}
               bucket={bucket}
-              onOpen={(o) => setOpenId(o.id)}
+              onOpen={open}
             />
           ))}
           </div>
@@ -76,7 +79,7 @@ export default function OrderList({ view }) {
 
       <OrderDrawer
         order={opened}
-        onClose={() => setOpenId(null)}
+        onClose={close}
         onAdvance={advance}
         onReject={reject}
         actionLoading={actionLoading}

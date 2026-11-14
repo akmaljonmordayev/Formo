@@ -3,7 +3,6 @@ import { auditLogApi } from '../../../features/platform/platformApi';
 import { useDebounced } from '../../../hooks/useDebounced';
 import { downloadCsv } from '../../../utils/csvExport';
 import { useLang } from '../i18n';
-import { Pager } from '../ui';
 
 const CATEGORY_LABEL = {
   ORDER: 'Buyurtma',
@@ -14,7 +13,8 @@ const CATEGORY_LABEL = {
   SYSTEM: 'Tizim',
 };
 const TABS = [['', 'Barchasi'], ...Object.entries(CATEGORY_LABEL)];
-const LIMIT = 50;
+// Mijozlar sahifasi bilan bir xil o'lcham — ko'p amal bo'lsa sahifalarga bo'linadi
+const LIMIT = 15;
 
 export default function SuperadminAuditLog() {
   const { t, locale } = useLang();
@@ -90,6 +90,7 @@ export default function SuperadminAuditLog() {
         <table className="sa-table">
           <thead>
             <tr>
+              <th>№</th>
               <th>{t("Vaqt")}</th>
               <th>{t("Kim")}</th>
               <th>{t("Amal")}</th>
@@ -100,17 +101,18 @@ export default function SuperadminAuditLog() {
           <tbody>
             {loading && !data.items.length ? (
               <tr>
-                <td colSpan={5} className="sa-table__sub" style={{ textAlign: 'center', padding: 20 }}>{t("Yuklanmoqda...")}</td>
+                <td colSpan={6} className="sa-table__sub" style={{ textAlign: 'center', padding: 20 }}>{t("Yuklanmoqda...")}</td>
               </tr>
             ) : !data.items.length ? (
               <tr>
-                <td colSpan={5} className="sa-table__sub" style={{ textAlign: 'center', padding: 20 }}>{t("Yozuv topilmadi")}</td>
+                <td colSpan={6} className="sa-table__sub" style={{ textAlign: 'center', padding: 20 }}>{t("Yozuv topilmadi")}</td>
               </tr>
             ) : (
-              data.items.map((l) => {
+              data.items.map((l, i) => {
                 const d = new Date(l.createdAt);
                 return (
                   <tr key={l.id}>
+                    <td className="sa-table__sub">{(page - 1) * LIMIT + i + 1}</td>
                     <td>
                       {d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
                       <span className="sa-table__sub">{d.toLocaleDateString(locale, { day: '2-digit', month: 'short' })}</span>
@@ -129,7 +131,26 @@ export default function SuperadminAuditLog() {
           </tbody>
         </table>
       </div>
-      <Pager page={page} total={data.total} limit={LIMIT} onPage={setPage} />
+      {/* Mijozlar sahifasidagi kabi — bitta sahifa bo'lsa ham doim ko'rinadi */}
+      <div className="pager">
+        <span>{t('Jami')}: {data.total}</span>
+        <div>
+          <button type="button" className="btn btn--ghost btn--sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+            ←
+          </button>
+          <span className="btn btn--ghost btn--sm">
+            {page} / {Math.max(1, Math.ceil(data.total / LIMIT))}
+          </span>
+          <button
+            type="button"
+            className="btn btn--ghost btn--sm"
+            disabled={page >= Math.ceil(data.total / LIMIT)}
+            onClick={() => setPage(page + 1)}
+          >
+            →
+          </button>
+        </div>
+      </div>
     </>
   );
 }

@@ -75,16 +75,6 @@ export class ListDefectsQueryDto {
   limit?: number = 20;
 }
 
-export class ResolveDefectDto {
-  @ApiPropertyOptional({ description: 'Qanday hal qilingani', maxLength: 500 })
-  @IsOptional()
-  @CleanText()
-  @NoHtml()
-  @IsString()
-  @MaxLength(500)
-  note?: string;
-}
-
 export class UpdateWorkshopProfileDto {
   @ApiPropertyOptional({ maxLength: 120 })
   @IsOptional()

@@ -110,11 +110,6 @@ export const supportApi = {
   send: (userId, text) => api(`/admin/support/${userId}/messages`, { method: 'POST', body: { text } }),
 };
 
-// Sexlar topgan nuqsonlar (brak)
-export const defectsApi = {
-  list: (params) => api(`/admin/defects${qs(params)}`), // { items, total, page, limit, openCount }
-  resolve: (id, note) => api(`/admin/defects/${id}/resolve`, { method: 'PATCH', body: { note } }),
-};
 
 export const diagnosticsApi = {
   request: () => api('/admin/diagnostics/request'),

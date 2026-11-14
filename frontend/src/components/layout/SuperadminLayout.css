@@ -61,7 +61,11 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
-  overflow-y: auto;
+  /* Ekran balandligida qotiriladi — bo'limlar ro'yxati sahifadan alohida aylantiriladi */
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .sa-brand {
@@ -104,6 +108,14 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--sa-hover-rgb), 0.18) transparent;
+  margin-right: -8px;
+  padding-right: 8px;
 }
 
 .sa-group {
@@ -122,6 +134,7 @@
 }
 
 .sa-link {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 10px;
@@ -152,18 +165,37 @@
   white-space: nowrap;
 }
 
+/* Telegram kabi: son belgi (ikonka) ustida, yon panel rangida halqa bilan */
 .sa-link__badge {
+  position: absolute;
+  left: 22px;
+  top: 2px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 18px;
-  height: 18px;
-  padding: 0 5px;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
   border-radius: 999px;
-  background: var(--sa-accent);
-  color: var(--sa-accent-ink);
-  font-size: 10.5px;
+  background: var(--sa-red);
+  color: #fff;
+  font-size: 10px;
   font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 0 0 2px var(--sa-sb);
+  animation: sa-badge-pop 0.2s ease-out;
+}
+
+@keyframes sa-badge-pop {
+  from {
+    transform: scale(0.4);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-link__badge {
+    animation: none;
+  }
 }
 
 .sa-ov {
@@ -760,6 +792,12 @@
   margin-top: 2px;
 }
 
+/* Jadval katagiga qo'yilganda ham katak bo'lib qolsin — block bo'lsa qator chizig'idan siljib ketadi (Promokodlar №) */
+td.sa-table__sub {
+  display: table-cell;
+  margin-top: 0;
+}
+
 .sa-badge {
   display: inline-flex;
   align-items: center;
@@ -890,7 +928,7 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 6px 10px;
+  padding: 4px 10px;
   font-size: 11px;
   font-weight: 700;
   color: var(--sa-mu);
@@ -898,11 +936,11 @@
 
 .sa-kjob__hero {
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 2px;
-  padding: 14px 10px;
+  flex-direction: row;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 6px 10px;
   font-family: var(--font-display, sans-serif);
   color: #fff;
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
@@ -914,23 +952,24 @@
 }
 
 .sa-kjob__hero span {
-  font-size: 26px;
+  font-size: 18px;
   font-weight: 800;
   line-height: 1;
 }
 
 .sa-kjob__meta {
-  padding: 8px 10px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  padding: 5px 10px;
   font-size: 11.5px;
   color: var(--sa-mu);
   background: var(--sa-surface-2);
 }
 
-.sa-kjob__meta div {
-  display: flex;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 1px 0;
+/* ixcham qator: Klub · O'lcham · Turi · Soni */
+.sa-kjob__meta span::before {
+  content: '· ';
 }
 
 .sa-kjob__meta b {

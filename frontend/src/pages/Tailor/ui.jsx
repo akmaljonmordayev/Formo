@@ -78,9 +78,13 @@ const SHIRT_PATH =
   'M74 24 L36 40 L12 104 L50 120 L66 90 L66 226 Q120 238 174 226 L174 90 L190 120 L228 104 L204 40 L166 24 C164 48 76 48 74 24 Z';
 // Shortik: belbog' tagidan ikki oyoq
 const SHORTS_PATH = 'M70 236 Q120 246 170 236 L178 330 L126 336 L120 290 L114 336 L62 330 Z';
+// Shalvar: to'piqqacha uzun ikki pocha
+const PANTS_PATH = 'M70 236 Q120 246 170 236 L176 470 L134 474 L120 300 L106 474 L64 470 Z';
+// Pastki qism chizmasi: shortik yoki shalvar (raqam — o'ng son ustida)
+const bottomShape = (pants) => (pants ? { path: PANTS_PATH, viewH: 490, numberY: 318 } : { path: SHORTS_PATH, viewH: 350, numberY: 300 });
 
 /**
- * Oddiy (3D dizaynsiz) buyurtma maketi: futbolka + shortik. Orqa tomonda ism va raqam kontur bilan — rangdan qat'i nazar o'qiladi.
+ * Oddiy (3D dizaynsiz) buyurtma maketi: futbolka + shortik yoki shalvar (pants). Orqa tomonda ism va raqam kontur bilan — rangdan qat'i nazar o'qiladi.
  * Shortikdagi raqam faqat oldi tomonda (buyurtmada "shortikda raqam" belgilangan bo'lsa).
  */
 export function JerseyPreview({
@@ -89,6 +93,7 @@ export function JerseyPreview({
   name = 'DILSHOD',
   colorKey = 'qizil',
   shorts = true,
+  pants = false,
   shortsNumber = '',
   defaultSide = 'back',
 }) {
@@ -100,7 +105,8 @@ export function JerseyPreview({
   const digits = String(number ?? '');
   const nameSize = label.length > 10 ? 15 : label.length > 7 ? 18 : 22;
   const numberSize = digits.length > 1 ? 86 : 104;
-  const viewH = shorts ? 350 : 250;
+  const shape = bottomShape(pants);
+  const viewH = shorts ? shape.viewH : 250;
 
   return (
     <div className="relative flex flex-col items-center justify-between rounded-2xl border border-white/10 bg-[#0e1628] p-4 text-slate-200">
@@ -125,12 +131,12 @@ export function JerseyPreview({
           <g filter="url(#shadow)">
             {shorts && (
               <g>
-                <path d={SHORTS_PATH} fill={color} />
-                <path d={SHORTS_PATH} fill="url(#jerseyShade)" />
+                <path d={shape.path} fill={color} />
+                <path d={shape.path} fill="url(#jerseyShade)" />
                 <path d="M70 236 Q120 246 170 236" fill="none" stroke={ink} strokeOpacity="0.55" strokeWidth="5" />
                 {side === 'front' && shortsNumber !== '' && shortsNumber != null && (
                   <text
-                    x="150" y="300" textAnchor="middle" fontSize="34" fontWeight="900"
+                    x="150" y={shape.numberY} textAnchor="middle" fontSize="34" fontWeight="900"
                     fill={ink} stroke={outline} strokeWidth="1.5" paintOrder="stroke"
                   >
                     {shortsNumber}
@@ -191,20 +197,21 @@ export function JerseyPreview({
 /**
  * Buyurtma qatori uchun kichkina forma (orqa tomon: ism va raqam). Bosmasdan ham qanday forma ekani ko'rinadi.
  */
-export function JerseyMini({ color = '#D72E3F', number = '', name = '', shorts = true, shortsNumber = '' }) {
+export function JerseyMini({ color = '#D72E3F', number = '', name = '', shorts = true, pants = false, shortsNumber = '' }) {
   const ink = readableInk(color);
   const outline = ink === '#ffffff' ? '#0b1220' : '#ffffff';
   const label = String(name || '').trim().toUpperCase();
   const digits = String(number ?? '');
-  const viewH = shorts ? 350 : 250;
+  const shape = bottomShape(pants);
+  const viewH = shorts ? shape.viewH : 250;
 
   return (
     <svg viewBox={`0 0 240 ${viewH}`} className="h-28 w-20 shrink-0" role="img" aria-label={`${label} ${digits}`.trim()}>
       {shorts && (
         <g>
-          <path d={SHORTS_PATH} fill={color} stroke="#ffffff" strokeOpacity="0.25" strokeWidth="3" />
+          <path d={shape.path} fill={color} stroke="#ffffff" strokeOpacity="0.25" strokeWidth="3" />
           {shortsNumber !== '' && shortsNumber != null && (
-            <text x="150" y="300" textAnchor="middle" fontSize="34" fontWeight="900" fill={ink} stroke={outline} strokeWidth="1.5" paintOrder="stroke">
+            <text x="150" y={shape.numberY} textAnchor="middle" fontSize="34" fontWeight="900" fill={ink} stroke={outline} strokeWidth="1.5" paintOrder="stroke">
               {shortsNumber}
             </text>
           )}

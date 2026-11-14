@@ -10,8 +10,21 @@ const FRAMES = import.meta.glob('../Superadmin/Kit360/frames/*/*.jpg', { eager: 
 // v: 'f' — kalta yeng + shortik, 'l' — uzun yeng + shalvar (suratlari yo'q jamoada — 'f')
 export const frameUrl = (id, i, v = 'f') =>
   FRAMES[`../Superadmin/Kit360/frames/${id}/${v}${i}.jpg`] ?? FRAMES[`../Superadmin/Kit360/frames/${id}/f${i}.jpg`];
-/** Buyurtma qatori → surat varianti: uzun yengli forma (sleeve LONG) — 'l' */
-export const orderVariant = (order) => (order?.apiItems?.[0]?.sleeve === 'LONG' ? 'l' : 'f');
+/** Jamoaning shu variantdagi (f/l) suratlari bormi */
+export const hasVariant = (id, v) => Boolean(FRAMES[`../Superadmin/Kit360/frames/${id}/${v}0.jpg`]);
+/** Buyurtma qatori → surat varianti: shalvarli yoki uzun yengli forma — 'l' */
+export const lineVariant = (line) => (line?.bottom === 'pants' || line?.sleeve === 'long' ? 'l' : 'f');
+/**
+ * Surat qatorga aynan mosmi: suratlar faqat ikki xil (kalta yeng + shortik, uzun yeng + shalvar). Boshqa
+ * birikmada (masalan kalta yeng + shalvar) yoki jamoaning 'l' suratlari yo'q bo'lsa surat taxminiy.
+ */
+export const photoMatches = (team, line) => {
+  // Suratda doim pastki qism bor — buyurtmada faqat futbolka bo'lsa ham
+  if (!line?.withBottom) return false;
+  const variant = lineVariant(line);
+  if (!hasVariant(team.id, variant)) return variant === 'f';
+  return variant === 'l' ? line?.bottom === 'pants' && line?.sleeve === 'long' : true;
+};
 
 // Buyurtmadagi klub nomi → surati bor jamoa. Ro'yxat backend/src/kits/kit360.ts (KIT360_ALIASES) bilan bir xil
 const TEAM_ALIASES = {
@@ -256,27 +269,35 @@ function PhotoKit({ team, variant = 'f', name, number, shortsNumber, statusBadge
 }
 
 /**
- * Buyurtmadagi forma: klub surati bor bo'lsa — admin paneldagi kabi aylanadigan futbolka + shortik surati
- * (orqada ism va raqam, shortikda raqam faqat buyurtmada belgilangan bo'lsa). Bo'lmasa — oddiy maket.
+ * Buyurtma qatoridagi forma: klub surati bor bo'lsa — admin paneldagi kabi aylanadigan futbolka + shortik/shalvar
+ * surati (orqada ism va raqam, pastki qismda raqam faqat buyurtmada belgilangan bo'lsa). Bo'lmasa — oddiy maket.
  * Status (API'dan) forma yonida ko'rinadi.
  */
-export default function OrderKitView({ order, statusBadge }) {
-  const team = teamForClub(order.clubName, order.apiItems?.[0]?.kit360Id);
-  const name = String(order.apiPrintName || '').trim().toUpperCase();
-  const number = order.number === '' || order.number == null ? '' : String(order.number);
+export default function OrderKitView({ line, statusBadge }) {
+  const t = useT();
+  const team = teamForClub(line.clubName, line.kit360Id);
+  const name = String(line.name || '').trim().toUpperCase();
   return (
     <div className="flex flex-col gap-2">
       {team ? (
-        <PhotoKit team={team} variant={orderVariant(order)} name={name} number={number} shortsNumber={order.shortsNumber || ''} statusBadge={statusBadge} />
+        <>
+          {/* key: boshqa qatorga o'tilganda kadr keshi va burchak yangidan boshlanadi */}
+          <PhotoKit key={line.key} team={team} variant={lineVariant(line)} name={name} number={line.number} shortsNumber={line.bottomNumber} statusBadge={statusBadge} />
+          {!photoMatches(team, line) && (
+            <p className="rounded-xl border border-amber-500/30 bg-[#281b10] px-3 py-2 text-xs font-bold text-amber-300">{t('order.photoApprox')}</p>
+          )}
+        </>
       ) : (
         <div className="relative">
           <JerseyPreview
-            color={order.design?.color?.hex || order.kitDesign?.primaryColor || order.jerseyColor}
-            number={number}
-            name={name || order.customer}
-            colorKey={order.colorKey}
-            shorts={order.withShorts}
-            shortsNumber={order.shortsNumber}
+            key={line.key}
+            color={line.jerseyColor}
+            number={line.number}
+            name={name}
+            colorKey={null}
+            shorts={line.withBottom}
+            pants={line.bottom === 'pants'}
+            shortsNumber={line.bottomNumber}
           />
           {statusBadge && <div className="absolute right-3 top-3">{statusBadge}</div>}
         </div>

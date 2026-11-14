@@ -13,7 +13,7 @@ const openOrderUrl = (code) => `/superadmin/orders?search=${encodeURIComponent(c
 
 export default function SuperadminDashboard() {
   const money = useMoney();
-  const { t, locale } = useLang();
+  const { t } = useLang();
   const navigate = useNavigate();
   const { user } = useAuth();
   const [range, setRange] = useState(() => RANGES.find((r) => r.days === loadAdminPrefs().dashboardDays) ?? RANGES[2]);
@@ -74,9 +74,14 @@ export default function SuperadminDashboard() {
   const total = bars.reduce((s, b) => s + value(b), 0);
   const avg = bars.length ? Math.round(total / bars.length) : 0;
   const fmt = (n) => (metric === 'revenue' ? money(n) : n);
-  // 30+ kunda har bir sanani yozsak bir-biriga yopishadi — taxminan 10 ta yorliq qoldiramiz
-  const labelStep = Math.max(1, Math.ceil(bars.length / 10));
-  const dayLabel = (iso) => new Date(iso).toLocaleDateString(locale, { day: 'numeric', month: 'short', timeZone: 'UTC' });
+  // "Noyabr 13" kabi uzun yorliqlar yopishmasin — ko'pi bilan ~7 ta
+  const labelStep = Math.max(1, Math.ceil(bars.length / 7));
+  // Oy to'liq nomi, keyin kun: "Noyabr 13" / "Ноябрь 13". Brauzerda o'zbekcha oy nomlari yo'q ("M11") — o'z lug'atimiz
+  const dayLabel = (iso) => {
+    const d = new Date(iso);
+    const month = MONTHS[d.getUTCMonth()];
+    return `${t(month.charAt(0).toUpperCase() + month.slice(1))} ${d.getUTCDate()}`;
+  };
 
   const STATS = stats
     ? [

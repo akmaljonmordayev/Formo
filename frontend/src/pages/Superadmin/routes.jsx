@@ -1,6 +1,5 @@
 import { Suspense, lazy } from 'react';
 import {
-  AlertTriangle,
   CreditCard,
   Factory,
   History,
@@ -21,7 +20,6 @@ import CustomersUsers from './Users';
 import Factories_ from './Factories';
 import Orders from './Orders';
 import Production from './Production';
-import Defects from './Defects';
 import Kit360 from './Kit360';
 import Forms from './Forms';
 import Messages from './Messages';
@@ -63,7 +61,6 @@ export const superadminRoutes = [
   { path: '', element: <Dashboard /> },
   { path: 'orders', element: <Orders /> },
   { path: 'production', element: <Production /> },
-  { path: 'defects', element: <Defects /> },
   { path: 'kit-360', element: <Kit360 /> },
   { path: 'forms', element: <Forms /> },
   { path: 'messages', element: <Messages /> },
@@ -99,7 +96,6 @@ export const superadminMenu = [
   // Narxlar menyudan olib tashlandi (narx Formalar sahifasida tahrirlanadi) — marshrut saqlanib qoladi
 
   { to: `${BASE}/factories`, label: 'Sexlar', icon: Factory, group: 'Sex va Sifat' },
-  { to: `${BASE}/defects`, label: 'Nuqsonlar (brak)', icon: AlertTriangle, group: 'Sex va Sifat' },
 
   { to: `${BASE}/finance`, label: 'Moliya', icon: Wallet, group: 'Moliya va Mijozlar' },
   { to: `${BASE}/promocodes`, label: 'Promokodlar', icon: Ticket, group: 'Moliya va Mijozlar' },

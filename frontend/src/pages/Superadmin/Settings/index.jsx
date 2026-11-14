@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { useOutletContext } from 'react-router-dom';
 import { diagnosticsApi, securityApi, settingsApi } from '../../../features/platform/platformApi';
 import { useAuth } from '../../../hooks/useAuth';
 import {
@@ -218,6 +219,7 @@ function SwitchRow({ label, hint, checked, onChange }) {
 /* ---------- Admin: profil va til (shu brauzerda) ---------- */
 function ProfileSection() {
   const { t, lang, setLang } = useLang();
+  const { theme, setTheme } = useOutletContext() ?? {}; // mavzu holati SuperadminLayout'da
   const { user, role } = useAuth();
   const [prefs, setPrefs] = useState(loadAdminPrefs);
   const [notice, setNotice] = useState('');
@@ -261,6 +263,24 @@ function ProfileSection() {
             onClick={() => setLang(l.value)}
           >
             {l.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="sa-panel__title" style={{ fontSize: 14, marginBottom: 8 }}>{t('Mavzu')}</div>
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 22 }}>
+        {[
+          ['dark', "Qorong'i mavzu"],
+          ['light', "Yorug' mavzu"],
+        ].map(([value, label]) => (
+          <button
+            key={value}
+            type="button"
+            className={`sa-tab${theme === value ? ' is-active' : ''}`}
+            aria-pressed={theme === value}
+            onClick={() => setTheme?.(value)}
+          >
+            {t(label)}
           </button>
         ))}
       </div>

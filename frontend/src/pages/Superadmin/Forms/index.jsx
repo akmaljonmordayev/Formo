@@ -32,6 +32,7 @@ export default function SuperadminForms() {
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
   const [editing, setEditing] = useState(null); // null | 'new' | kit
+  const [sizeEdit, setSizeEdit] = useState(null); // null | { kit, size } — o'lcham bosilganda soni+narx modali
 
   const load = () =>
     Promise.all([clubsApi.listKits(), fetchAllClubs(), inventoryApi.list({ productType: PRODUCT })])
@@ -192,13 +193,7 @@ export default function SuperadminForms() {
             <div key={kit.id} className="sa-panel">
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span
-                    aria-hidden="true"
-                    style={{
-                      width: 22, height: 22, borderRadius: 6, flexShrink: 0,
-                      background: kit.bgColor || '#888', border: `2px solid ${kit.textColor || '#333'}`,
-                    }}
-                  />
+                  <SleeveIcon kit={kit} t={t} />
                   <div>
                     <div><b>{kit.club.name}</b> · {kit.label}{!kit.isActive && <span className="sa-table__sub" style={{ marginLeft: 8 }}>({t('faol emas')})</span>}</div>
                     <div className="sa-table__sub" style={{ marginTop: 2 }}>
@@ -216,7 +211,17 @@ export default function SuperadminForms() {
                   <thead>
                     <tr>
                       {ALL_SIZES.map((s) => (
-                        <th key={s} style={{ textAlign: 'center' }}>{s}</th>
+                        <th key={s} style={{ textAlign: 'center', padding: 0 }}>
+                          <button
+                            type="button"
+                            className="sa-tab"
+                            style={{ margin: 0, padding: '4px 8px' }}
+                            title={t('{size}: soni va narxi', { size: s })}
+                            onClick={() => setSizeEdit({ kit, size: s })}
+                          >
+                            {s}
+                          </button>
+                        </th>
                       ))}
                     </tr>
                   </thead>
@@ -253,6 +258,31 @@ export default function SuperadminForms() {
         </div>
       )}
 
+      {sizeEdit && (
+        <SizeModal
+          kit={sizeEdit.kit}
+          size={sizeEdit.size}
+          t={t}
+          valueOf={valueOf}
+          setQty={setQty}
+          priceOf={priceOf}
+          setPrice={setPrice}
+          busy={stockSaving || priceSaving}
+          onCancel={() => {
+            // modalda yozilgan, saqlanmagan qiymatni shu katak uchun qaytaramiz
+            const key = cellKey(sizeEdit.kit.id, sizeEdit.size);
+            setDraft((m) => ({ ...m, [key]: qtyMap[key] }));
+            setPriceDraft((m) => ({ ...m, [key]: priceMap[key] }));
+            setSizeEdit(null);
+          }}
+          onSave={async () => {
+            await saveStock(); // ketma-ket: savePrices ichidagi load() zaxira javobini ustidan yozmasin
+            await savePrices();
+            setSizeEdit(null);
+          }}
+        />
+      )}
+
       {editing && (
         <KitForm
           kit={editing === 'new' ? null : editing}
@@ -266,6 +296,58 @@ export default function SuperadminForms() {
         />
       )}
     </>
+  );
+}
+
+/** Kalta yoki uzun yengli futbolka belgisi — forma rangida */
+function SleeveIcon({ kit, t }) {
+  const long = kit.sleeve === 'LONG';
+  const label = t(long ? 'Uzun yengli' : 'Kalta yengli');
+  return (
+    <svg width="26" height="26" viewBox="0 0 24 24" role="img" aria-label={label} style={{ flexShrink: 0 }}>
+      <title>{label}</title>
+      <path
+        d={
+          long
+            ? 'M9 3 L4.5 5 L2.5 20.5 L5.5 21 L7 10 L7 21 L17 21 L17 10 L18.5 21 L21.5 20.5 L19.5 5 L15 3 Q12 5.5 9 3 Z'
+            : 'M9 3 L3 6 L4.5 10.5 L7 9.5 L7 21 L17 21 L17 9.5 L19.5 10.5 L21 6 L15 3 Q12 5.5 9 3 Z'
+        }
+        fill={kit.bgColor || '#888'}
+        stroke={kit.textColor || '#333'}
+        strokeWidth="1.4"
+        strokeLinejoin="round"
+      />
+    </svg>
+  );
+}
+
+/** O'lcham bosilganda: faqat shu o'lchamning soni va narxi */
+function SizeModal({ kit, size, t, valueOf, setQty, priceOf, setPrice, busy, onCancel, onSave }) {
+  return (
+    <Modal title={`${kit.club.name} · ${kit.label} · ${size}`} onClose={onCancel}>
+      <div className="form-grid">
+        <label className="field">
+          <span>{t('Soni')}</span>
+          <input
+            value={valueOf(kit.id, size)}
+            onChange={(e) => setQty(kit.id, size, e.target.value)}
+            inputMode="numeric"
+            placeholder="—"
+            autoFocus
+          />
+        </label>
+        <label className="field">
+          <span>{t("Narxi (so'm)")}</span>
+          <input value={priceOf(kit.id, size)} onChange={(e) => setPrice(kit.id, size, e.target.value)} inputMode="numeric" />
+        </label>
+      </div>
+      <div className="modal__foot" style={{ padding: '14px 0 0' }}>
+        <button type="button" className="btn btn--ghost" onClick={onCancel}>{t('Bekor qilish')}</button>
+        <button type="button" className="btn btn--accent" onClick={onSave} disabled={busy}>
+          {busy ? t('Saqlanmoqda...') : t('Saqlash')}
+        </button>
+      </div>
+    </Modal>
   );
 }
 

@@ -13,19 +13,20 @@ const WEEKDAYS = {
   ru: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
 };
 
+// Oxirgi javob: sahifaga qaytilganda grafik darhol ko'rinadi, yangi ma'lumot fonda olinadi
+let lastDashboard = null;
+
 export default function Statistika() {
   const t = useT();
-  const [dashboard, setDashboard] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [dashboard, setDashboard] = useState(lastDashboard);
+  const [loading, setLoading] = useState(!lastDashboard);
   const [error, setError] = useState('');
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setError('');
-    setDashboard(null);
     getTailorDashboard(DAYS)
       .then((data) => {
+        lastDashboard = data;
         if (!cancelled) setDashboard(data);
       })
       .catch((requestError) => {
