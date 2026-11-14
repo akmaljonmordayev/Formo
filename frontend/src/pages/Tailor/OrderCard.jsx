@@ -42,7 +42,7 @@ function deadlineText(t, order, bucket) {
 }
 
 /** Forma rasmi: klubning haqiqiy surati (oldi tomoni), bo'lmasa — rangli chizma */
-function KitThumb({ line, compact = false }) {
+function KitThumb({ line, small = false }) {
   const team = teamForClub(line.clubName, line.kit360Id);
   const src = team ? frameUrl(team.id, 0, lineVariant(line)) : null;
   if (!src) {
@@ -58,7 +58,7 @@ function KitThumb({ line, compact = false }) {
     );
   }
   return (
-    <div className={cx('shrink-0 overflow-hidden rounded-lg bg-[#b2b2b3]', compact ? 'h-28 w-20' : 'h-44 w-32')}>
+    <div className={cx('shrink-0 overflow-hidden rounded-lg bg-[#b2b2b3]', small ? 'h-16 w-12' : 'h-28 w-20')}>
       <img src={src} alt={team.name} loading="lazy" decoding="async" className="h-full w-full origin-[50%_36%] scale-[1.4] object-cover" />
     </div>
   );
@@ -71,37 +71,41 @@ const MAX_LINES = 3;
 function OrderCard({ order, index, bucket, onOpen }) {
   const t = useT();
   const lines = order.lines ?? [];
+  // Tayyor ro'yxati: eng ixcham ko'rinish — bitta forma qatori, muddat yozuvisiz
+  const small = bucket === 'ready';
+  const shown = small ? 1 : MAX_LINES;
 
   return (
     <article
       onClick={() => onOpen(order)}
       className={cx(
-        'relative flex cursor-pointer flex-col gap-3 overflow-hidden rounded-xl border border-white/10 bg-[#121829] pl-6 pr-4 transition hover:border-teal-400/60 sm:flex-row sm:items-center',
-        bucket === 'ready' ? 'py-2' : 'py-3'
+        'relative flex cursor-pointer overflow-hidden rounded-xl border border-white/10 bg-[#121829] transition hover:border-teal-400/60',
+        small ? 'flex-row items-center gap-2 py-1.5 pl-4 pr-2' : 'flex-col gap-3 py-2 pl-6 pr-4 sm:flex-row sm:items-center'
       )}
     >
       <span aria-hidden="true" className={cx('absolute inset-y-0 left-0 w-1.5', STRIP[bucket])} />
       <span
         aria-label={`№ ${index}`}
         className={cx(
-          'flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-base font-extrabold tabular-nums',
+          'flex shrink-0 items-center justify-center rounded-lg px-1.5 font-extrabold tabular-nums',
+          small ? 'h-6 min-w-6 text-xs' : 'h-8 min-w-8 text-sm',
           bucket === 'late' ? 'bg-rose-500 text-white' : 'bg-white/10 text-white'
         )}
       >
         {index}
       </span>
 
-      {lines[0] && <KitThumb line={lines[0]} compact={bucket === 'ready'} />}
+      {lines[0] && <KitThumb line={lines[0]} small={small} />}
 
       <div className="min-w-0 flex-1">
-        <p className="truncate text-base font-bold text-white">
+        <p className={cx('truncate font-bold text-white', small ? 'text-sm' : 'text-base')}>
           {order.customer} <span className="ml-1 font-mono text-xs font-normal text-slate-500">#{order.id}</span>
         </p>
         {lines.length > 1 && (
           <p className="mt-0.5 text-xs font-bold text-amber-300">{t('order.itemsShort', { n: lines.length })}</p>
         )}
         {/* Har forma alohida qator: nima tikiladi, ism · raqam va pastki qism (shortik/shalvar, raqamli yoki yo'q) */}
-        {lines.slice(0, MAX_LINES).map((line) => (
+        {lines.slice(0, shown).map((line) => (
           <div key={line.key} className="mt-1">
             <p className="truncate text-xs text-slate-400">
               {[line.clubName, line.kitLabel, line.size, `×${line.qty}`].filter(Boolean).join(' · ')}
@@ -119,14 +123,16 @@ function OrderCard({ order, index, bucket, onOpen }) {
             </p>
           </div>
         ))}
-        {lines.length > MAX_LINES && <p className="mt-0.5 text-xs font-bold text-slate-400">+{lines.length - MAX_LINES}</p>}
-        <p className={cx('mt-0.5 text-sm font-semibold', DEADLINE_TEXT[bucket])}>{deadlineText(t, order, bucket)}</p>
+        {lines.length > shown && <p className="mt-0.5 text-xs font-bold text-slate-400">+{lines.length - shown}</p>}
+        {!small && <p className={cx('mt-0.5 text-sm font-semibold', DEADLINE_TEXT[bucket])}>{deadlineText(t, order, bucket)}</p>}
       </div>
 
-      <div className="flex items-center gap-2 sm:w-52 sm:justify-end">
-        <span className={cx('rounded-full px-3 py-1 text-xs font-bold', STATUS_PILL[order.status])}>
-          {order.status === 'tayyor' ? t('q.readyWait') : t(`status.${order.status}`)}
-        </span>
+      <div className={cx('flex shrink-0 items-center', small ? 'gap-1' : 'gap-2 sm:w-52 sm:justify-end')}>
+        {!small && (
+          <span className={cx('rounded-full px-3 py-1 text-xs font-bold', STATUS_PILL[order.status])}>
+            {order.status === 'tayyor' ? t('q.readyWait') : t(`status.${order.status}`)}
+          </span>
+        )}
         <ChevronRight className="h-5 w-5 text-slate-500" aria-hidden="true" />
       </div>
     </article>

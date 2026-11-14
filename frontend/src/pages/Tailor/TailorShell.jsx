@@ -2,10 +2,12 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Bell, Menu, Moon, Sun } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
+import LogoutConfirm from './LogoutConfirm';
 import Sidebar from './Sidebar';
 import { LANGS, translate } from './i18n';
 import { TailorContext, loadPrefs, storePrefs } from './prefs';
 import { cx } from './utils';
+import './tailorLight.css';
 import {
   acceptTailorOrder,
   listTailorOrders,
@@ -22,51 +24,6 @@ const OUTER_CHROME_CSS = `
   body.tailor-shell .layout__main { background: #0b0f19 !important; }
   body.tailor-shell { background: #0b0f19 !important; }
 
-  /* Yorug' mavzu: qorong'i palitrani qayta moslaydi */
-  body.tailor-shell.tailor-light, body.tailor-shell.tailor-light .layout__main { background: #f1f5f9 !important; }
-  .tl-light { color-scheme: light; }
-  .tl-light img[alt="Formo"] { filter: invert(1) hue-rotate(180deg); mix-blend-mode: multiply !important; }
-  .tl-light .from-\\[\\#0d1322\\] { background-image: none !important; background-color: #ffffff !important; }
-  .tl-light .hover\\:text-white:hover { color: #0f172a !important; }
-  .tl-light .hover\\:bg-white\\/10:hover, .tl-light .hover\\:bg-white\\/5:hover { background-color: rgba(15,23,42,0.07) !important; }
-  .tl-light .bg-rose-600.text-white, .tl-light .bg-rose-500.text-white { color: #ffffff !important; }
-  .tl-light .bg-\\[\\#1e2b4d\\] { background-color: #e2e8f0 !important; }
-  .tl-light .bg-\\[\\#281318\\] { background-color: #fff1f2 !important; }
-  .tl-light .bg-\\[\\#281b10\\] { background-color: #fffbeb !important; }
-  .tl-light .bg-white\\/70 { background-color: #94a3b8 !important; }
-  .tl-light .bg-white\\/\\[0\\.04\\] { background-color: rgba(15,23,42,0.04) !important; }
-  .tl-light .text-amber-200, .tl-light .text-amber-300, .tl-light .text-amber-400, .tl-light .text-amber-400\\/80 { color: #b45309 !important; }
-  .tl-light .text-emerald-200, .tl-light .text-emerald-300, .tl-light .text-emerald-400 { color: #047857 !important; }
-  .tl-light .text-cyan-300, .tl-light .text-cyan-400 { color: #0e7490 !important; }
-  .tl-light .ring-white\\/10, .tl-light .ring-white\\/20 { --tw-ring-color: rgba(15,23,42,0.15) !important; }
-  .tl-light .ring-\\[\\#121829\\] { --tw-ring-color: #ffffff !important; }
-  .tl-light .ring-\\[\\#0b0f19\\] { --tw-ring-color: #f1f5f9 !important; }
-  .tl-light .hover\\:border-white\\/20:hover, .tl-light .hover\\:border-white\\/25:hover { border-color: rgba(15,23,42,0.25) !important; }
-  .tl-light .shadow-2xl { --tw-shadow-color: rgba(15,23,42,0.15); box-shadow: 0 10px 30px -10px rgba(15,23,42,0.25) !important; }
-  .tl-light .text-teal-200 { color: #0f766e !important; }
-  .tl-light .text-slate-800 { color: #1e293b !important; }
-  .tl-light .placeholder-slate-500::placeholder, .tl-light .placeholder\\:text-slate-600::placeholder { color: #94a3b8 !important; }
-  .tl-light .bg-black\\/65, .tl-light .bg-black\\/60 { background-color: rgba(15,23,42,0.35) !important; }
-  .tl-light .from-white { --tw-gradient-from: #0f172a var(--tw-gradient-from-position) !important; }
-  .tl-light .to-slate-300 { --tw-gradient-to: #475569 var(--tw-gradient-to-position) !important; }
-  .tl-light.bg-\\[\\#0b0f19\\], .tl-light .bg-\\[\\#0b0f19\\] { background-color: #f1f5f9 !important; }
-  .tl-light .bg-\\[\\#121829\\], .tl-light .bg-\\[\\#101627\\], .tl-light .tl-glass { background-color: #ffffff !important; }
-  .tl-light .bg-\\[\\#0e1424\\], .tl-light .bg-\\[\\#0e1628\\] { background-color: #f8fafc !important; }
-  .tl-light .bg-\\[\\#121829\\]\\/90 { background-color: rgba(255,255,255,0.95) !important; color: #0f172a !important; }
-  .tl-light .bg-\\[\\#121829\\]\\/80,.tl-light .bg-\\[\\#0d1322\\]\\/80 { background-color: rgba(255,255,255,0.85) !important; }
-  .tl-light .bg-\\[\\#0b0f19\\]\\/70 { background-color: rgba(241,245,249,0.8) !important; }
-  .tl-light .text-white { color: #0f172a !important; }
-  .tl-light .text-slate-200, .tl-light .text-slate-300 { color: #334155 !important; }
-  .tl-light .text-slate-400 { color: #64748b !important; }
-  .tl-light .text-slate-500, .tl-light .text-slate-600 { color: #64748b !important; }
-  .tl-light .bg-teal-400 .text-white, .tl-light .bg-teal-400.text-white, .tl-light .bg-rose-500.text-white, .tl-light .bg-rose-500 .text-white { color: #fff !important; }
-  .tl-light .border-white\\/10, .tl-light .border-white\\/5, .tl-light .border-white\\/20, .tl-light .divide-white\\/10 > * + *, .tl-light .divide-white\\/5 > * + * { border-color: rgba(15,23,42,0.12) !important; }
-  .tl-light .bg-white\\/5 { background-color: rgba(15,23,42,0.04) !important; }
-  .tl-light .bg-white\\/10 { background-color: rgba(15,23,42,0.08) !important; }
-  .tl-light .text-teal-300, .tl-light .text-teal-400 { color: #0f766e !important; }
-  .tl-light .text-rose-200, .tl-light .text-rose-300, .tl-light .text-rose-400 { color: #be123c !important; }
-  .tl-light [class*="[color-scheme:dark]"] { color-scheme: light; }
-
   /* Qisqa va blur'siz: butun sahifani xiralashtirish kuchsiz kompyuterda sahifa ochilishini sekinlashtirardi */
   @keyframes tl-page-in {
     0% { opacity: 0; transform: translateY(6px); }
@@ -76,8 +33,11 @@ const OUTER_CHROME_CSS = `
   @keyframes tl-fade-out { from { opacity: 1; } to { opacity: 0; } }
   @keyframes tl-slide-in { from { transform: translateX(100%); } to { transform: none; } }
   @keyframes tl-slide-out { from { transform: none; } to { transform: translateX(100%); } }
+  @keyframes tl-sheet-in { from { opacity: 0; transform: translateY(24px) scale(0.97); } to { opacity: 1; transform: none; } }
+  @keyframes tl-sheet-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(16px) scale(0.98); } }
   @keyframes tl-pop { 0% { opacity: 0; transform: translateY(10px) scale(0.97); } 100% { opacity: 1; transform: none; } }
   @keyframes tl-drop { 0% { opacity: 0; transform: translateY(-8px) scale(0.97); } 100% { opacity: 1; transform: none; } }
+  @keyframes tl-bar-rise { from { transform: scaleY(0); } to { transform: none; } }
   @keyframes tl-drift {
     0%, 100% { transform: translate3d(0, 0, 0); }
     50% { transform: translate3d(40px, 30px, 0); }
@@ -86,9 +46,11 @@ const OUTER_CHROME_CSS = `
   .tl-page { animation: tl-page-in 0.16s ease-out backwards; }
   .tl-pop { animation: tl-pop 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards; animation-delay: var(--tl-delay, 0ms); }
   .tl-drop { animation: tl-drop 0.2s ease-out both; }
+  /* Statistika ustunlari: pastdan ko'tarilib chiqadi, navbat bilan */
+  .tl-bar { transform-origin: bottom; animation: tl-bar-rise 0.8s cubic-bezier(0.22, 1, 0.36, 1) backwards; animation-delay: var(--tl-delay, 0ms); }
   .tl-glass { background: rgba(18, 24, 41, 0.72); backdrop-filter: blur(14px); }
   @media (prefers-reduced-motion: reduce) {
-    .tl-page, .tl-pop, .tl-drop { animation: none !important; }
+    .tl-page, .tl-pop, .tl-drop, .tl-bar { animation: none !important; }
   }
 `;
 
@@ -229,6 +191,11 @@ export default function TailorShell({ title, subtitle, children }) {
     }
   };
 
+  // Chiqish tasdig'i bitta joyda: yon menyu ham, profil sahifasi ham shu oynani ochadi
+  const [logoutOpen, setLogoutOpen] = useState(false);
+  const askLogout = useCallback(() => setLogoutOpen(true), []);
+  const closeLogout = useCallback(() => setLogoutOpen(false), []);
+
   const ctxValue = useMemo(
     () => ({
       prefs,
@@ -240,8 +207,9 @@ export default function TailorShell({ title, subtitle, children }) {
       reloadOrders,
       processOrder,
       rejectOrder,
+      askLogout,
     }),
-    [prefs, savePrefs, orders, ordersLoading, ordersError, orderActionLoading, reloadOrders, processOrder, rejectOrder]
+    [prefs, savePrefs, orders, ordersLoading, ordersError, orderActionLoading, reloadOrders, processOrder, rejectOrder, askLogout]
   );
 
   const notes = useMemo(() => {
@@ -273,19 +241,6 @@ export default function TailorShell({ title, subtitle, children }) {
             to: '/tailor',
           });
         });
-    }
-    if (prefs.notifications.summary && orders.length > 0) {
-      const today = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Tashkent' }).format(new Date());
-      items.push({
-        id: `summary:${today}`,
-        title: t('note.summary.title'),
-        text: t('note.summary.text', {
-          count: orders.length,
-          accepted: orders.filter((order) => order.status === 'qabul').length,
-          ready: orders.filter((order) => order.status === 'tayyor').length,
-        }),
-        to: '/tailor',
-      });
     }
     return items;
   }, [orders, prefs.notifications, t]);
@@ -346,7 +301,7 @@ export default function TailorShell({ title, subtitle, children }) {
 
   return (
     <TailorContext.Provider value={ctxValue}>
-      <div className={cx('relative min-h-screen bg-[#0b0f19] text-slate-200', prefs.theme === 'light' && 'tl-light')}>
+      <div className={cx('relative min-h-screen text-slate-200', prefs.theme === 'light' ? 'tl-light-root bg-[#f3f4f6]' : 'bg-[#0b0f19]')}>
         <style>{OUTER_CHROME_CSS}</style>
         <div aria-hidden="true" className="pointer-events-none fixed inset-0 overflow-hidden">
           <div
@@ -359,7 +314,7 @@ export default function TailorShell({ title, subtitle, children }) {
 
         <Sidebar open={menuOpen} onClose={() => setMenuOpen(false)} />
 
-        <div className="relative lg:pl-[264px]">
+        <div className={cx('relative lg:pl-[264px]', prefs.theme === 'light' && 'tl-light')}>
           <header className="sticky top-0 z-30 border-b border-white/10 bg-[#0b0f19]/70 backdrop-blur-xl">
             <div className="flex h-16 items-center gap-3 px-4 sm:px-6">
               <button
@@ -473,6 +428,7 @@ export default function TailorShell({ title, subtitle, children }) {
           )}
 
           <main key={pathname} className="tl-page p-4 sm:p-6">{children}</main>
+          <LogoutConfirm open={logoutOpen} onClose={closeLogout} />
         </div>
       </div>
     </TailorContext.Provider>

@@ -1,10 +1,14 @@
-import { useCallback, useMemo, useState } from 'react';
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import OrderCard from './OrderCard';
 import OrderDrawer from './OrderDrawer';
 import { groupActiveOrders } from './orderBuckets';
 import { useT } from './i18n';
 import { useTailor } from './prefs';
 import useOrderActions from './useOrderActions';
+
+const PAGE_SIZE = 10;
+const PAGE_BTN = 'flex h-11 w-11 items-center justify-center rounded-full border border-white/10 bg-[#121829] text-white transition hover:border-teal-400/60 disabled:cursor-not-allowed disabled:opacity-30';
 
 /** Bitta tekis ro'yxat. view: active (kechikmagan, muddat bo'yicha) | late (kechikkanlar) | ready (tayyorlar) */
 export default function OrderList({ view }) {
@@ -15,23 +19,56 @@ export default function OrderList({ view }) {
 
   const rows = useMemo(() => {
     if (view === 'ready') {
-      return orders.filter((o) => o.status === 'tayyor').map((order) => ({ order, bucket: 'ready' }));
+      // Eng oxirgi tayyor bo'lgani tepada, eskilari pastda
+      return orders
+        .filter((o) => o.status === 'tayyor')
+        .sort((a, b) => new Date(b.updatedAt ?? b.createdAt) - new Date(a.updatedAt ?? a.createdAt))
+        .map((order) => ({ order, bucket: 'ready' }));
     }
     const groups = groupActiveOrders(orders);
     const buckets = view === 'late' ? ['late'] : ['today', 'upcoming', 'nodate'];
     return buckets.flatMap((bucket) => groups[bucket].map((order) => ({ order, bucket })));
   }, [orders, view]);
 
-  // Faol ro'yxatda yangi (qabul kutayotgan) buyurtmalar tepada, alohida bo'limda
-  const sections = useMemo(() => {
-    if (view !== 'active') return [{ key: view, rows }];
-    const fresh = rows.filter(({ order }) => order.status === 'yangi');
-    const inProgress = rows.filter(({ order }) => order.status !== 'yangi');
-    return [
-      { key: 'new', title: t('q.new'), rows: fresh },
-      { key: 'progress', title: t('prod.inProgress'), rows: inProgress },
-    ].filter((section) => section.rows.length > 0);
-  }, [rows, view, t]);
+  // Faol ro'yxatda yangi (qabul kutayotgan) buyurtmalar tepada, alohida bo'limda.
+  // Tartib raqami butun ro'yxat bo'yicha uzluksiz — keyingi sahifa 11 dan davom etadi
+  const { numbered, counts } = useMemo(() => {
+    const sectionOf = ({ order }) => (view !== 'active' ? view : order.status === 'yangi' ? 'new' : 'progress');
+    const ordered = view === 'active'
+      ? [...rows.filter((row) => sectionOf(row) === 'new'), ...rows.filter((row) => sectionOf(row) === 'progress')]
+      : rows;
+    const counts = {};
+    const numbered = ordered.map((row, i) => {
+      const section = sectionOf(row);
+      counts[section] = (counts[section] ?? 0) + 1;
+      return { ...row, section, n: i + 1 };
+    });
+    return { numbered, counts };
+  }, [rows, view]);
+
+  // Sahifada 10 tadan buyurtma; bo'lim almashganda birinchi sahifaga qaytadi
+  const [page, setPage] = useState(0);
+  const [prevView, setPrevView] = useState(view);
+  if (prevView !== view) {
+    setPrevView(view);
+    setPage(0);
+  }
+  const pageCount = Math.max(1, Math.ceil(numbered.length / PAGE_SIZE));
+  const current = Math.min(page, pageCount - 1);
+  const pageRows = numbered.slice(current * PAGE_SIZE, (current + 1) * PAGE_SIZE);
+  const topRef = useRef(null);
+  const goTo = (next) => {
+    setPage(next);
+    topRef.current?.scrollIntoView({ block: 'start' });
+  };
+
+  const sections = [
+    { key: 'new', title: t('q.new') },
+    { key: 'progress', title: t('prod.inProgress') },
+    { key: view },
+  ]
+    .map((section) => ({ ...section, rows: pageRows.filter((row) => row.section === section.key) }))
+    .filter((section) => section.rows.length > 0);
 
   const opened = orders.find((o) => o.id === openId) ?? null;
   // Barqaror havola — OrderCard (memo) har yangilanishda qayta chizilmasin
@@ -39,7 +76,7 @@ export default function OrderList({ view }) {
   const close = useCallback(() => setOpenId(null), []);
 
   return (
-    <div className="space-y-3">
+    <div ref={topRef} className="space-y-3">
       {toastView}
       {ordersError && (
         <div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{ordersError}</div>
@@ -50,14 +87,14 @@ export default function OrderList({ view }) {
           {title && (
             <h2 className="flex items-center gap-2 pt-2 text-sm font-bold uppercase tracking-wide text-slate-300">
               {title}
-              <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs tabular-nums">{sectionRows.length}</span>
+              <span className="rounded-full bg-white/10 px-2 py-0.5 text-xs tabular-nums">{counts[key]}</span>
             </h2>
           )}
-          <div className={view === 'ready' ? 'grid gap-3 md:grid-cols-2' : 'space-y-3'}>
-          {sectionRows.map(({ order, bucket }, index) => (
+          <div className={view === 'ready' ? 'grid gap-2 md:grid-cols-2' : 'space-y-3'}>
+          {sectionRows.map(({ order, bucket, n }) => (
             <OrderCard
               key={order.id}
-              index={index + 1}
+              index={n}
               order={order}
               bucket={bucket}
               onOpen={open}
@@ -66,6 +103,32 @@ export default function OrderList({ view }) {
           </div>
         </section>
       ))}
+
+      {pageCount > 1 && (
+        <nav className="flex items-center justify-center gap-4 pt-2">
+          <button
+            type="button"
+            aria-label={t('orders.prev')}
+            disabled={current === 0}
+            onClick={() => goTo(current - 1)}
+            className={PAGE_BTN}
+          >
+            <ChevronLeft className="h-6 w-6" aria-hidden="true" />
+          </button>
+          <span className="text-sm font-semibold tabular-nums text-slate-300">
+            {pageRows[0].n}–{pageRows[pageRows.length - 1].n} / {numbered.length}
+          </span>
+          <button
+            type="button"
+            aria-label={t('orders.next')}
+            disabled={current === pageCount - 1}
+            onClick={() => goTo(current + 1)}
+            className={PAGE_BTN}
+          >
+            <ChevronRight className="h-6 w-6" aria-hidden="true" />
+          </button>
+        </nav>
+      )}
 
       {rows.length === 0 && (
         <div className="rounded-2xl border border-white/10 bg-[#121829] px-6 py-12 text-center text-sm text-slate-400">

@@ -81,6 +81,7 @@ export const orderToQueueItem = (order) => {
     status,
     stage: status === 'yangi' ? 0 : status === 'qabul' ? 1 : 2,
     createdAt: order.createdAt,
+    updatedAt: order.updatedAt,
     deliveryTime,
     deadline: order.deliverySlot
       ? { time: order.deliverySlot, done: status === 'tayyor' }
@@ -114,6 +115,14 @@ export async function listTailorOrders() {
 
   return records.map(orderToQueueItem).filter(Boolean);
 }
+
+/** Sexning barcha buyurtmalari (tugaganlari ham) — sahifalab; javobda `byStatus` (holatlar bo'yicha jami sonlar) */
+export const listWorkshopOrdersPage = ({ page = 1, limit = 15, search = '', status = '' } = {}) => {
+  const params = new URLSearchParams({ page: String(page), limit: String(limit) });
+  if (search) params.set('search', search);
+  if (status) params.set('status', status);
+  return api(`/workshop/orders?${params}`);
+};
 
 export const getTailorOrder = (orderId) => api(`/workshop/orders/${orderId}`);
 
@@ -151,6 +160,13 @@ export const listDefects = (limit = 10) => api(`/workshop/defects?page=1&limit=$
 // ---------- profile / employees ----------
 export const getWorkshopProfile = () => api('/workshop/profile');
 export const updateWorkshopProfile = (body) => api('/workshop/profile', { method: 'PATCH', body });
+/** Profil rasmi: PNG/JPEG/WEBP, 2 MB gacha (POST /auth/me/avatar) — yangilangan user qaytadi */
+export const setAvatar = (file) => {
+  const body = new FormData();
+  body.append('file', file);
+  return api('/auth/me/avatar', { method: 'POST', body });
+};
+export const removeAvatar = () => api('/auth/me/avatar', { method: 'DELETE' });
 export const listEmployees = () => api('/workshop/employees');
 export const createEmployee = (body) => api('/workshop/employees', { method: 'POST', body });
 export const updateEmployee = (id, body) => api(`/workshop/employees/${id}`, { method: 'PATCH', body });

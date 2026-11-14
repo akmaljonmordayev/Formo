@@ -9,6 +9,7 @@ const profileSelect = {
   id: true,
   phone: true,
   fullName: true,
+  avatarUrl: true,
   workshopName: true,
   address: true,
   dailyCapacity: true,

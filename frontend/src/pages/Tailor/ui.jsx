@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import logoImg from './assets/formologo.png';
+import { assetUrl } from '../../services/api';
 import { useT } from './i18n';
-import { cx } from './utils';
+import { cx, initialsOf } from './utils';
 
 const BADGE_VARIANTS = {
   teal: 'bg-teal-500/15 text-teal-400 ring-teal-500/30',
@@ -43,6 +44,13 @@ export function Card({ className, children }) {
       {children}
     </div>
   );
+}
+
+/** Avatar ichi: rasm bo'lsa — rasm, bo'lmasa (yoki yuklanmasa) ism bosh harflari. O'lcham va shaklni o'rab turgan element beradi */
+export function AvatarFace({ url, name }) {
+  const [failed, setFailed] = useState(null);
+  if (!url || failed === url) return initialsOf(name);
+  return <img src={assetUrl(url)} alt="" onError={() => setFailed(url)} className="h-full w-full rounded-[inherit] object-cover" />;
 }
 
 export function FormoLogo({ className = '' }) {

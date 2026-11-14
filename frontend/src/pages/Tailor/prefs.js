@@ -7,7 +7,7 @@ const preferencesKey = (userId) => userId ? `${PREFS_KEY}_${userId}` : PREFS_KEY
 export const DEFAULT_PREFS = {
   lang: 'uz',
   theme: 'dark',
-  notifications: { newOrders: true, deadline: true, summary: true },
+  notifications: { newOrders: true, deadline: true },
 };
 
 function read(key) {

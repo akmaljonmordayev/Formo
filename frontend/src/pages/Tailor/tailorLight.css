@@ -1,0 +1,165 @@
+/*
+ * Tikuv sexi paneli — yorug' mavzu.
+ * Panel qorong'i ranglar bilan yozilgan; bu fayl .tl-light ichida o'sha ranglarni yorug' palitraga almashtiradi.
+ * Yon menyu (.tl-side) .tl-light dan tashqarida — u to'q kulrang qoladi, logotip asl ko'rinishida turadi.
+ */
+
+body.tailor-shell.tailor-light,
+body.tailor-shell.tailor-light .layout__main { background: #f3f4f6 !important; }
+
+.tl-light {
+  color-scheme: light;
+  --l-page: #f3f4f6;
+  --l-surface: #ffffff;
+  --l-inset: #f5f6f8;
+  --l-border: #e2e5ea;
+  --l-border-strong: #cdd2da;
+  --l-ink: #111827;
+  --l-ink-2: #374151;
+  --l-muted: #6b7280;
+  --l-accent: #4f46e5;
+  --l-accent-hover: #4338ca;
+  --l-accent-tint: rgba(79, 70, 229, 0.1);
+  --l-shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.06);
+}
+.tl-light [class*="[color-scheme:dark]"] { color-scheme: light; }
+
+/* ---------- Fon va sirtlar ---------- */
+.tl-light .bg-\[\#0b0f19\] { background-color: var(--l-page) !important; }
+.tl-light .bg-\[\#0b0f19\]\/70 { background-color: rgba(243, 244, 246, 0.85) !important; }
+.tl-light .bg-\[\#121829\],
+.tl-light .bg-\[\#101627\],
+.tl-light .tl-glass { background-color: var(--l-surface) !important; box-shadow: var(--l-shadow); }
+.tl-light .bg-\[\#121829\]\/80,
+.tl-light .bg-\[\#121829\]\/90,
+.tl-light .bg-\[\#0d1322\]\/80 { background-color: rgba(255, 255, 255, 0.94) !important; color: var(--l-ink) !important; box-shadow: var(--l-shadow); }
+.tl-light .bg-\[\#0e1424\],
+.tl-light .bg-\[\#0e1628\],
+.tl-light .bg-\[\#0b1220\] { background-color: var(--l-inset) !important; }
+.tl-light .bg-\[\#1e2b4d\] { background-color: #e5e7eb !important; }
+.tl-light .bg-\[\#281318\] { background-color: #fff1f2 !important; }
+.tl-light .bg-\[\#281b10\] { background-color: #fffbeb !important; }
+.tl-light .hover\:bg-\[\#131b30\]:hover { background-color: #eef0f3 !important; }
+.tl-light .bg-white\/5,
+.tl-light .bg-white\/\[0\.04\] { background-color: rgba(17, 24, 39, 0.04) !important; }
+.tl-light .bg-white\/10 { background-color: rgba(17, 24, 39, 0.07) !important; }
+.tl-light .hover\:bg-white\/5:hover,
+.tl-light .hover\:bg-white\/10:hover { background-color: rgba(17, 24, 39, 0.07) !important; }
+.tl-light .bg-black\/60,
+.tl-light .bg-black\/65,
+.tl-light .bg-black\/70 { background-color: rgba(17, 24, 39, 0.4) !important; }
+
+/* Soyalar: qora og'ir soya va neon porlash o'rniga yengil kulrang */
+.tl-light .shadow-2xl { box-shadow: 0 12px 32px -12px rgba(16, 24, 40, 0.25) !important; }
+.tl-light .shadow-lg { box-shadow: 0 6px 16px -6px rgba(16, 24, 40, 0.18) !important; }
+.tl-light [class*="rgba(0,0,0,0.9)"] { box-shadow: var(--l-shadow) !important; }
+.tl-light .shadow-glow,
+.tl-light [class*="rgba(45,212,191"] { box-shadow: none !important; }
+
+/* ---------- Matn ---------- */
+.tl-light .text-white,
+.tl-light .hover\:text-white:hover { color: var(--l-ink) !important; }
+.tl-light .text-slate-200,
+.tl-light .text-slate-300 { color: var(--l-ink-2) !important; }
+.tl-light .text-slate-400,
+.tl-light .text-slate-500,
+.tl-light .text-slate-600 { color: var(--l-muted) !important; }
+.tl-light .placeholder-slate-500::placeholder,
+.tl-light .placeholder\:text-slate-500::placeholder,
+.tl-light .placeholder\:text-slate-600::placeholder { color: #9ca3af !important; }
+/* Sahifa sarlavhasi (gradient matn) */
+.tl-light .from-white { --tw-gradient-from: #111827 var(--tw-gradient-from-position) !important; }
+.tl-light .to-slate-300 { --tw-gradient-to: #374151 var(--tw-gradient-to-position) !important; }
+
+/* ---------- Chegara va halqalar ---------- */
+.tl-light .border-white\/5,
+.tl-light .border-white\/10,
+.tl-light .border-white\/20,
+.tl-light .disabled\:hover\:border-white\/10:disabled:hover,
+.tl-light .divide-white\/5 > * + *,
+.tl-light .divide-white\/10 > * + * { border-color: var(--l-border) !important; }
+.tl-light .border-white\/30 { border-color: #9ca3af !important; }
+.tl-light .hover\:border-white\/20:hover,
+.tl-light .hover\:border-white\/25:hover { border-color: var(--l-border-strong) !important; }
+.tl-light .ring-white\/10,
+.tl-light .ring-white\/20 { --tw-ring-color: rgba(17, 24, 39, 0.12) !important; }
+.tl-light .ring-\[\#121829\] { --tw-ring-color: #ffffff !important; }
+.tl-light .ring-\[\#0b0f19\] { --tw-ring-color: var(--l-page) !important; }
+
+/* ---------- Urg'u rangi: yashil-moviy o'rniga indigo ---------- */
+.tl-light .bg-teal-400,
+.tl-light .bg-teal-400\/85,
+.tl-light .from-teal-400 { background-image: none !important; background-color: var(--l-accent) !important; }
+.tl-light .bg-teal-300,
+.tl-light .hover\:bg-teal-300:hover,
+.tl-light .group:hover .group-hover\:bg-teal-300 { background-color: var(--l-accent-hover) !important; }
+.tl-light .bg-teal-400\/10,
+.tl-light .bg-teal-400\/15,
+.tl-light .bg-teal-400\/20,
+.tl-light .bg-teal-500\/10,
+.tl-light .bg-teal-500\/15,
+.tl-light .bg-teal-500\/20,
+.tl-light .hover\:bg-teal-400\/10:hover,
+.tl-light .group:hover .group-hover\:bg-teal-400\/15 { background-color: var(--l-accent-tint) !important; }
+.tl-light .text-teal-200,
+.tl-light .text-teal-300,
+.tl-light .text-teal-400,
+.tl-light .hover\:text-teal-200:hover,
+.tl-light .hover\:text-teal-300:hover,
+.tl-light .group:hover .group-hover\:text-teal-300 { color: var(--l-accent-hover) !important; }
+.tl-light .border-teal-300,
+.tl-light .border-teal-400,
+.tl-light .hover\:border-teal-400\/40:hover,
+.tl-light .hover\:border-teal-400\/60:hover,
+.tl-light .focus\:border-teal-400:focus,
+.tl-light .focus-within\:border-teal-400:focus-within { border-color: var(--l-accent) !important; }
+.tl-light .group:focus-within .group-focus-within\:bg-teal-400\/15 { background-color: var(--l-accent-tint) !important; }
+.tl-light .group:focus-within .group-focus-within\:text-teal-300 { color: var(--l-accent-hover) !important; }
+.tl-light .border-teal-400\/40 { border-color: rgba(79, 70, 229, 0.35) !important; }
+.tl-light [class*="ring-teal-"] { --tw-ring-color: rgba(79, 70, 229, 0.25) !important; }
+.tl-light [class*="outline-teal-"]:focus-visible { outline-color: var(--l-accent) !important; }
+/* Rangli fon ustidagi yozuv oq qoladi */
+.tl-light .text-slate-950,
+.tl-light .bg-teal-400.text-white,
+.tl-light .bg-teal-400 .text-white,
+.tl-light .bg-rose-500.text-white,
+.tl-light .bg-rose-500 .text-white,
+.tl-light .bg-rose-600.text-white { color: #ffffff !important; }
+.tl-light .bg-amber-300.text-slate-950,
+.tl-light .bg-amber-400.text-slate-950 { color: #111827 !important; }
+
+/* Almashtirgich (toggle): kulrang yo'lak, oq dumaloq */
+.tl-light [role="switch"].bg-white\/10 { background-color: #d1d5db !important; }
+.tl-light [role="switch"] .bg-white\/70,
+.tl-light [role="switch"] .bg-slate-950 { background-color: #ffffff !important; }
+
+/* ---------- Holat ranglari ---------- */
+.tl-light .text-emerald-200,
+.tl-light .text-emerald-300,
+.tl-light .text-emerald-400 { color: #047857 !important; }
+.tl-light .bg-emerald-400.text-slate-950 { background-color: #059669 !important; }
+.tl-light .hover\:bg-emerald-300:hover { background-color: #047857 !important; }
+.tl-light .text-amber-200,
+.tl-light .text-amber-300,
+.tl-light .text-amber-400,
+.tl-light .text-amber-400\/80 { color: #b45309 !important; }
+.tl-light .text-rose-200,
+.tl-light .text-rose-200\/80,
+.tl-light .text-rose-300,
+.tl-light .text-rose-400,
+.tl-light .text-red-400 { color: #be123c !important; }
+.tl-light .bg-rose-400.text-slate-950 { background-color: #e11d48 !important; }
+.tl-light .text-cyan-300,
+.tl-light .text-cyan-400 { color: #0e7490 !important; }
+
+/* ---------- Yon menyu: to'q kulrang, urg'u — och indigo ---------- */
+.tl-light-root .blur-3xl { display: none !important; }
+.tl-light-root .tl-side { background-image: none !important; background-color: #262b36 !important; }
+.tl-light-root .tl-side .bg-\[\#121829\] { background-color: rgba(255, 255, 255, 0.06) !important; }
+.tl-light-root .tl-side .from-teal-500\/20 { background-image: none !important; background-color: rgba(255, 255, 255, 0.1) !important; }
+.tl-light-root .tl-side .bg-teal-400 { background-color: #6366f1 !important; box-shadow: none !important; }
+.tl-light-root .tl-side .text-slate-950 { color: #ffffff !important; }
+.tl-light-root .tl-side .text-teal-300,
+.tl-light-root .tl-side .text-teal-400 { color: #a5b4fc !important; }
+.tl-light-root .tl-side .bg-teal-500\/20 { background-color: rgba(99, 102, 241, 0.3) !important; }
+.tl-light-root .tl-side [class*="ring-teal-"] { --tw-ring-color: rgba(255, 255, 255, 0.12) !important; }

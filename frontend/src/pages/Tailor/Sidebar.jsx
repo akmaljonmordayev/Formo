@@ -1,12 +1,12 @@
 import { useEffect, useMemo, useState } from 'react';
-import { NavLink, useLocation, useNavigate } from 'react-router-dom';
+import { NavLink, useLocation } from 'react-router-dom';
 import { AlarmClock, CheckCircle2, ClipboardList, LogOut, Settings2, BarChart3, MessageSquare } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { FormoLogo } from './ui';
+import { AvatarFace, FormoLogo } from './ui';
 import { useT } from './i18n';
 import { useTailor } from './prefs';
 import { groupActiveOrders } from './orderBuckets';
-import { cx, initialsOf } from './utils';
+import { cx } from './utils';
 import { getChatUnread, getWorkshopProfile } from './tailorApi';
 
 const NAV_ITEMS = [
@@ -19,10 +19,9 @@ const NAV_ITEMS = [
 ];
 
 function SidebarContent({ onNavigate }) {
-  const { user, logout } = useAuth();
-  const navigate = useNavigate();
+  const { user } = useAuth();
   const t = useT();
-  const { orders } = useTailor() ?? {};
+  const { orders, askLogout } = useTailor() ?? {};
   const { pathname } = useLocation();
   const [profile, setProfile] = useState(null);
   const [unread, setUnread] = useState(0);
@@ -31,7 +30,7 @@ function SidebarContent({ onNavigate }) {
     let cancelled = false;
     getWorkshopProfile()
       .then((data) => {
-        if (!cancelled && data) setProfile({ name: data.fullName, factory: data.workshopName });
+        if (!cancelled && data) setProfile({ name: data.fullName, factory: data.workshopName, ...('avatarUrl' in data && { avatarUrl: data.avatarUrl }) });
       })
       .catch(() => {});
     const onProfileUpdated = (event) => setProfile(event.detail);
@@ -66,18 +65,12 @@ function SidebarContent({ onNavigate }) {
     return { active: list.filter((o) => o.status !== 'tayyor').length - late, late, ready: list.filter((o) => o.status === 'tayyor').length };
   }, [orders]);
 
-  const handleLogout = async () => {
-    // serverdagi sessiya yopilguncha kutamiz, aks holda /login dan qaytib sakraydi
-    if (logout) await logout();
-    navigate('/login', { replace: true });
-  };
-
   // Bazadagi tikuv sexi akkaunti: mas'ul shaxs va sex nomi
   const fullName = profile?.name || user?.fullName || t('nav.workshopFallback');
   const roleName = profile?.factory || user?.workshopName || t('nav.roleFallback');
 
   return (
-    <div className="flex h-full flex-col gap-4 border-r border-white/10 bg-gradient-to-b from-[#0d1322] to-[#0b0f19] p-4 text-slate-200">
+    <div className="tl-side flex h-full flex-col gap-4 border-r border-white/10 bg-gradient-to-b from-[#0d1322] to-[#0b0f19] p-4 text-slate-200">
       <div className="px-1 pt-1">
         <FormoLogo />
       </div>
@@ -108,7 +101,7 @@ function SidebarContent({ onNavigate }) {
               )}
               <div className="flex min-w-0 items-center gap-2.5">
                 <Icon className={'h-4 w-4 shrink-0 text-teal-400 transition-transform duration-200 group-hover:scale-110'} />
-                <span className="truncate">{t(key)}</span>
+                <span className="leading-tight">{t(key)}</span>
               </div>
               {badge !== undefined && badge > 0 && (
                 <span className={cx('flex h-5 min-w-[22px] items-center justify-center rounded-full px-1.5 text-xs font-black', count === 'late' ? 'bg-rose-500 text-white' : 'bg-teal-400 text-slate-950')}>
@@ -122,10 +115,10 @@ function SidebarContent({ onNavigate }) {
         })}
       </nav>
 
-      <div className="mt-auto flex items-center justify-between rounded-2xl border border-white/10 bg-[#121829] p-3">
-        <div className="flex min-w-0 items-center gap-3">
-          <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-teal-500/20 text-xs font-black text-teal-300 ring-1 ring-inset ring-teal-500/40">
-            {initialsOf(fullName)}
+      <div className="mt-auto space-y-2">
+        <div className="flex min-w-0 items-center gap-3 rounded-2xl border border-white/10 bg-[#121829] p-3">
+          <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-teal-500/20 text-xs font-black text-teal-300 ring-1 ring-inset ring-teal-500/40">
+            <AvatarFace url={profile && 'avatarUrl' in profile ? profile.avatarUrl : user?.avatarUrl} name={fullName} />
           </span>
           <div className="min-w-0 flex-1">
             <p className="truncate text-xs font-bold text-white">{fullName}</p>
@@ -134,11 +127,11 @@ function SidebarContent({ onNavigate }) {
         </div>
         <button
           type="button"
-          onClick={handleLogout}
-          aria-label={t('nav.logout')}
-          className="rounded-lg p-1.5 text-slate-400 transition hover:bg-white/10 hover:text-white"
+          onClick={askLogout}
+          className="flex w-full items-center justify-center gap-2 rounded-xl border border-rose-500/40 bg-rose-500/10 py-3 text-sm font-bold text-rose-300 transition hover:bg-rose-600 hover:text-white active:scale-95"
         >
-          <LogOut className="h-4 w-4" />
+          <LogOut className="h-5 w-5" aria-hidden="true" />
+          {t('nav.logout')}
         </button>
       </div>
     </div>
