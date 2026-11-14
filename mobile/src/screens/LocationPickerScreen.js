@@ -14,6 +14,7 @@ import {
   areaOf,
   districtsOf,
   isDistrictOf,
+  isPostalRegion,
   lookupArea,
   pointProblem,
   saveAddress,
@@ -24,12 +25,16 @@ import { errorText } from '../utils/errors';
 
 const GEOCODE_DELAY_MS = 600;
 const STEPS = ['region', 'district', 'map', 'details'];
+// Viloyatlarga pochta bo'limigacha — xarita bosqichi yo'q
+const POSTAL_STEPS = ['region', 'district', 'details'];
 
 /**
- * LocationPickerScreen — yetkazish manzilini qo'shish/tahrirlash, 4 bosqichda:
- *   1) viloyat (Toshkent shahri alohida) → 2) tuman yoki shahar → 3) xarita: tanlangan tumanda ochiladi,
- *   qidiruv ("Madadkor mahallasi") yoki GPS bilan uy nuqtasi belgilanadi → 4) aniq manzil: mahalla/ko'cha,
- *   uy raqami (majburiy), xonadon.
+ * LocationPickerScreen — yetkazish manzilini qo'shish/tahrirlash:
+ *   • Toshkent shahri (kuryer uygacha), 4 bosqich: 1) viloyat → 2) tuman → 3) xarita: tanlangan tumanda ochiladi,
+ *     qidiruv ("Madadkor mahallasi") yoki GPS bilan uy nuqtasi belgilanadi → 4) aniq manzil: mahalla/ko'cha,
+ *     uy raqami (majburiy), xonadon.
+ *   • Viloyatlar (pochta bo'limigacha), 3 bosqich: 1) viloyat → 2) tuman yoki shahar → 3) saqlash. Xarita va uy
+ *     manzili so'ralmaydi — viloyat va tuman yetarli.
  * Saqlash: POST /addresses (yangi) yoki PATCH /addresses/:id (tahrir) — label, address, house, apartment,
  * region, district, latitude, longitude, isDefault. Admin panel buyurtmada to'liq manzil va xarita nuqtasini ko'radi.
  *
@@ -60,7 +65,10 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved, on
   });
   // Tahrirda viloyat va tuman ma'lum bo'lsa — to'g'ridan-to'g'ri aniq manzil (nuqta yo'q bo'lsa xarita); aks holda boshidan.
   // Bosqichlar tarixi: "orqaga" oxirgi ko'rilgan bosqichga qaytaradi, birinchisida — ekrandan chiqadi
-  const [trail, setTrail] = useState(() => [form.region && form.district ? (form.coords ? 'details' : 'map') : 'region']);
+  const [trail, setTrail] = useState(() => [
+    form.region && form.district ? (form.coords || isPostalRegion(form.region) ? 'details' : 'map') : 'region',
+  ]);
+  const postal = isPostalRegion(form.region);
   const step = trail[trail.length - 1];
   const setStep = useCallback((next) => {
     setTrail((current) => {
@@ -98,8 +106,16 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved, on
   useEffect(() => () => clearTimeout(geocodeTimer.current), []);
 
   const pickRegion = (region) => {
-    // Viloyat almashsa — tuman va nuqta qaytadan tanlanadi (eski, viloyatsiz manzilning nuqtasi saqlanadi)
-    if (region !== form.region) patch({ region, district: null, geoText: '', ...(form.region ? { coords: null } : {}) });
+    // Viloyat almashsa — tuman, nuqta va aniq manzil qaytadan kiritiladi: boshqa viloyatning ko'chasi/uy raqami
+    // yangi viloyatga yopishib qolmasin (eski, viloyatsiz manzilning nuqtasi va matni saqlanadi)
+    if (region !== form.region) {
+      patch({
+        region,
+        district: null,
+        geoText: '',
+        ...(form.region ? { coords: null, address: '', addressEdited: false, house: '', houseEdited: false, apartment: '' } : {}),
+      });
+    }
     setStep('district');
   };
 
@@ -109,6 +125,11 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved, on
     const dropPoint = changed && Boolean(form.district);
     if (changed) {
       patch({ district, ...(dropPoint ? { coords: null, geoText: '', ...(form.addressEdited ? {} : { address: '' }) } : {}) });
+    }
+    // Viloyatlarga pochta bo'limigacha — xaritasiz, to'g'ridan-to'g'ri saqlash bosqichi
+    if (isPostalRegion(form.region)) {
+      setStep('details');
+      return;
     }
     if (dropPoint || !form.coords) setArea(areaOf(form.region, district));
     setStep('map');
@@ -147,7 +168,8 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved, on
   const save = async () => {
     if (saving) return;
     const found = validateAddressForm(form);
-    const pointError = pointProblem(form.region, form.coords);
+    // Xarita nuqtasi faqat Toshkent shahri (kuryer) manzilida majburiy
+    const pointError = postal ? null : pointProblem(form.region, form.coords);
     if (pointError) found.coords = pointError;
     setErrors(found);
     if (Object.keys(found).length) return;
@@ -206,9 +228,11 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved, on
     );
   }
 
-  const index = STEPS.indexOf(step);
-  const titles = { region: 'addrStepRegion', district: 'addrStepDistrict', details: 'addrStepDetails' };
-  const subs = { region: 'addrStepRegionSub', district: 'addrStepDistrictSub', details: 'addrStepDetailsSub' };
+  // Viloyat tanlanmaguncha (1-bosqich) bosqichlar soni noma'lum — to'liq (4) deb ko'rsatiladi
+  const steps = postal ? POSTAL_STEPS : STEPS;
+  const index = steps.indexOf(step);
+  const titles = { region: 'addrStepRegion', district: 'addrStepDistrict', details: postal ? 'addrStepPostal' : 'addrStepDetails' };
+  const subs = { region: 'addrStepRegionSub', district: 'addrStepDistrictSub', details: postal ? 'addrStepPostalSub' : 'addrStepDetailsSub' };
 
   return (
     <SafeAreaView edges={['top', 'left', 'right']} style={styles.safe}>
@@ -216,12 +240,12 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved, on
         <View style={styles.header}>
           <BackButton onPress={back} label={t('back')} />
           <View style={styles.flex}>
-            <Text style={styles.stepNo}>{`${index + 1} / ${STEPS.length}`}</Text>
+            <Text style={styles.stepNo}>{`${index + 1} / ${steps.length}`}</Text>
             <Text style={styles.title} numberOfLines={1}>{t(titles[step])}</Text>
           </View>
         </View>
         <View style={styles.progress}>
-          {STEPS.map((s, i) => (
+          {steps.map((s, i) => (
             <View key={s} style={[styles.bar, i <= index && styles.barOn]} />
           ))}
         </View>
@@ -241,12 +265,14 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved, on
         ) : (
           <DetailsStep
             t={t}
+            postal={postal}
             form={form}
             onChange={patch}
             errors={errors}
             saveError={saveError}
             saving={saving}
             onEditPoint={() => setStep('map')}
+            onChangeArea={() => setStep('region')}
             onSave={save}
             bottomInset={insets.bottom}
           />

@@ -586,15 +586,31 @@ describe('Balans, to‘ldirish va to‘lovlar (e2e)', () => {
       expect(order.body).toMatchObject({ status: 'NEW', paymentMethod: 'CASH', paymentStatus: 'PENDING' });
     });
 
-    it('Toshkent shahri ichida kun va vaqt majburiy (kuryer)', async () => {
+    it('Toshkent shahri ichida kun/vaqt tanlanmaydi: kuryer 2–3 kunda (eski ilova yuborgan kun va vaqt saqlanadi)', async () => {
       const c = await customer();
       await fund(c, 300000);
       const city = await as(c.token)
         .post('/api/addresses', { label: 'Uy', region: 'TOSHKENT_SHAHRI', district: 'Sergeli tumani', address: 'Madadkor mahallasi', house: '32', latitude: 41.2234, longitude: 69.2219 })
         .expect(201);
       await as(c.token).post('/api/cart/items', { kitId, shirtSize: 'M' }).expect(201);
-      const missing = await as(c.token).post('/api/orders/checkout', { addressId: city.body.id, paymentMethod: 'BALANCE' }).expect(400);
-      expect(missing.body.message).toMatch(/kuni va vaqtini/);
+      const half = await as(c.token)
+        .post('/api/orders/checkout', { addressId: city.body.id, paymentMethod: 'BALANCE', deliveryDate: addDays(todayLocal(), 1) })
+        .expect(400);
+      expect(half.body.message).toMatch(/birga/);
+
+      const plain = await as(c.token).post('/api/orders/checkout', { addressId: city.body.id, paymentMethod: 'BALANCE' }).expect(201);
+      expect(plain.body.delivery).toMatchObject({
+        date: null,
+        slot: null,
+        postal: false,
+        postalDays: null,
+        courierDays: { min: 2, max: 3 },
+        label: 'kuryer orqali, 2–3 kun',
+        address: 'Toshkent shahri, Sergeli tumani, Madadkor mahallasi, 32-uy',
+      });
+
+      await fund(c, 300000);
+      await as(c.token).post('/api/cart/items', { kitId, shirtSize: 'M' }).expect(201);
 
       const order = await as(c.token)
         .post('/api/orders/checkout', { addressId: city.body.id, paymentMethod: 'BALANCE', deliveryDate: addDays(todayLocal(), 1), deliverySlot: '18:00-22:00' })
@@ -602,6 +618,7 @@ describe('Balans, to‘ldirish va to‘lovlar (e2e)', () => {
       expect(order.body.delivery).toMatchObject({
         slot: '18:00-22:00',
         postal: false,
+        courierDays: null,
         address: 'Toshkent shahri, Sergeli tumani, Madadkor mahallasi, 32-uy',
       });
     });

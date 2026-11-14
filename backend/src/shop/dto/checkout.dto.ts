@@ -15,14 +15,14 @@ export class CheckoutDto {
   @ApiPropertyOptional({
     example: '2026-10-16',
     description:
-      'Yetkazish sanasi (GET /api/checkout/delivery-slots dan). Toshkent shahri ichida majburiy; viloyatlarga pochta orqali — kerak emas',
+      'Yetkazish sanasi (GET /api/checkout/delivery-slots dan) — ixtiyoriy, faqat ilovaning eski versiyalari yuboradi (`deliverySlot` bilan birga). Yangisida kun/vaqt tanlanmaydi: Toshkent shahri — kuryer 2–3 kunda, viloyatlar — pochta 2–5 ish kunida',
   })
   @IsOptional()
   @IsDateString({ strict: true })
   @Matches(/^\d{4}-\d{2}-\d{2}$/, { message: 'Sana YYYY-MM-DD formatida bo‘lishi kerak' })
   deliveryDate?: string;
 
-  @ApiPropertyOptional({ example: '10:00-14:00', description: 'Toshkent shahri ichida majburiy; viloyatlarga pochta orqali — kerak emas' })
+  @ApiPropertyOptional({ example: '10:00-14:00', description: 'Ixtiyoriy — faqat `deliveryDate` bilan birga (ilovaning eski versiyalari)' })
   @IsOptional()
   @IsString()
   @Matches(/^\d{2}:\d{2}-\d{2}:\d{2}$/, { message: "Yetkazish vaqti noto'g'ri" })

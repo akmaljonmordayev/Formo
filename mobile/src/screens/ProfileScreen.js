@@ -34,7 +34,8 @@ function formatDate(value) {
 
 /**
  * ProfileScreen — real data from GET /auth/me only; no mock fallback.
- * Hisob sozlamalari (rasm, ism-familiya, parol, telefon, ko'rinish, til) — alohida sahifa (AccountScreen),
+ * Ko'rinish (dark/light) va til tugmalari shu sahifada; hisob sozlamalari (rasm, ism-familiya, parol, telefon) —
+ * alohida sahifa (AccountScreen),
  * bu yerda faqat "Hisob sozlamalari" tugmasi. "Shaxsiy ma'lumotlar" modali — jins/yosh/bo'y/vazn.
  */
 export default function ProfileScreen({ t, language, setLanguage, onOrders, onAddresses, onWallet, onSupport, onAccount, auth }) {
@@ -75,7 +76,7 @@ export default function ProfileScreen({ t, language, setLanguage, onOrders, onAd
 
   return (
     <Screen>
-      <Header cart title={t('myProfile')} right={<LanguagePicker t={t} language={language} setLanguage={setLanguage} />} />
+      <Header cart title={t('myProfile')} />
 
       <Card style={styles.profile}>
         <View style={styles.avatar}>
@@ -103,6 +104,7 @@ export default function ProfileScreen({ t, language, setLanguage, onOrders, onAd
       </View>
 
       <ThemeToggle t={t} />
+      <LanguagePicker t={t} language={language} setLanguage={setLanguage} />
 
       <View style={styles.group}>
         <Row

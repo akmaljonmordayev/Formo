@@ -56,8 +56,8 @@ export default function uz({ rules, general }) {
         {
           title: '6. Buyurtmani bekor qilish',
           items: [
-            'Xaridor buyurtmani tikuv sexi uni qabul qilguniga qadar (holat: “Qabul qilindi” yoki “Sexga yuborildi”) ilovada o‘zi bekor qilishi mumkin.',
-            'Tikuv sexi buyurtmani qabul qilgach, forma Xaridor uchun individual tayyorlana boshlaydi — shu paytdan buyurtmani bekor qilib bo‘lmaydi. Bu ham naqd, ham balansdan to‘langan buyurtmalarga tegishli.',
+            'Xaridor buyurtmani Sotuvchi uni qabul qilguniga qadar (holat: “Yuborildi”) ilovada o‘zi bekor qilishi mumkin.',
+            'Buyurtma qabul qilingach (holat: “Qabul qilindi”), forma Xaridor uchun individual tayyorlana boshlaydi — shu paytdan buyurtmani bekor qilib bo‘lmaydi. Bu ham naqd, ham balansdan to‘langan buyurtmalarga tegishli.',
             'Bekor qilingan buyurtma uchun balansdan to‘langan summa to‘liq Formo balansiga qaytariladi.',
             'Naqd to‘lovli buyurtmani tayyorlangandan keyin qabul qilishdan asossiz bosh tortish takrorlansa, Sotuvchi bunday Xaridorga naqd to‘lov imkoniyatini cheklash huquqiga ega.',
           ],

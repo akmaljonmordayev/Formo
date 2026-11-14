@@ -3,11 +3,17 @@ import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, fonts, radii, spacing, themedStyles } from '../../constants/theme';
-import { addressCoords, formatFullAddress, isDistrictOf } from '../../features/location';
+import { addressCoords, formatFullAddress, isDistrictOf, isPostalRegion } from '../../features/location';
 
-/** Manzil to'liqmi: viloyat, tuman, uy raqami va xaritadagi nuqta — kuryer/pochta aniq topishi uchun */
+/** Manzil to'liqmi: viloyatlarga (pochta bo'limigacha) — viloyat va tuman; Toshkent shahriga (kuryer uygacha) —
+ *  yana uy raqami va xaritadagi nuqta */
 export const isAddressComplete = (a) =>
-  Boolean(a && a.region && isDistrictOf(a.region, a.district) && String(a.house || '').trim() && addressCoords(a));
+  Boolean(
+    a &&
+      a.region &&
+      isDistrictOf(a.region, a.district) &&
+      (isPostalRegion(a.region) || (String(a.house || '').trim() && addressCoords(a))),
+  );
 
 /**
  * Rasmiylashtirishdagi manzil bloki: tanlangan manzil bitta katta kartada (to'liq manzil bilan), ostida ikki
