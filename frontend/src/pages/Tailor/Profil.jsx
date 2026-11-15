@@ -1,10 +1,9 @@
-import { useEffect, useId, useRef, useState } from 'react';
-import {
-  Camera, Check, Copy, Edit3, Factory, Gauge, Loader2, Lock, LogOut, MapPin, Moon, Phone, Sun, Trash2, User, X,
-} from 'lucide-react';
+import { useEffect, useState } from 'react';
+import { Check, Edit3, Factory, LogOut, MapPin, Moon, Phone, Sun, User } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { AvatarFace, Badge, Card, Toggle } from './ui';
 import EmployeesPanel from './EmployeesPanel';
+import ProfileEditDrawer, { PHOTO_TYPES } from './ProfileEditDrawer';
 import { TAILOR_EMPLOYEES_ENABLED } from './tailorConstants';
 import { useTailor } from './prefs';
 import { LANGS, translate, useT } from './i18n';
@@ -12,7 +11,6 @@ import { cx, prettyPhone } from './utils';
 import { getWorkshopProfile, removeAvatar, setAvatar, updateWorkshopProfile } from './tailorApi';
 
 // Server cheklovi bilan bir xil (POST /auth/me/avatar)
-const PHOTO_TYPES = ['image/png', 'image/jpeg', 'image/webp'];
 const PHOTO_MAX_BYTES = 2 * 1024 * 1024;
 
 const NOTIFICATIONS = [
@@ -28,8 +26,6 @@ const THEMES = [
 
 const LANG_TOAST = { ru: 'profile.langToastRu', 'uz-Cyrl': 'profile.langToastCyrl' };
 
-const clean = (value) => String(value ?? '').replace(/\s+/g, ' ').trim();
-
 function SectionHead({ title, hint }) {
   return (
     <div className="border-b border-white/10 px-5 py-4">
@@ -39,145 +35,14 @@ function SectionHead({ title, hint }) {
   );
 }
 
-const ROW_LABEL = 'w-28 shrink-0 text-sm text-slate-400 sm:w-40';
-const ICON_BTN = 'flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition active:scale-95 disabled:opacity-50';
-
-/** Joyida tahrirlanadigan qator: bosilganda maydon ochiladi, Enter — saqlash, Esc — bekor qilish */
-function EditableRow({ icon: Icon, label, value, required = false, maxLength = 120, disabled = false, onSave }) {
+/** Profil ma'lumoti qatori: belgi — nom — qiymat. Tahrirlash alohida panelda (ProfileEditDrawer) */
+function InfoRow({ icon: Icon, label, value }) {
   const t = useT();
-  const id = useId();
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState('');
-  const [saving, setSaving] = useState(false);
-  const [error, setError] = useState('');
-  const [flash, setFlash] = useState(false);
-
-  useEffect(() => {
-    if (!flash) return undefined;
-    const timer = window.setTimeout(() => setFlash(false), 1800);
-    return () => window.clearTimeout(timer);
-  }, [flash]);
-
-  const start = () => {
-    setDraft(value);
-    setError('');
-    setEditing(true);
-  };
-
-  const submit = async (e) => {
-    e.preventDefault();
-    const next = clean(draft);
-    if (required && !next) return setError(t('profile.required'));
-    // O'zgarish yo'q — serverga bormaymiz
-    if (next === clean(value)) return setEditing(false);
-    setSaving(true);
-    setError('');
-    try {
-      await onSave(next);
-      setEditing(false);
-      setFlash(true);
-    } catch (err) {
-      setError(err?.message || t('profile.saveError'));
-    } finally {
-      setSaving(false);
-    }
-    return undefined;
-  };
-
-  if (!editing) {
-    return (
-      <button
-        type="button"
-        onClick={start}
-        disabled={disabled}
-        title={t('profile.clickToEdit')}
-        className="group flex w-full items-center gap-3 px-5 py-3.5 text-left transition hover:bg-white/5 disabled:cursor-wait"
-      >
-        <Icon className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
-        <span className={ROW_LABEL}>{label}</span>
-        <span className={cx('min-w-0 flex-1 break-words text-sm font-semibold', value ? 'text-white' : 'text-slate-500')}>
-          {value || t('profile.empty')}
-        </span>
-        {flash
-          ? <Check className="h-4 w-4 shrink-0 text-emerald-400" aria-label={t('profile.fieldSaved')} />
-          : <Edit3 className="h-4 w-4 shrink-0 text-slate-500 transition group-hover:text-teal-300" aria-hidden="true" />}
-      </button>
-    );
-  }
-
   return (
-    <form onSubmit={submit} noValidate className="tl-pop flex items-start gap-3 bg-white/5 px-5 py-3.5">
-      <Icon className="mt-8 h-4 w-4 shrink-0 text-teal-300" aria-hidden="true" />
-      <div className="min-w-0 flex-1">
-        <label htmlFor={id} className="text-xs font-semibold text-slate-400">{label}</label>
-        <input
-          id={id}
-          autoFocus
-          value={draft}
-          maxLength={maxLength}
-          autoComplete="off"
-          aria-invalid={Boolean(error)}
-          onChange={(e) => setDraft(e.target.value)}
-          onKeyDown={(e) => e.key === 'Escape' && !saving && setEditing(false)}
-          className="mt-1 w-full rounded-xl border border-teal-400 bg-[#0e1424] px-3 py-2 text-sm font-semibold text-white outline-none [color-scheme:dark]"
-        />
-        {error
-          ? <p role="alert" className="mt-1.5 text-xs font-semibold text-rose-300">{error}</p>
-          : <p className="mt-1.5 text-[11px] text-slate-500">{t('profile.editHint')}</p>}
-      </div>
-      <button type="submit" disabled={saving} aria-label={t('emp.save')} title={t('emp.save')} className={cx(ICON_BTN, 'mt-6 bg-teal-400 text-slate-950 hover:bg-teal-300')}>
-        {saving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Check className="h-4 w-4 stroke-[3]" aria-hidden="true" />}
-      </button>
-      <button
-        type="button"
-        disabled={saving}
-        onClick={() => setEditing(false)}
-        aria-label={t('emp.cancel')}
-        title={t('emp.cancel')}
-        className={cx(ICON_BTN, 'mt-6 border border-white/10 bg-white/5 text-slate-300 hover:bg-white/10')}
-      >
-        <X className="h-4 w-4" aria-hidden="true" />
-      </button>
-    </form>
-  );
-}
-
-/** O'zgartirib bo'lmaydigan qator (telefon, kunlik quvvat): qulf belgisi, kerak bo'lsa nusxa olish */
-function LockedRow({ icon: Icon, label, value, hint, copyable = false }) {
-  const t = useT();
-  const [copied, setCopied] = useState(false);
-
-  useEffect(() => {
-    if (!copied) return undefined;
-    const timer = window.setTimeout(() => setCopied(false), 1500);
-    return () => window.clearTimeout(timer);
-  }, [copied]);
-
-  const copy = () => {
-    navigator.clipboard?.writeText(value).then(() => setCopied(true)).catch(() => {});
-  };
-
-  return (
-    <div className="flex items-center gap-3 px-5 py-3.5">
-      <Icon className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
-      <span className={ROW_LABEL}>{label}</span>
-      <span className="min-w-0 flex-1">
-        <span className="block break-words text-sm font-semibold text-white">{value || '—'}</span>
-        {hint && <span className="mt-0.5 block text-[11px] text-slate-500">{hint}</span>}
-      </span>
-      {copyable && value ? (
-        <button
-          type="button"
-          onClick={copy}
-          title={t(copied ? 'profile.copied' : 'profile.copy')}
-          aria-label={`${t('profile.copy')}: ${label}`}
-          className="shrink-0 rounded-lg p-1.5 text-slate-500 transition hover:bg-white/10 hover:text-white"
-        >
-          {copied ? <Check className="h-4 w-4 text-emerald-400" aria-hidden="true" /> : <Copy className="h-4 w-4" aria-hidden="true" />}
-        </button>
-      ) : (
-        <Lock className="h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
-      )}
+    <div className="flex items-start gap-3 px-5 py-3.5">
+      <Icon className="mt-0.5 h-4 w-4 shrink-0 text-slate-500" aria-hidden="true" />
+      <span className="w-28 shrink-0 text-sm text-slate-400 sm:w-40">{label}</span>
+      <span className={cx('min-w-0 flex-1 break-words text-sm font-semibold', value ? 'text-white' : 'text-slate-500')}>{value || t('profile.empty')}</span>
     </div>
   );
 }
@@ -191,7 +56,7 @@ export default function Profile() {
   const [profile, setProfile] = useState(null);
   const [profileError, setProfileError] = useState('');
   const [photoBusy, setPhotoBusy] = useState(false);
-  const fileRef = useRef(null);
+  const [editing, setEditing] = useState(false);
 
   const name = profile?.fullName || user?.fullName || '';
   const workshop = profile?.workshopName || user?.workshopName || '';
@@ -234,9 +99,9 @@ export default function Profile() {
     );
   };
 
-  // PATCH /workshop/profile — faqat o'zgargan bitta maydon yuboriladi
-  const saveField = (key) => async (value) => {
-    applyProfile(await updateWorkshopProfile({ [key]: value }));
+  // Xato tahrirlash panelida ko'rsatiladi (panel ochiq qoladi)
+  const saveProfile = async (patch) => {
+    applyProfile(await updateWorkshopProfile(patch));
     setNotice({ text: t('profile.savedToast'), error: false });
   };
 
@@ -253,11 +118,7 @@ export default function Profile() {
     }
   };
 
-  const pickPhoto = (e) => {
-    const file = e.target.files?.[0];
-    // Xuddi shu faylni qayta tanlaganda ham onChange ishlashi uchun
-    e.target.value = '';
-    if (!file) return;
+  const pickPhoto = (file) => {
     if (!PHOTO_TYPES.includes(file.type)) setNotice({ text: t('brak.photoTypeError'), error: true });
     else if (file.size > PHOTO_MAX_BYTES) setNotice({ text: t('profile.photoSizeError'), error: true });
     else changePhoto(() => setAvatar(file));
@@ -296,11 +157,6 @@ export default function Profile() {
     }
   };
 
-  // Profil to'liqligi: ism, sex, manzil va rasm
-  const filled = [name, workshop, address, avatarUrl].filter(Boolean).length;
-  const completeness = Math.round((filled / 4) * 100);
-  const photoLocked = !profile || photoBusy;
-
   return (
     <div className="mx-auto max-w-5xl space-y-5">
       {notice && (
@@ -322,86 +178,52 @@ export default function Profile() {
         </p>
       )}
 
-      {/* Kim va qaysi sex: rasm ustiga bosib almashtiriladi */}
-      <Card className="tl-pop overflow-hidden">
-        <div aria-hidden="true" className="h-24 bg-teal-400/10 sm:h-28" />
-        <div className="flex flex-wrap items-end gap-x-6 gap-y-4 px-5 pb-6 sm:px-6">
-          <div className="relative -mt-14 shrink-0">
-            <button
-              type="button"
-              disabled={photoLocked}
-              onClick={() => fileRef.current?.click()}
-              aria-label={t('profile.changePhoto')}
-              className="group relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-full bg-[#0e1424] text-3xl font-extrabold text-teal-300 ring-4 ring-[#121829] transition hover:scale-[1.03] disabled:cursor-wait"
-            >
-              <AvatarFace url={avatarUrl} name={name} />
-              {/* Rasm ustidagi qora parda va oq yozuv — mavzudan qat'i nazar */}
-              <span
-                className={cx(
-                  'absolute inset-0 flex flex-col items-center justify-center gap-1 px-2 text-center text-[11px] font-bold leading-tight transition-opacity',
-                  photoBusy ? 'opacity-100' : 'opacity-0 group-hover:opacity-100 group-focus-visible:opacity-100'
-                )}
-                style={{ background: 'rgba(2, 6, 23, 0.65)', color: '#fff' }}
-              >
-                {photoBusy ? <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" /> : <Camera className="h-5 w-5" aria-hidden="true" />}
-                {!photoBusy && t('profile.changePhoto')}
-              </span>
-            </button>
-            {avatarUrl && (
-              <button
-                type="button"
-                disabled={photoLocked}
-                onClick={() => changePhoto(removeAvatar)}
-                title={t('brak.photoRemove')}
-                aria-label={t('brak.photoRemove')}
-                className="absolute -right-1 bottom-0 flex h-8 w-8 items-center justify-center rounded-full border border-white/10 bg-[#0e1424] text-rose-300 ring-2 ring-[#121829] transition hover:bg-rose-500/20 disabled:opacity-50"
-              >
-                <Trash2 className="h-4 w-4" aria-hidden="true" />
-              </button>
-            )}
-            <input ref={fileRef} type="file" accept={PHOTO_TYPES.join(',')} onChange={pickPhoto} className="hidden" aria-label={t('emp.upload')} />
+      {/* Kim va qaysi sex; tahrirlash o'ng tomondagi panelda ochiladi */}
+      <Card className="tl-pop flex flex-wrap items-center gap-x-5 gap-y-4 p-5 sm:p-6">
+        <span className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0e1424] text-2xl font-extrabold text-teal-300 ring-1 ring-inset ring-white/10">
+          <AvatarFace url={avatarUrl} name={name} />
+        </span>
+        <div className="min-w-0 flex-1 basis-56">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
+            <h2 className="break-words text-2xl font-extrabold leading-tight text-white">{name || '—'}</h2>
+            <Badge variant={user?.isActive ? 'emerald' : 'red'}>{t(user?.isActive ? 'profile.active' : 'profile.inactive')}</Badge>
           </div>
-
-          <div className="min-w-0 flex-1 basis-56">
-            <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-              <h2 className="break-words text-2xl font-extrabold leading-tight text-white">{name || '—'}</h2>
-              <Badge variant={user?.isActive ? 'emerald' : 'red'}>{t(user?.isActive ? 'profile.active' : 'profile.inactive')}</Badge>
-            </div>
-            <p className="mt-1.5 flex items-center gap-2 text-sm text-slate-400">
-              <Factory className="h-4 w-4 shrink-0" aria-hidden="true" />
-              <span className="truncate">{workshop || t('profile.workshopMissing')}</span>
-            </p>
-            <p className="mt-1 text-[11px] text-slate-500">{t('profile.photoHint')}</p>
-          </div>
-
-          <div className="w-full sm:w-60">
-            <div className="flex items-center justify-between text-xs font-semibold text-slate-400">
-              <span>{t('profile.complete')}</span>
-              <span className="tabular-nums text-white">{completeness}%</span>
-            </div>
-            <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10" role="img" aria-label={`${t('profile.complete')}: ${completeness}%`}>
-              <div className="h-full rounded-full bg-teal-400 transition-all duration-700 ease-out" style={{ width: `${completeness}%` }} />
-            </div>
-            <p className="mt-2 text-[11px] text-slate-500">{t(completeness === 100 ? 'profile.completeDone' : 'profile.completeHint')}</p>
-          </div>
+          <p className="mt-1.5 flex items-center gap-2 text-sm text-slate-400">
+            <Factory className="h-4 w-4 shrink-0" aria-hidden="true" />
+            <span className="truncate">{workshop || t('profile.workshopMissing')}</span>
+          </p>
+        </div>
+        <div className="grid w-full grid-cols-2 gap-3 sm:flex sm:w-auto">
+          <button
+            type="button"
+            disabled={!profile}
+            onClick={() => setEditing(true)}
+            className="flex items-center justify-center gap-2 rounded-xl bg-teal-400 px-5 py-2.5 text-sm font-bold text-slate-950 transition hover:bg-teal-300 active:scale-95 disabled:cursor-wait disabled:opacity-50"
+          >
+            <Edit3 className="h-4 w-4" aria-hidden="true" />
+            {t('profile.edit')}
+          </button>
+          {/* Chiqish: tasdiq oynasi orqali */}
+          <button
+            type="button"
+            onClick={askLogout}
+            className="flex items-center justify-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-5 py-2.5 text-sm font-bold text-rose-300 transition hover:bg-rose-500/20 active:scale-95"
+          >
+            <LogOut className="h-4 w-4" aria-hidden="true" />
+            {t('nav.logout')}
+          </button>
         </div>
       </Card>
 
       <div className="grid items-start gap-5 lg:grid-cols-5">
         <div className="space-y-5 lg:col-span-3">
           <Card className="tl-pop overflow-hidden">
-            <SectionHead title={t('profile.data')} hint={t('profile.clickToEdit')} />
+            <SectionHead title={t('profile.data')} />
             <div className="divide-y divide-white/5">
-              <EditableRow icon={User} label={t('profile.nameLabel')} value={name} required disabled={!profile} onSave={saveField('fullName')} />
-              <EditableRow icon={Factory} label={t('profile.workshopLabel')} value={workshop} required disabled={!profile} onSave={saveField('workshopName')} />
-              <EditableRow icon={MapPin} label={t('profile.addressLabel')} value={address} maxLength={200} disabled={!profile} onSave={saveField('address')} />
-              <LockedRow icon={Phone} label={t('profile.phoneLabel')} value={phone} hint={t('profile.accountReadOnly')} copyable />
-              <LockedRow
-                icon={Gauge}
-                label={t('profile.capacityLabel')}
-                value={profile?.dailyCapacity ? t('profile.capacityUnit', { n: profile.dailyCapacity }) : ''}
-                hint={t('profile.capacityHint')}
-              />
+              <InfoRow icon={User} label={t('profile.nameLabel')} value={name} />
+              <InfoRow icon={Factory} label={t('profile.workshopLabel')} value={workshop} />
+              <InfoRow icon={MapPin} label={t('profile.addressLabel')} value={address} />
+              <InfoRow icon={Phone} label={t('profile.phoneLabel')} value={phone} />
             </div>
           </Card>
 
@@ -486,25 +308,24 @@ export default function Profile() {
             </div>
           </Card>
 
-          {/* Chiqish: tasdiq oynasi orqali */}
-          <Card className="tl-pop">
-            <SectionHead title={t('logout.title')} />
-            <div className="p-5">
-              <p className="text-sm leading-6 text-slate-400">{t('logout.hint')}</p>
-              <button
-                type="button"
-                onClick={askLogout}
-                className="mt-4 flex w-full items-center justify-center gap-2 rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm font-bold text-rose-300 transition hover:bg-rose-500/20"
-              >
-                <LogOut className="h-4 w-4" aria-hidden="true" />
-                {t('nav.logout')}
-              </button>
-            </div>
-          </Card>
         </div>
       </div>
 
       {TAILOR_EMPLOYEES_ENABLED && <EmployeesPanel />}
+
+      {/* Kartalardan tashqarida: .tl-pop animatsiyasi ichidagi fixed panelni siljitib yubormasin */}
+      {editing && (
+        <ProfileEditDrawer
+          values={{ fullName: name, workshopName: workshop, address }}
+          phone={phone}
+          avatarUrl={avatarUrl}
+          photoBusy={photoBusy}
+          onPickPhoto={pickPhoto}
+          onRemovePhoto={() => changePhoto(removeAvatar)}
+          onSave={saveProfile}
+          onClose={() => setEditing(false)}
+        />
+      )}
     </div>
   );
 }

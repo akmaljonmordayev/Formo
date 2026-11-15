@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { AlarmClock, CalendarCheck, ClipboardList, Loader2, TrendingUp } from 'lucide-react';
+import { CheckCircle2, ClipboardList, Loader2, Scissors, Truck } from 'lucide-react';
 import { Card } from './ui';
 import { useT } from './i18n';
 import { cx } from './utils';
@@ -16,8 +16,10 @@ const WEEKDAYS = {
   ru: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
 };
 
-// Sex ko'radigan holatlar tartibi (ish jarayoni bo'yicha)
-const STATUS_ORDER = ['SENT_TO_WORKSHOP', 'ACCEPTED', 'PRINTING', 'QUALITY_CHECK', 'READY', 'DELIVERING', 'DELIVERED', 'CANCELLED', 'RETURNED'];
+// Tepadagi sonlar. "Tayyor" — yon menyudagi "Tayyor" bo'limi bilan bir xil (faqat READY); sexdan chiqib ketganlari alohida
+const IN_WORK = ['SENT_TO_WORKSHOP', 'ACCEPTED', 'PRINTING', 'QUALITY_CHECK'];
+const READY = ['READY'];
+const HANDED_OVER = ['DELIVERING', 'DELIVERED'];
 
 // Oxirgi javoblar: sahifaga qaytilganda grafik darhol ko'rinadi, yangi ma'lumot fonda olinadi
 const dashboardCache = {};
@@ -25,14 +27,14 @@ const dashboardCache = {};
 // Brauzer uz-UZ uchun sanani inglizcha yoki "11-03" ko'rinishida beradi — o'zimiz yozamiz
 const pad = (n) => String(n).padStart(2, '0');
 
-function Kpi({ icon: Icon, label, value, hint, alert = false }) {
+function Kpi({ icon: Icon, label, value, hint, primary = false }) {
   return (
-    <Card className="p-5">
+    <Card className={cx('p-5', primary && 'border-teal-400/40')}>
       <div className="flex items-start justify-between gap-3">
         <p className="text-xs font-semibold uppercase tracking-wider text-slate-400">{label}</p>
-        <Icon className={cx('h-5 w-5 shrink-0', alert ? 'text-rose-400' : 'text-slate-500')} aria-hidden="true" />
+        <Icon className="h-5 w-5 shrink-0 text-slate-500" aria-hidden="true" />
       </div>
-      <p className={cx('mt-3 text-3xl font-extrabold leading-none tabular-nums', alert ? 'text-rose-400' : 'text-white')}>{value}</p>
+      <p className="mt-3 text-3xl font-extrabold leading-none tabular-nums text-white">{value}</p>
       {hint && <p className="mt-2 text-xs text-slate-500">{hint}</p>}
     </Card>
   );
@@ -151,7 +153,7 @@ export default function Statistika() {
   const [loading, setLoading] = useState(!dashboardCache[7]);
   const [error, setError] = useState('');
   // Holatlar bo'yicha jami sonlar buyurtmalar ro'yxati javobidan keladi (barcha vaqt uchun)
-  const [byStatus, setByStatus] = useState({});
+  const [byStatus, setByStatus] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -159,7 +161,7 @@ export default function Statistika() {
       .then((result) => {
         if (!cancelled) setByStatus(result.byStatus ?? {});
       })
-      .catch(() => {}); // bu karta ixtiyoriy — asosiy xato yuqoridagi so'rovdan ko'rinadi
+      .catch(() => {}); // sonlar o'rnida "—" qoladi — asosiy xato pastdagi so'rovdan ko'rinadi
     return () => {
       cancelled = true;
     };
@@ -201,72 +203,65 @@ export default function Statistika() {
     };
   });
   const totalInPeriod = dashboard?.ordersCount ?? 0;
-  const peak = points.reduce((best, point) => (point.value > best.value ? point : best), { value: 0, label: '' });
-  const average = points.length ? totalInPeriod / points.length : 0;
+  const periodSummary = [t('queue.count', { n: totalInPeriod }), dashboard?.piecesCount != null && t('unit.donaCount', { n: dashboard.piecesCount })]
+    .filter(Boolean)
+    .join(' · ');
 
-  const allTime = Object.values(byStatus).reduce((sum, n) => sum + n, 0);
-  const statusRows = STATUS_ORDER.filter((key) => byStatus[key] > 0).map((key) => ({ key, label: t(`ostatus.${key}`), value: byStatus[key] }));
+  const counts = byStatus ?? {};
+  const sumOf = (keys) => keys.reduce((sum, key) => sum + (counts[key] ?? 0), 0);
+  const allTime = Object.values(counts).reduce((sum, n) => sum + n, 0);
+  const shown = (n) => (byStatus ? n : '—');
   const toRows = (list) => (list ?? []).map((row) => ({ key: row.name, label: row.name, value: row.pieces }));
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div role="group" aria-label={t('stat.title')} className="flex gap-1 rounded-xl border border-white/10 bg-[#121829] p-1">
-          {RANGES.map(([value, labelKey]) => (
-            <button
-              key={value}
-              type="button"
-              aria-pressed={days === value}
-              onClick={() => setDays(value)}
-              className={cx(
-                'rounded-lg px-4 py-2 text-xs font-bold transition',
-                days === value ? 'bg-teal-400 text-slate-950' : 'text-slate-400 hover:text-white'
-              )}
-            >
-              {t(labelKey)}
-            </button>
-          ))}
-        </div>
-        {loading && (
-          <span role="status" className="flex items-center gap-2 text-xs text-slate-400">
-            <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
-            {t('api.loading')}
-          </span>
-        )}
-      </div>
-
       {error && <div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{error}</div>}
 
+      {/* Umumiy sonlar — davr tanloviga bog'liq emas */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi
-          icon={ClipboardList}
-          label={t('stat.kpi.period')}
-          value={dashboard ? totalInPeriod : '—'}
-          hint={dashboard?.piecesCount != null ? t('unit.donaCount', { n: dashboard.piecesCount }) : t('stat.apiOrdersHint')}
-        />
-        <Kpi icon={TrendingUp} label={t('stat.avg')} value={dashboard ? average.toFixed(1) : '—'} hint={t('stat.avgHint')} />
-        <Kpi icon={CalendarCheck} label={t('stat.peak')} value={peak.value || '—'} hint={peak.value ? `${peak.weekday}, ${peak.label}` : t('api.empty')} />
-        <Kpi
-          icon={AlarmClock}
-          label={t('stat.kpi.late')}
-          value={dashboard?.lateCount ?? '—'}
-          hint={t('stat.kpi.lateHint')}
-          alert={dashboard?.lateCount > 0}
-        />
+        <Kpi icon={ClipboardList} label={t('stat.kpi.total')} value={shown(allTime)} hint={t('stat.kpi.totalHint')} primary />
+        <Kpi icon={Scissors} label={t('stat.kpi.inWork')} value={shown(sumOf(IN_WORK))} hint={t('stat.kpi.inWorkHint')} />
+        <Kpi icon={CheckCircle2} label={t('stat.kpi.ready')} value={shown(sumOf(READY))} hint={t('stat.kpi.readyHint')} />
+        <Kpi icon={Truck} label={t('stat.kpi.handed')} value={shown(sumOf(HANDED_OVER))} hint={t('stat.kpi.handedHint')} />
       </div>
 
       <Card className="p-6">
-        <div className="border-b border-white/10 pb-4">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">
+          <div className="min-w-0">
             <h3 className="text-base font-extrabold text-white">{t('stat.volumeChart')}</h3>
-            <p className="text-xs text-slate-400">{t('stat.chartHint', { n: days })}</p>
+            <p className="flex items-center gap-2 text-xs text-slate-400">
+              {t('stat.chartHint', { n: days })}
+              {loading && <Loader2 role="status" aria-label={t('api.loading')} className="h-3.5 w-3.5 animate-spin" />}
+            </p>
+          </div>
+          <div role="group" aria-label={t('stat.title')} className="flex gap-1 rounded-xl border border-white/10 bg-[#0e1424] p-1">
+            {RANGES.map(([value, labelKey]) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={days === value}
+                onClick={() => setDays(value)}
+                className={cx(
+                  'rounded-lg px-4 py-2 text-xs font-bold transition',
+                  days === value ? 'bg-teal-400 text-slate-950' : 'text-slate-400 hover:text-white'
+                )}
+              >
+                {t(labelKey)}
+              </button>
+            ))}
+          </div>
         </div>
+        {dashboard && (
+          <p className="mt-4 text-sm text-slate-400">
+            {t('stat.periodTotal')}: <span className="font-extrabold tabular-nums text-white">{periodSummary}</span>
+          </p>
+        )}
         <div role="img" aria-label={t('stat.volumeChart')}>
           <DailyChart key={days} points={points} empty={!loading && !error && totalInPeriod === 0 ? t('api.empty') : ''} />
         </div>
       </Card>
 
-      <div className="grid gap-5 lg:grid-cols-3">
-        <RankCard title={t('stat.byStatus')} hint={`${t('stat.allTime')} · ${t('queue.count', { n: allTime })}`} rows={statusRows} empty={t('api.empty')} />
+      <div className="grid gap-5 lg:grid-cols-2">
         {/* Forma va o'lcham hisobi serverning yangi javobida bor — eski serverda bu kartalar ko'rsatilmaydi */}
         {dashboard?.topModels && (
           <RankCard title={t('stat.topModels')} hint={t('stat.inPeriodPieces')} rows={toRows(dashboard.topModels)} empty={t('api.empty')} />
