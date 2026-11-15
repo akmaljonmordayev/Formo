@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Minus, Plus, X } from 'lucide-react';
+import { ArrowRight, ChevronDown, Minus, Plus, X } from 'lucide-react';
 import { Card } from './ui';
 import { useT } from './i18n';
 import { STOCK_SIZES } from './tailorConstants';
@@ -229,16 +229,19 @@ export default function Zaxira() {
                 </label>
                 <div className="flex items-center gap-2">
                   <span className="h-6 w-6 shrink-0 rounded-full ring-2 ring-white/20" style={{ backgroundColor: kitById[kitId]?.bgColor || '#888' }} />
-                  <select
-                    id="tailor-stock-kit"
-                    value={kitId}
-                    onChange={(event) => setKitId(event.target.value)}
-                    className="h-10 w-full min-w-0 rounded-xl border border-white/10 bg-[#0e1424] px-3 text-sm font-bold text-white outline-none transition focus:border-teal-400 focus:ring-4 focus:ring-teal-400/10"
-                  >
-                    {kits.map((k) => (
-                      <option key={k.kitId} value={k.kitId}>{kitLabelOf(k)}</option>
-                    ))}
-                  </select>
+                  <div className="relative min-w-0 flex-1">
+                    <select
+                      id="tailor-stock-kit"
+                      value={kitId}
+                      onChange={(event) => setKitId(event.target.value)}
+                      className="h-10 w-full cursor-pointer appearance-none rounded-xl border border-white/10 bg-[#0e1424] pl-3 pr-10 text-sm font-bold text-white outline-none transition [color-scheme:dark] hover:border-white/20 focus:border-teal-400 focus:ring-4 focus:ring-teal-400/10"
+                    >
+                      {kits.map((k) => (
+                        <option key={k.kitId} value={k.kitId}>{kitLabelOf(k)}</option>
+                      ))}
+                    </select>
+                    <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" aria-hidden="true" />
+                  </div>
                 </div>
               </div>
 

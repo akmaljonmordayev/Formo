@@ -33,8 +33,6 @@ const OUTER_CHROME_CSS = `
   @keyframes tl-fade-out { from { opacity: 1; } to { opacity: 0; } }
   @keyframes tl-slide-in { from { transform: translateX(100%); } to { transform: none; } }
   @keyframes tl-slide-out { from { transform: none; } to { transform: translateX(100%); } }
-  @keyframes tl-sheet-in { from { opacity: 0; transform: translateY(24px) scale(0.97); } to { opacity: 1; transform: none; } }
-  @keyframes tl-sheet-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(16px) scale(0.98); } }
   @keyframes tl-pop { 0% { opacity: 0; transform: translateY(10px) scale(0.97); } 100% { opacity: 1; transform: none; } }
   @keyframes tl-drop { 0% { opacity: 0; transform: translateY(-8px) scale(0.97); } 100% { opacity: 1; transform: none; } }
   @keyframes tl-bar-rise { from { transform: scaleY(0); } to { transform: none; } }

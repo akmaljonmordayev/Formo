@@ -1,5 +1,4 @@
 import { useCallback } from 'react';
-import { toUzNewLatin } from '../../utils/uzNewLatin';
 import { useTailor } from './prefs';
 
 export const LANGS = [
@@ -8,7 +7,7 @@ export const LANGS = [
   { value: 'ru', label: 'Русский', shortLabel: 'RU' },
 ];
 
-export const LOCALES = { uz: 'uz-UZ', 'uz-New': 'uz-UZ', 'uz-Cyrl': 'uz-Cyrl-UZ', ru: 'ru-RU' };
+export const LOCALES = { uz: 'uz-UZ', 'uz-Cyrl': 'uz-Cyrl-UZ', ru: 'ru-RU' };
 
 const uz = {
   // ---------- shell ----------
@@ -241,7 +240,8 @@ const uz = {
   'stat.kpi.lateHint': 'qabul qilinganiga 21 soatdan oshgan',
   'stat.sumTotal': 'Jami',
   'stat.avg': "Kuniga o'rtacha",
-  'stat.peak': "Eng ko'p",
+  'stat.avgHint': 'buyurtma, tanlangan davrda',
+  'stat.peak': "Eng ko'p buyurtma kelgan kun",
   'stat.byStatus': "Holatlar bo'yicha",
   'stat.allTime': 'Barcha vaqt uchun',
   'stat.topModels': "Eng ko'p tikilgan formalar",
@@ -514,6 +514,15 @@ const uz = {
   'profile.photoHint': 'PNG, JPG yoki WEBP; 2 MB gacha. Rasm tanlanishi bilan saqlanadi.',
   'profile.photoSizeError': 'Rasm hajmi 2 MB dan oshmasligi kerak.',
   'profile.revert': 'Asliga qaytarish',
+  'profile.complete': 'Profil to‘liqligi',
+  'profile.completeHint': 'Manzil va rasm qo‘shsangiz, profil to‘liq bo‘ladi.',
+  'profile.completeDone': 'Profil to‘liq to‘ldirilgan.',
+  'profile.clickToEdit': 'O‘zgartirish uchun qatorni bosing',
+  'profile.editHint': 'Enter — saqlash, Esc — bekor qilish',
+  'profile.empty': 'Kiritilmagan',
+  'profile.fieldSaved': 'Saqlandi',
+  'profile.changePhoto': 'Rasmni almashtirish',
+  'profile.capacityHint': 'Kunlik quvvatni administrator belgilaydi.',
   'profile.employees': 'XODIMLAR',
   'profile.employeeAdd': "Xodim qo'shish",
   'profile.employeesEmpty': "Hozircha xodimlar yo'q.",
@@ -766,7 +775,8 @@ const ru = {
   'stat.kpi.lateHint': 'более 21 часа после принятия',
   'stat.sumTotal': 'Всего',
   'stat.avg': 'В среднем в день',
-  'stat.peak': 'Максимум',
+  'stat.avgHint': 'заказов за выбранный период',
+  'stat.peak': 'Самый загруженный день',
   'stat.byStatus': 'По статусам',
   'stat.allTime': 'За всё время',
   'stat.topModels': 'Самые частые формы',
@@ -1038,6 +1048,15 @@ const ru = {
   'profile.photoHint': 'PNG, JPG или WEBP; до 2 МБ. Фото сохраняется сразу после выбора.',
   'profile.photoSizeError': 'Размер фото не должен превышать 2 МБ.',
   'profile.revert': 'Вернуть как было',
+  'profile.complete': 'Заполненность профиля',
+  'profile.completeHint': 'Добавьте адрес и фото, чтобы профиль был заполнен полностью.',
+  'profile.completeDone': 'Профиль заполнен полностью.',
+  'profile.clickToEdit': 'Нажмите на строку, чтобы изменить',
+  'profile.editHint': 'Enter — сохранить, Esc — отменить',
+  'profile.empty': 'Не указано',
+  'profile.fieldSaved': 'Сохранено',
+  'profile.changePhoto': 'Сменить фото',
+  'profile.capacityHint': 'Дневную мощность задаёт администратор.',
   'profile.employees': 'СОТРУДНИКИ',
   'profile.employeeAdd': 'Добавить сотрудника',
   'profile.employeesEmpty': 'Сотрудников пока нет.',
@@ -1114,8 +1133,8 @@ function transliterateUzbek(text) {
 
 export const translate = (lang, key, vars) => {
   const baseText = DICTS[lang]?.[key] ?? uz[key] ?? key;
-  // uz-Cyrl — kirill, uz-New — yangi lotin alifbosi (Ō, Ḡ, Ş, Ç): ikkalasi o'zbekcha matndan avtomatik
-  const text = lang === 'uz-Cyrl' ? transliterateUzbek(baseText) : lang === 'uz-New' ? toUzNewLatin(baseText) : baseText;
+  // uz-Cyrl — kirill: o'zbekcha matndan avtomatik
+  const text = lang === 'uz-Cyrl' ? transliterateUzbek(baseText) : baseText;
   return vars ? text.replace(/\{(\w+)\}/g, (m, k) => (k in vars ? vars[k] : m)) : text;
 };
 

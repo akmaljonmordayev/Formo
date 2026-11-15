@@ -33,11 +33,3 @@ describe('orderDeadline', () => {
     expect(text).toBe("Bugun, 10:00-14:00 · Tayyor bo'ldi");
   });
 });
-
-describe('Tailor: yangi alifbo', () => {
-  it("yangi alifbo — o'zbekcha matndan avtomatik (Ō, Ḡ, Ş, Ç)", () => {
-    expect(translate('uz-New', 'nav.queue')).toBe('Bugungi navbat');
-    expect(translate('uz-New', 'nav.logout')).toBe(translate('uz', 'nav.logout').replace(/Ch/g, 'Ç').replace(/ch/g, 'ç').replace(/Sh/g, 'Ş').replace(/sh/g, 'ş').replace(/[oO]['‘’ʻ]/g, (m) => (m[0] === 'o' ? 'ō' : 'Ō')).replace(/[gG]['‘’ʻ]/g, (m) => (m[0] === 'g' ? 'ḡ' : 'Ḡ')));
-    expect(translate('uz-New', 'shell.markAllRead')).not.toMatch(/o[‘'’ʻ]/);
-  });
-});

@@ -1,0 +1,1003 @@
+/* Superadmin sahifalari: Dashboard, Sotuvlar, Ishlab chiqarish va Formalar uchun bloklar.
+   Ranglar SuperadminLayout.css dagi --sa-* o'zgaruvchilaridan — qorong'i va yorug' mavzuda bir xil ishlaydi. */
+
+@keyframes sa-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+}
+
+@keyframes sa-rise {
+  from {
+    transform: scaleY(0);
+  }
+}
+
+@keyframes sa-grow {
+  from {
+    transform: scaleX(0);
+  }
+}
+
+/* ---------- Ko'rsatkich kartalari ---------- */
+.sa-kpis {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.sa-kpi {
+  --kpi: var(--sa-blue);
+  background: var(--sa-surface);
+  border: 1px solid var(--sa-line);
+  border-radius: var(--sa-radius);
+  padding: 18px 20px;
+  animation: sa-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: var(--sa-delay, 0ms);
+}
+
+.sa-kpi.is-alert {
+  border-color: rgba(229, 89, 107, 0.45);
+  background: linear-gradient(0deg, rgba(229, 89, 107, 0.08), rgba(229, 89, 107, 0.08)), var(--sa-surface);
+}
+
+.sa-kpi__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sa-kpi__label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--sa-mu);
+}
+
+.sa-kpi__icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--kpi) 16%, transparent);
+  color: var(--kpi);
+}
+
+.sa-kpi__value {
+  margin-top: 12px;
+  font-family: var(--font-display, sans-serif);
+  font-size: 28px;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.sa-kpi__hint {
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--sa-mu);
+}
+
+.sa-kpi__hint.is-up {
+  color: var(--sa-green);
+}
+
+.sa-kpi__hint.is-down {
+  color: var(--sa-red);
+}
+
+/* ---------- Sotuvlar: asosiy raqamlar ---------- */
+.sa-hero {
+  display: grid;
+  grid-template-columns: 1.4fr 1fr;
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.sa-hero__card {
+  border: 1px solid var(--sa-line);
+  border-radius: 20px;
+  padding: 24px 26px;
+  background: linear-gradient(135deg, rgba(25, 167, 161, 0.2), rgba(91, 124, 250, 0.1)), var(--sa-surface);
+  animation: sa-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.sa-hero__card + .sa-hero__card {
+  background: linear-gradient(135deg, rgba(242, 163, 58, 0.18), rgba(145, 132, 217, 0.1)), var(--sa-surface);
+  animation-delay: 80ms;
+}
+
+.sa-hero__label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--sa-mu);
+}
+
+.sa-hero__value {
+  margin-top: 10px;
+  font-family: var(--font-display, sans-serif);
+  font-size: clamp(30px, 4vw, 46px);
+  font-weight: 800;
+  line-height: 1.05;
+  font-variant-numeric: tabular-nums;
+}
+
+.sa-hero__value small {
+  margin-left: 8px;
+  font-size: 0.42em;
+  font-weight: 600;
+  color: var(--sa-mu);
+}
+
+.sa-hero__hint {
+  margin-top: 10px;
+  font-size: 13px;
+  color: var(--sa-mu);
+}
+
+.sa-hero__hint.is-up {
+  color: var(--sa-green);
+}
+
+.sa-hero__hint.is-down {
+  color: var(--sa-red);
+}
+
+/* ---------- Ustunli grafik ---------- */
+.sa-chart {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.sa-chart__y {
+  position: relative;
+  width: 52px;
+  height: 220px;
+  flex-shrink: 0;
+}
+
+.sa-chart__y span {
+  position: absolute;
+  right: 0;
+  transform: translateY(50%);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--sa-mu-2);
+  white-space: nowrap;
+}
+
+.sa-chart__body {
+  flex: 1;
+  min-width: 0;
+}
+
+.sa-chart__plot {
+  position: relative;
+  height: 220px;
+}
+
+.sa-chart__grid {
+  position: absolute;
+  left: 0;
+  right: 0;
+  border-top: 1px dashed var(--sa-line);
+}
+
+.sa-chart__grid.is-base {
+  border-top: 1px solid rgba(var(--sa-hover-rgb), 0.25);
+}
+
+.sa-chart__cols {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: flex-end;
+  gap: 4px;
+}
+
+.sa-chart__col {
+  position: relative;
+  flex: 1;
+  min-width: 3px;
+  height: 100%;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  border-radius: 6px 6px 0 0;
+}
+
+.sa-chart__col.is-active {
+  background: rgba(var(--sa-hover-rgb), 0.06);
+}
+
+.sa-chart__bar {
+  width: 100%;
+  max-width: 40px;
+  border-radius: 6px 6px 0 0;
+  background: linear-gradient(180deg, var(--sa-blue), rgba(91, 124, 250, 0.55));
+  transform-origin: bottom;
+  animation: sa-rise 0.7s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.sa-chart__bar.is-today {
+  background: linear-gradient(180deg, var(--sa-accent), rgba(242, 163, 58, 0.6));
+}
+
+.sa-chart__col.is-active .sa-chart__bar {
+  filter: brightness(1.18);
+}
+
+.sa-chart__tip {
+  position: absolute;
+  left: 50%;
+  z-index: 5;
+  transform: translateX(-50%);
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--sa-line);
+  background: var(--sa-surface-2);
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.3);
+  text-align: center;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.sa-chart__tip span {
+  display: block;
+  font-size: 11px;
+  color: var(--sa-mu);
+}
+
+.sa-chart__tip b {
+  display: block;
+  font-size: 13.5px;
+}
+
+.sa-chart__x {
+  display: flex;
+  gap: 4px;
+  margin-top: 8px;
+  font-size: 10.5px;
+  color: var(--sa-mu-2);
+}
+
+.sa-chart__x span {
+  flex: 1;
+  min-width: 3px;
+  white-space: nowrap;
+  text-align: center;
+}
+
+.sa-chart-empty {
+  padding: 40px 0;
+  text-align: center;
+  font-size: 13px;
+  color: var(--sa-mu);
+}
+
+/* Grafik ustidagi qisqa yakunlar: Jami · O'rtacha · Eng yuqori */
+.sa-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 28px;
+}
+
+.sa-facts div span {
+  display: block;
+  font-size: 11.5px;
+  color: var(--sa-mu);
+}
+
+.sa-facts div b {
+  font-family: var(--font-display, sans-serif);
+  font-size: 17px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- To'ldirilib boradigan chiziq (ulush, yuk) ---------- */
+.sa-meter {
+  height: 8px;
+  border-radius: 999px;
+  background: rgba(var(--sa-hover-rgb), 0.08);
+  overflow: hidden;
+}
+
+.sa-meter__fill {
+  height: 100%;
+  border-radius: 999px;
+  background: var(--meter, var(--sa-teal));
+  transform-origin: left;
+  animation: sa-grow 0.9s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.sa-rows {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sa-row__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 8px;
+  font-size: 13.5px;
+}
+
+.sa-row__top span {
+  color: var(--sa-mu);
+  font-size: 12.5px;
+}
+
+/* ---------- So'nggi buyurtmalar ro'yxati ---------- */
+.sa-feed {
+  display: flex;
+  flex-direction: column;
+}
+
+.sa-feed__row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 11px 8px;
+  margin: 0 -8px;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.sa-feed__row + .sa-feed__row {
+  border-top: 1px solid var(--sa-line);
+}
+
+.sa-feed__row:hover,
+.sa-feed__row:focus-visible {
+  background: rgba(var(--sa-hover-rgb), 0.05);
+  outline: none;
+}
+
+.sa-feed__who {
+  min-width: 0;
+}
+
+.sa-feed__who b,
+.sa-feed__who span {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sa-feed__who b {
+  font-size: 13.5px;
+}
+
+.sa-feed__who span {
+  font-size: 12px;
+  color: var(--sa-mu);
+}
+
+.sa-feed__sum {
+  flex-shrink: 0;
+  text-align: right;
+}
+
+.sa-feed__sum b {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* ---------- Ishlab chiqarish ---------- */
+.sa-flow {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) minmax(0, 1.1fr);
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.sa-flow__step {
+  --step: var(--sa-blue);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--sa-line);
+  border-radius: var(--sa-radius);
+  background: var(--sa-surface);
+  animation: sa-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+  animation-delay: var(--sa-delay, 0ms);
+}
+
+.sa-flow__num {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--step) 18%, transparent);
+  color: var(--step);
+}
+
+.sa-flow__step b {
+  display: block;
+  font-family: var(--font-display, sans-serif);
+  font-size: 24px;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.sa-flow__step span {
+  font-size: 12.5px;
+  color: var(--sa-mu);
+}
+
+.sa-flow__step.is-alert {
+  border-color: rgba(229, 89, 107, 0.45);
+  background: linear-gradient(0deg, rgba(229, 89, 107, 0.08), rgba(229, 89, 107, 0.08)), var(--sa-surface);
+}
+
+.sa-board {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  align-items: start;
+}
+
+.sa-board__col {
+  --step: var(--sa-blue);
+  border: 1px solid var(--sa-line);
+  border-top: 3px solid var(--step);
+  border-radius: var(--sa-radius);
+  background: var(--sa-surface);
+  padding: 14px;
+}
+
+.sa-board__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.sa-board__head b {
+  display: block;
+  font-size: 14.5px;
+}
+
+.sa-board__head small {
+  font-size: 11.5px;
+  color: var(--sa-mu);
+}
+
+.sa-board__count {
+  min-width: 28px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--step) 18%, transparent);
+  color: var(--step);
+  font-size: 12.5px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.sa-board__list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sa-job {
+  padding: 12px 14px;
+  border: 1px solid var(--sa-line);
+  border-radius: 12px;
+  background: var(--sa-surface-2);
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.sa-job:hover,
+.sa-job:focus-visible {
+  border-color: var(--sa-accent);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+.sa-job.is-late {
+  border-color: rgba(229, 89, 107, 0.55);
+}
+
+.sa-job__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 11.5px;
+  color: var(--sa-mu);
+}
+
+.sa-job__top b {
+  color: var(--sa-ink);
+  font-size: 12.5px;
+}
+
+.sa-job__print {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 8px 0 6px;
+  font-family: var(--font-display, sans-serif);
+}
+
+.sa-job__print b {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  letter-spacing: 0.04em;
+}
+
+.sa-job__print span {
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+.sa-job__meta {
+  font-size: 12px;
+  color: var(--sa-mu);
+}
+
+/* ---------- Formalar ---------- */
+.sa-kit {
+  animation: sa-fade-up 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.sa-kit__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.sa-kit__name {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+
+.sa-kit__no {
+  display: grid;
+  place-items: center;
+  min-width: 30px;
+  height: 30px;
+  padding: 0 6px;
+  border-radius: 9px;
+  background: rgba(var(--sa-hover-rgb), 0.08);
+  font-size: 12.5px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sa-sizes {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
+  gap: 10px;
+}
+
+.sa-size {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--sa-line);
+  border-radius: 12px;
+  background: var(--sa-surface-2);
+}
+
+.sa-size.is-low {
+  border-color: var(--sa-accent);
+}
+
+.sa-size.is-out {
+  border-color: var(--sa-red);
+}
+
+.sa-size__name {
+  font-family: var(--font-display, sans-serif);
+  font-size: 15px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.sa-size label {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 10.5px;
+  color: var(--sa-mu);
+}
+
+.sa-size input {
+  width: 100%;
+  height: 32px;
+  padding: 0 6px;
+  border: 1px solid var(--sa-line);
+  border-radius: 8px;
+  background: var(--sa-surface);
+  color: var(--sa-ink);
+  font-size: 13.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  outline: none;
+}
+
+.sa-size input:focus {
+  border-color: var(--sa-accent);
+}
+
+.sa-size input.is-changed {
+  border-color: var(--sa-teal);
+  background: rgba(25, 167, 161, 0.1);
+}
+
+.sa-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 16px;
+  font-size: 12px;
+  color: var(--sa-mu);
+}
+
+.sa-legend i {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  margin-right: 6px;
+  border-radius: 3px;
+}
+
+.sa-pager {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  margin-top: 16px;
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--sa-mu);
+}
+
+.sa-pager button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* Saqlanmagan o'zgarishlar paneli: sahifa pastida, o'zgarish bo'lgandagina chiqadi */
+.sa-savebar {
+  position: sticky;
+  bottom: 16px;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 16px;
+  padding: 12px 16px;
+  border: 1px solid var(--sa-teal);
+  border-radius: 14px;
+  background: var(--sa-surface);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  animation: sa-fade-up 0.25s ease-out;
+}
+
+.sa-savebar__actions {
+  display: flex;
+  gap: 8px;
+}
+
+@media (max-width: 1100px) {
+  .sa-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .sa-flow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sa-board {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 560px) {
+  .sa-flow {
+    grid-template-columns: 1fr;
+  }
+
+  .sa-chart__y {
+    width: 40px;
+  }
+}
+
+/* ---------- Sahifaga kirish: har bir bo'lim ochilganda pastdan silliq chiqadi ---------- */
+@keyframes sa-page-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+@keyframes sa-fade {
+  from {
+    opacity: 0;
+  }
+}
+
+.sa-content {
+  animation: sa-page-in 0.4s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+/* ---------- Modal oynalar: panel mavzusida (qorong'i / yorug'), silliq ochiladi ---------- */
+.sa .modal {
+  background: rgba(3, 7, 20, 0.62);
+  backdrop-filter: blur(6px);
+  animation: sa-fade 0.18s ease-out;
+}
+
+.sa .modal__box {
+  border: 1px solid var(--sa-line);
+  border-radius: 20px;
+  background: var(--sa-surface);
+  color: var(--sa-ink);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+  scrollbar-width: thin;
+  scrollbar-color: rgba(var(--sa-hover-rgb), 0.18) transparent;
+  animation: sa-dialog-in 0.26s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Sarlavha aylantirilganda ham tepada qoladi */
+.sa .modal__head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  gap: 12px;
+  padding: 16px 16px 14px 22px;
+  border-bottom: 1px solid var(--sa-line);
+  background: var(--sa-surface);
+}
+
+.sa .modal__head h3 {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.sa .modal__close {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  padding: 0;
+  border: 1px solid var(--sa-line);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--sa-mu);
+  transition: background 0.15s ease, color 0.15s ease, transform 0.2s ease;
+}
+
+.sa .modal__close:hover {
+  background: rgba(229, 89, 107, 0.14);
+  color: var(--sa-red);
+  transform: rotate(90deg);
+}
+
+.sa .modal__body {
+  padding: 18px 22px;
+}
+
+.sa .modal .muted,
+.sa .modal .field small,
+.sa .modal .field > span:first-child {
+  color: var(--sa-mu);
+}
+
+.sa .modal .input,
+.sa .modal .field > input,
+.sa .modal .field > select,
+.sa .modal .field > textarea {
+  border-color: var(--sa-line);
+  background-color: var(--sa-surface-2);
+  color: var(--sa-ink);
+}
+
+.sa .modal .field > input:hover,
+.sa .modal .field > textarea:hover {
+  border-color: rgba(var(--sa-hover-rgb), 0.22);
+}
+
+.sa .modal .field > input:focus,
+.sa .modal .field > select:focus,
+.sa .modal .field > textarea:focus,
+.sa .modal .input:focus-within {
+  border-color: var(--sa-accent);
+}
+
+.sa .modal input::placeholder,
+.sa .modal textarea::placeholder {
+  color: var(--sa-mu-2);
+}
+
+.sa .modal .input__prefix {
+  border-right-color: var(--sa-line);
+  color: var(--sa-mu);
+}
+
+.sa .modal .btn--ghost {
+  border-color: var(--sa-line);
+  background: var(--sa-surface);
+  color: var(--sa-ink);
+}
+
+.sa .modal .btn--ghost:hover:not(:disabled) {
+  background: rgba(var(--sa-hover-rgb), 0.08);
+}
+
+.sa .modal .modal__close:hover:not(:disabled) {
+  background: rgba(229, 89, 107, 0.14);
+}
+
+.sa .modal .form-error {
+  background: rgba(229, 89, 107, 0.12);
+  color: var(--sa-red);
+}
+
+/* ---------- Selectlar: brauzer strelkasi o'rniga o'zimizniki ---------- */
+.sa select:not([multiple]) {
+  appearance: none;
+  padding-right: 38px;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a96bd' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
+  background-size: 16px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.sa select:not([multiple]):hover:not(:disabled) {
+  border-color: rgba(var(--sa-hover-rgb), 0.28);
+}
+
+.sa select:not([multiple]):focus {
+  border-color: var(--sa-accent);
+  box-shadow: 0 0 0 4px rgba(242, 163, 58, 0.16);
+}
+
+.sa select option {
+  background: var(--sa-surface);
+  color: var(--sa-ink);
+}
+
+/* ---------- Profil: parolni yangilash ---------- */
+.sa-pass {
+  position: relative;
+  display: block;
+}
+
+.sa-pass .sa-input {
+  width: 100%;
+  height: 44px;
+  padding-right: 44px;
+}
+
+.sa-pass__eye {
+  position: absolute;
+  top: 50%;
+  right: 6px;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--sa-mu);
+  cursor: pointer;
+  transform: translateY(-50%);
+}
+
+.sa-pass__eye:hover {
+  background: rgba(var(--sa-hover-rgb), 0.08);
+  color: var(--sa-ink);
+}
+
+.sa-strength {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--strength, var(--sa-mu));
+}
+
+.sa-strength__bars {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 4px;
+  flex: 1;
+}
+
+.sa-strength__bars i {
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(var(--sa-hover-rgb), 0.1);
+  transition: background 0.25s ease;
+}
+
+.sa-strength__bars i.is-on {
+  background: var(--strength);
+}
+
+.sa-pass-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--sa-green);
+}
+
+.sa-pass-note.is-bad {
+  color: var(--sa-red);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-content,
+  .sa .modal,
+  .sa .modal__box {
+    animation: none;
+  }
+
+  .sa .modal__close {
+    transition: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-kpi,
+  .sa-hero__card,
+  .sa-chart__bar,
+  .sa-meter__fill,
+  .sa-flow__step,
+  .sa-kit,
+  .sa-savebar {
+    animation: none;
+  }
+
+  .sa-job {
+    transition: none;
+  }
+}

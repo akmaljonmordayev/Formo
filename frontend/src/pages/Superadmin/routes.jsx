@@ -97,7 +97,7 @@ export const superadminMenu = [
 
   { to: `${BASE}/factories`, label: 'Sexlar', icon: Factory, group: 'Sex va Sifat' },
 
-  { to: `${BASE}/finance`, label: 'Moliya', icon: Wallet, group: 'Moliya va Mijozlar' },
+  { to: `${BASE}/finance`, label: 'Sotuvlar', icon: Wallet, group: 'Moliya va Mijozlar' },
   { to: `${BASE}/promocodes`, label: 'Promokodlar', icon: Ticket, group: 'Moliya va Mijozlar' },
   { to: `${BASE}/users`, label: 'Mijozlar', icon: Users, group: 'Moliya va Mijozlar' },
 

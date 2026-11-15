@@ -1,7 +1,7 @@
 /*
  * Tikuv sexi paneli — yorug' mavzu.
  * Panel qorong'i ranglar bilan yozilgan; bu fayl .tl-light ichida o'sha ranglarni yorug' palitraga almashtiradi.
- * Yon menyu (.tl-side) .tl-light dan tashqarida — u to'q kulrang qoladi, logotip asl ko'rinishida turadi.
+ * Yon menyu (.tl-side) .tl-light dan tashqarida — u qorong'i mavzudagidek qoladi (oq logotip to'q fonda ko'rinadi).
  */
 
 body.tailor-shell.tailor-light,
@@ -17,9 +17,9 @@ body.tailor-shell.tailor-light .layout__main { background: #f3f4f6 !important; }
   --l-ink: #111827;
   --l-ink-2: #374151;
   --l-muted: #6b7280;
-  --l-accent: #4f46e5;
-  --l-accent-hover: #4338ca;
-  --l-accent-tint: rgba(79, 70, 229, 0.1);
+  --l-accent: #0d9488;
+  --l-accent-hover: #0f766e;
+  --l-accent-tint: rgba(13, 148, 136, 0.1);
   --l-shadow: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 3px rgba(16, 24, 40, 0.06);
 }
 .tl-light [class*="[color-scheme:dark]"] { color-scheme: light; }
@@ -86,7 +86,7 @@ body.tailor-shell.tailor-light .layout__main { background: #f3f4f6 !important; }
 .tl-light .ring-\[\#121829\] { --tw-ring-color: #ffffff !important; }
 .tl-light .ring-\[\#0b0f19\] { --tw-ring-color: var(--l-page) !important; }
 
-/* ---------- Urg'u rangi: yashil-moviy o'rniga indigo ---------- */
+/* ---------- Urg'u rangi: oq fonda o'qiladigan to'q teal ---------- */
 .tl-light .bg-teal-400,
 .tl-light .bg-teal-400\/85,
 .tl-light .from-teal-400 { background-image: none !important; background-color: var(--l-accent) !important; }
@@ -115,8 +115,8 @@ body.tailor-shell.tailor-light .layout__main { background: #f3f4f6 !important; }
 .tl-light .focus-within\:border-teal-400:focus-within { border-color: var(--l-accent) !important; }
 .tl-light .group:focus-within .group-focus-within\:bg-teal-400\/15 { background-color: var(--l-accent-tint) !important; }
 .tl-light .group:focus-within .group-focus-within\:text-teal-300 { color: var(--l-accent-hover) !important; }
-.tl-light .border-teal-400\/40 { border-color: rgba(79, 70, 229, 0.35) !important; }
-.tl-light [class*="ring-teal-"] { --tw-ring-color: rgba(79, 70, 229, 0.25) !important; }
+.tl-light .border-teal-400\/40 { border-color: rgba(13, 148, 136, 0.35) !important; }
+.tl-light [class*="ring-teal-"] { --tw-ring-color: rgba(13, 148, 136, 0.25) !important; }
 .tl-light [class*="outline-teal-"]:focus-visible { outline-color: var(--l-accent) !important; }
 /* Rangli fon ustidagi yozuv oq qoladi */
 .tl-light .text-slate-950,
@@ -152,14 +152,5 @@ body.tailor-shell.tailor-light .layout__main { background: #f3f4f6 !important; }
 .tl-light .text-cyan-300,
 .tl-light .text-cyan-400 { color: #0e7490 !important; }
 
-/* ---------- Yon menyu: to'q kulrang, urg'u — och indigo ---------- */
+/* Fon bezagi (xira dog'lar) yorug' mavzuda kerak emas */
 .tl-light-root .blur-3xl { display: none !important; }
-.tl-light-root .tl-side { background-image: none !important; background-color: #262b36 !important; }
-.tl-light-root .tl-side .bg-\[\#121829\] { background-color: rgba(255, 255, 255, 0.06) !important; }
-.tl-light-root .tl-side .from-teal-500\/20 { background-image: none !important; background-color: rgba(255, 255, 255, 0.1) !important; }
-.tl-light-root .tl-side .bg-teal-400 { background-color: #6366f1 !important; box-shadow: none !important; }
-.tl-light-root .tl-side .text-slate-950 { color: #ffffff !important; }
-.tl-light-root .tl-side .text-teal-300,
-.tl-light-root .tl-side .text-teal-400 { color: #a5b4fc !important; }
-.tl-light-root .tl-side .bg-teal-500\/20 { background-color: rgba(99, 102, 241, 0.3) !important; }
-.tl-light-root .tl-side [class*="ring-teal-"] { --tw-ring-color: rgba(255, 255, 255, 0.12) !important; }
