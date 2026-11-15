@@ -137,6 +137,62 @@ describe('Telegram bot orqali kirish (e2e)', () => {
       await verify(c.challengeId, c.contact.code).expect(401);
     });
 
+    it('bir xil kodli bir nechta so‘rov: parallel taxminlar ham jami 5 tadan oshmaydi (5×N brute-force yo‘q)', async () => {
+      const phone = nextPhone();
+      // Hujumchi qurbon raqamiga oldindan 4 ta so'rov ochib qo'yadi (deep-link'siz)
+      const ids: string[] = [];
+      for (let i = 0; i < 4; i++) {
+        ids.push((await api(app).post('/api/auth/telegram/start').send({ phone }).expect(200)).body.challengeId);
+      }
+      // Qurbon botda kontaktini yuboradi — hammasi unga bog'lanadi va bir xil kod oladi
+      const victim = String(++tgSeq);
+      const contact = await bot('contact', { telegramUserId: victim, chatId: victim, phone }).expect(200);
+      expect(contact.body.result).toBe('CODE');
+
+      // 5 ta noto'g'ri taxmin birinchi 3 ta so'rovga taqsimlanib, bir vaqtda yuboriladi. Urinishlar har so'rovda
+      // alohida sanalsa, 4-so'rov hali "toza" bo'lardi va to'g'ri kod u bilan o'tardi.
+      const guesses = Array.from({ length: MAX_CODE_ATTEMPTS }, (_, i) => verify(ids[i % 3], wrong(contact.body.code)));
+      expect(new Set((await Promise.all(guesses)).map((r) => r.status))).toEqual(new Set([401]));
+
+      const rows = await prisma.telegramAuthChallenge.findMany({ where: { id: { in: ids } } });
+      expect(rows.every((r) => r.attempts === MAX_CODE_ATTEMPTS && r.failedAt)).toBe(true);
+      await verify(ids[3], contact.body.code).expect(401);
+      expect(await prisma.user.count({ where: { phone } })).toBe(0);
+    });
+
+    it('raqam almashtirish so‘rovi: faqat uni ochgan foydalanuvchi tasdiqlaydi, u bilan kirib bo‘lmaydi', async () => {
+      const owner = await challenge(nextPhone());
+      const ownerAuth = (await verify(owner.challengeId, owner.contact.code).expect(200)).body;
+      const other = await challenge(nextPhone());
+      const otherAuth = (await verify(other.challengeId, other.contact.code).expect(200)).body;
+
+      const newPhone = nextPhone();
+      const start = await api(app)
+        .post('/api/auth/telegram/change/start')
+        .set(bearer(ownerAuth.accessToken))
+        .send({ phone: newPhone })
+        .expect(200);
+      const tg = String(++tgSeq);
+      await bot('claim', { startToken: start.body.deepLink.split('?start=')[1], telegramUserId: tg, chatId: tg }).expect(200);
+      const code = (await bot('contact', { telegramUserId: tg, chatId: tg, phone: newPhone }).expect(200)).body.code;
+
+      // Boshqa foydalanuvchi ham, login oqimi ham bu so'rovni ishlata olmaydi
+      await api(app)
+        .post('/api/auth/telegram/change/verify')
+        .set(bearer(otherAuth.accessToken))
+        .send({ challengeId: start.body.challengeId, code })
+        .expect(401);
+      await verify(start.body.challengeId, code).expect(401);
+      expect(await prisma.user.count({ where: { phone: newPhone } })).toBe(0);
+
+      const res = await api(app)
+        .post('/api/auth/telegram/change/verify')
+        .set(bearer(ownerAuth.accessToken))
+        .send({ challengeId: start.body.challengeId, code })
+        .expect(200);
+      expect(res.body.phone).toBe(newPhone);
+    });
+
     it('parallel to‘g‘ri so‘rovlardan faqat bittasi sessiya oladi', async () => {
       const phone = nextPhone();
       const c = await challenge(phone);
