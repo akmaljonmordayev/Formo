@@ -1,4 +1,5 @@
 import { useEffect } from 'react';
+import { X } from 'lucide-react';
 import './ui.css';
 
 export default function Modal({ title, onClose, children, footer }) {
@@ -13,8 +14,8 @@ export default function Modal({ title, onClose, children, footer }) {
       <div className="modal__box" role="dialog" aria-modal="true" aria-label={title}>
         <div className="modal__head">
           <h3>{title}</h3>
-          <button type="button" className="btn btn--ghost btn--icon" onClick={onClose} aria-label="Yopish">
-            ✕
+          <button type="button" className="btn btn--ghost btn--icon modal__close" onClick={onClose} aria-label="Yopish">
+            <X size={18} strokeWidth={2} aria-hidden="true" />
           </button>
         </div>
         <div className="modal__body">{children}</div>

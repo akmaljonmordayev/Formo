@@ -2,15 +2,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { clubsApi, inventoryApi, settingsApi } from '../../../features/platform/platformApi';
 import Modal from '../../../components/ui/Modal';
 import { DEFAULT_REGION_FEE, REGIONS, SETTING_KEYS } from '../adminApi';
-import { useT } from '../i18n';
+import { useMoney, useT } from '../i18n';
 
 const KID_SIZES = ['2-3', '4-5', '6-7', '8-9', '10-11', '12-13'];
 const ADULT_SIZES = ['S', 'M', 'L', 'XL', 'XXL', '3XL'];
 const ALL_SIZES = [...KID_SIZES, ...ADULT_SIZES];
 const PRODUCT = 'TSHIRT';
 const LOW = 5;
+const PAGE_SIZE = 10;
 const cellKey = (kitId, size) => `${kitId}::${size}`;
-const money = (n) => `${Number(n || 0).toLocaleString('uz-UZ')} so'm`;
 
 /** Klub tanlovi uchun — barcha sahifalarni terib chiqadi (Pricing sahifasidagi bilan bir xil uslub) */
 async function fetchAllClubs() {
@@ -23,16 +23,23 @@ async function fetchAllClubs() {
   return out;
 }
 
+/**
+ * Formalar: har bir forma — bitta karta, har bir o'lcham — bitta katak (tepada soni, pastida narxi).
+ * O'zgarishlar sahifa pastidagi bitta «Saqlash» tugmasi bilan saqlanadi.
+ */
 export default function SuperadminForms() {
   const t = useT();
+  const money = useMoney();
   const [kits, setKits] = useState([]);
   const [clubs, setClubs] = useState([]);
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [search, setSearch] = useState('');
+  const [page, setPage] = useState(0);
   const [editing, setEditing] = useState(null); // null | 'new' | kit
-  const [sizeEdit, setSizeEdit] = useState(null); // null | { kit, size } — o'lcham bosilganda soni+narx modali
+  const [saving, setSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   const load = () =>
     Promise.all([clubsApi.listKits(), fetchAllClubs(), inventoryApi.list({ productType: PRODUCT })])
@@ -50,238 +57,211 @@ export default function SuperadminForms() {
 
   // ── Zaxira (har bir formaning o'lcham bo'yicha qoldig'i) ──────────────────
   const qtyMap = useMemo(() => Object.fromEntries(items.map((i) => [cellKey(i.kitId, i.size), String(i.qty)])), [items]);
-  const [draft, setDraft] = useState({});
-  useEffect(() => setDraft(qtyMap), [qtyMap]);
-  const [stockSaving, setStockSaving] = useState(false);
-  const [stockSaved, setStockSaved] = useState(false);
+  const [qtyDraft, setQtyDraft] = useState({});
+  useEffect(() => setQtyDraft(qtyMap), [qtyMap]);
 
-  const valueOf = (kitId, size) => draft[cellKey(kitId, size)] ?? '';
-  const setQty = (kitId, size, value) => {
-    if (value !== '' && !/^\d{1,6}$/.test(value)) return;
-    setDraft((m) => ({ ...m, [cellKey(kitId, size)]: value }));
-    setStockSaved(false);
-  };
-  const stockDirty = useMemo(
-    () => Object.keys(draft).some((k) => (draft[k] ?? '') !== (qtyMap[k] ?? '')),
-    [draft, qtyMap],
-  );
-
-  const saveStock = async () => {
-    const payload = [];
-    kits.forEach((k) => {
-      ALL_SIZES.forEach((size) => {
-        const key = cellKey(k.id, size);
-        const raw = draft[key];
-        if (raw === qtyMap[key]) return; // o'zgarmagan — yubormaymiz
-        payload.push({ productType: PRODUCT, kitId: k.id, size, qty: raw === '' ? 0 : Number(raw) });
-      });
-    });
-    if (!payload.length) return;
-    setStockSaving(true);
-    setError('');
-    try {
-      const fresh = (await inventoryApi.save(payload)).filter((i) => i.productType === PRODUCT);
-      setItems(fresh);
-      setStockSaved(true);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setStockSaving(false);
-    }
-  };
-
-  // ── Narx (har bir formaning o'lcham bo'yicha narxi) — bo'lmasa kit.shirtPrice ────
+  // ── Narx (o'lcham bo'yicha) — alohida narx qo'yilmagan bo'lsa formaning komplekt narxi ────
   const priceMap = useMemo(
     () => Object.fromEntries(kits.flatMap((k) => ALL_SIZES.map((s) => [cellKey(k.id, s), String(k.sizePrices?.[s] ?? k.shirtPrice)]))),
     [kits],
   );
   const [priceDraft, setPriceDraft] = useState({});
   useEffect(() => setPriceDraft(priceMap), [priceMap]);
-  const [priceSaving, setPriceSaving] = useState(false);
-  const [priceSaved, setPriceSaved] = useState(false);
 
-  const priceOf = (kitId, size) => priceDraft[cellKey(kitId, size)] ?? '';
-  const setPrice = (kitId, size, value) => {
-    if (value !== '' && !/^\d{1,7}$/.test(value)) return;
-    setPriceDraft((m) => ({ ...m, [cellKey(kitId, size)]: value }));
-    setPriceSaved(false);
+  const qtyOf = (key) => qtyDraft[key] ?? '';
+  const priceOf = (key) => priceDraft[key] ?? '';
+  const qtyChanged = (key) => qtyOf(key) !== (qtyMap[key] ?? '');
+  const priceChanged = (key) => priceOf(key) !== (priceMap[key] ?? '');
+
+  const setQty = (key, value) => {
+    if (value !== '' && !/^\d{1,6}$/.test(value)) return;
+    setQtyDraft((m) => ({ ...m, [key]: value }));
+    setSaved(false);
   };
-  const priceDirty = useMemo(
-    () => Object.keys(priceDraft).some((k) => (priceDraft[k] ?? '') !== (priceMap[k] ?? '')),
-    [priceDraft, priceMap],
-  );
+  const setPrice = (key, value) => {
+    if (value !== '' && !/^\d{1,7}$/.test(value)) return;
+    setPriceDraft((m) => ({ ...m, [key]: value }));
+    setSaved(false);
+  };
 
-  const savePrices = async () => {
-    const updates = [];
+  const allKeys = useMemo(() => kits.flatMap((k) => ALL_SIZES.map((s) => cellKey(k.id, s))), [kits]);
+  const changes = allKeys.filter(qtyChanged).length + allKeys.filter(priceChanged).length;
+
+  // «Saqlandi» yozuvi bir necha soniyadan keyin o'zi yo'qoladi
+  useEffect(() => {
+    if (!saved) return undefined;
+    const timer = setTimeout(() => setSaved(false), 3000);
+    return () => clearTimeout(timer);
+  }, [saved]);
+
+  const reset = () => {
+    setQtyDraft(qtyMap);
+    setPriceDraft(priceMap);
+  };
+
+  const save = async () => {
+    const stock = [];
+    const prices = [];
     kits.forEach((k) => {
-      const changed = ALL_SIZES.some((s) => priceOf(k.id, s) !== (priceMap[cellKey(k.id, s)] ?? ''));
-      if (!changed) return;
-      // shirtPrice bilan teng bo'lgan o'lchamlar sizePrices'ga yozilmaydi — ular shirtPrice'dan o'zi oladi
+      ALL_SIZES.forEach((size) => {
+        const key = cellKey(k.id, size);
+        if (qtyChanged(key)) stock.push({ productType: PRODUCT, kitId: k.id, size, qty: Number(qtyOf(key) || 0) });
+      });
+      if (!ALL_SIZES.some((s) => priceChanged(cellKey(k.id, s)))) return;
+      // Komplekt narxi bilan teng o'lchamlar yozilmaydi — ular narxni formaning o'zidan oladi
       const sizePrices = Object.fromEntries(
-        ALL_SIZES.map((s) => [s, Number(priceOf(k.id, s) || 0)]).filter(([, n]) => n > 0 && n !== k.shirtPrice),
+        ALL_SIZES.map((s) => [s, Number(priceOf(cellKey(k.id, s)) || 0)]).filter(([, n]) => n > 0 && n !== k.shirtPrice),
       );
-      updates.push(clubsApi.updateKit(k.id, { sizePrices }));
+      prices.push([k.id, { sizePrices }]);
     });
-    if (!updates.length) return;
-    setPriceSaving(true);
+    setSaving(true);
     setError('');
     try {
-      await Promise.all(updates);
+      // Ketma-ket: avval zaxira, keyin narx — oxirida hammasi qayta yuklanadi
+      if (stock.length) await inventoryApi.save(stock);
+      await Promise.all(prices.map(([id, body]) => clubsApi.updateKit(id, body)));
       await load();
-      setPriceSaved(true);
+      setSaved(true);
     } catch (e) {
       setError(e.message);
     } finally {
-      setPriceSaving(false);
+      setSaving(false);
     }
   };
 
-  // ── Ro'yxat va qidiruv ─────────────────────────────────────────────────────
+  // ── Ro'yxat, qidiruv va sahifalash (10 tadan) ──────────────────────────────
   const filteredKits = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return kits;
     return kits.filter((k) => k.club.name.toLowerCase().includes(q) || k.label.toLowerCase().includes(q));
   }, [kits, search]);
+  const pages = Math.max(1, Math.ceil(filteredKits.length / PAGE_SIZE));
+  const current = Math.min(page, pages - 1);
+  const first = current * PAGE_SIZE;
+  const pageKits = filteredKits.slice(first, first + PAGE_SIZE);
+  const goTo = (next) => {
+    setPage(next);
+    window.scrollTo({ top: 0 });
+  };
 
   return (
     <>
       <div className="sa-head">
         <div>
           <h1>{t('Formalar')}</h1>
-          <p>{t("Barcha klublarning barcha formalari (uy/mehmon/uchinchi) bitta joyda — narx, rang, o'lchamlar va zaxira.")}</p>
+          <p>{t("Har bir o'lcham katagida tepada — omborda nechta borligi, pastida — narxi. O'zgartiring va pastdagi «Saqlash»ni bosing.")}</p>
         </div>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          {priceSaved && <span className="sa-table__sub" style={{ color: 'var(--sa-teal)' }}>{t('Saqlandi ✓')}</span>}
-          <button type="button" className="sa-btn sa-btn--ghost" onClick={savePrices} disabled={!priceDirty || priceSaving}>
-            {priceSaving ? t('Saqlanmoqda...') : t('Narxlarni saqlash')}
-          </button>
-          {stockSaved && <span className="sa-table__sub" style={{ color: 'var(--sa-teal)' }}>{t('Saqlandi ✓')}</span>}
-          <button type="button" className="sa-btn sa-btn--ghost" onClick={saveStock} disabled={!stockDirty || stockSaving}>
-            {stockSaving ? t('Saqlanmoqda...') : t('Zaxirani saqlash')}
-          </button>
-          <button type="button" className="sa-btn" onClick={() => setEditing('new')}>{t('+ Yangi forma')}</button>
-        </div>
+        <button type="button" className="sa-btn" onClick={() => setEditing('new')}>{t('+ Yangi forma')}</button>
       </div>
 
       {error && <div className="form-error">{error}</div>}
-
-      <DeliveryFeesPanel t={t} />
 
       <div className="sa-tabs" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
         <input
           className="sa-input"
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(0);
+          }}
           placeholder={t('Klub yoki forma nomi bo‘yicha qidirish')}
-          style={{ maxWidth: 320 }}
+          style={{ width: '100%', maxWidth: 320 }}
         />
-        <span className="sa-table__sub" style={{ marginTop: 0, display: 'flex', gap: 14 }}>
-          <span><span style={{ color: 'var(--sa-accent)' }}>●</span> {t('kam qoldi (5 dan kam)')}</span>
-          <span><span style={{ color: 'var(--sa-red)' }}>●</span> {t("tugagan — mijozga ko'rinmaydi")}</span>
-        </span>
+        <div className="sa-legend">
+          <span><i style={{ background: 'var(--sa-accent)' }} />{t('kam qoldi (5 dan kam)')}</span>
+          <span><i style={{ background: 'var(--sa-red)' }} />{t("tugagan — mijozga ko'rinmaydi")}</span>
+          <span><i style={{ background: 'var(--sa-teal)' }} />{t("o'zgartirilgan, saqlanmagan")}</span>
+        </div>
       </div>
 
       {loading ? (
-        <div className="sa-table__sub" style={{ padding: 20 }}>{t('Yuklanmoqda...')}</div>
+        <div className="sa-chart-empty">{t('Yuklanmoqda...')}</div>
       ) : filteredKits.length === 0 ? (
         <div className="sa-panel">
           <div className="sa-table__sub">{t(kits.length === 0 ? '«+ Yangi forma» bilan birinchisini qo‘shing.' : 'Hech narsa topilmadi.')}</div>
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {filteredKits.map((kit) => (
-            <div key={kit.id} className="sa-panel">
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {pageKits.map((kit, i) => (
+            <div key={kit.id} className="sa-panel sa-kit">
+              <div className="sa-kit__head">
+                <div className="sa-kit__name">
+                  <span className="sa-kit__no">{first + i + 1}</span>
                   <SleeveIcon kit={kit} t={t} />
-                  <div>
-                    <div><b>{kit.club.name}</b> · {kit.label}{!kit.isActive && <span className="sa-table__sub" style={{ marginLeft: 8 }}>({t('faol emas')})</span>}</div>
-                    <div className="sa-table__sub" style={{ marginTop: 2 }}>
-                      {kit.colorsLabel ? `${kit.colorsLabel} · ` : ''}{money(kit.shirtPrice)} · {t('bosma')} {money(kit.printPrice)}
+                  <div style={{ minWidth: 0 }}>
+                    <div>
+                      <b>{kit.club.name}</b> · {kit.label}
+                      {!kit.isActive && <span className="sa-badge sa-badge--red" style={{ marginLeft: 8 }}>{t('faol emas')}</span>}
+                    </div>
+                    <div className="sa-table__sub">
+                      {[kit.colorsLabel, `${t('Komplekt')} ${money(kit.shirtPrice)}`, `${t('bosma')} ${money(kit.printPrice)}`].filter(Boolean).join(' · ')}
                     </div>
                   </div>
                 </div>
                 <button type="button" className="sa-btn sa-btn--ghost" onClick={() => setEditing(kit)}>{t('Tahrirlash')}</button>
               </div>
 
-              <KitPricesPanel kit={kit} priceOf={priceOf} setPrice={setPrice} t={t} />
-
-              <div className="sa-table-wrap" style={{ marginTop: 10 }}>
-                <table className="sa-table">
-                  <thead>
-                    <tr>
-                      {ALL_SIZES.map((s) => (
-                        <th key={s} style={{ textAlign: 'center', padding: 0 }}>
-                          <button
-                            type="button"
-                            className="sa-tab"
-                            style={{ margin: 0, padding: '4px 8px' }}
-                            title={t('{size}: soni va narxi', { size: s })}
-                            onClick={() => setSizeEdit({ kit, size: s })}
-                          >
-                            {s}
-                          </button>
-                        </th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    <tr>
-                      {ALL_SIZES.map((s) => {
-                        const raw = valueOf(kit.id, s);
-                        const v = raw === '' ? null : Number(raw);
-                        const low = v !== null && v > 0 && v < LOW;
-                        const out = v === 0;
-                        return (
-                          <td key={s} style={{ textAlign: 'center' }}>
-                            <input
-                              value={raw}
-                              onChange={(e) => setQty(kit.id, s, e.target.value)}
-                              inputMode="numeric"
-                              placeholder="—"
-                              style={{
-                                width: 44, textAlign: 'center', padding: '3px 2px', borderRadius: 7,
-                                background: 'transparent',
-                                border: low ? '1px solid var(--sa-accent)' : out ? '1px solid var(--sa-red)' : '1px solid var(--sa-line)',
-                                color: out ? '#ff8b9a' : low ? 'var(--sa-accent)' : 'var(--sa-ink)',
-                              }}
-                            />
-                          </td>
-                        );
-                      })}
-                    </tr>
-                  </tbody>
-                </table>
+              <div className="sa-sizes">
+                {ALL_SIZES.map((size) => {
+                  const key = cellKey(kit.id, size);
+                  const qty = qtyOf(key) === '' ? null : Number(qtyOf(key));
+                  const state = qty === 0 ? ' is-out' : qty !== null && qty < LOW ? ' is-low' : '';
+                  return (
+                    <div key={size} className={`sa-size${state}`}>
+                      <div className="sa-size__name">{size}</div>
+                      <label>
+                        {t('Soni (dona)')}
+                        <input
+                          className={qtyChanged(key) ? 'is-changed' : undefined}
+                          value={qtyOf(key)}
+                          onChange={(e) => setQty(key, e.target.value)}
+                          inputMode="numeric"
+                          placeholder="—"
+                        />
+                      </label>
+                      <label>
+                        {t("Narxi (so'm)")}
+                        <input
+                          className={priceChanged(key) ? 'is-changed' : undefined}
+                          value={priceOf(key)}
+                          onChange={(e) => setPrice(key, e.target.value)}
+                          inputMode="numeric"
+                        />
+                      </label>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           ))}
         </div>
       )}
 
-      {sizeEdit && (
-        <SizeModal
-          kit={sizeEdit.kit}
-          size={sizeEdit.size}
-          t={t}
-          valueOf={valueOf}
-          setQty={setQty}
-          priceOf={priceOf}
-          setPrice={setPrice}
-          busy={stockSaving || priceSaving}
-          onCancel={() => {
-            // modalda yozilgan, saqlanmagan qiymatni shu katak uchun qaytaramiz
-            const key = cellKey(sizeEdit.kit.id, sizeEdit.size);
-            setDraft((m) => ({ ...m, [key]: qtyMap[key] }));
-            setPriceDraft((m) => ({ ...m, [key]: priceMap[key] }));
-            setSizeEdit(null);
-          }}
-          onSave={async () => {
-            await saveStock(); // ketma-ket: savePrices ichidagi load() zaxira javobini ustidan yozmasin
-            await savePrices();
-            setSizeEdit(null);
-          }}
-        />
+      {pages > 1 && (
+        <nav className="sa-pager">
+          <button type="button" className="sa-btn sa-btn--ghost" aria-label={t('Oldingi sahifa')} disabled={current === 0} onClick={() => goTo(current - 1)}>←</button>
+          <span>{first + 1}–{first + pageKits.length} / {filteredKits.length}</span>
+          <button type="button" className="sa-btn sa-btn--ghost" aria-label={t('Keyingi sahifa')} disabled={current === pages - 1} onClick={() => goTo(current + 1)}>→</button>
+        </nav>
       )}
+
+      {(changes > 0 || saved) && (
+        <div className="sa-savebar" role="status">
+          <b style={{ color: changes ? undefined : 'var(--sa-teal)' }}>
+            {changes ? t("{n} ta o'zgarish saqlanmagan", { n: changes }) : t('Saqlandi ✓')}
+          </b>
+          {changes > 0 && (
+            <div className="sa-savebar__actions">
+              <button type="button" className="sa-btn sa-btn--ghost" onClick={reset} disabled={saving}>{t('Bekor qilish')}</button>
+              <button type="button" className="sa-btn" onClick={save} disabled={saving}>{saving ? t('Saqlanmoqda...') : t('Saqlash')}</button>
+            </div>
+          )}
+        </div>
+      )}
+
+      <div style={{ marginTop: 16 }}>
+        <DeliveryFeesPanel t={t} />
+      </div>
 
       {editing && (
         <KitForm
@@ -304,7 +284,7 @@ function SleeveIcon({ kit, t }) {
   const long = kit.sleeve === 'LONG';
   const label = t(long ? 'Uzun yengli' : 'Kalta yengli');
   return (
-    <svg width="26" height="26" viewBox="0 0 24 24" role="img" aria-label={label} style={{ flexShrink: 0 }}>
+    <svg width="30" height="30" viewBox="0 0 24 24" role="img" aria-label={label} style={{ flexShrink: 0 }}>
       <title>{label}</title>
       <path
         d={
@@ -318,87 +298,6 @@ function SleeveIcon({ kit, t }) {
         strokeLinejoin="round"
       />
     </svg>
-  );
-}
-
-/** O'lcham bosilganda: faqat shu o'lchamning soni va narxi */
-function SizeModal({ kit, size, t, valueOf, setQty, priceOf, setPrice, busy, onCancel, onSave }) {
-  return (
-    <Modal title={`${kit.club.name} · ${kit.label} · ${size}`} onClose={onCancel}>
-      <div className="form-grid">
-        <label className="field">
-          <span>{t('Soni')}</span>
-          <input
-            value={valueOf(kit.id, size)}
-            onChange={(e) => setQty(kit.id, size, e.target.value)}
-            inputMode="numeric"
-            placeholder="—"
-            autoFocus
-          />
-        </label>
-        <label className="field">
-          <span>{t("Narxi (so'm)")}</span>
-          <input value={priceOf(kit.id, size)} onChange={(e) => setPrice(kit.id, size, e.target.value)} inputMode="numeric" />
-        </label>
-      </div>
-      <div className="modal__foot" style={{ padding: '14px 0 0' }}>
-        <button type="button" className="btn btn--ghost" onClick={onCancel}>{t('Bekor qilish')}</button>
-        <button type="button" className="btn btn--accent" onClick={onSave} disabled={busy}>
-          {busy ? t('Saqlanmoqda...') : t('Saqlash')}
-        </button>
-      </div>
-    </Modal>
-  );
-}
-
-/** Forma narxi — o'lcham bo'yicha (Yetkazish narxi paneli bilan bir xil uslub, standart — yopiq) */
-function KitPricesPanel({ kit, priceOf, setPrice, t }) {
-  const [open, setOpen] = useState(false);
-
-  return (
-    <div style={{ marginTop: 10 }}>
-      <div
-        style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-        onClick={() => setOpen((o) => !o)}
-      >
-        <span className="sa-panel__title">{t("Narxlar (o'lcham bo'yicha)")}</span>
-        <span className="sa-table__sub">{open ? '▲' : '▼'}</span>
-      </div>
-
-      {open && (
-        <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
-            gap: 10,
-            marginTop: 10,
-          }}
-        >
-          {ALL_SIZES.map((s) => (
-            <div
-              key={s}
-              style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 10,
-                padding: '10px 12px', borderRadius: 12, background: 'var(--sa-surface-2)', border: '1px solid var(--sa-line)',
-              }}
-            >
-              <span style={{ fontSize: 13.5 }}>{s}</span>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <input
-                  className="sa-input"
-                  value={priceOf(kit.id, s)}
-                  onChange={(e) => setPrice(kit.id, s, e.target.value)}
-                  inputMode="numeric"
-                  aria-label={t('{size} narxi', { size: s })}
-                  style={{ width: 90, textAlign: 'right', fontFamily: 'var(--font-display)', fontWeight: 700 }}
-                />
-                <span className="sa-table__sub" style={{ marginTop: 0 }}>{t("so'm")}</span>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
   );
 }
 

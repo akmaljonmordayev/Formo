@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDown, LogOut, Menu } from 'lucide-react';
+import { ChevronDown, LogOut, Menu, Moon, Sun } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { ROLE_LABELS } from '../../constants/roles';
 import '../ui/ui.css';
@@ -26,20 +26,29 @@ function initials(name = '') {
     .join('') || 'S';
 }
 
-// Superadmin uchun alohida (quyuq) layout: guruhlangan sidebar + qidiruv/profil bilan yuqori panel
+// Superadmin uchun alohida (quyuq) layout: guruhlangan sidebar + til/mavzu/profil bilan yuqori panel
 // labels — tarjima qilingan tugma matnlari (AdminLayout beradi); berilmasa o'zbekcha
+// actions — yuqori panelga qo'shimcha tugmalar (til tanlovi): til konteksti AdminLayout'da
 const DEFAULT_LABELS = {
   logout: 'Chiqish',
   leaving: 'Chiqilmoqda...',
   openMenu: 'Menyuni ochish',
+  themeLight: "Yorug' mavzu",
+  themeDark: "Qorong'i mavzu",
+  logoutTitle: 'Akkauntdan chiqasizmi?',
+  logoutText: "Qayta kirish uchun telefon raqam va parol kerak bo'ladi.",
+  logoutConfirm: 'Ha, chiqish',
+  cancel: 'Bekor qilish',
 };
 
-export default function SuperadminLayout({ menu, labels = DEFAULT_LABELS }) {
+export default function SuperadminLayout({ menu, labels: customLabels, actions }) {
+  const labels = { ...DEFAULT_LABELS, ...customLabels };
   const { user, role, logout } = useAuth();
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [drawer, setDrawer] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [theme, setTheme] = useState(readStoredTheme);
   const popRef = useRef(null);
@@ -69,6 +78,14 @@ export default function SuperadminLayout({ menu, labels = DEFAULT_LABELS }) {
     };
   }, [profileOpen]);
 
+  // Chiqish tasdig'i: Escape bilan yopiladi (chiqish ketayotgan bo'lsa — yo'q)
+  useEffect(() => {
+    if (!confirmOpen) return undefined;
+    const onKey = (e) => e.key === 'Escape' && !leaving && setConfirmOpen(false);
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [confirmOpen, leaving]);
+
   const groups = useMemo(() => {
     const out = [];
     menu.forEach((item) => {
@@ -87,11 +104,23 @@ export default function SuperadminLayout({ menu, labels = DEFAULT_LABELS }) {
     [menu, pathname],
   );
 
+  const askLogout = () => {
+    setProfileOpen(false);
+    setConfirmOpen(true);
+  };
+
   const handleLogout = async () => {
     setLeaving(true);
-    await logout();
-    navigate('/login', { replace: true });
+    try {
+      await logout();
+      navigate('/login', { replace: true });
+    } finally {
+      setLeaving(false);
+    }
   };
+
+  const nextTheme = theme === 'light' ? 'dark' : 'light';
+  const themeLabel = nextTheme === 'light' ? labels.themeLight : labels.themeDark;
 
   const name = user?.fullName || 'Super admin';
   const roleLabel = ROLE_LABELS[role] ?? 'Superadmin';
@@ -149,36 +178,67 @@ export default function SuperadminLayout({ menu, labels = DEFAULT_LABELS }) {
             {current?.group ?? 'Asosiy'} <span>/</span> <b>{current?.label ?? 'Dashboard'}</b>
           </div>
 
-          <div className="sa-pp" ref={popRef}>
-            <button
-              type="button"
-              className="sa-user"
-              onClick={() => setProfileOpen((v) => !v)}
-              aria-haspopup="menu"
-              aria-expanded={profileOpen}
-            >
-              <span className="sa-avatar">{initials(name)}</span>
-              <span className="sa-user__who">
-                <b>{name}</b>
-                <small>{roleLabel}</small>
-              </span>
-              <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
+          <div className="sa-top__right">
+            {actions}
+            <button type="button" className="sa-iconbtn" onClick={() => setTheme(nextTheme)} aria-label={themeLabel} title={themeLabel}>
+              {nextTheme === 'light' ? <Sun size={17} strokeWidth={1.8} /> : <Moon size={17} strokeWidth={1.8} />}
             </button>
-            {profileOpen && (
-              <div className="sa-pop" role="menu">
-                <button type="button" className="sa-pop__item" role="menuitem" onClick={handleLogout} disabled={leaving}>
-                  <LogOut size={15} strokeWidth={1.8} aria-hidden="true" />
-                  {leaving ? labels.leaving : labels.logout}
-                </button>
-              </div>
-            )}
+
+            <div className="sa-pp" ref={popRef}>
+              <button
+                type="button"
+                className="sa-user"
+                onClick={() => setProfileOpen((v) => !v)}
+                aria-haspopup="menu"
+                aria-expanded={profileOpen}
+              >
+                <span className="sa-avatar">{initials(name)}</span>
+                <span className="sa-user__who">
+                  <b>{name}</b>
+                  <small>{roleLabel}</small>
+                </span>
+                <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
+              </button>
+              {profileOpen && (
+                <div className="sa-pop" role="menu">
+                  <button type="button" className="sa-pop__item sa-pop__item--danger" role="menuitem" onClick={askLogout}>
+                    <LogOut size={15} strokeWidth={1.8} aria-hidden="true" />
+                    {labels.logout}
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
         </header>
 
         <main className="sa-content" key={pathname}>
-          <Outlet context={{ theme, setTheme }} />
+          <Outlet />
         </main>
       </div>
+
+      {confirmOpen && (
+        <div
+          className="sa-dialog"
+          role="presentation"
+          onMouseDown={(e) => e.target === e.currentTarget && !leaving && setConfirmOpen(false)}
+        >
+          <div className="sa-dialog__box" role="alertdialog" aria-modal="true" aria-labelledby="sa-logout-title" aria-describedby="sa-logout-text">
+            <span className="sa-dialog__icon">
+              <LogOut size={24} strokeWidth={1.9} aria-hidden="true" />
+            </span>
+            <h2 id="sa-logout-title">{labels.logoutTitle}</h2>
+            <p id="sa-logout-text">{labels.logoutText}</p>
+            <div className="sa-dialog__actions">
+              <button type="button" className="sa-btn sa-btn--ghost" autoFocus disabled={leaving} onClick={() => setConfirmOpen(false)}>
+                {labels.cancel}
+              </button>
+              <button type="button" className="sa-btn sa-btn--danger" disabled={leaving} onClick={handleLogout}>
+                {leaving ? labels.leaving : labels.logoutConfirm}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

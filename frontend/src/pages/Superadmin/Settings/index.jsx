@@ -1,7 +1,6 @@
 import { useEffect, useState } from 'react';
-import { useOutletContext } from 'react-router-dom';
+import { Check, Eye, EyeOff, KeyRound, X } from 'lucide-react';
 import { diagnosticsApi, securityApi, settingsApi } from '../../../features/platform/platformApi';
-import { useAuth } from '../../../hooks/useAuth';
 import {
   DEFAULT_GENERAL,
   DEFAULT_NOTIFICATIONS,
@@ -10,16 +9,14 @@ import {
   loadSettings,
   saveSetting,
 } from '../adminApi';
-import { LANGS, useLang } from '../i18n';
+import { useLang } from '../i18n';
 import { Switch } from '../ui';
-import { loadAdminPrefs, storeAdminPrefs } from '../prefs';
 
 const GROUPS = [
-  { title: 'Admin', items: [['profile', 'Profil va til'], ['general', 'Umumiy sozlamalar']] },
+  { title: 'Admin', items: [['profile', 'Profil'], ['general', 'Umumiy sozlamalar']] },
   { title: 'Yetkazish', items: [['slots', "Slotlar va sig'im"]] },
   { title: 'Buyurtma', items: [['orderRules', 'Buyurtma qoidalari'], ['banned', "Taqiqlangan so'zlar"]] },
   { title: 'Xabarlar', items: [['notifications', 'Bildirishnomalar']] },
-  { title: 'Hisob', items: [['password', 'Parol va sessiyalar']] },
   { title: 'Texnik', items: [['diagnostics', 'Diagnostika']] },
 ];
 const TITLES = Object.fromEntries(GROUPS.flatMap((g) => g.items));
@@ -87,9 +84,7 @@ export default function SuperadminSettings() {
           <div className="sa-panel__title" style={{ marginBottom: 4 }}>{t(TITLES[active])}</div>
 
           {active === 'profile' ? (
-            <ProfileSection />
-          ) : active === 'password' ? (
-            <SecuritySection />
+            <PasswordSection />
           ) : active === 'diagnostics' ? (
             <DiagnosticsSection />
           ) : settings === null ? (
@@ -213,98 +208,6 @@ function SwitchRow({ label, hint, checked, onChange }) {
       </div>
       <Switch checked={checked} onChange={onChange} label={label} />
     </div>
-  );
-}
-
-/* ---------- Admin: profil va til (shu brauzerda) ---------- */
-function ProfileSection() {
-  const { t, lang, setLang } = useLang();
-  const { theme, setTheme } = useOutletContext() ?? {}; // mavzu holati SuperadminLayout'da
-  const { user, role } = useAuth();
-  const [prefs, setPrefs] = useState(loadAdminPrefs);
-  const [notice, setNotice] = useState('');
-  const set = (patch) => {
-    const next = { ...prefs, ...patch };
-    setPrefs(next);
-    storeAdminPrefs(next);
-    setNotice(t('Saqlandi'));
-  };
-
-  return (
-    <>
-      <p className="sa-table__sub" style={{ marginBottom: 18 }}>
-        {t('Bu sozlamalar faqat shu brauzerda saqlanadi va boshqa adminlarga ta’sir qilmaydi.')}
-      </p>
-      <Messages notice={notice} />
-
-      <div style={grid}>
-        <div style={fieldStyle}>
-          {t('Ism')}
-          <b>{user?.fullName || '—'}</b>
-        </div>
-        <div style={fieldStyle}>
-          {t('Telefon')}
-          <b>{user?.phone || '—'}</b>
-        </div>
-        <div style={fieldStyle}>
-          {t('Rol')}
-          <b>{role || '—'}</b>
-        </div>
-      </div>
-
-      <div className="sa-panel__title" style={{ fontSize: 14, marginBottom: 8 }}>{t('Panel tili')}</div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 22 }}>
-        {LANGS.map((l) => (
-          <button
-            key={l.value}
-            type="button"
-            className={`sa-tab${lang === l.value ? ' is-active' : ''}`}
-            aria-pressed={lang === l.value}
-            onClick={() => setLang(l.value)}
-          >
-            {l.label}
-          </button>
-        ))}
-      </div>
-
-      <div className="sa-panel__title" style={{ fontSize: 14, marginBottom: 8 }}>{t('Mavzu')}</div>
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 22 }}>
-        {[
-          ['dark', "Qorong'i mavzu"],
-          ['light', "Yorug' mavzu"],
-        ].map(([value, label]) => (
-          <button
-            key={value}
-            type="button"
-            className={`sa-tab${theme === value ? ' is-active' : ''}`}
-            aria-pressed={theme === value}
-            onClick={() => setTheme?.(value)}
-          >
-            {t(label)}
-          </button>
-        ))}
-      </div>
-
-      <div style={grid}>
-        <label style={fieldStyle}>
-          {t('Dashboard: standart davr')}
-          <select className="sa-input" value={prefs.dashboardDays} onChange={(e) => set({ dashboardDays: Number(e.target.value) })}>
-            <option value={1}>{t('Bugun')}</option>
-            <option value={7}>{t('7 kun')}</option>
-            <option value={30}>{t('30 kun')}</option>
-          </select>
-        </label>
-        <label style={fieldStyle}>
-          {t('Buyurtmalar: sahifadagi qatorlar')}
-          <select className="sa-input" value={prefs.ordersPageSize} onChange={(e) => set({ ordersPageSize: Number(e.target.value) })}>
-            {[10, 20, 50, 100].map((n) => (
-              <option key={n} value={n}>{n}</option>
-            ))}
-          </select>
-        </label>
-      </div>
-
-    </>
   );
 }
 
@@ -717,17 +620,61 @@ function NotificationsSection({ settings, onSaved }) {
   );
 }
 
-/* ---------- Hisob: parol ---------- */
-function SecuritySection() {
+/* ---------- Profil: faqat parolni yangilash (til va mavzu yuqori panelda) ---------- */
+const STRENGTH = [
+  null,
+  ['Kuchsiz', 'var(--sa-red)'],
+  ["O'rtacha", 'var(--sa-accent)'],
+  ['Kuchli', 'var(--sa-green)'],
+];
+
+/** 1 — kuchsiz, 2 — harf va raqam aralash (8+ belgi), 3 — uzun, katta harf yoki belgi ham bor */
+function passwordStrength(password) {
+  if (!password) return 0;
+  if (password.length < 8 || !/\d/.test(password) || !/\D/.test(password)) return 1;
+  return password.length >= 10 && /[a-z]/.test(password) && /[A-Z]|[^\w\s]/.test(password) ? 3 : 2;
+}
+
+/** Parol maydoni: o'ngdagi ko'z tugmasi shu maydonning o'zini ko'rsatadi / yashiradi */
+function PasswordField({ label, value, onChange, autoComplete, minLength, children }) {
   const { t } = useLang();
-  const { logout } = useAuth();
+  const [show, setShow] = useState(false);
+  const eyeLabel = t(show ? 'Parolni yashirish' : "Parolni ko'rsatish");
+  return (
+    <div style={fieldStyle}>
+      <label style={fieldStyle}>
+        {label}
+        <span className="sa-pass">
+          <input
+            className="sa-input"
+            type={show ? 'text' : 'password'}
+            autoComplete={autoComplete}
+            minLength={minLength}
+            value={value}
+            onChange={onChange}
+            required
+          />
+          <button type="button" className="sa-pass__eye" onClick={() => setShow((v) => !v)} aria-label={eyeLabel} title={eyeLabel} aria-pressed={show}>
+            {show ? <EyeOff size={17} strokeWidth={1.9} aria-hidden="true" /> : <Eye size={17} strokeWidth={1.9} aria-hidden="true" />}
+          </button>
+        </span>
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function PasswordSection() {
+  const { t } = useLang();
   const empty = { currentPassword: '', newPassword: '', confirm: '' };
   const [form, setForm] = useState(empty);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [saving, setSaving] = useState(false);
-  const [leaving, setLeaving] = useState(false);
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const strength = passwordStrength(form.newPassword);
+  const matches = form.confirm !== '' && form.confirm === form.newPassword;
 
   const submit = async (e) => {
     e.preventDefault();
@@ -748,21 +695,6 @@ function SecuritySection() {
     return undefined;
   };
 
-  // Joriy sessiya ham bekor bo'ladi — shuning uchun darhol login sahifasiga qaytiladi
-  const logoutAll = async () => {
-    setLeaving(true);
-    setError('');
-    try {
-      await securityApi.logoutAll();
-      await logout();
-    } catch (err) {
-      setError(err.message);
-      setLeaving(false);
-    }
-  };
-
-  const input = { className: 'sa-input', style: { width: '100%', maxWidth: 320 }, required: true };
-
   return (
     <>
       <p className="sa-table__sub" style={{ marginBottom: 18 }}>
@@ -770,33 +702,35 @@ function SecuritySection() {
       </p>
       <Messages error={error} notice={notice} />
 
-      <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 12, marginBottom: 26 }}>
-        <label style={fieldStyle}>
-          {t('Joriy parol')}
-          <input {...input} type="password" autoComplete="current-password" value={form.currentPassword} onChange={set('currentPassword')} />
-        </label>
-        <label style={fieldStyle}>
-          {t('Yangi parol')}
-          <input {...input} type="password" autoComplete="new-password" minLength={6} value={form.newPassword} onChange={set('newPassword')} />
-        </label>
-        <label style={fieldStyle}>
-          {t('Yangi parolni takrorlang')}
-          <input {...input} type="password" autoComplete="new-password" minLength={6} value={form.confirm} onChange={set('confirm')} />
-        </label>
+      <form onSubmit={submit} style={{ display: 'flex', flexDirection: 'column', gap: 16, maxWidth: 380 }}>
+        <PasswordField label={t('Joriy parol')} autoComplete="current-password" value={form.currentPassword} onChange={set('currentPassword')} />
+        <PasswordField label={t('Yangi parol')} autoComplete="new-password" minLength={6} value={form.newPassword} onChange={set('newPassword')}>
+          {strength > 0 && (
+            <div className="sa-strength" style={{ '--strength': STRENGTH[strength][1] }}>
+              <span className="sa-strength__bars" aria-hidden="true">
+                {[1, 2, 3].map((n) => (
+                  <i key={n} className={n <= strength ? 'is-on' : undefined} />
+                ))}
+              </span>
+              {t(STRENGTH[strength][0])}
+            </div>
+          )}
+        </PasswordField>
+        <PasswordField label={t('Yangi parolni takrorlang')} autoComplete="new-password" minLength={6} value={form.confirm} onChange={set('confirm')}>
+          {form.confirm !== '' && (
+            <div className={`sa-pass-note${matches ? '' : ' is-bad'}`}>
+              {matches ? <Check size={14} strokeWidth={2.6} aria-hidden="true" /> : <X size={14} strokeWidth={2.6} aria-hidden="true" />}
+              {t(matches ? 'Parollar mos keldi' : 'Yangi parollar mos kelmadi')}
+            </div>
+          )}
+        </PasswordField>
         <div>
-          <button type="submit" className="sa-btn" disabled={saving}>
-            {saving ? t('Saqlanmoqda...') : t('Parolni almashtirish')}
+          <button type="submit" className="sa-btn" disabled={saving || !form.currentPassword || !matches}>
+            <KeyRound size={15} strokeWidth={2} aria-hidden="true" />
+            {saving ? t('Saqlanmoqda...') : t('Parolni yangilash')}
           </button>
         </div>
       </form>
-
-      <div className="sa-panel__title" style={{ marginBottom: 4, fontSize: 14 }}>{t('Barcha qurilmalardan chiqish')}</div>
-      <p className="sa-table__sub" style={{ marginBottom: 12 }}>
-        {t('Akkauntga kirilgan hamma qurilmalar, shu jumladan bu brauzer ham chiqariladi.')}
-      </p>
-      <button type="button" className="sa-btn sa-btn--ghost" disabled={leaving} onClick={logoutAll}>
-        {leaving ? t('Chiqilmoqda...') : t('Hamma joydan chiqish')}
-      </button>
     </>
   );
 }

@@ -88,13 +88,9 @@ export default function Chat() {
   };
 
   return (
-    <div className="space-y-4">
-      <div>
-        <h2 className="text-2xl font-black text-white">{t('chat.title')}</h2>
-        <p className="mt-1 text-xs font-medium text-slate-400">{t('chat.subtitle')}</p>
-      </div>
-
-      <Card className="flex h-[min(70vh,640px)] flex-col overflow-hidden border border-white/10 bg-[#121829]">
+    // Sarlavha tepa panelda ("Admin bilan chat") — sahifada takrorlanmaydi
+    <div>
+      <Card className="flex h-[min(78vh,720px)] flex-col overflow-hidden border border-white/10 bg-[#121829]">
         <div ref={listRef} onScroll={handleScroll} className="flex flex-1 flex-col gap-2 overflow-y-auto p-4">
           {loading && <p className="m-auto text-xs text-slate-400">{t('api.loading')}</p>}
           {!loading && messages.length === 0 && (

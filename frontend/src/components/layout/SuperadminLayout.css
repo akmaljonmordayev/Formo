@@ -71,13 +71,13 @@
 .sa-brand {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
   padding: 4px 10px 18px;
 }
 
 .sa-brand__mark {
-  width: 34px;
-  height: 33px;
+  width: 48px;
+  height: 46px;
   flex-shrink: 0;
 }
 
@@ -94,7 +94,8 @@
   flex-direction: column;
   font-family: var(--font-display, sans-serif);
   font-weight: 700;
-  font-size: 16px;
+  font-size: 22px;
+  line-height: 1.15;
 }
 
 .sa-brand__text small {
@@ -1264,4 +1265,131 @@ td.sa-table__sub {
   .sa-kanban {
     grid-template-columns: 1fr;
   }
+}
+
+/* ---------- Yuqori panel: til, mavzu va profil o'ng tomonda ---------- */
+.sa-top__right {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+}
+
+.sa-top__right .sa-pp {
+  margin-left: 0;
+}
+
+.sa-iconbtn:hover,
+.sa-langbtn:hover {
+  background: rgba(var(--sa-hover-rgb), 0.06);
+}
+
+.sa-langbtn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 36px;
+  padding: 0 10px;
+  border-radius: 10px;
+  border: 1px solid var(--sa-line);
+  background: var(--sa-surface);
+  color: var(--sa-ink);
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sa-pop__item.is-active {
+  background: rgba(242, 163, 58, 0.14);
+  font-weight: 600;
+}
+
+.sa-pop__item--danger {
+  color: var(--sa-red);
+  font-weight: 600;
+}
+
+.sa-pop__item--danger:hover {
+  background: rgba(229, 89, 107, 0.12);
+}
+
+.sa-btn--danger {
+  background: var(--sa-red);
+  color: #fff;
+}
+
+/* ---------- Tasdiq oynasi (chiqish) ---------- */
+@keyframes sa-dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.97);
+  }
+}
+
+.sa-dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(3, 7, 20, 0.6);
+  backdrop-filter: blur(4px);
+}
+
+.sa-dialog__box {
+  width: 100%;
+  max-width: 380px;
+  padding: 26px 24px 22px;
+  border: 1px solid var(--sa-line);
+  border-radius: 18px;
+  background: var(--sa-surface);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.5);
+  text-align: center;
+  animation: sa-dialog-in 0.22s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sa-dialog__icon {
+  display: inline-grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  background: rgba(229, 89, 107, 0.16);
+  color: var(--sa-red);
+}
+
+.sa-dialog__box h2 {
+  margin: 14px 0 6px;
+  font-family: var(--font-display, sans-serif);
+  font-size: 18px;
+}
+
+.sa-dialog__box p {
+  margin: 0;
+  font-size: 13.5px;
+  color: var(--sa-mu);
+}
+
+.sa-dialog__actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 22px;
+}
+
+.sa-dialog__actions .sa-btn {
+  justify-content: center;
+  height: 44px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-dialog__box {
+    animation: none;
+  }
+}
+
+.sa-btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
 }

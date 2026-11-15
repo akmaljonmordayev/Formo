@@ -1,18 +1,27 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { AlarmClock, Factory, ShoppingBag, Wallet } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
-import { auditLogApi, dashboardApi, ordersApi, ORDER_STATUS, formatDateTime } from '../../../features/platform/platformApi';
-import { useLang, useMoney } from '../i18n';
+import { dashboardApi, ordersApi, ORDER_STATUS, formatDateTime } from '../../../features/platform/platformApi';
+import { useCompactNumber, useDayLabel, useLang, useMoney } from '../i18n';
 import { loadAdminPrefs } from '../prefs';
-import RangePicker, { RANGES, rangeParams, todayKey as utcToday } from '../RangePicker';
+import RangePicker, { RANGES, rangeParams, todayKey } from '../RangePicker';
+import { CountUp, Kpi, TrendChart } from '../ui';
 
-const delta = (t, pct) =>
-  pct === null || pct === undefined ? null : t('{pct}% oldingi davrga nisbatan', { pct: `${pct > 0 ? '+' : ''}${pct}` });
+const WEEKDAYS = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'];
+const MONTHS = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
+const METRICS = [
+  ['count', 'Buyurtmalar soni'],
+  ['revenue', "Tushum (so'm)"],
+];
 
 const openOrderUrl = (code) => `/superadmin/orders?search=${encodeURIComponent(code)}`;
 
+/** Bosh sahifa: 4 ta asosiy ko'rsatkich, kunlik grafik va so'nggi buyurtmalar */
 export default function SuperadminDashboard() {
   const money = useMoney();
+  const compact = useCompactNumber();
+  const dayLabel = useDayLabel();
   const { t } = useLang();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -21,20 +30,13 @@ export default function SuperadminDashboard() {
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [metric, setMetric] = useState('count');
-  const [hover, setHover] = useState(null);
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [recent, setRecent] = useState(null);
-  const [actions, setActions] = useState(null);
+
   const name = (user?.fullName || 'Super admin').split(' ')[0];
-  const WEEKDAYS = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'];
-  const MONTHS = [
-    'yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr',
-  ];
   const now = new Date();
-  const today = `${t(WEEKDAYS[now.getDay()])}, ${now.getDate()}-${t(MONTHS[now.getMonth()])}`;
-  const todayKey = utcToday();
   const custom = Boolean(from && to);
   const badRange = custom && from > to;
 
@@ -51,57 +53,42 @@ export default function SuperadminDashboard() {
     return () => {
       active = false;
     };
-  }, [range, custom, from, to, badRange]);
+  }, [range, from, to, badRange]);
 
   useEffect(() => {
     let active = true;
     ordersApi
-      .list({ limit: 5 })
+      .list({ limit: 6 })
       .then((d) => active && setRecent(d.items))
       .catch(() => active && setRecent([]));
-    auditLogApi
-      .list({ limit: 5 })
-      .then((d) => active && setActions(d.items))
-      .catch(() => active && setActions([]));
     return () => {
       active = false;
     };
   }, []);
 
-  const bars = stats?.dailyTrend ?? [];
-  const value = (b) => (metric === 'revenue' ? b.revenue ?? 0 : b.count);
-  const maxBar = Math.max(1, ...bars.map(value));
-  const total = bars.reduce((s, b) => s + value(b), 0);
-  const avg = bars.length ? Math.round(total / bars.length) : 0;
-  const fmt = (n) => (metric === 'revenue' ? money(n) : n);
-  // "Noyabr 13" kabi uzun yorliqlar yopishmasin — ko'pi bilan ~7 ta
-  const labelStep = Math.max(1, Math.ceil(bars.length / 7));
-  // Oy to'liq nomi, keyin kun: "Noyabr 13" / "Ноябрь 13". Brauzerda o'zbekcha oy nomlari yo'q ("M11") — o'z lug'atimiz
-  const dayLabel = (iso) => {
-    const d = new Date(iso);
-    const month = MONTHS[d.getUTCMonth()];
-    return `${t(month.charAt(0).toUpperCase() + month.slice(1))} ${d.getUTCDate()}`;
-  };
+  const deltaHint = (pct) =>
+    pct === null || pct === undefined ? t('Tanlangan davr uchun') : t('{pct}% oldingi davrga nisbatan', { pct: `${pct > 0 ? '+' : ''}${pct}` });
+  const tone = (pct) => (pct > 0 ? 'up' : pct < 0 ? 'down' : undefined);
 
-  const STATS = stats
-    ? [
-        { label: t('Buyurtmalar'), value: String(stats.ordersCount), delta: delta(t, stats.ordersDeltaPct), up: stats.ordersDeltaPct > 0 },
-        { label: t('Tushum'), value: money(stats.revenue), delta: delta(t, stats.revenueDeltaPct), up: stats.revenueDeltaPct > 0 },
-        {
-          label: t('Sexdagi yuk'),
-          value: stats.loadPct !== null ? `${stats.loadPct}%` : '—',
-          delta: stats.capacity ? t('{a} / {b} dona', { a: stats.activeCount, b: stats.capacity }) : t("Sig'im kiritilmagan"),
-        },
-        { label: t('Kechikayotgan'), value: String(stats.lateCount), delta: t('muddatga 3 soatdan kam'), up: stats.lateCount === 0 },
-      ]
-    : [];
+  const isRevenue = metric === 'revenue';
+  const format = isRevenue ? money : (n) => t('{n} ta', { n: Math.round(n) });
+  const today = todayKey();
+  const points = (stats?.dailyTrend ?? []).map((d) => ({
+    key: d.date,
+    label: dayLabel(d.date),
+    value: isRevenue ? d.revenue ?? 0 : d.count,
+    today: d.date === today,
+  }));
+  const total = points.reduce((s, p) => s + p.value, 0);
+  const best = points.reduce((top, p) => (p.value > (top?.value ?? 0) ? p : top), null);
+  const late = stats?.lateCount ?? 0;
 
   return (
     <>
       <div className="sa-head">
         <div>
           <h1>{t('Xayrli kun, {name}', { name })}</h1>
-          <p>{today} · {t('barcha tizimlar kuzatuvda')}</p>
+          <p>{t(WEEKDAYS[now.getDay()])}, {now.getDate()}-{t(MONTHS[now.getMonth()])}</p>
         </div>
         <RangePicker range={range} onRange={setRange} from={from} to={to} onFrom={setFrom} onTo={setTo} />
       </div>
@@ -109,32 +96,56 @@ export default function SuperadminDashboard() {
       {badRange && <div className="form-error">{t("Boshlanish sanasi tugash sanasidan keyin bo'lmasligi kerak")}</div>}
       {error && <div className="form-error">{error}</div>}
 
-      <div className="sa-stats">
-        {(loading ? Array.from({ length: 4 }) : STATS).map((s, i) => (
-          <div key={s?.label ?? i} className="sa-stat">
-            <div className="sa-stat__label">{s?.label ?? '···'}</div>
-            <div className="sa-stat__value">{loading ? '···' : s.value}</div>
-            {!loading && s.delta && (
-              <div className={`sa-stat__delta${s.up === true ? ' is-up' : s.up === false ? ' is-down' : ''}`}>{s.delta}</div>
-            )}
-          </div>
-        ))}
+      <div className="sa-kpis" aria-busy={loading}>
+        <Kpi
+          icon={ShoppingBag}
+          label={t('Buyurtmalar')}
+          value={<CountUp value={stats?.ordersCount ?? 0} />}
+          hint={deltaHint(stats?.ordersDeltaPct)}
+          tone={tone(stats?.ordersDeltaPct)}
+        />
+        <Kpi
+          icon={Wallet}
+          label={t('Tushum')}
+          value={<CountUp value={stats?.revenue ?? 0} format={money} />}
+          hint={deltaHint(stats?.revenueDeltaPct)}
+          tone={tone(stats?.revenueDeltaPct)}
+          color="var(--sa-teal)"
+          delay={70}
+        />
+        <Kpi
+          icon={Factory}
+          label={t('Hozir sexlarda')}
+          value={<CountUp value={stats?.activeCount ?? 0} />}
+          hint={
+            stats?.capacity
+              ? t("Sexlar sig'imi {b} dona · {pct}% band", { b: stats.capacity, pct: stats.loadPct })
+              : t("Sexlar sig'imi kiritilmagan")
+          }
+          color="var(--sa-violet)"
+          delay={140}
+        />
+        <Kpi
+          icon={AlarmClock}
+          label={t('Kechikayotgan')}
+          value={<CountUp value={late} />}
+          hint={late > 0 ? t("Qabul qilinganiga 21 soatdan oshgan, hali tayyor emas") : t("Hammasi o'z vaqtida")}
+          tone={late > 0 ? 'down' : 'up'}
+          color="var(--sa-green)"
+          alert={late > 0}
+          delay={210}
+        />
       </div>
 
       <div className="sa-grid-2">
         <div className="sa-panel">
-          <div className="sa-panel__head">
+          <div className="sa-panel__head" style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <div>
-              <div className="sa-panel__title">
-                {t(metric === 'revenue' ? 'Tushum' : 'Buyurtmalar')} · {custom ? `${dayLabel(from)} — ${dayLabel(to)}` : t(range.label)}
-              </div>
-              <div className="sa-panel__sub">{t("jami {total} · o'rtacha kuniga {avg}", { total: fmt(total), avg: fmt(avg) })}</div>
+              <div className="sa-panel__title">{t(isRevenue ? 'Kunlik tushum' : 'Kunlik buyurtmalar')}</div>
+              <div className="sa-panel__sub">{custom ? `${dayLabel(from)} — ${dayLabel(to)}` : t(range.label)}</div>
             </div>
             <div className="sa-tabs" style={{ marginBottom: 0 }}>
-              {[
-                ['count', 'Buyurtmalar soni'],
-                ['revenue', "Tushum (so'm)"],
-              ].map(([key, label]) => (
+              {METRICS.map(([key, label]) => (
                 <button
                   key={key}
                   type="button"
@@ -147,48 +158,28 @@ export default function SuperadminDashboard() {
               ))}
             </div>
           </div>
-          {bars.length === 0 ? (
-            <div className="sa-table__sub" style={{ padding: '24px 0', textAlign: 'center' }}>
-              {loading ? t('Yuklanmoqda...') : t("Bu davrda buyurtma yo'q")}
+          <div className="sa-facts">
+            <div>
+              <span>{t('Jami')}</span>
+              <b>{format(total)}</b>
             </div>
-          ) : (
-            <>
-              <div className="sa-bars" onMouseLeave={() => setHover(null)}>
-                {bars.map((b, i) => (
-                  <div
-                    key={b.date}
-                    className={`sa-bars__item${hover === i ? ' is-active' : ''}`}
-                    onMouseEnter={() => setHover(i)}
-                    aria-label={`${dayLabel(b.date)}: ${t('{n} ta', { n: b.count })}, ${money(b.revenue ?? 0)}`}
-                  >
-                    <div
-                      className={`sa-bars__col${b.date === todayKey ? ' is-today' : ''}`}
-                      style={{ height: `${(value(b) / maxBar) * 100}%` }}
-                    />
-                  </div>
-                ))}
-              </div>
-              <div className="sa-bars__axis">
-                {bars.map((b, i) => (
-                  <span key={b.date}>{i % labelStep === 0 ? dayLabel(b.date) : ''}</span>
-                ))}
-              </div>
-              {/* Tanlangan kun statistikasi grafik ostida: balandligi doimiy — hover paytida karta sakramaydi */}
-              <div className={`sa-bars__info${hover !== null && bars[hover] ? ' is-active' : ''}`} aria-live="polite">
-                <div key={hover ?? 'hint'} className="sa-bars__info-body">
-                  {hover !== null && bars[hover] ? (
-                    <>
-                      <b>{dayLabel(bars[hover].date)}</b>
-                      <span>{t('Buyurtmalar')}: {bars[hover].count}</span>
-                      <span>{t('Tushum')}: {money(bars[hover].revenue ?? 0)}</span>
-                    </>
-                  ) : (
-                    <span>{t('Kun statistikasi uchun ustun ustiga olib boring')}</span>
-                  )}
-                </div>
-              </div>
-            </>
-          )}
+            <div>
+              <span>{t("Kuniga o'rtacha")}</span>
+              <b>{format(points.length ? total / points.length : 0)}</b>
+            </div>
+            <div>
+              <span>{t('Eng yuqori kun')}</span>
+              <b>{best ? `${best.label} · ${format(best.value)}` : '—'}</b>
+            </div>
+          </div>
+          {/* key: davr yoki ko'rsatkich almashganda ustunlar qaytadan ko'tariladi */}
+          <TrendChart
+            key={`${metric}-${points[0]?.key}-${points.length}`}
+            points={points}
+            format={format}
+            tick={isRevenue ? compact : (n) => String(Math.round(n))}
+            empty={loading ? t('Yuklanmoqda...') : t("Bu davrda buyurtma yo'q")}
+          />
         </div>
 
         <div className="sa-panel">
@@ -197,81 +188,36 @@ export default function SuperadminDashboard() {
             <Link className="sa-panel__link" to="/superadmin/orders">{t('Barchasi →')}</Link>
           </div>
           {recent === null ? (
-            <div className="sa-table__sub" style={{ padding: '8px 0' }}>{t('Yuklanmoqda...')}</div>
+            <div className="sa-chart-empty">{t('Yuklanmoqda...')}</div>
           ) : recent.length === 0 ? (
-            <div className="sa-table__sub" style={{ padding: '8px 0' }}>{t('Buyurtma topilmadi')}</div>
+            <div className="sa-chart-empty">{t('Buyurtma topilmadi')}</div>
           ) : (
-            <div className="sa-table-wrap">
-              <table className="sa-table">
-                <thead>
-                  <tr>
-                    <th>{t('Raqam')}</th>
-                    <th>{t('Mijoz')}</th>
-                    <th>{t('Summa')}</th>
-                    <th>{t('Status')}</th>
-                    <th>{t('Sana')}</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {recent.map((o) => {
-                    const st = ORDER_STATUS[o.status] ?? { label: o.status, color: 'blue' };
-                    return (
-                      <tr
-                        key={o.id}
-                        role="link"
-                        tabIndex={0}
-                        style={{ cursor: 'pointer' }}
-                        onClick={() => navigate(openOrderUrl(o.code))}
-                        onKeyDown={(e) => e.key === 'Enter' && navigate(openOrderUrl(o.code))}
-                      >
-                        <td><b>{o.code}</b></td>
-                        <td>{o.customerName}</td>
-                        <td>{money(o.totalSum)}</td>
-                        <td><span className={`sa-badge sa-badge--${st.color}`}>{t(st.label)}</span></td>
-                        <td>{formatDateTime(o.createdAt)}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
+            <div className="sa-feed">
+              {recent.map((o) => {
+                const st = ORDER_STATUS[o.status] ?? { label: o.status, color: 'blue' };
+                return (
+                  <div
+                    key={o.id}
+                    className="sa-feed__row"
+                    role="link"
+                    tabIndex={0}
+                    onClick={() => navigate(openOrderUrl(o.code))}
+                    onKeyDown={(e) => e.key === 'Enter' && navigate(openOrderUrl(o.code))}
+                  >
+                    <div className="sa-feed__who">
+                      <b>{o.customerName}</b>
+                      <span>{o.code} · {formatDateTime(o.createdAt)}</span>
+                    </div>
+                    <div className="sa-feed__sum">
+                      <b>{money(o.totalSum)}</b>
+                      <span className={`sa-badge sa-badge--${st.color}`}>{t(st.label)}</span>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>
-      </div>
-
-      <div className="sa-panel">
-        <div className="sa-panel__head">
-          <div className="sa-panel__title">{t("So'nggi muhim amallar")}</div>
-          <Link className="sa-panel__link" to="/superadmin/audit-log">{t("Audit jurnali →")}</Link>
-        </div>
-        {actions === null ? (
-          <div className="sa-table__sub" style={{ padding: '8px 0' }}>{t('Yuklanmoqda...')}</div>
-        ) : actions.length === 0 ? (
-          <div className="sa-table__sub" style={{ padding: '8px 0' }}>{t('Yozuv topilmadi')}</div>
-        ) : (
-          <div className="sa-table-wrap">
-            <table className="sa-table">
-              <thead>
-                <tr>
-                  <th>{t('Vaqt')}</th>
-                  <th>{t('Kim')}</th>
-                  <th>{t('Amal')}</th>
-                  <th>{t('Obyekt')}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {actions.map((l) => (
-                  <tr key={l.id}>
-                    <td>{formatDateTime(l.createdAt)}</td>
-                    <td><b>{l.actorName}</b></td>
-                    <td>{t(l.action)}</td>
-                    <td style={{ color: 'var(--sa-mu)' }}>{l.context || '—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
       </div>
     </>
   );

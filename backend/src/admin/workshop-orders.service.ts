@@ -120,11 +120,11 @@ export class WorkshopOrdersService {
     // Toshkent kunlari bo'yicha (admin dashboard bilan bir xil) — tungi buyurtma kechagi kunga tushmasin
     const { from, dayKeys } = resolveRange({ days });
     const lateBefore = new Date(Date.now() - LATE_AFTER_MS);
-    // Faqat sonlar kerak — buyurtmalarni (mahsulot qatorlari bilan) yuklamaymiz; so'rovlar bir vaqtda ketadi
+    // Faqat hisob uchun kerakli maydonlar (forma nomi, o'lcham, dona) — to'liq buyurtma yuklanmaydi; so'rovlar bir vaqtda ketadi
     const [inPeriod, activeCount, lateCount, me] = await Promise.all([
       this.prisma.order.findMany({
         where: { workshopId: workshop.id, createdAt: { gte: from } },
-        select: { createdAt: true },
+        select: { createdAt: true, quantity: true, items: { select: { clubName: true, shirtSize: true, quantity: true } } },
       }),
       this.prisma.order.count({ where: { workshopId: workshop.id, status: { in: ACTIVE_STATUSES } } }),
       this.prisma.order.count({ where: { workshopId: workshop.id, status: { in: IN_WORK }, createdAt: { lt: lateBefore } } }),
@@ -132,19 +132,40 @@ export class WorkshopOrdersService {
     ]);
     const capacity = me?.dailyCapacity ?? null;
 
-    const buckets = new Map(dayKeys.map((k) => [k, 0]));
+    const buckets = new Map(dayKeys.map((k) => [k, { count: 0, pieces: 0 }]));
+    // Davr ichida: jami dona, qaysi forma va qaysi o'lcham ko'p tikilgani
+    const models = new Map<string, number>();
+    const sizes = new Map<string, number>();
+    let piecesCount = 0;
     for (const o of inPeriod) {
-      const key = tashkentDayKey(o.createdAt);
-      if (buckets.has(key)) buckets.set(key, (buckets.get(key) ?? 0) + 1);
+      const pieces = o.items.length ? o.items.reduce((sum, item) => sum + item.quantity, 0) : o.quantity;
+      piecesCount += pieces;
+      const bucket = buckets.get(tashkentDayKey(o.createdAt));
+      if (bucket) {
+        bucket.count += 1;
+        bucket.pieces += pieces;
+      }
+      for (const item of o.items) {
+        models.set(item.clubName, (models.get(item.clubName) ?? 0) + item.quantity);
+        sizes.set(item.shirtSize, (sizes.get(item.shirtSize) ?? 0) + item.quantity);
+      }
     }
+    const ranked = (map: Map<string, number>) =>
+      Array.from(map.entries())
+        .filter(([name]) => name)
+        .map(([name, pieces]) => ({ name, pieces }))
+        .sort((a, b) => b.pieces - a.pieces);
 
     return {
       ordersCount: inPeriod.length,
+      piecesCount,
       activeCount,
       capacity,
       loadPct: capacity ? Math.round((activeCount / capacity) * 100) : null,
       lateCount,
-      dailyTrend: Array.from(buckets.entries()).map(([date, count]) => ({ date, count })),
+      dailyTrend: Array.from(buckets.entries()).map(([date, b]) => ({ date, count: b.count, pieces: b.pieces })),
+      topModels: ranked(models).slice(0, 6),
+      sizes: ranked(sizes),
     };
   }
 

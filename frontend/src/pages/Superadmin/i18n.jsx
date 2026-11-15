@@ -1,28 +1,22 @@
 import { createContext, useCallback, useContext, useMemo, useState } from 'react';
-import { toUzNewLatin } from '../../utils/uzNewLatin';
-import EN from './i18n.en';
 import RU from './i18n.ru';
 
 /*
- * Superadmin paneli uchun 5 til: o'zbekcha (lotin), oʻzbekcha (yangi alifbo), ўзбекча (кирилл), русский, English.
+ * Superadmin paneli uchun 3 til: o'zbekcha (lotin), ўзбекча (кирилл), русский.
  * Kalit — o'zbekcha (lotin) matnning o'zi: t("Buyurtmalar").
  *   - uz  → matn o'zgarishsiz
  *   - oz  → lotindan kirillga avtomatik transliteratsiya (alohida lug'at shart emas)
- *   - uzn → lotindan yangi alifboga (Ō, Ḡ, Ş, Ç) avtomatik — utils/uzNewLatin.js
  *   - ru  → i18n.ru.js lug'atidan, topilmasa o'zbekchaga qaytadi
- *   - en  → i18n.en.js lug'atidan, topilmasa o'zbekchaga qaytadi
  * O'zgaruvchilar: t("{n} ta sotildi", { n: 5 }). {…} ichidagi nom transliteratsiya qilinmaydi.
  */
 
 export const LANGS = [
   { value: 'uz', label: "O'zbekcha", short: 'UZ' },
-  { value: 'uzn', label: 'Ōzbekça (yangi alifbo)', short: 'ŌZ' },
   { value: 'oz', label: 'Ўзбекча', short: 'ЎЗ' },
   { value: 'ru', label: 'Русский', short: 'RU' },
-  { value: 'en', label: 'English', short: 'EN' },
 ];
 
-export const LOCALES = { uz: 'uz-UZ', uzn: 'uz-UZ', oz: 'uz-Cyrl-UZ', ru: 'ru-RU', en: 'en-US' };
+export const LOCALES = { uz: 'uz-UZ', oz: 'uz-Cyrl-UZ', ru: 'ru-RU' };
 
 const STORAGE_KEY = 'formo_admin_lang';
 
@@ -125,9 +119,7 @@ export function translate(lang, text, vars) {
   const key = normalizeKey(text);
   let out;
   if (lang === 'ru') out = RU[key] ?? key;
-  else if (lang === 'en') out = EN[key] ?? key;
   else if (lang === 'oz') out = toCyrillic(key);
-  else if (lang === 'uzn') out = toUzNewLatin(key);
   else out = String(text);
   return fill(out, vars);
 }
@@ -160,4 +152,24 @@ export const useT = () => useContext(LangContext).t;
 export function useMoney() {
   const { t } = useContext(LangContext);
   return useCallback((n) => `${Math.round(n ?? 0).toLocaleString('uz-UZ')} ${t("so'm")}`, [t]);
+}
+
+/** O'q yorliqlari uchun qisqa son: 1 250 000 → "1.3 mln", 45 000 → "45 ming" */
+export function useCompactNumber() {
+  const { t } = useContext(LangContext);
+  return useCallback(
+    (n) => (n >= 1e6 ? `${Number((n / 1e6).toFixed(1))} ${t('mln')}` : n >= 1e3 ? `${Math.round(n / 1e3)} ${t('ming')}` : String(Math.round(n))),
+    [t],
+  );
+}
+
+const MONTHS = ['Yanvar', 'Fevral', 'Mart', 'Aprel', 'May', 'Iyun', 'Iyul', 'Avgust', 'Sentabr', 'Oktabr', 'Noyabr', 'Dekabr'];
+
+/** "2026-11-13" → "Noyabr 13" / "Ноябрь 13". Brauzerda o'zbekcha oy nomlari yo'q ("M11") — o'z lug'atimiz */
+export function useDayLabel() {
+  const { t } = useContext(LangContext);
+  return useCallback((iso) => {
+    const d = new Date(iso);
+    return `${t(MONTHS[d.getUTCMonth()])} ${d.getUTCDate()}`;
+  }, [t]);
 }

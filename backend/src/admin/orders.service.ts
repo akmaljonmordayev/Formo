@@ -304,7 +304,8 @@ export class OrdersService {
 
     const revenueOrders = current.filter((o) => REVENUE_STATUSES.includes(o.status));
     const revenue = revenueOrders.reduce((s, o) => s + o.totalSum, 0);
-    const refunded = current.filter((o) => o.status === OrderStatus.RETURNED).reduce((s, o) => s + o.totalSum, 0);
+    const refundedOrders = current.filter((o) => o.status === OrderStatus.RETURNED);
+    const refunded = refundedOrders.reduce((s, o) => s + o.totalSum, 0);
 
     const byMethod: Record<string, { count: number; sum: number }> = {};
     for (const o of revenueOrders) {
@@ -317,8 +318,13 @@ export class OrdersService {
     return {
       revenue,
       revenueDeltaPct: previous ? pctDelta(revenue, revenueOf(previous)) : null,
+      // Sotilgan (tushumga kirgan) buyurtmalar soni va o'rtacha chek
+      ordersCount: revenueOrders.length,
+      avgCheck: revenueOrders.length ? Math.round(revenue / revenueOrders.length) : 0,
       refunded,
+      refundedCount: refundedOrders.length,
       byMethod,
+      dailyTrend: this.groupByDay(current, r.dayKeys),
     };
   }
 
