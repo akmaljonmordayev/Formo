@@ -118,6 +118,9 @@ model TelegramAuthChallenge {
   consumedAt      DateTime? // kod ishlatildi — qayta ishlatib bo'lmaydi
   failedAt        DateTime? // raqam mos kelmadi yoki urinishlar tugadi
   ip              String?
+  // Raqam almashtirish so'rovi — faqat shu foydalanuvchi tasdiqlay oladi; null — oddiy kirish so'rovi.
+  // Ikki oqim bir-birining so'rovini ishlata olmaydi.
+  changeForUserId Int?
   expiresAt       DateTime
   createdAt       DateTime  @default(now())
 
