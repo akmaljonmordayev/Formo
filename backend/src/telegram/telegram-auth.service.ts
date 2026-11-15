@@ -62,7 +62,8 @@ export class TelegramAuthService {
     return (this.config.get<string>('TELEGRAM_BOT_USERNAME') ?? '').replace(/^@/, '').trim();
   }
 
-  async start(phone: string, client: ClientInfo) {
+  /** changeForUserId — raqam almashtirish so'rovi (requestPhoneChange); berilmasa — kirish so'rovi */
+  async start(phone: string, client: ClientInfo, changeForUserId: number | null = null) {
     const bot = this.botUsername;
     if (!bot || !this.config.get<string>('TELEGRAM_INTERNAL_TOKEN')) {
       throw new ServiceUnavailableException('Telegram orqali kirish hozircha sozlanmagan');
@@ -79,7 +80,13 @@ export class TelegramAuthService {
 
     const startToken = randomBytes(32).toString('base64url'); // 43 belgi — Telegram /start limiti 64
     const challenge = await this.prisma.telegramAuthChallenge.create({
-      data: { phone, startTokenHash: sha256(startToken), ip: client.ip, expiresAt: new Date(now + CHALLENGE_TTL_MS) },
+      data: {
+        phone,
+        startTokenHash: sha256(startToken),
+        ip: client.ip,
+        expiresAt: new Date(now + CHALLENGE_TTL_MS),
+        changeForUserId,
+      },
     });
     return {
       challengeId: challenge.id,
@@ -143,28 +150,8 @@ export class TelegramAuthService {
   /** Ilova: botdagi kodni tekshiradi va sessiya ochadi */
   async verify(challengeId: string, code: string, client: ClientInfo) {
     const now = new Date();
-    // Urinish avval atomik band qilinadi — parallel so'rovlar bilan limitni aylanib o'tib bo'lmaydi
-    const reserved = await this.prisma.telegramAuthChallenge.updateMany({
-      where: {
-        id: challengeId,
-        consumedAt: null,
-        failedAt: null,
-        codeHash: { not: null },
-        codeExpiresAt: { gt: now },
-        expiresAt: { gt: now },
-        attempts: { lt: MAX_CODE_ATTEMPTS },
-      },
-      data: { attempts: { increment: 1 } },
-    });
-    if (!reserved.count) throw new UnauthorizedException(INVALID_CODE);
-
-    const challenge = await this.prisma.telegramAuthChallenge.findUnique({ where: { id: challengeId } });
-    if (!challenge?.codeHash || !challenge.telegramUserId || !this.hashMatches(this.codeHash(challenge.id, code), challenge.codeHash)) {
-      if (challenge && challenge.attempts >= MAX_CODE_ATTEMPTS) {
-        await this.prisma.telegramAuthChallenge.updateMany({ where: { id: challengeId, failedAt: null }, data: { failedAt: now } });
-      }
-      throw new UnauthorizedException("Tasdiqlash kodi noto'g'ri");
-    }
+    // null — raqam almashtirish so'rovi bilan kirib bo'lmaydi
+    const challenge = await this.checkCode(challengeId, null, code);
 
     // Unik raqam bo'yicha poyga bo'lsa (ikki so'rov bir vaqtda yangi hisob ochmoqchi) — tranzaksiya
     // butunlay qaytadi, kod ishlatilmagan holda qoladi va klient qayta urinishi mumkin.
@@ -196,15 +183,21 @@ export class TelegramAuthService {
    */
   async requestPhoneChange(userId: number, phone: string, client: ClientInfo) {
     const current = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    // Xodim hisoblari (admin/tikuv sexi) botga ulanmaydi — raqamini Superadmin o'zgartiradi
+    if (current.role !== Role.USER) throw new ForbiddenException("Raqamni faqat administrator o'zgartira oladi");
     if (current.phone === phone) throw new BadRequestException('Bu allaqachon sizning raqamingiz');
     const taken = await this.prisma.user.findUnique({ where: { phone } });
     if (taken) throw new ConflictException("Bu raqam allaqachon ro'yxatdan o'tgan");
-    return this.start(phone, client);
+    return this.start(phone, client, userId);
   }
 
   /** Https: telefon raqamini almashtirish — 2-qadam. Sessiya ochmaydi, faqat raqamni yangilaydi. */
   async confirmPhoneChange(userId: number, challengeId: string, code: string) {
-    const phone = await this.consumeCodeOnly(challengeId, code);
+    // 1- va 2-qadam orasida rol yoki holat o'zgargan bo'lishi mumkin — qayta tekshiriladi
+    const current = await this.prisma.user.findUniqueOrThrow({ where: { id: userId } });
+    if (current.role !== Role.USER) throw new ForbiddenException("Raqamni faqat administrator o'zgartira oladi");
+    if (!current.isActive) throw new ForbiddenException('Akkauntingiz bloklangan. Administratorga murojaat qiling');
+    const phone = await this.consumeCodeOnly(userId, challengeId, code);
     try {
       const user = await this.prisma.user.update({ where: { id: userId }, data: { phone } });
       return toPublicUser(user);
@@ -221,29 +214,10 @@ export class TelegramAuthService {
    * sessiya ochmaydi/hisob yaratmaydi (login `verify()`dan farqli, raqam almashtirish uchun).
    * Tekshiruv mantig'i `verify()` bilan bir xil (atayin alohida — login oqimi tegilmasin).
    */
-  private async consumeCodeOnly(challengeId: string, code: string): Promise<string> {
+  private async consumeCodeOnly(userId: number, challengeId: string, code: string): Promise<string> {
     const now = new Date();
-    const reserved = await this.prisma.telegramAuthChallenge.updateMany({
-      where: {
-        id: challengeId,
-        consumedAt: null,
-        failedAt: null,
-        codeHash: { not: null },
-        codeExpiresAt: { gt: now },
-        expiresAt: { gt: now },
-        attempts: { lt: MAX_CODE_ATTEMPTS },
-      },
-      data: { attempts: { increment: 1 } },
-    });
-    if (!reserved.count) throw new UnauthorizedException(INVALID_CODE);
-
-    const challenge = await this.prisma.telegramAuthChallenge.findUnique({ where: { id: challengeId } });
-    if (!challenge?.codeHash || !challenge.telegramUserId || !this.hashMatches(this.codeHash(challenge.id, code), challenge.codeHash)) {
-      if (challenge && challenge.attempts >= MAX_CODE_ATTEMPTS) {
-        await this.prisma.telegramAuthChallenge.updateMany({ where: { id: challengeId, failedAt: null }, data: { failedAt: now } });
-      }
-      throw new UnauthorizedException("Tasdiqlash kodi noto'g'ri");
-    }
+    // faqat shu foydalanuvchi ochgan raqam almashtirish so'rovi
+    const challenge = await this.checkCode(challengeId, userId, code);
 
     const consumed = await this.prisma.telegramAuthChallenge.updateMany({
       where: { id: challenge.id, consumedAt: null, failedAt: null },
@@ -303,7 +277,9 @@ export class TelegramAuthService {
   private async claimByPhone(phone: string, telegramUserId: string, chatId: string | null) {
     const now = new Date();
     await this.prisma.telegramAuthChallenge.updateMany({
-      where: { phone, telegramUserId: null, consumedAt: null, failedAt: null, expiresAt: { gt: now } },
+      // Faqat kirish so'rovlari: raqam almashtirish so'rovi faqat deep-link (claim) orqali egallanadi —
+      // aks holda begona hisobning so'rovi raqam egasining Telegramiga bog'lanib, unga kod yuborilardi
+      where: { phone, telegramUserId: null, changeForUserId: null, consumedAt: null, failedAt: null, expiresAt: { gt: now } },
       data: { telegramUserId, chatId, claimedAt: now },
     });
     return this.activeChallenge(telegramUserId);
@@ -368,6 +344,7 @@ export class TelegramAuthService {
       where: {
         phone: challenge.phone,
         telegramUserId: challenge.telegramUserId,
+        changeForUserId: challenge.changeForUserId, // kirish kodi raqam almashtirishga (va aksincha) ko'chmaydi
         id: { not: challenge.id },
         consumedAt: null,
         failedAt: null,
@@ -383,6 +360,54 @@ export class TelegramAuthService {
         });
       }
     });
+  }
+
+  /**
+   * Bitta urinish: kodni tekshiradi, noto'g'ri bo'lsa 401. `changeForUserId` — qaysi oqim (null — kirish,
+   * son — shu foydalanuvchining raqam almashtirishi); boshqa oqimning so'rovi qabul qilinmaydi.
+   *
+   * mirrorCodeToSiblings bir raqamga ochilgan bir nechta so'rovga BIR XIL kod yozadi (bir xil codeSentAt).
+   * Urinishlar har so'rovda alohida sanalsa, hujumchi qurbon raqamiga oldindan N ta so'rov ochib qo'yib,
+   * bitta kodga 5 emas 5×N marta urinardi. Shuning uchun guruh qatorlari FOR UPDATE bilan qulflanadi
+   * (parallel so'rovlar navbat bilan o'tadi), urinish hammasida birga sanaladi va limitga yetganda
+   * hammasi yopiladi — bitta kodga jami ≤ MAX_CODE_ATTEMPTS.
+   */
+  private async checkCode(challengeId: string, changeForUserId: number | null, code: string): Promise<TelegramAuthChallenge> {
+    const result = await this.prisma.$transaction(async (tx) => {
+      const target = await tx.telegramAuthChallenge.findUnique({ where: { id: challengeId } });
+      if (!target?.telegramUserId || target.changeForUserId !== changeForUserId) return null;
+
+      // Shu raqam + Telegram foydalanuvchisining ochiq so'rovlari qulflanadi (id tartibida — deadlock bo'lmasin).
+      // Sana solishtirish SQL'da emas, JS'da (timestamp/timezone farqi bo'lmasin).
+      type Row = Pick<TelegramAuthChallenge, 'id' | 'attempts' | 'codeSentAt' | 'changeForUserId'>;
+      const locked = await tx.$queryRaw<Row[]>`
+        SELECT "id", "attempts", "codeSentAt", "changeForUserId" FROM "TelegramAuthChallenge"
+        WHERE "phone" = ${target.phone} AND "telegramUserId" = ${target.telegramUserId}
+          AND "consumedAt" IS NULL AND "failedAt" IS NULL
+        ORDER BY "id" FOR UPDATE`;
+
+      // Qulfdan keyin yangi holat (shu orada yangi kod chiqqan yoki so'rov ishlatilgan bo'lishi mumkin)
+      const fresh = await tx.telegramAuthChallenge.findUnique({ where: { id: challengeId } });
+      const now = new Date();
+      if (!fresh?.codeHash || !fresh.codeSentAt || !fresh.codeExpiresAt) return null;
+      if (fresh.consumedAt || fresh.failedAt || fresh.codeExpiresAt <= now || fresh.expiresAt <= now) return null;
+
+      const sentAt = fresh.codeSentAt.getTime();
+      const group = locked.filter((r) => r.changeForUserId === fresh.changeForUserId && r.codeSentAt?.getTime() === sentAt);
+      if (!group.some((r) => r.id === fresh.id)) return null;
+      const used = Math.max(...group.map((r) => r.attempts));
+      if (used >= MAX_CODE_ATTEMPTS) return null;
+
+      const ok = this.hashMatches(this.codeHash(fresh.id, code), fresh.codeHash);
+      await tx.telegramAuthChallenge.updateMany({
+        where: { id: { in: group.map((r) => r.id) } },
+        data: { attempts: { increment: 1 }, ...(!ok && used + 1 >= MAX_CODE_ATTEMPTS && { failedAt: now }) },
+      });
+      return { challenge: fresh, ok };
+    });
+    if (!result) throw new UnauthorizedException(INVALID_CODE);
+    if (!result.ok) throw new UnauthorizedException("Tasdiqlash kodi noto'g'ri");
+    return result.challenge;
   }
 
   private async findOrCreateUser(tx: Prisma.TransactionClient, phone: string): Promise<{ user: User; isNewUser: boolean }> {

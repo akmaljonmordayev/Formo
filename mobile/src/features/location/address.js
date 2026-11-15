@@ -27,6 +27,12 @@ export const REGION_CODES = [
   'QORAQALPOGISTON',
 ];
 
+/**
+ * Viloyatlarga buyurtma pochta bo'limigacha (topshirish punkti) boradi: uy manzili va xarita nuqtasi kerak emas —
+ * viloyat va tuman yetarli. Toshkent shahri (kuryer uygacha) — tuman, xarita nuqtasi va aniq manzil.
+ */
+export const isPostalRegion = (region) => REGION_CODES.includes(region) && region !== 'TOSHKENT_SHAHRI';
+
 // Xarita birinchi ochilganda (GPS/saqlangan nuqta bo'lmasa) — Toshkent markazi
 export const DEFAULT_CENTER = { latitude: 41.311081, longitude: 69.240562 };
 export const CITY_DELTA = { latitudeDelta: 0.08, longitudeDelta: 0.08 };
@@ -106,15 +112,17 @@ export function formatFullAddress(a, t) {
   return [...lead, text, houseLabel(a.house), a.apartment].filter(Boolean).join(', ');
 }
 
-/** Forma qiymatlarini tekshiradi: { field: i18nKey } (bo'sh obyekt — xato yo'q). */
+/** Forma qiymatlarini tekshiradi: { field: i18nKey } (bo'sh obyekt — xato yo'q). Viloyat (pochta) manzilida
+ *  ko'cha va uy raqami majburiy emas. */
 export function validateAddressForm({ label, address, apartment, region, district, house, coords }) {
   const errors = {};
   const l = String(label || '').trim();
   const a = String(address || '').trim();
   const h = String(house || '').trim();
+  const postal = isPostalRegion(region);
   if (!l || l.length > ADDRESS_LIMITS.label) errors.label = 'addrLabelInvalid';
-  if (a.length < ADDRESS_LIMITS.addressMin || a.length > ADDRESS_LIMITS.address) errors.address = 'addrTextInvalid';
-  if (!h || h.length > ADDRESS_LIMITS.house) errors.house = 'addrHouseInvalid';
+  if ((!postal && a.length < ADDRESS_LIMITS.addressMin) || a.length > ADDRESS_LIMITS.address) errors.address = 'addrTextInvalid';
+  if ((!postal && !h) || h.length > ADDRESS_LIMITS.house) errors.house = 'addrHouseInvalid';
   if (String(apartment || '').trim().length > ADDRESS_LIMITS.apartment) errors.apartment = 'addrApartmentInvalid';
   if (/[<>]/.test(l + a + h + (apartment || ''))) errors.address = 'invalidValue';
   if (!region || !REGION_CODES.includes(region)) errors.region = 'addrRegionInvalid';
@@ -125,12 +133,15 @@ export function validateAddressForm({ label, address, apartment, region, distric
 
 /**
  * POST/PATCH /addresses tanasi — faqat DTO maydonlari. Bo'sh `apartment`
- * yuborilmaydi (create) yoki bo'sh satr bilan tozalanadi (update).
+ * yuborilmaydi (create) yoki bo'sh satr bilan tozalanadi (update). Viloyat (pochta) manzilida ko'cha yozilmagan
+ * bo'lsa manzil matni — tuman nomi (server `address`ni majburiy qiladi).
  */
 export function toAddressPayload({ label, address, apartment, region, district, house, coords, isDefault }, { isUpdate = false } = {}) {
+  const text = String(address || '').trim().replace(/\s+/g, ' ');
+  const postal = isPostalRegion(region) && isDistrictOf(region, district);
   const body = {
     label: String(label).trim(),
-    address: String(address).trim().replace(/\s+/g, ' '),
+    address: postal && text.length < ADDRESS_LIMITS.addressMin ? district : text,
   };
   const apt = String(apartment || '').trim();
   if (apt) body.apartment = apt;
@@ -141,6 +152,7 @@ export function toAddressPayload({ label, address, apartment, region, district, 
   }
   const h = String(house || '').trim();
   if (h) body.house = h;
+  else if (isUpdate) body.house = '';
   if (isValidCoords(coords)) {
     body.latitude = round6(coords.latitude);
     body.longitude = round6(coords.longitude);

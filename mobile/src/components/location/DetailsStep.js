@@ -13,10 +13,12 @@ const LABEL_KEYS = ['addrLabelHome', 'addrLabelWork'];
  * Manzil qo'shishning oxirgi bosqichi — aniq manzil: mahalla/ko'cha, uy raqami (majburiy), xonadon,
  * manzil nomi (Uy/Ish) va "asosiy" belgisi. Tepada kuryer/admin ko'radigan to'liq manzil ko'rinishi.
  *
- * Props: t, form ({ region, district, address, house, apartment, label, isDefault, coords }),
- *        onChange(patch), errors ({ field: i18nKey }), saveError, saving, onEditPoint(), onSave()
+ * Viloyat manzilida (`postal`) ko'cha/uy/xonadon va xarita nuqtasi so'ralmaydi — buyurtma pochta bo'limigacha boradi.
+ *
+ * Props: t, postal, form ({ region, district, address, house, apartment, label, isDefault, coords }),
+ *        onChange(patch), errors ({ field: i18nKey }), saveError, saving, onEditPoint(), onChangeArea(), onSave()
  */
-export default function DetailsStep({ t, form, onChange, errors, saveError, saving, onEditPoint, onSave, bottomInset = 0 }) {
+export default function DetailsStep({ t, postal, form, onChange, errors, saveError, saving, onEditPoint, onChangeArea, onSave, bottomInset = 0 }) {
   const preview = formatFullAddress(form, t);
   const customLabel = LABEL_KEYS.some((k) => t(k) === form.label) ? '' : form.label;
 
@@ -31,13 +33,17 @@ export default function DetailsStep({ t, form, onChange, errors, saveError, savi
           <View style={styles.flex}>
             <Text style={styles.previewLabel}>{t('addrPreview')}</Text>
             <Text style={styles.previewText}>{preview || t('locationNoAddress')}</Text>
-            <Pressable onPress={onEditPoint} hitSlop={8} style={styles.previewLink} accessibilityRole="button">
+            <Pressable onPress={postal ? onChangeArea : onEditPoint} hitSlop={8} style={styles.previewLink} accessibilityRole="button">
               <MaterialCommunityIcons name="map-outline" size={14} color={colors.accent} />
-              <Text style={styles.previewLinkText}>{t('addrChangePoint')}</Text>
+              <Text style={styles.previewLinkText}>{t(postal ? 'addrChangeArea' : 'addrChangePoint')}</Text>
             </Pressable>
           </View>
         </View>
 
+        {postal ? (
+          <Text style={styles.hint}>{t('addrPostalNote')}</Text>
+        ) : (
+          <>
         <Text style={styles.label}>{t('addrStreet')}</Text>
         <TextInput
           value={form.address}
@@ -81,6 +87,8 @@ export default function DetailsStep({ t, form, onChange, errors, saveError, savi
         {errors.house ? <Text style={styles.fieldError}>{t(errors.house)}</Text> : null}
         {errors.apartment ? <Text style={styles.fieldError}>{t(errors.apartment)}</Text> : null}
         <Text style={styles.hint}>{t('addrExactHint')}</Text>
+          </>
+        )}
 
         <Text style={styles.label}>{t('addrLabel')}</Text>
         <View style={styles.chips}>

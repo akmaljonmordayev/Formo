@@ -434,7 +434,7 @@ const styles = themedStyles(() => ({
     color: '#080C24',
   },
   dangerBtn: {
-    backgroundColor: colors.red,
+    backgroundColor: colors.danger,
   },
   dangerText: {
     color: '#F3F5F9',

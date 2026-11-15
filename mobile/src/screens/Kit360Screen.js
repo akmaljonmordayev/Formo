@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing, TAB_BAR_HEIGHT, themedStyles } from '../constants/theme';
 import { Button, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
 import AddedToCart from '../components/ui/AddedToCart';
 import Kit360Viewer from '../components/ui/Kit360Viewer';
+import { ConfirmModal } from '../components/ui/Modals';
 import KitTypeStep from '../components/ui/kit360/KitTypeStep';
 import { PrintStep, SizeStep } from '../components/ui/kit360/PrintSteps';
 import ShortsNumberStep from '../components/ui/kit360/ShortsNumberStep';
@@ -24,10 +25,11 @@ const STEP_PANTS = { id: 'bottom', label: 'tabPants' };
 const sleeveOf = (kit) => (kit?.sleeve === 'LONG' ? 'LONG' : 'SHORT');
 
 /**
- * Forma 360°: jamoa tanlanadi, so'ng bosqichma-bosqich:
+ * Forma 360°: katalogda tanlangan jamoa formasi (bu yerda boshqa jamoaga o'tilmaydi), bosqichma-bosqich:
  *   1) forma turi — qishki (uzun yeng + shalvar) yoki yozgi (kalta yeng + shortik), suratlari bilan;
  *      jamoada faqat bitta tur bo'lsa bu bosqich ko'rsatilmaydi;
- *   2) o'lcham (majburiy) → 3) ism va raqam (ixtiyoriy) → 4) shortik/shalvarga raqam (toggle) → savatga.
+ *   2) o'lcham (majburiy) → 3) ism va raqam (ixtiyoriy, lekin ismsiz o'tishdan oldin tasdiq so'raladi) →
+ *   4) shortik/shalvarga raqam (toggle) → savatga.
  * Komplekt (futbolka + shortik/shalvar) bitta narx: pastki qism o'lchami futbolka bilan bir xil.
  * Savatga qo'shilganda ekrandan chiqilmaydi — forma savatga "uchadi" va "Savatga o'tish" kartasi chiqadi.
  *
@@ -49,6 +51,9 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
   const addingRef = useRef(false);
   const [feedback, setFeedback] = useState(null);
   const [addedEvent, setAddedEvent] = useState(null);
+  // Ism yozilmagan: tasdiqlansa o'tiladigan bosqich raqami (null — so'ralmayapti); bir marta tasdiqlangach qayta so'ralmaydi
+  const [skipAsk, setSkipAsk] = useState(null);
+  const skipOk = useRef(false);
 
   // Backend klublarini yuklaymiz (aniq kitId va narxlar uchun)
   const { clubs, isLoading: clubsLoading, refetch: refetchClubs } = useClubs();
@@ -59,8 +64,8 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
     }
   }, [initialTeam]);
 
-  // Lentada faqat backend'da formasi bor (buyurtma beriladigan) jamoalar; klublar yuklanmagan yoki birortasi ham
-  // bog'lanmagan bo'lsa — butun ro'yxat (aks holda lenta bo'sh qolardi)
+  // Backend'da formasi bor (buyurtma beriladigan) jamoalar; klublar yuklanmagan yoki birortasi ham bog'lanmagan
+  // bo'lsa — butun ro'yxat
   const teams = useMemo(() => {
     if (!clubs || !clubs.length) return KIT360_TEAMS;
     const ids = new Set(clubs.filter((c) => c.forms > 0).map((c) => c.kit360Id || kit360Team(c)).filter(Boolean));
@@ -177,10 +182,18 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
     return null;
   };
 
+  // Ism yozilmagan bo'lsa "Ism va raqam" bosqichidan faqat tasdiq bilan o'tiladi
+  const printAt = steps.findIndex((s) => s.id === 'print') + 1;
+  const needsPrintConfirm = !printName.trim() && !skipOk.current;
+
   const onNext = () => {
     const why = blocker(current);
     if (why) {
       setFeedback({ ok: false, text: why });
+      return;
+    }
+    if (current === 'print' && needsPrintConfirm) {
+      setSkipAsk(step + 1);
       return;
     }
     goStep(step + 1);
@@ -190,9 +203,13 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
   const openStep = (n) => {
     if (n <= step) return goStep(n);
     const missing = steps.slice(0, n - 1).findIndex((s) => blocker(s.id));
-    if (missing === -1) return goStep(n);
-    goStep(missing + 1);
-    return setFeedback({ ok: false, text: blocker(steps[missing].id) });
+    if (missing !== -1) {
+      goStep(missing + 1);
+      return setFeedback({ ok: false, text: blocker(steps[missing].id) });
+    }
+    // Ism bosqichini sakrab o'tib bo'lmaydi: avval o'sha bosqich ochiladi, undan keyin — tasdiq
+    if (n > printAt && needsPrintConfirm) return step === printAt ? setSkipAsk(n) : goStep(printAt);
+    return goStep(n);
   };
 
   // Keyingi forma uchun: bosqichlar boshidan; ism/raqam va tur saqlanadi (jamoaga bir nechta forma olinadi)
@@ -200,6 +217,7 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
     setStep(1);
     setSide('back');
     shortsTouched.current = false;
+    skipOk.current = false;
     setShortsOn(Boolean(printNum));
   };
 
@@ -304,27 +322,6 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
       >
         <Header cart title={t('forma360')} subtitle={t('forma360Sub')} onBack={onBack} />
 
-        {/* Jamoani tanlash lentasi */}
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.teamRail}>
-          {teams.map((item) => {
-            const isSelected = item.id === team.id;
-            return (
-              <Pressable
-                key={item.id}
-                onPress={() => setSelectedId(item.id)}
-                style={[styles.teamChip, isSelected && styles.teamChipActive]}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isSelected }}
-              >
-                <View style={[styles.teamDot, { backgroundColor: item.color, borderColor: item.accent }]} />
-                <Text style={[styles.teamChipText, isSelected && styles.teamChipTextActive]} numberOfLines={1}>
-                  {item.name}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-
         {/* 360° ko'rinish: tanlangan turdagi suratlar (uzun yeng — l0..l7) */}
         <View style={styles.previewBox}>
           <View style={styles.glow} />
@@ -426,6 +423,19 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
         onOpenCart={onOpenCart}
         onDismiss={() => setAddedEvent(null)}
       />
+
+      <ConfirmModal
+        visible={skipAsk != null}
+        title={t('printSkipTitle')}
+        message={t(printNum ? 'printSkipName' : 'printSkipBoth')}
+        confirmText={t('printSkipYes')}
+        cancelText={t('cancel')}
+        onClose={() => setSkipAsk(null)}
+        onConfirm={() => {
+          skipOk.current = true;
+          goStep(skipAsk);
+        }}
+      />
     </KeyboardAvoidingView>
   );
 }
@@ -433,22 +443,6 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
 const styles = themedStyles(() => ({
   keyboardWrap: { flex: 1, backgroundColor: colors.background },
   screenContent: { paddingBottom: 190 },
-  teamRail: { paddingHorizontal: spacing.lg, gap: spacing.sm, paddingBottom: spacing.sm },
-  teamChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: spacing.sm,
-    paddingHorizontal: 14,
-    paddingVertical: 9,
-    borderRadius: radii.round,
-    backgroundColor: colors.surfaceRaised,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-  },
-  teamChipActive: { borderColor: colors.accent, backgroundColor: colors.surfaceSubtle },
-  teamDot: { width: 12, height: 12, borderRadius: 6, borderWidth: 1 },
-  teamChipText: { color: colors.muted, fontSize: 13, fontWeight: '700' },
-  teamChipTextActive: { color: colors.accent, fontWeight: '800' },
   previewBox: {
     marginHorizontal: spacing.lg,
     height: 340,
