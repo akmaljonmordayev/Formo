@@ -10,6 +10,7 @@ import { cx } from './utils';
 import './tailorLight.css';
 import {
   acceptTailorOrder,
+  getChatUnread,
   listTailorOrders,
   orderToQueueItem,
   rejectTailorOrder,
@@ -211,8 +212,30 @@ export default function TailorShell({ title, subtitle, children }) {
     [prefs, savePrefs, orders, ordersLoading, ordersError, orderActionLoading, reloadOrders, processOrder, rejectOrder, askLogout]
   );
 
+  // Admindan kelgan o'qilmagan xabarlar — qo'ng'iroqchada ham ko'rinadi (chat ochilganda server o'qilgan deb belgilaydi)
+  const [chatUnread, setChatUnread] = useState(0);
+  useEffect(() => {
+    let cancelled = false;
+    const load = () => {
+      if (document.hidden) return;
+      getChatUnread()
+        .then((data) => !cancelled && setChatUnread(Number(data?.unread) || 0))
+        .catch(() => {});
+    };
+    load();
+    const timer = window.setInterval(load, 20000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [pathname]);
+
   const notes = useMemo(() => {
     const items = [];
+    if (chatUnread > 0) {
+      // sticky: "o'qildi" belgisi bilan yopilmaydi — faqat chat ochilganda yo'qoladi
+      items.push({ id: 'chat', sticky: true, title: t('note.chat.title'), text: t('note.chat.text', { n: chatUnread }), to: '/tailor/chat' });
+    }
     if (prefs.notifications.newOrders) {
       orders.filter((order) => order.status === 'yangi').forEach((order) => {
         items.push({
@@ -242,9 +265,9 @@ export default function TailorShell({ title, subtitle, children }) {
         });
     }
     return items;
-  }, [orders, prefs.notifications, t]);
+  }, [orders, prefs.notifications, t, chatUnread]);
 
-  const unreadNotes = notes.filter((n) => !noteReadIds.includes(n.id));
+  const unreadNotes = notes.filter((n) => n.sticky || !noteReadIds.includes(n.id));
   const unreadCount = unreadNotes.length;
   useEffect(() => {
     document.body.classList.add('tailor-shell');
@@ -293,7 +316,7 @@ export default function TailorShell({ title, subtitle, children }) {
   };
 
   const openNote = (note) => {
-    if (!noteReadIds.includes(note.id)) saveReadIds([...noteReadIds, note.id]);
+    if (!note.sticky && !noteReadIds.includes(note.id)) saveReadIds([...noteReadIds, note.id]);
     setNotesOpen(false);
     navigate(note.to);
   };
@@ -396,7 +419,7 @@ export default function TailorShell({ title, subtitle, children }) {
                       <div className="max-h-80 overflow-y-auto">
                         {unreadNotes.length === 0 && <p className="px-4 py-6 text-center text-xs text-slate-500">{t('note.empty')}</p>}
                         {unreadNotes.map((note) => {
-                          const unread = !noteReadIds.includes(note.id);
+                          const unread = note.sticky || !noteReadIds.includes(note.id);
                           return (
                             <button
                               key={note.id}

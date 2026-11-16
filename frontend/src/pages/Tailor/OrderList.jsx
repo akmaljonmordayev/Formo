@@ -39,10 +39,14 @@ export default function OrderList({ view }) {
     const today = tashkentDay(Date.now());
     const sectionOf = ({ order }) => {
       if (view === 'ready') return tashkentDay(order.updatedAt ?? order.createdAt) === today ? 'readyToday' : 'readyOld';
+      // Kechikkanlar: bugungi sloti o'tib ketganlar va avvalgi kunlardan qolganlar
+      if (view === 'late') return order.daysLate > 0 ? 'lateOld' : 'lateToday';
       return view !== 'active' ? view : order.status === 'yangi' ? 'new' : 'progress';
     };
-    const ordered = view === 'active'
-      ? [...rows.filter((row) => sectionOf(row) === 'new'), ...rows.filter((row) => sectionOf(row) === 'progress')]
+    // Bo'limlar tartibi: faolda yangilar, kechikkanlarda bugungilar tepada
+    const first = view === 'active' ? 'new' : view === 'late' ? 'lateToday' : null;
+    const ordered = first
+      ? [...rows.filter((row) => sectionOf(row) === first), ...rows.filter((row) => sectionOf(row) !== first)]
       : rows;
     const counts = {};
     const numbered = ordered.map((row, i) => {
@@ -72,9 +76,10 @@ export default function OrderList({ view }) {
   const sections = [
     { key: 'new', title: t('q.new') },
     { key: 'progress', title: t('prod.inProgress') },
+    { key: 'lateToday', title: t('q.lateTodayTitle') },
+    { key: 'lateOld', title: t('q.lateOldTitle') },
     { key: 'readyToday', title: t('prod.readyToday') },
     { key: 'readyOld', title: t('prod.readyOld') },
-    { key: view },
   ]
     .map((section) => ({ ...section, rows: pageRows.filter((row) => row.section === section.key) }))
     .filter((section) => section.rows.length > 0);

@@ -25,6 +25,8 @@ const uz = {
   'note.currentStatuses': 'Buyurtmalar serverdan jonli ravishda yangilanadi.',
   'shell.lang': 'Til',
   'note.empty': 'Yangi bildirishnoma yo‘q',
+  'note.chat.title': 'Admindan xabar',
+  'note.chat.text': '{n} ta o‘qilmagan xabar',
   'shell.theme': 'Mavzu (yorug‘ / qorong‘i)',
 
 
@@ -49,6 +51,8 @@ const uz = {
   'q.search': 'Mijoz, kod yoki model bo‘yicha qidirish',
   'q.allDone': 'Hozircha faol buyurtma yo‘q',
   'q.emptyLate': 'Kechikkan buyurtma yo‘q',
+  'q.lateTodayTitle': 'Bugun kechikkanlar',
+  'q.lateOldTitle': 'Avvalgi kunlardan qolganlar',
   'q.lateDays': '{n} kun kechikdi',
   'q.lateToday': 'Vaqti o‘tdi',
   'q.dueToday': 'Bugun · {slot}',
@@ -553,6 +557,8 @@ const ru = {
   'note.currentStatuses': 'Текущие статусы заказов. Отдельного API серверных уведомлений нет.',
   'shell.lang': 'Язык',
   'note.empty': 'Новых уведомлений нет',
+  'note.chat.title': 'Сообщение от админа',
+  'note.chat.text': 'Непрочитанных сообщений: {n}',
   'shell.theme': 'Тема (светлая / тёмная)',
 
 
@@ -577,6 +583,8 @@ const ru = {
   'q.search': 'Поиск по клиенту, коду или модели',
   'q.allDone': 'Активных заказов пока нет',
   'q.emptyLate': 'Просроченных заказов нет',
+  'q.lateTodayTitle': 'Просрочены сегодня',
+  'q.lateOldTitle': 'Остались с прошлых дней',
   'q.lateDays': 'Просрочено на {n} дн.',
   'q.lateToday': 'Время вышло',
   'q.dueToday': 'Сегодня · {slot}',
