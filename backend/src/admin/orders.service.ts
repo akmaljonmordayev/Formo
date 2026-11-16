@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { AuditCategory, OrderStatus, Prisma, Role } from '@prisma/client';
+import { AuthUser } from '../common/decorators/current-user.decorator';
 import { PrismaService } from '../prisma/prisma.service';
 import { AuditEntry, AuditService } from './audit.service';
 import { AssignWorkshopDto, ListOrdersQueryDto, UpdateOrderStatusDto } from './dto/order.dto';
@@ -360,6 +361,49 @@ export class OrdersService {
       ordersDeltaPct: pctDelta(ordersCount, prevOrdersCount),
       avgCheck,
       byProductType,
+    };
+  }
+
+  /**
+   * Qaysi forma nechta va qaysi o'lchamda sotilgan (bekor qilingan/to'lanmagan buyurtmalar kirmaydi).
+   * Superadmin — barcha buyurtmalar; tikuv sexi — faqat o'ziga biriktirilganlar va summasiz.
+   */
+  async kitSales(range: RangeInput, viewer: AuthUser) {
+    const r = await this.range(range);
+    const tailor = viewer.role === Role.TAILOR;
+    const items = await this.prisma.orderItem.findMany({
+      where: {
+        order: {
+          createdAt: { gte: r.from, ...(r.to && { lte: r.to }) },
+          status: { in: REVENUE_STATUSES },
+          ...(tailor && { workshopId: viewer.id }),
+        },
+      },
+      select: { kitId: true, kitDesignId: true, clubName: true, kitLabel: true, shirtSize: true, quantity: true, totalPrice: true },
+    });
+
+    const kits = new Map<string, { name: string; type: string; quantity: number; revenue: number | null; sizes: Record<string, number> }>();
+    const sizes = new Map<string, number>();
+    for (const it of items) {
+      const type = it.kitId != null ? 'CLUB_KIT' : it.kitDesignId != null ? 'KIT_DESIGN' : 'CUSTOM_DESIGN';
+      const key = it.kitId != null ? `kit:${it.kitId}` : it.kitDesignId != null ? `design:${it.kitDesignId}` : 'custom';
+      // "O'z dizayni" qatorlari bitta guruh — nomini panel o'z tilida ko'rsatadi
+      const name = type === 'CUSTOM_DESIGN' ? '' : [it.clubName, it.kitLabel].filter(Boolean).join(' · ');
+      const row = kits.get(key) ?? { name, type, quantity: 0, revenue: tailor ? null : 0, sizes: {} };
+      row.quantity += it.quantity;
+      if (row.revenue !== null) row.revenue += it.totalPrice;
+      row.sizes[it.shirtSize] = (row.sizes[it.shirtSize] ?? 0) + it.quantity;
+      kits.set(key, row);
+      sizes.set(it.shirtSize, (sizes.get(it.shirtSize) ?? 0) + it.quantity);
+    }
+
+    return {
+      from: tashkentDayKey(r.from),
+      to: tashkentDayKey(r.to ?? new Date()),
+      totalQuantity: items.reduce((s, it) => s + it.quantity, 0),
+      totalRevenue: tailor ? null : items.reduce((s, it) => s + it.totalPrice, 0),
+      kits: [...kits.values()].sort((a, b) => b.quantity - a.quantity),
+      sizes: [...sizes.entries()].map(([size, quantity]) => ({ size, quantity })).sort((a, b) => b.quantity - a.quantity),
     };
   }
 

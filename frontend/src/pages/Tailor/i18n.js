@@ -66,6 +66,8 @@ const uz = {
   'prod.readyHint': 'Tikilib bo‘lgan buyurtmalar',
   'prod.emptyProgress': 'Jarayonda buyurtma yo‘q',
   'prod.emptyReady': 'Tayyor buyurtma yo‘q',
+  'prod.readyToday': 'Bugun tayyor bo‘lganlar',
+  'prod.readyOld': 'Avvalgi tayyorlar',
 
   // ---------- sidebar ----------
   'nav.queue': 'Bugungi navbat',
@@ -244,6 +246,7 @@ const uz = {
   'stat.sumTotal': 'Jami',
   'stat.topModels': "Eng ko'p tikilgan formalar",
   'stat.sizes': "O'lchamlar bo'yicha",
+  'stat.customDesign': "O'z dizayni",
   'stat.inPeriodPieces': 'Tanlangan davrda, dona',
   'stat.allOrders': 'Barcha buyurtmalar',
   'stat.col.code': 'Kod',
@@ -591,6 +594,8 @@ const ru = {
   'prod.readyHint': 'Уже пошитые заказы',
   'prod.emptyProgress': 'Нет заказов в работе',
   'prod.emptyReady': 'Нет готовых заказов',
+  'prod.readyToday': 'Готовы сегодня',
+  'prod.readyOld': 'Готовые ранее',
 
   // ---------- sidebar ----------
   'nav.queue': 'Очередь на сегодня',
@@ -769,6 +774,7 @@ const ru = {
   'stat.sumTotal': 'Всего',
   'stat.topModels': 'Самые частые формы',
   'stat.sizes': 'По размерам',
+  'stat.customDesign': 'Свой дизайн',
   'stat.inPeriodPieces': 'За выбранный период, шт.',
   'stat.allOrders': 'Все заказы',
   'stat.col.code': 'Код',
