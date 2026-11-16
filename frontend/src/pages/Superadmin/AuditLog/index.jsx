@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { auditLogApi } from '../../../features/platform/platformApi';
+import { auditLogApi, formatDate, formatDateTime, formatTime } from '../../../features/platform/platformApi';
 import { useDebounced } from '../../../hooks/useDebounced';
 import { downloadCsv } from '../../../utils/csvExport';
 import { useLang } from '../i18n';
@@ -17,7 +17,7 @@ const TABS = [['', 'Barchasi'], ...Object.entries(CATEGORY_LABEL)];
 const LIMIT = 15;
 
 export default function SuperadminAuditLog() {
-  const { t, locale } = useLang();
+  const { t } = useLang();
   const [tab, setTab] = useState('');
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -45,7 +45,7 @@ export default function SuperadminAuditLog() {
     downloadCsv(
       `audit-${new Date().toISOString().slice(0, 10)}.csv`,
       [
-        [t('Vaqt'), (l) => new Date(l.createdAt).toLocaleString(locale)],
+        [t('Vaqt'), (l) => formatDateTime(l.createdAt)],
         [t('Kim'), (l) => l.actorName],
         [t('Roli'), (l) => l.actorRole],
         [t('Amal'), (l) => t(l.action)],
@@ -109,13 +109,12 @@ export default function SuperadminAuditLog() {
               </tr>
             ) : (
               data.items.map((l, i) => {
-                const d = new Date(l.createdAt);
                 return (
                   <tr key={l.id}>
                     <td className="sa-table__sub">{(page - 1) * LIMIT + i + 1}</td>
                     <td>
-                      {d.toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
-                      <span className="sa-table__sub">{d.toLocaleDateString(locale, { day: '2-digit', month: 'short' })}</span>
+                      {formatTime(l.createdAt)}
+                      <span className="sa-table__sub">{formatDate(l.createdAt)}</span>
                     </td>
                     <td>
                       <b>{l.actorName}</b>
@@ -132,18 +131,18 @@ export default function SuperadminAuditLog() {
         </table>
       </div>
       {/* Mijozlar sahifasidagi kabi — bitta sahifa bo'lsa ham doim ko'rinadi */}
-      <div className="pager">
+      <div className="pager" style={{ color: 'var(--sa-ink)' }}>
         <span>{t('Jami')}: {data.total}</span>
         <div>
-          <button type="button" className="btn btn--ghost btn--sm" disabled={page <= 1} onClick={() => setPage(page - 1)}>
+          <button type="button" className="sa-btn sa-btn--ghost" disabled={page <= 1} onClick={() => setPage(page - 1)}>
             ←
           </button>
-          <span className="btn btn--ghost btn--sm">
+          <span className="sa-btn sa-btn--ghost">
             {page} / {Math.max(1, Math.ceil(data.total / LIMIT))}
           </span>
           <button
             type="button"
-            className="btn btn--ghost btn--sm"
+            className="sa-btn sa-btn--ghost"
             disabled={page >= Math.ceil(data.total / LIMIT)}
             onClick={() => setPage(page + 1)}
           >

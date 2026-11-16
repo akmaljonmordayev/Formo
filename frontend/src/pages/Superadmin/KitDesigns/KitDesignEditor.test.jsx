@@ -23,7 +23,8 @@ describe('KitDesignEditor', () => {
   it('forma o\'zgarishlari darhol 3D ko\'rinishga uzatiladi', () => {
     render(<KitDesignEditor initial={null} />);
     expect(viewer().dataset.pattern).toBe('fade');
-    fireEvent.change(screen.getByDisplayValue('Oqim (gradient)'), { target: { value: 'hoops' } });
+    fireEvent.click(screen.getByRole('combobox', { name: 'Naqsh' }));
+    fireEvent.click(screen.getByRole('option', { name: 'Gorizontal chiziqlar' }));
     expect(viewer().dataset.pattern).toBe('hoops');
     fireEvent.click(screen.getByRole('button', { name: /Olov/ }));
     expect(viewer().dataset.primary).toBe('#a3122b');

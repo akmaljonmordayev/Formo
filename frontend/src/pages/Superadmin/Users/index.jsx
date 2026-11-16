@@ -3,8 +3,9 @@ import { ConfirmModal } from '../ui';
 import { formatDate, prettyPhone, usersApi } from '../../../features/accounts/accountsApi';
 import { useDebounced } from '../../../hooks/useDebounced';
 import { useT } from '../i18n';
+import Select from '../Select';
 
-const LIMIT = 15;
+const LIMIT = 10;
 const GENDER = { MALE: 'Erkak', FEMALE: 'Ayol' };
 
 // Mobil ilova foydalanuvchilari: o'zlari ro'yxatdan o'tadi, superadmin ko'radi/bloklaydi/o'chiradi
@@ -83,11 +84,17 @@ export default function SuperadminUsers() {
           onChange={(e) => setSearch(e.target.value)}
           maxLength={100}
         />
-        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label={t("Holat")}>
-          <option value="">{t("Barchasi")}</option>
-          <option value="true">{t("Faol")}</option>
-          <option value="false">{t("Bloklangan")}</option>
-        </select>
+        <Select
+          value={status}
+          onChange={setStatus}
+          ariaLabel={t('Holat')}
+          style={{ minWidth: 190 }}
+          options={[
+            { value: '', label: t('Barchasi'), dot: 'gray' },
+            { value: 'true', label: t('Faol'), dot: 'green' },
+            { value: 'false', label: t('Bloklangan'), dot: 'red' },
+          ]}
+        />
       </div>
 
       {error && <div className="form-error">{error}</div>}

@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { settingsApi, topupsApi } from '../../../features/platform/platformApi';
+import { formatDateTime, settingsApi, topupsApi } from '../../../features/platform/platformApi';
 import Modal from '../../../components/ui/Modal';
-import { useLang, useMoney, useT } from '../i18n';
-import { Pager } from '../ui';
+import { useMoney, useT } from '../i18n';
+import { COUNTS_EVENT, Pager } from '../ui';
 
 /*
  * Balansni qo'lda to'ldirish: mijoz botda summa tanlaydi → kartaga o'tkazadi → chek rasmini yuboradi.
@@ -45,7 +45,6 @@ const LIMIT = 50;
 export default function SuperadminTopUps() {
   const t = useT();
   const money = useMoney();
-  const { locale } = useLang();
   const [tab, setTab] = useState('REVIEW');
   const [page, setPage] = useState(1);
   const [data, setData] = useState(null);
@@ -73,7 +72,7 @@ export default function SuperadminTopUps() {
     load();
   }, [load]);
 
-  const date = (d) => (d ? new Date(d).toLocaleString(locale, { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' }) : '—');
+  const date = formatDateTime;
   const counts = data?.byStatus ?? {};
   const items = data?.items ?? [];
 
@@ -169,6 +168,8 @@ export default function SuperadminTopUps() {
           onDone={() => {
             setSelected(null);
             load();
+            // Menyudagi "tekshiruvda" soni kutmasdan yangilanadi
+            window.dispatchEvent(new Event(COUNTS_EVENT));
           }}
         />
       )}

@@ -7,8 +7,10 @@ import '../ui/ui.css';
 import './SuperadminLayout.css';
 
 const THEME_KEY = 'formo_sa_theme';
+// Mavzu almashganda yuboriladi (detail: 'light' | 'dark') — Profil sahifasi ham shu orqali almashtiradi
+export const THEME_EVENT = 'formo-sa-theme';
 
-function readStoredTheme() {
+export function readStoredTheme() {
   try {
     const saved = localStorage.getItem(THEME_KEY);
     return saved === 'light' ? 'light' : 'dark';
@@ -29,6 +31,7 @@ function initials(name = '') {
 // Superadmin uchun alohida (quyuq) layout: guruhlangan sidebar + til/mavzu/profil bilan yuqori panel
 // labels — tarjima qilingan tugma matnlari (AdminLayout beradi); berilmasa o'zbekcha
 // actions — yuqori panelga qo'shimcha tugmalar (til tanlovi): til konteksti AdminLayout'da
+// overlay — sahifa ustida turadigan element (bildirishnomalar); .sa ichida — mavzu ranglarini oladi
 const DEFAULT_LABELS = {
   logout: 'Chiqish',
   leaving: 'Chiqilmoqda...',
@@ -41,7 +44,7 @@ const DEFAULT_LABELS = {
   cancel: 'Bekor qilish',
 };
 
-export default function SuperadminLayout({ menu, labels: customLabels, actions }) {
+export default function SuperadminLayout({ menu, labels: customLabels, actions, overlay }) {
   const labels = { ...DEFAULT_LABELS, ...customLabels };
   const { user, role, logout } = useAuth();
   const navigate = useNavigate();
@@ -59,7 +62,14 @@ export default function SuperadminLayout({ menu, labels: customLabels, actions }
     } catch {
       // Xotira bloklangan (maxfiy oyna va h.k.) — tema shu sessiyada ishlayveradi, saqlanmaydi
     }
+    window.dispatchEvent(new CustomEvent(THEME_EVENT, { detail: theme }));
   }, [theme]);
+
+  useEffect(() => {
+    const onTheme = (e) => setTheme(e.detail === 'light' ? 'light' : 'dark');
+    window.addEventListener(THEME_EVENT, onTheme);
+    return () => window.removeEventListener(THEME_EVENT, onTheme);
+  }, []);
 
   useEffect(() => {
     setDrawer(false);
@@ -215,6 +225,8 @@ export default function SuperadminLayout({ menu, labels: customLabels, actions }
           <Outlet />
         </main>
       </div>
+
+      {overlay}
 
       {confirmOpen && (
         <div

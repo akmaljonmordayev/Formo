@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlarmClock, CheckCircle2, Hourglass, PackageCheck, Printer, RefreshCw } from 'lucide-react';
+import { Hourglass, PackageCheck, Printer, RefreshCw } from 'lucide-react';
 import { productionApi } from '../../../features/platform/platformApi';
 import { useT } from '../i18n';
 
@@ -10,8 +10,6 @@ const STEPS = [
   { key: 'PRINTING', icon: Printer, color: 'var(--sa-blue)', title: 'Bosilmoqda', sub: 'Hozir ishlanmoqda' },
   { key: 'READY', icon: PackageCheck, color: 'var(--sa-green)', title: 'Tayyor', sub: 'Yetkazishga tayyor' },
 ];
-// Qabul qilinganiga shuncha vaqt o'tgan, hali tayyor bo'lmagan vazifa — kechikkan (server qoidasi bilan bir xil)
-const LATE_AFTER_MS = 21 * 60 * 60 * 1000;
 
 const PRODUCT_LABEL = { CLUB_KIT: 'Klub formasi', KIT_DESIGN: '3D dizayn' };
 
@@ -49,7 +47,6 @@ export default function SuperadminProduction() {
 
   const workshops = data?.workshops ?? [];
   const columns = data?.columns ?? {};
-  const late = data?.lateCount ?? 0;
 
   return (
     <>
@@ -80,15 +77,6 @@ export default function SuperadminProduction() {
                 </div>
               </div>
             ))}
-            <div className={`sa-flow__step${late > 0 ? ' is-alert' : ''}`} style={{ '--step': late > 0 ? 'var(--sa-red)' : 'var(--sa-green)', '--sa-delay': '210ms' }}>
-              <span className="sa-flow__num">
-                {late > 0 ? <AlarmClock size={20} strokeWidth={1.9} aria-hidden="true" /> : <CheckCircle2 size={20} strokeWidth={1.9} aria-hidden="true" />}
-              </span>
-              <div>
-                <b>{late}</b>
-                <span>{late > 0 ? t('Kechikmoqda — avval shularni bosing') : t("Kechikkan vazifa yo'q")}</span>
-              </div>
-            </div>
           </div>
 
           <div className="sa-panel" style={{ marginBottom: 16 }}>
@@ -138,11 +126,10 @@ export default function SuperadminProduction() {
                     <div className="sa-board__list">
                       {jobs.map((j) => {
                         const waiting = j.status === 'SENT_TO_WORKSHOP';
-                        const isLate = key !== 'READY' && !waiting && Date.now() - new Date(j.createdAt).getTime() > LATE_AFTER_MS;
                         return (
                           <div
                             key={j.id}
-                            className={`sa-job${isLate ? ' is-late' : ''}`}
+                            className="sa-job"
                             role="link"
                             tabIndex={0}
                             onClick={() => openOrder(j.code)}
@@ -150,9 +137,7 @@ export default function SuperadminProduction() {
                           >
                             <div className="sa-job__top">
                               <b>{j.code}</b>
-                              {isLate ? (
-                                <span className="sa-badge sa-badge--red">{t('Kechikmoqda')}</span>
-                              ) : waiting ? (
+                              {waiting ? (
                                 <span className="sa-badge sa-badge--orange">{t('Sex hali qabul qilmagan')}</span>
                               ) : (
                                 <span>{ago(j.createdAt)}</span>

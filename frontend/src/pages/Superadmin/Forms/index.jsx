@@ -2,11 +2,12 @@ import { useEffect, useMemo, useState } from 'react';
 import { clubsApi, inventoryApi, settingsApi } from '../../../features/platform/platformApi';
 import Modal from '../../../components/ui/Modal';
 import { DEFAULT_REGION_FEE, REGIONS, SETTING_KEYS } from '../adminApi';
+import { Shield } from 'lucide-react';
 import { useMoney, useT } from '../i18n';
+import Select from '../Select';
 
-const KID_SIZES = ['2-3', '4-5', '6-7', '8-9', '10-11', '12-13'];
 const ADULT_SIZES = ['S', 'M', 'L', 'XL', 'XXL', '3XL'];
-const ALL_SIZES = [...KID_SIZES, ...ADULT_SIZES];
+const ALL_SIZES = ADULT_SIZES;
 const PRODUCT = 'TSHIRT';
 const LOW = 5;
 const PAGE_SIZE = 10;
@@ -314,7 +315,7 @@ function KitForm({ kit, clubs, t, onClose, onSaved }) {
     printPrice: kit?.printPrice ?? 30000,
     isActive: kit?.isActive ?? true,
   });
-  const [sizes, setSizes] = useState(kit?.sizes ?? ADULT_SIZES);
+  const [sizes, setSizes] = useState(() => (kit?.sizes ?? ADULT_SIZES).filter((s) => ALL_SIZES.includes(s)));
   // O'lcham -> narx: faqat shirtPrice'dan farqli qiymatlar saqlanadi, qolgani shirtPrice'dan oladi
   const [sizePrices, setSizePrices] = useState(() => ({ ...(kit?.sizePrices ?? {}) }));
   const [error, setError] = useState('');
@@ -362,15 +363,17 @@ function KitForm({ kit, clubs, t, onClose, onSaved }) {
         {error && <div className="form-error">{error}</div>}
         <div className="form-grid">
           {!isEdit && (
-            <label className="field field--full">
+            <div className="field field--full">
               <span>{t('Klub')}</span>
-              <select value={clubId} onChange={(e) => setClubId(e.target.value)} required>
-                <option value="" disabled>{t('Tanlang')}</option>
-                {clubs.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name} ({c.season})</option>
-                ))}
-              </select>
-            </label>
+              <Select
+                value={clubId}
+                onChange={setClubId}
+                ariaLabel={t('Klub')}
+                required
+                icon={Shield}
+                options={clubs.map((c) => ({ value: String(c.id), label: c.name, hint: c.season, icon: Shield }))}
+              />
+            </div>
           )}
           <label className="field">
             <span>{t('Nomi')}</span>

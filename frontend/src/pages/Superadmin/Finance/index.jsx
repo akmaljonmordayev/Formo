@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CalendarCheck, Receipt, ShoppingBag, Undo2, Wallet } from 'lucide-react';
+import { CalendarCheck, ShoppingBag, Undo2, Wallet } from 'lucide-react';
 import { financeApi, PAYMENT_METHOD } from '../../../features/platform/platformApi';
 import { downloadCsv } from '../../../utils/csvExport';
 import { useCompactNumber, useDayLabel, useMoney, useT } from '../i18n';
@@ -8,7 +8,7 @@ import { CountUp, Kpi, TrendChart } from '../ui';
 
 const METHOD_COLOR = { CLICK: '#5b7cfa', PAYME: '#19a7a1', CASH: '#f2a33a', BALANCE: '#8b5cf6', WALLET: '#8b5cf6' };
 
-/** Sotuvlar: tanlangan davrda nechta buyurtma sotildi, qancha pul tushdi va qaysi to'lov usuli bilan */
+/** Daromad: tanlangan davrda qancha pul tushdi, nechta buyurtma sotildi va qaysi to'lov usuli bilan */
 export default function SuperadminSales() {
   const money = useMoney();
   const compact = useCompactNumber();
@@ -44,7 +44,6 @@ export default function SuperadminSales() {
   const revenue = data?.revenue ?? 0;
   // Eski server bu maydonlarni bermasa — to'lov usullaridan hisoblaymiz
   const ordersCount = data?.ordersCount ?? methods.reduce((s, [, m]) => s + m.count, 0);
-  const avgCheck = data?.avgCheck ?? (ordersCount ? Math.round(revenue / ordersCount) : 0);
 
   const today = todayKey();
   const points = (data?.dailyTrend ?? []).map((d) => ({ key: d.date, label: dayLabel(d.date), value: d.revenue ?? 0, today: d.date === today }));
@@ -53,7 +52,7 @@ export default function SuperadminSales() {
 
   const exportCsv = () => {
     downloadCsv(
-      `sotuvlar-${from && to ? `${from}_${to}` : range.all ? 'barcha' : `${range.days}kun`}-${new Date().toISOString().slice(0, 10)}.csv`,
+      `daromad-${from && to ? `${from}_${to}` : range.all ? 'barcha' : `${range.days}kun`}-${new Date().toISOString().slice(0, 10)}.csv`,
       [
         [t("To'lov usuli"), ([method]) => t(PAYMENT_METHOD[method] ?? method)],
         [t('Soni'), ([, m]) => m.count],
@@ -68,8 +67,8 @@ export default function SuperadminSales() {
     <>
       <div className="sa-head">
         <div>
-          <h1>{t('Sotuvlar')}</h1>
-          <p>{t('Nechta buyurtma sotildi va qancha pul tushdi.')}</p>
+          <h1>{t('Daromad')}</h1>
+          <p>{t("Qancha pul tushdi, nechta buyurtma sotildi va qaysi to'lov usuli bilan.")}</p>
         </div>
         <button type="button" className="sa-btn sa-btn--ghost" onClick={exportCsv} disabled={!methods.length}>{t('Excel eksport')}</button>
       </div>
@@ -85,7 +84,7 @@ export default function SuperadminSales() {
         <div className="sa-hero__card">
           <div className="sa-hero__label">
             <Wallet size={17} strokeWidth={1.9} aria-hidden="true" />
-            {t('Jami tushum')}
+            {t('Jami daromad')}
           </div>
           <div className="sa-hero__value">
             <CountUp value={revenue} />
@@ -112,19 +111,11 @@ export default function SuperadminSales() {
 
       <div className="sa-kpis">
         <Kpi
-          icon={Receipt}
-          label={t("O'rtacha chek")}
-          value={<CountUp value={avgCheck} format={money} />}
-          hint={t("Bitta buyurtmaga to'g'ri keladigan summa")}
-          color="var(--sa-teal)"
-        />
-        <Kpi
           icon={CalendarCheck}
           label={t('Eng yaxshi kun')}
           value={best ? best.label : '—'}
           hint={best ? money(best.value) : t("Bu davrda to'lov yo'q")}
           color="var(--sa-accent)"
-          delay={70}
         />
         <Kpi
           icon={Undo2}
@@ -133,7 +124,7 @@ export default function SuperadminSales() {
           hint={data?.refundedCount === undefined ? undefined : t('{n} ta buyurtma qaytarilgan', { n: data.refundedCount })}
           color="var(--sa-red)"
           alert={data?.refunded > 0}
-          delay={140}
+          delay={70}
         />
       </div>
 
@@ -141,7 +132,7 @@ export default function SuperadminSales() {
         <div className="sa-panel" style={{ marginBottom: 16 }}>
           <div className="sa-panel__head">
             <div>
-              <div className="sa-panel__title">{t('Kunlik tushum')}</div>
+              <div className="sa-panel__title">{t('Kunlik daromad')}</div>
               <div className="sa-panel__sub">{t("Har bir ustun — bir kun. Ustiga olib borsangiz summa ko'rinadi.")}</div>
             </div>
           </div>

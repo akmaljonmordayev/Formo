@@ -132,7 +132,7 @@ export const ORDER_STATUS = {
   NEW: { label: 'Yangi', color: 'orange' },
   SENT_TO_WORKSHOP: { label: 'Sexga yuborildi', color: 'blue' },
   ACCEPTED: { label: 'Sex qabul qildi', color: 'blue' },
-  PRINTING: { label: 'Bosilmoqda', color: 'violet' },
+  PRINTING: { label: 'Qabul qilingan', color: 'violet' },
   READY: { label: 'Tayyor', color: 'blue' },
   DELIVERING: { label: 'Yetkazishda', color: 'blue' },
   DELIVERED: { label: 'Yetkazildi', color: 'green' },
@@ -156,5 +156,24 @@ export const moneyShort = (n) => {
   return money(v);
 };
 
-export const formatDateTime = (iso) =>
-  new Date(iso).toLocaleString('uz-UZ', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+// Sana va vaqt raqamda: brauzerda o'zbekcha oy nomlari yo'q — "month: 'short'" o'rniga "M11" chiqardi
+const pad2 = (n) => String(n).padStart(2, '0');
+const validDate = (iso) => {
+  const d = iso ? new Date(iso) : null;
+  return d && !Number.isNaN(d.getTime()) ? d : null;
+};
+
+/** "15.11.2026" */
+export const formatDate = (iso) => {
+  const d = validDate(iso);
+  return d ? `${pad2(d.getDate())}.${pad2(d.getMonth() + 1)}.${d.getFullYear()}` : '—';
+};
+
+/** "14:05" */
+export const formatTime = (iso) => {
+  const d = validDate(iso);
+  return d ? `${pad2(d.getHours())}:${pad2(d.getMinutes())}` : '—';
+};
+
+/** "15.11.2026 14:05" */
+export const formatDateTime = (iso) => (validDate(iso) ? `${formatDate(iso)} ${formatTime(iso)}` : '—');

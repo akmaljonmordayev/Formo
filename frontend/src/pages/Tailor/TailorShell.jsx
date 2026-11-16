@@ -66,7 +66,8 @@ function Clock({ locale }) {
         {now.toLocaleTimeString(locale, { ...tz, hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false })}
       </time>
       <span className="text-[11px] font-medium text-slate-400">
-        {now.toLocaleDateString(locale, { ...tz, day: '2-digit', month: 'long', year: 'numeric' })}
+        {/* Raqamda (16.11.2026): brauzerda o'zbekcha oy nomlari yo'q — "month: 'long'" o'rniga "M11" chiqardi */}
+        {now.toLocaleDateString('ru-RU', { ...tz, day: '2-digit', month: '2-digit', year: 'numeric' })}
       </span>
     </div>
   );

@@ -1,7 +1,7 @@
-import { useEffect, useState } from 'react';
-import { Check, Edit3, Factory, LogOut, MapPin, Moon, Phone, Sun, User } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Camera, Check, Edit3, Factory, Loader2, LogOut, MapPin, Moon, Phone, Sun, User } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
-import { AvatarFace, Badge, Card, Toggle } from './ui';
+import { AvatarFace, Card, Toggle } from './ui';
 import EmployeesPanel from './EmployeesPanel';
 import ProfileEditDrawer, { PHOTO_TYPES } from './ProfileEditDrawer';
 import { TAILOR_EMPLOYEES_ENABLED } from './tailorConstants';
@@ -10,8 +10,24 @@ import { LANGS, translate, useT } from './i18n';
 import { cx, prettyPhone } from './utils';
 import { getWorkshopProfile, removeAvatar, setAvatar, updateWorkshopProfile } from './tailorApi';
 
-// Server cheklovi bilan bir xil (POST /auth/me/avatar)
-const PHOTO_MAX_BYTES = 2 * 1024 * 1024;
+// Bundan katta rasm yuklashdan oldin kichraytiriladi (telefon kamerasi rasmlari bir necha MB)
+const PHOTO_SHRINK_BYTES = 400 * 1024;
+// Kichraytirilgan rasmning uzun tomoni (avatar uchun yetarli; hajmi server cheklovi — 2 MB dan ancha kichik)
+const PHOTO_MAX_SIDE = 640;
+
+/** Katta rasmni JPEG qilib kichraytiradi; o'qib bo'lmasa — xato (bildirishnomada ko'rinadi) */
+async function shrinkPhoto(file) {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, PHOTO_MAX_SIDE / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext('2d').drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, 'image/jpeg', 0.9));
+  if (!blob) throw new Error('');
+  return new File([blob], 'avatar.jpg', { type: 'image/jpeg' });
+}
 
 const NOTIFICATIONS = [
   ['newOrders', 'profile.n.newOrders', 'profile.n.newOrdersHint'],
@@ -57,6 +73,7 @@ export default function Profile() {
   const [profileError, setProfileError] = useState('');
   const [photoBusy, setPhotoBusy] = useState(false);
   const [editing, setEditing] = useState(false);
+  const fileRef = useRef(null);
 
   const name = profile?.fullName || user?.fullName || '';
   const workshop = profile?.workshopName || user?.workshopName || '';
@@ -120,9 +137,17 @@ export default function Profile() {
 
   const pickPhoto = (file) => {
     if (!PHOTO_TYPES.includes(file.type)) setNotice({ text: t('brak.photoTypeError'), error: true });
-    else if (file.size > PHOTO_MAX_BYTES) setNotice({ text: t('profile.photoSizeError'), error: true });
-    else changePhoto(() => setAvatar(file));
+    // Katta rasm (telefon kamerasi) rad etilmaydi — yuklashdan oldin kichraytiriladi
+    else changePhoto(async () => setAvatar(file.size > PHOTO_SHRINK_BYTES ? await shrinkPhoto(file) : file));
   };
+
+  const pickFile = (e) => {
+    const file = e.target.files?.[0];
+    // Xuddi shu faylni qayta tanlaganda ham onChange ishlashi uchun
+    e.target.value = '';
+    if (file) pickPhoto(file);
+  };
+  const photoLabel = t(avatarUrl ? 'profile.changePhoto' : 'emp.upload');
 
   const changeLanguage = async (lang) => {
     try {
@@ -180,14 +205,31 @@ export default function Profile() {
 
       {/* Kim va qaysi sex; tahrirlash o'ng tomondagi panelda ochiladi */}
       <Card className="tl-pop flex flex-wrap items-center gap-x-5 gap-y-4 p-5 sm:p-6">
-        <span className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#0e1424] text-2xl font-extrabold text-teal-300 ring-1 ring-inset ring-white/10">
-          <AvatarFace url={avatarUrl} name={name} />
-        </span>
+        {/* Rasm ustiga bosilsa — fayl tanlanadi va darhol yuklanadi (o'chirish tahrirlash panelida) */}
+        <button
+          type="button"
+          disabled={!profile || photoBusy}
+          onClick={() => fileRef.current?.click()}
+          aria-label={photoLabel}
+          title={photoLabel}
+          className="group relative h-20 w-20 shrink-0 rounded-full outline-none transition active:scale-95 focus-visible:ring-2 focus-visible:ring-teal-400 disabled:cursor-wait"
+        >
+          <span className="flex h-full w-full items-center justify-center overflow-hidden rounded-full bg-[#0e1424] text-2xl font-extrabold text-teal-300 ring-1 ring-inset ring-white/10">
+            <AvatarFace url={avatarUrl} name={name} />
+          </span>
+          {photoBusy && (
+            // Rasm ustidagi qora parda — mavzudan qat'i nazar
+            <span className="absolute inset-0 flex items-center justify-center rounded-full" style={{ background: 'rgba(2, 6, 23, 0.65)', color: '#fff' }}>
+              <Loader2 className="h-6 w-6 animate-spin" aria-hidden="true" />
+            </span>
+          )}
+          <span className="absolute -bottom-0.5 -right-0.5 flex h-7 w-7 items-center justify-center rounded-full bg-teal-400 text-slate-950 shadow-lg transition group-hover:bg-teal-300">
+            <Camera className="h-3.5 w-3.5" aria-hidden="true" />
+          </span>
+        </button>
+        <input ref={fileRef} type="file" accept={PHOTO_TYPES.join(',')} onChange={pickFile} className="hidden" aria-label={photoLabel} />
         <div className="min-w-0 flex-1 basis-56">
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-            <h2 className="break-words text-2xl font-extrabold leading-tight text-white">{name || '—'}</h2>
-            <Badge variant={user?.isActive ? 'emerald' : 'red'}>{t(user?.isActive ? 'profile.active' : 'profile.inactive')}</Badge>
-          </div>
+          <h2 className="break-words text-2xl font-extrabold leading-tight text-white">{name || '—'}</h2>
           <p className="mt-1.5 flex items-center gap-2 text-sm text-slate-400">
             <Factory className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span className="truncate">{workshop || t('profile.workshopMissing')}</span>

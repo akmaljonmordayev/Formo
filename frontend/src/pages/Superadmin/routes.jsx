@@ -97,12 +97,12 @@ export const superadminMenu = [
 
   { to: `${BASE}/factories`, label: 'Sexlar', icon: Factory, group: 'Sex va Sifat' },
 
-  { to: `${BASE}/finance`, label: 'Sotuvlar', icon: Wallet, group: 'Moliya va Mijozlar' },
+  { to: `${BASE}/finance`, label: 'Daromad', icon: Wallet, group: 'Moliya va Mijozlar' },
   { to: `${BASE}/promocodes`, label: 'Promokodlar', icon: Ticket, group: 'Moliya va Mijozlar' },
   { to: `${BASE}/users`, label: 'Mijozlar', icon: Users, group: 'Moliya va Mijozlar' },
 
   // Kampaniyalar va Hisobotlar menyudan yashirildi — marshrutlari superadminRoutes da qoladi
   // Operator akkaunti sahifasi olib tashlandi
-  { to: `${BASE}/settings`, label: 'Sozlamalar', icon: Settings, group: 'Tizim' },
+  { to: `${BASE}/settings`, label: 'Profil', icon: Settings, group: 'Tizim' },
   { to: `${BASE}/audit-log`, label: 'Audit jurnali', icon: History, group: 'Tizim' },
 ];

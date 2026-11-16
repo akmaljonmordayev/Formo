@@ -1,14 +1,16 @@
 import { useEffect, useState } from 'react';
-import { promocodesApi } from '../../../features/platform/platformApi';
+import { formatDate, promocodesApi } from '../../../features/platform/platformApi';
 import Modal from '../../../components/ui/Modal';
+import { Banknote, Percent, Truck } from 'lucide-react';
 import { useLang, useT } from '../i18n';
+import Select from '../Select';
 import { ConfirmModal, Switch } from '../ui';
 
 const TYPE_LABEL = { PERCENT: 'Foiz', FIXED: "Qat'iy", FREE_SHIPPING: 'Bepul yetkazish' };
 
-const formatPeriod = (p, t, locale) => {
+const formatPeriod = (p, t) => {
   if (!p.startsAt && !p.endsAt) return t('doimiy');
-  const fmt = (d) => new Date(d).toLocaleDateString(locale, { day: '2-digit', month: 'short' });
+  const fmt = formatDate;
   if (p.endsAt && new Date(p.endsAt) < new Date()) return t('tugagan');
   return `${p.startsAt ? fmt(p.startsAt) : '—'} – ${p.endsAt ? fmt(p.endsAt) : '—'}`;
 };
@@ -108,7 +110,7 @@ export default function SuperadminPromocodes() {
                       </div>
                     )}
                   </td>
-                  <td>{formatPeriod(c, t, locale)}</td>
+                  <td>{formatPeriod(c, t)}</td>
                   <td style={{ whiteSpace: 'nowrap' }}>
                     <button type="button" className="sa-btn sa-btn--ghost" style={{ marginRight: 10, verticalAlign: 'middle' }} onClick={() => setEditing(c)}>
                       {t("Tahrirlash")}
@@ -226,14 +228,19 @@ function PromocodeForm({ promo, onClose, onSaved }) {
             />
             <small>{t("Faqat katta harf, raqam, - va _ (3-20 belgi)")}</small>
           </label>
-          <label className="field">
+          <div className="field">
             <span>{t("Turi")}</span>
-            <select value={form.type} onChange={set('type')}>
-              <option value="PERCENT">{t("Foiz")}</option>
-              <option value="FIXED">{t("Qat'iy summa")}</option>
-              <option value="FREE_SHIPPING">{t("Bepul yetkazish")}</option>
-            </select>
-          </label>
+            <Select
+              value={form.type}
+              onChange={(type) => setForm((f) => ({ ...f, type }))}
+              ariaLabel={t('Turi')}
+              options={[
+                { value: 'PERCENT', label: t('Foiz'), hint: t('Summadan foiz chegirma'), icon: Percent },
+                { value: 'FIXED', label: t("Qat'iy summa"), hint: t("Aniq so'm chegirma"), icon: Banknote },
+                { value: 'FREE_SHIPPING', label: t('Bepul yetkazish'), hint: t('Yetkazish narxi olinmaydi'), icon: Truck },
+              ]}
+            />
+          </div>
           {form.type !== 'FREE_SHIPPING' && (
             <label className="field">
               <span>{form.type === 'PERCENT' ? t('Qiymat (%)') : t("Qiymat (so'm)")}</span>

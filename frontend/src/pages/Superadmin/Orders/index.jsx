@@ -1,6 +1,7 @@
 import { Suspense, lazy, useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { ordersApi, ORDER_STATUS, paymentLabel, formatDateTime } from '../../../features/platform/platformApi';
+import { Factory } from 'lucide-react';
+import { ordersApi, ORDER_STATUS, paymentLabel, formatDate, formatDateTime } from '../../../features/platform/platformApi';
 import { prettyPhone } from '../../../features/accounts/accountsApi';
 import { useActiveWorkshops } from '../../../features/orders/useOrderWorkflow';
 import { useDebounced } from '../../../hooks/useDebounced';
@@ -8,7 +9,8 @@ import { downloadCsv } from '../../../utils/csvExport';
 import Modal from '../../../components/ui/Modal';
 import { useLang, useMoney } from '../i18n';
 import { loadAdminPrefs } from '../prefs';
-import { Pager } from '../ui';
+import Select from '../Select';
+import { COUNTS_EVENT, Pager } from '../ui';
 
 // 3D ko'rinish (three.js) faqat 3D dizaynli buyurtma ochilganda yuklanadi
 const KitOrderPreview = lazy(() => import('../KitDesigns/KitOrderPreview'));
@@ -30,9 +32,9 @@ export default function SuperadminOrders() {
   const money = useMoney();
   const { t } = useLang();
   const [LIMIT] = useState(() => loadAdminPrefs().ordersPageSize || 20);
-  const [tab, setTab] = useState(TABS[0]);
-  // Dashboard / Ishlab chiqarish dan ?search=KOD bilan kelinsa — shu buyurtma darhol topiladi
+  // Dashboard / Ishlab chiqarish dan ?search=KOD bilan kelinsa — shu buyurtma darhol topiladi; ?status=READY — shu tab ochiladi
   const [params] = useSearchParams();
+  const [tab, setTab] = useState(() => TABS.find((tb) => tb.status === params.get('status')) ?? TABS[0]);
   const urlSearch = params.get('search') ?? '';
   const [search, setSearch] = useState(urlSearch);
   useEffect(() => setSearch(urlSearch), [urlSearch]); // SPA ichida boshqa ?search= bilan kelinsa ham
@@ -71,6 +73,24 @@ export default function SuperadminOrders() {
       active = false;
     };
   }, [debouncedSearch, tab, page, reload, LIMIT, poll]);
+
+  // Qatordagi "Qabul qilish": sexi bor buyurtma shu yerning o'zida qabul qilinadi, sexi yo'q bo'lsa — sex tanlash uchun oyna ochiladi
+  const [accepting, setAccepting] = useState(null);
+  const accept = async (o) => {
+    if (!o.workshop) return setSelected(o);
+    setAccepting(o.id);
+    setError('');
+    try {
+      await ordersApi.updateStatus(o.id, { status: 'ACCEPTED' });
+      setReload((n) => n + 1);
+      window.dispatchEvent(new Event(COUNTS_EVENT));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setAccepting(null);
+    }
+    return undefined;
+  };
 
   const exportCsv = () => {
     downloadCsv(
@@ -144,18 +164,19 @@ export default function SuperadminOrders() {
               <th>{t("Sex")}</th>
               <th>{t("Kanal")}</th>
               <th>{t("Sana")}</th>
+              <th />
             </tr>
           </thead>
           <tbody>
             {loading && !data.items.length ? (
               <tr>
-                <td colSpan={8} className="sa-table__sub" style={{ textAlign: 'center', padding: 20 }}>
+                <td colSpan={9} className="sa-table__sub" style={{ textAlign: 'center', padding: 20 }}>
                   {t("Yuklanmoqda...")}
                 </td>
               </tr>
             ) : !data.items.length ? (
               <tr>
-                <td colSpan={8} className="sa-table__sub" style={{ textAlign: 'center', padding: 20 }}>
+                <td colSpan={9} className="sa-table__sub" style={{ textAlign: 'center', padding: 20 }}>
                   {t("Buyurtma topilmadi")}
                 </td>
               </tr>
@@ -191,6 +212,22 @@ export default function SuperadminOrders() {
                     <td>{o.workshop?.workshopName || o.workshop?.fullName || '—'}</td>
                     <td>{o.channel === 'APP' ? t('ilova') : 'web'}</td>
                     <td>{formatDateTime(o.createdAt)}</td>
+                    <td>
+                      {(o.status === 'NEW' || o.status === 'SENT_TO_WORKSHOP') && (
+                        <button
+                          type="button"
+                          className="sa-btn"
+                          disabled={accepting === o.id}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            accept(o);
+                          }}
+                          onKeyDown={(e) => e.stopPropagation()}
+                        >
+                          {accepting === o.id ? t('Kuting...') : t('Qabul qilish')}
+                        </button>
+                      )}
+                    </td>
                   </tr>
                 );
               })
@@ -208,6 +245,8 @@ export default function SuperadminOrders() {
           onSaved={() => {
             setSelected(null);
             setReload((n) => n + 1);
+            // Menyudagi "yangi buyurtma" soni kutmasdan yangilanadi
+            window.dispatchEvent(new Event(COUNTS_EVENT));
           }}
         />
       )}
@@ -217,7 +256,7 @@ export default function SuperadminOrders() {
 
 function OrderModal({ order, onClose, onSaved }) {
   const money = useMoney();
-  const { t, locale } = useLang();
+  const { t } = useLang();
   const [status, setStatus] = useState(order.status);
   const [workshopId, setWorkshopId] = useState(order.workshop?.id ? String(order.workshop.id) : '');
   const { workshops, error: workshopsError } = useActiveWorkshops();
@@ -235,8 +274,15 @@ function OrderModal({ order, onClose, onSaved }) {
   const changed = status !== order.status || workshopChanged;
   const close = () => (assigned.current ? onSaved() : onClose());
 
-  const submit = async (e) => {
+  // Sex o'rniga operator qabul qiladi: yangi yoki sexga yuborilgan buyurtma (sex tanlangan bo'lishi shart)
+  const canAccept = order.status === 'NEW' || order.status === 'SENT_TO_WORKSHOP';
+
+  const submit = (e) => {
     e.preventDefault();
+    save(status);
+  };
+
+  const save = async (status) => {
     setSaving(true);
     setError('');
     try {
@@ -255,6 +301,23 @@ function OrderModal({ order, onClose, onSaved }) {
       setSaving(false);
     }
   };
+
+  // Buyurtmaning hozirgi sexi faol ro'yxatda bo'lmasa (bloklangan) ham tanlovda ko'rinadi
+  const workshopOptions = [
+    !order.workshop && { value: '', label: t('— Biriktirilmagan —'), dot: 'gray' },
+    order.workshop &&
+      !workshops.some((w) => w.id === order.workshop.id) && {
+        value: String(order.workshop.id),
+        label: order.workshop.workshopName || order.workshop.fullName,
+        icon: Factory,
+      },
+    ...workshops.map((w) => ({
+      value: String(w.id),
+      label: w.workshopName || w.fullName,
+      hint: w.workshopName && w.fullName !== w.workshopName ? w.fullName : undefined,
+      icon: Factory,
+    })),
+  ].filter(Boolean);
 
   const hasPoint = typeof order.deliveryLat === 'number' && typeof order.deliveryLng === 'number';
   const rows = [
@@ -276,7 +339,7 @@ function OrderModal({ order, onClose, onSaved }) {
       </span>,
     ],
     order.deliveryDate
-      ? [t("Yetkazish"), `${new Date(order.deliveryDate).toLocaleDateString(locale)} ${order.deliverySlot ?? ''}`]
+      ? [t("Yetkazish"), `${formatDate(order.deliveryDate)} ${order.deliverySlot ?? ''}`]
       : // Sana tanlanmagan mobil buyurtma — viloyatga, pochta bo'limigacha
         order.deliveryAddress && order.deliveryRegion && order.deliveryRegion !== 'TOSHKENT_SHAHRI' && [t("Yetkazish"), t("Pochta orqali (pochta bo'limigacha)")],
     order.comment && [t("Izoh"), order.comment],
@@ -371,40 +434,47 @@ function OrderModal({ order, onClose, onSaved }) {
         )}
 
         <div className="form-grid">
-          <label className="field">
+          <div className="field">
             <span>{t("Holat")}</span>
-            <select value={status} onChange={(e) => setStatus(e.target.value)}>
-              {Object.entries(ORDER_STATUS).map(([value, s]) => (
-                <option key={value} value={value}>{t(s.label)}</option>
-              ))}
-            </select>
-          </label>
-          <label className="field">
+            <Select
+              value={status}
+              onChange={setStatus}
+              ariaLabel={t('Holat')}
+              options={Object.entries(ORDER_STATUS).map(([value, s]) => ({ value, label: t(s.label), dot: s.color }))}
+            />
+          </div>
+          <div className="field">
             <span>{t("Tikuv sexi")}</span>
-            <select
+            <Select
               value={workshopId}
-              onChange={(e) => {
-                setWorkshopId(e.target.value);
+              onChange={(value) => {
+                setWorkshopId(value);
                 // Yangi buyurtmaga sex tanlansa — assign uni SENT_TO_WORKSHOP qiladi, holat selecti ham shuni ko'rsatsin
-                if (e.target.value && status === 'NEW') setStatus('SENT_TO_WORKSHOP');
+                if (value && status === 'NEW') setStatus('SENT_TO_WORKSHOP');
               }}
-            >
-              {!order.workshop && <option value="">{t("— Biriktirilmagan —")}</option>}
-              {order.workshop && !workshops.some((w) => w.id === order.workshop.id) && (
-                <option value={order.workshop.id}>{order.workshop.workshopName || order.workshop.fullName}</option>
-              )}
-              {workshops.map((w) => (
-                <option key={w.id} value={w.id}>{w.workshopName || w.fullName}</option>
-              ))}
-            </select>
-          </label>
+              ariaLabel={t('Tikuv sexi')}
+              icon={Factory}
+              options={workshopOptions}
+            />
+          </div>
         </div>
 
         <div className="modal__foot" style={{ padding: '14px 0 0' }}>
           <button type="button" className="btn btn--ghost" onClick={close}>
             {t("Yopish")}
           </button>
-          <button type="submit" className="btn btn--accent" disabled={saving || !changed}>
+          {canAccept && (
+            <button
+              type="button"
+              className="btn btn--accent"
+              disabled={saving || !workshopId}
+              title={workshopId ? undefined : t('Avval tikuv sexini tanlang')}
+              onClick={() => save('ACCEPTED')}
+            >
+              {t("Qabul qilish")}
+            </button>
+          )}
+          <button type="submit" className={`btn ${canAccept ? 'btn--ghost' : 'btn--accent'}`} disabled={saving || !changed}>
             {saving ? t("Saqlanmoqda...") : t("Saqlash")}
           </button>
         </div>

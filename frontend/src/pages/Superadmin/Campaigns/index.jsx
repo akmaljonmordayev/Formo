@@ -1,7 +1,9 @@
 import { useEffect, useState } from 'react';
-import { campaignsApi } from '../../../features/platform/platformApi';
+import { campaignsApi, formatDateTime } from '../../../features/platform/platformApi';
 import Modal from '../../../components/ui/Modal';
+import { Bell, MessageSquare, Send, ShoppingBag, ShoppingCart, UserX, Users } from 'lucide-react';
 import { useLang, useT, useMoney } from '../i18n';
+import Select from '../Select';
 
 const STATUS_LABEL = {
   DRAFT: { label: 'Qoralama', color: 'blue' },
@@ -17,6 +19,8 @@ const AUDIENCE_PRESETS = {
   NO_ORDERS: 'Hali buyurtma bermaganlar',
   CART: 'Savatida mahsuloti borlar',
 };
+
+const AUDIENCE_ICON = { ALL: Users, ORDERED: ShoppingBag, NO_ORDERS: UserX, CART: ShoppingCart };
 
 // ISO -> <input type="datetime-local"> qiymati (mahalliy vaqt)
 const toLocalInput = (iso) => {
@@ -54,7 +58,7 @@ export default function SuperadminCampaigns() {
     { label: t('Yuborilgan xabarlar'), value: data.totals.sent.toLocaleString(locale), sub: '' },
     { label: t("O'rtacha ochilish"), value: `${openRate}%`, sub: t('faqat push') },
     { label: t('Kampaniyadan buyurtma'), value: String(data.totals.orders), sub: t('{n}% konversiya', { n: convRate }) },
-    { label: t('Tushum'), value: money(data.totals.revenue), sub: '' },
+    { label: t('Daromad'), value: money(data.totals.revenue), sub: '' },
   ];
 
   return (
@@ -124,7 +128,7 @@ export default function SuperadminCampaigns() {
                     <b style={{ color: 'var(--sa-ink)' }}>{CHANNEL_LABEL[c.channel]}</b>
                     {c.scheduledAt && (
                       <>
-                        {' '}· {t('Qachon')}: <b style={{ color: 'var(--sa-ink)' }}>{new Date(c.scheduledAt).toLocaleString(locale)}</b>
+                        {' '}· {t('Qachon')}: <b style={{ color: 'var(--sa-ink)' }}>{formatDateTime(c.scheduledAt)}</b>
                       </>
                     )}
                   </div>
@@ -136,7 +140,7 @@ export default function SuperadminCampaigns() {
                       [t('yuborildi'), t('{n} kishi', { n: c.sentCount })],
                       [t('ochildi'), c.openedCount != null ? `${c.openedCount}` : '—'],
                       [t('buyurtma'), c.orderCount != null ? `${c.orderCount}` : '—'],
-                      [t('tushum'), c.revenue != null ? money(c.revenue) : '—'],
+                      [t('daromad'), c.revenue != null ? money(c.revenue) : '—'],
                     ].map(([k, v]) => (
                       <div key={k} style={{ padding: '10px 14px', borderRadius: 10, background: 'var(--sa-surface-2)', border: '1px solid var(--sa-line)', minWidth: 90 }}>
                         <div className="sa-table__sub" style={{ textTransform: 'capitalize' }}>{k}</div>
@@ -183,6 +187,7 @@ function CampaignForm({ campaign, onClose, onSaved }) {
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
+  const setValue = (key) => (value) => setForm((f) => ({ ...f, [key]: value }));
 
   const submit = async (e) => {
     e.preventDefault();
@@ -219,40 +224,50 @@ function CampaignForm({ campaign, onClose, onSaved }) {
             <span>{t("Nomi")}</span>
             <input value={form.name} onChange={set('name')} required minLength={2} maxLength={120} />
           </label>
-          <label className="field field--full">
+          <div className="field field--full">
             <span>{t("Auditoriya")}</span>
-            <select value={form.audience} onChange={set('audience')} required>
-              {Object.entries(AUDIENCE_PRESETS).map(([value, label]) => (
-                <option key={value} value={value}>{t(label)}</option>
-              ))}
-              {form.audience && !AUDIENCE_PRESETS[form.audience] && (
-                <option value={form.audience}>{t('{text} (eski)', { text: form.audience })}</option>
-              )}
-            </select>
+            <Select
+              value={form.audience}
+              onChange={setValue('audience')}
+              ariaLabel={t('Auditoriya')}
+              required
+              options={[
+                ...Object.entries(AUDIENCE_PRESETS).map(([value, label]) => ({ value, label: t(label), icon: AUDIENCE_ICON[value] })),
+                ...(form.audience && !AUDIENCE_PRESETS[form.audience]
+                  ? [{ value: form.audience, label: t('{text} (eski)', { text: form.audience }), icon: Users }]
+                  : []),
+              ]}
+            />
             <small>{t("Mobil ilovadagi Push ro'yxati shu auditoriya bo'yicha mijozlarga ko'rsatiladi")}</small>
-          </label>
-          <label className="field">
+          </div>
+          <div className="field">
             <span>{t("Kanal")}</span>
-            <select value={form.channel} onChange={set('channel')}>
-              <option value="PUSH">Push</option>
-              <option value="SMS">SMS</option>
-              <option value="PUSH_SMS">Push + SMS</option>
-            </select>
-          </label>
+            <Select
+              value={form.channel}
+              onChange={setValue('channel')}
+              ariaLabel={t('Kanal')}
+              options={[
+                { value: 'PUSH', label: 'Push', hint: t('Ilova bildirishnomasi'), icon: Bell },
+                { value: 'SMS', label: 'SMS', hint: t('Telefon raqamiga'), icon: MessageSquare },
+                { value: 'PUSH_SMS', label: 'Push + SMS', hint: t('Ikkalasi ham'), icon: Send },
+              ]}
+            />
+          </div>
           <label className="field">
             <span>{t("Qachon yuborilsin")}</span>
             <input type="datetime-local" value={form.scheduledAt} onChange={set('scheduledAt')} />
             {!isEdit && <small>{t("Bo'sh qoldirilsa qoralama sifatida saqlanadi")}</small>}
           </label>
           {isEdit && (
-            <label className="field">
+            <div className="field">
               <span>{t("Holat")}</span>
-              <select value={form.status} onChange={set('status')}>
-                {Object.entries(STATUS_LABEL).map(([value, s]) => (
-                  <option key={value} value={value}>{t(s.label)}</option>
-                ))}
-              </select>
-            </label>
+              <Select
+                value={form.status}
+                onChange={setValue('status')}
+                ariaLabel={t('Holat')}
+                options={Object.entries(STATUS_LABEL).map(([value, s]) => ({ value, label: t(s.label), dot: s.color }))}
+              />
+            </div>
           )}
           <label className="field field--full">
             <span>{t("Xabar matni")}</span>

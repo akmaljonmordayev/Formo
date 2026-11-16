@@ -808,3 +808,15 @@ model Setting {
   value     Json
   updatedAt DateTime @updatedAt
 }
+
+// ---------------------------------------------------------------------------
+// Yuklangan fayllar (profil rasmi, forma belgisi) — S3 ham, doimiy disk (UPLOAD_DIR) ham
+// sozlanmagan productionda fayl shu jadvalda saqlanadi va /api/uploads/<key> orqali beriladi
+// ---------------------------------------------------------------------------
+
+model StoredFile {
+  key         String   @id // "avatars/<uuid>.jpg"
+  contentType String
+  data        Bytes
+  createdAt   DateTime @default(now())
+}

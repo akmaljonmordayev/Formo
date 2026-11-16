@@ -56,9 +56,8 @@ export default function SuperadminReports() {
 
   const STATS = data
     ? [
-        { label: t('Tushum'), value: money(data.revenue), delta: `${data.revenueDeltaPct > 0 ? '+' : ''}${data.revenueDeltaPct}%`, up: data.revenueDeltaPct > 0 },
+        { label: t('Daromad'), value: money(data.revenue), delta: `${data.revenueDeltaPct > 0 ? '+' : ''}${data.revenueDeltaPct}%`, up: data.revenueDeltaPct > 0 },
         { label: t('Buyurtmalar'), value: String(data.ordersCount), delta: `${data.ordersDeltaPct > 0 ? '+' : ''}${data.ordersDeltaPct}%`, up: data.ordersDeltaPct > 0 },
-        { label: t("O'rtacha chek"), value: money(data.avgCheck), delta: '' },
       ]
     : [];
 
@@ -67,7 +66,7 @@ export default function SuperadminReports() {
       <div className="sa-head">
         <div>
           <h1>{t("Hisobotlar")}</h1>
-          <p>{t("Tushum va mahsulot turlari bo'yicha taqsimot")} · {t(range.label)}.</p>
+          <p>{t("Daromad va mahsulot turlari bo'yicha taqsimot")} · {t(range.label)}.</p>
         </div>
         <button type="button" className="sa-btn sa-btn--ghost" onClick={exportCsv} disabled={!breakdown.length}>{t("Excel eksport")}</button>
       </div>
@@ -96,12 +95,12 @@ export default function SuperadminReports() {
 
       <div className="sa-panel">
         <div className="sa-panel__head">
-          <div className="sa-panel__title">{t("Tushum tarkibi")}</div>
+          <div className="sa-panel__title">{t("Daromad tarkibi")}</div>
           <span className="sa-panel__sub">{t("so'm")}</span>
         </div>
         {breakdown.length === 0 ? (
           <div className="sa-table__sub" style={{ padding: '12px 0' }}>
-            {loading ? t('Yuklanmoqda...') : t("Bu davrda tushum yo'q")}
+            {loading ? t('Yuklanmoqda...') : t("Bu davrda daromad yo'q")}
           </div>
         ) : (
           <>

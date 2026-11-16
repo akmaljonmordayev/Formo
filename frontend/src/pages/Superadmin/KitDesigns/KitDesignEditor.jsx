@@ -11,7 +11,9 @@ import {
   SPONSOR_TEXT_MAX,
   normalizeDesign,
 } from '@formo/kit-3d/design';
+import { Grid2x2, Shirt } from 'lucide-react';
 import { assetUrl } from '../../../services/api';
+import Select from '../Select';
 import { useT } from '../i18n';
 import ImageField from './ImageField';
 import { makeThumbnail } from './thumbnail';
@@ -121,26 +123,28 @@ export default function KitDesignEditor({ initial, onSave, onCancel, saving = fa
         </div>
 
         <div className="kd-row2">
-          <label className="kd-field">
+          <div className="kd-field">
             <span>{t('Naqsh')}</span>
-            <select className="sa-input" value={form.pattern} onChange={set('pattern')}>
-              {KIT_PATTERNS.map((p) => (
-                <option key={p} value={p}>
-                  {t(KIT_PATTERN_LABELS[p])}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="kd-field">
+            <Select
+              compact
+              value={form.pattern}
+              onChange={setValue('pattern')}
+              ariaLabel={t('Naqsh')}
+              icon={Grid2x2}
+              options={KIT_PATTERNS.map((p) => ({ value: p, label: t(KIT_PATTERN_LABELS[p]) }))}
+            />
+          </div>
+          <div className="kd-field">
             <span>{t('Yoqa')}</span>
-            <select className="sa-input" value={form.neck} onChange={set('neck')}>
-              {KIT_NECKS.map((n) => (
-                <option key={n} value={n}>
-                  {t(KIT_NECK_LABELS[n])}
-                </option>
-              ))}
-            </select>
-          </label>
+            <Select
+              compact
+              value={form.neck}
+              onChange={setValue('neck')}
+              ariaLabel={t('Yoqa')}
+              icon={Shirt}
+              options={KIT_NECKS.map((n) => ({ value: n, label: t(KIT_NECK_LABELS[n]) }))}
+            />
+          </div>
         </div>
 
         <div className="kd-row2">

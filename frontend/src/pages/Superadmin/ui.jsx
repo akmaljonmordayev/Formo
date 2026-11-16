@@ -5,6 +5,8 @@ import { useT } from './i18n';
 const POLL_MS = 3000;
 // Xabarlar sahifasi chatni ochganda yuboradi — menyu belgisi kutmasdan yangilanadi
 export const CHAT_READ_EVENT = 'formo-sa-chat-read';
+// Buyurtma saqlanganda / chek ko'rib chiqilganda yuboriladi — menyudagi sonlar kutmasdan yangilanadi
+export const COUNTS_EVENT = 'formo-sa-counts';
 
 // Sahifa ko'rinib turgandagina `fn` ni har POLL_MS da chaqiradi; tab yashirilsa yoki unmount bo'lsa to'xtaydi
 export function usePolling(fn) {

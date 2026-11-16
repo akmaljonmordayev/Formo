@@ -72,4 +72,28 @@ describe('StorageService (lokal disk)', () => {
       ServiceUnavailableException,
     );
   });
+
+  it("productionda S3 ham, UPLOAD_DIR ham bo'lmasa — fayl bazada saqlanadi, o'qiladi va o'chiriladi", async () => {
+    process.env.NODE_ENV = 'production';
+    delete process.env.UPLOAD_DIR;
+    const rows = new Map<string, { key: string; contentType: string; data: Buffer }>();
+    const prisma = {
+      storedFile: {
+        create: async ({ data }: { data: { key: string; contentType: string; data: Buffer } }) => rows.set(data.key, data),
+        findUnique: async ({ where }: { where: { key: string } }) => rows.get(where.key) ?? null,
+        deleteMany: async ({ where }: { where: { key: string } }) => rows.delete(where.key),
+      },
+    };
+    const s = new StorageService(prisma as never);
+    expect(s.driver).toBe('db');
+
+    const url = await s.put('avatars', 'png', PNG, 'image/png');
+    expect(url).toMatch(/^\/api\/uploads\/avatars\/[0-9a-f-]{36}\.png$/);
+    const key = url.replace('/api/uploads/', '');
+    expect(await s.read(key)).toEqual({ contentType: 'image/png', data: PNG });
+    expect(await s.read('../etc/passwd')).toBeNull();
+
+    await s.remove(url);
+    expect(await s.read(key)).toBeNull();
+  });
 });

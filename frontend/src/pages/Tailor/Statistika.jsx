@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { CheckCircle2, ClipboardList, Loader2, Scissors, Truck } from 'lucide-react';
+import { ClipboardList, Loader2 } from 'lucide-react';
 import { Card } from './ui';
 import { useT } from './i18n';
 import { cx } from './utils';
@@ -15,11 +15,6 @@ const WEEKDAYS = {
   uz: ['Yak', 'Du', 'Se', 'Chor', 'Pay', 'Jum', 'Shan'],
   ru: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
 };
-
-// Tepadagi sonlar. "Tayyor" — yon menyudagi "Tayyor" bo'limi bilan bir xil (faqat READY); sexdan chiqib ketganlari alohida
-const IN_WORK = ['SENT_TO_WORKSHOP', 'ACCEPTED', 'PRINTING', 'QUALITY_CHECK'];
-const READY = ['READY'];
-const HANDED_OVER = ['DELIVERING', 'DELIVERED'];
 
 // Oxirgi javoblar: sahifaga qaytilganda grafik darhol ko'rinadi, yangi ma'lumot fonda olinadi
 const dashboardCache = {};
@@ -208,7 +203,6 @@ export default function Statistika() {
     .join(' · ');
 
   const counts = byStatus ?? {};
-  const sumOf = (keys) => keys.reduce((sum, key) => sum + (counts[key] ?? 0), 0);
   const allTime = Object.values(counts).reduce((sum, n) => sum + n, 0);
   const shown = (n) => (byStatus ? n : '—');
   const toRows = (list) => (list ?? []).map((row) => ({ key: row.name, label: row.name, value: row.pieces }));
@@ -218,12 +212,7 @@ export default function Statistika() {
       {error && <div role="alert" className="rounded-xl border border-rose-500/30 bg-rose-500/10 px-4 py-3 text-xs text-rose-200">{error}</div>}
 
       {/* Umumiy sonlar — davr tanloviga bog'liq emas */}
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <Kpi icon={ClipboardList} label={t('stat.kpi.total')} value={shown(allTime)} hint={t('stat.kpi.totalHint')} primary />
-        <Kpi icon={Scissors} label={t('stat.kpi.inWork')} value={shown(sumOf(IN_WORK))} hint={t('stat.kpi.inWorkHint')} />
-        <Kpi icon={CheckCircle2} label={t('stat.kpi.ready')} value={shown(sumOf(READY))} hint={t('stat.kpi.readyHint')} />
-        <Kpi icon={Truck} label={t('stat.kpi.handed')} value={shown(sumOf(HANDED_OVER))} hint={t('stat.kpi.handedHint')} />
-      </div>
+      <Kpi icon={ClipboardList} label={t('stat.kpi.total')} value={shown(allTime)} hint={t('stat.kpi.totalHint')} primary />
 
       <Card className="p-6">
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-4">

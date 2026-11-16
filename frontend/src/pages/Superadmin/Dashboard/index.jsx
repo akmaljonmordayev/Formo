@@ -1,23 +1,52 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { AlarmClock, Factory, ShoppingBag, Wallet } from 'lucide-react';
+import { ChevronRight, CreditCard, Inbox, MessagesSquare, PackageCheck, Scissors, ShoppingBag, Truck, Wallet } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
-import { dashboardApi, ordersApi, ORDER_STATUS, formatDateTime } from '../../../features/platform/platformApi';
+import { dashboardApi, ordersApi, supportApi, topupsApi, ORDER_STATUS, formatDateTime } from '../../../features/platform/platformApi';
 import { useCompactNumber, useDayLabel, useLang, useMoney } from '../i18n';
 import { loadAdminPrefs } from '../prefs';
 import RangePicker, { RANGES, rangeParams, todayKey } from '../RangePicker';
 import { CountUp, Kpi, TrendChart } from '../ui';
 
+const BASE = '/superadmin';
 const WEEKDAYS = ['Yakshanba', 'Dushanba', 'Seshanba', 'Chorshanba', 'Payshanba', 'Juma', 'Shanba'];
 const MONTHS = ['yanvar', 'fevral', 'mart', 'aprel', 'may', 'iyun', 'iyul', 'avgust', 'sentabr', 'oktabr', 'noyabr', 'dekabr'];
 const METRICS = [
   ['count', 'Buyurtmalar soni'],
-  ['revenue', "Tushum (so'm)"],
+  ['revenue', "Daromad (so'm)"],
+];
+// "Hozir" bloki (ish navbati va buyurtmalar yo'li) shu oraliqda jim yangilanadi
+const NOW_REFRESH_MS = 30_000;
+
+// Buyurtma yo'li: faol buyurtmalar hozir qaysi bosqichda turgani (chapdan o'ngga)
+const FLOW = [
+  { label: 'Yangi', hint: 'Sexga yuborilmagan', statuses: ['NEW'], icon: Inbox, color: 'var(--sa-accent)', to: `${BASE}/orders?status=NEW` },
+  { label: 'Sexda', hint: 'Qabul qilingan', statuses: ['SENT_TO_WORKSHOP', 'ACCEPTED', 'PRINTING'], icon: Scissors, color: 'var(--sa-blue)', to: `${BASE}/production` },
+  { label: 'Tayyor', hint: 'Yetkazishni kutmoqda', statuses: ['READY'], icon: PackageCheck, color: 'var(--sa-teal)', to: `${BASE}/orders?status=READY` },
+  { label: 'Yetkazishda', hint: "Mijozga yo'lda", statuses: ['DELIVERING'], icon: Truck, color: 'var(--sa-violet)', to: `${BASE}/orders?status=DELIVERING` },
 ];
 
-const openOrderUrl = (code) => `/superadmin/orders?search=${encodeURIComponent(code)}`;
+// Holat ham beriladi — Buyurtmalar sahifasi aynan shu buyurtma turgan tabni ochadi
+const openOrderUrl = (o) => `${BASE}/orders?search=${encodeURIComponent(o.code)}&status=${o.status}`;
 
-/** Bosh sahifa: 4 ta asosiy ko'rsatkich, kunlik grafik va so'nggi buyurtmalar */
+/** Ish navbati kartasi: nechta ish kutayotgani; bosilsa o'sha sahifa ochiladi. 0 bo'lsa — tinch ko'rinish */
+function Todo({ to, icon: Icon, label, count, hint, done, color }) {
+  const waiting = count > 0;
+  return (
+    <Link to={to} className={`sa-todo${waiting ? ' is-waiting' : ''}`} style={{ '--todo': color }}>
+      <span className="sa-todo__icon">
+        <Icon size={20} strokeWidth={1.9} aria-hidden="true" />
+      </span>
+      <span className="sa-todo__body">
+        <span className="sa-todo__label">{label}</span>
+        <span className="sa-todo__hint">{waiting ? hint : done}</span>
+      </span>
+      <b className="sa-todo__count">{count ?? '—'}</b>
+    </Link>
+  );
+}
+
+/** Bosh sahifa: tepada — hozir nima kutayotgani, pastda — tanlangan davr bo'yicha savdo */
 export default function SuperadminDashboard() {
   const money = useMoney();
   const compact = useCompactNumber();
@@ -33,7 +62,11 @@ export default function SuperadminDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  // Hozirgi holat: so'nggi buyurtmalar, holatlar bo'yicha sonlar, tekshiruvdagi cheklar, o'qilmagan xabarlar
   const [recent, setRecent] = useState(null);
+  const [byStatus, setByStatus] = useState(null);
+  const [receipts, setReceipts] = useState(null);
+  const [unread, setUnread] = useState(null);
 
   const name = (user?.fullName || 'Super admin').split(' ')[0];
   const now = new Date();
@@ -55,16 +88,30 @@ export default function SuperadminDashboard() {
     };
   }, [range, from, to, badRange]);
 
-  useEffect(() => {
-    let active = true;
+  // Har biri alohida: bittasi xato bersa qolganlari ko'rinaveradi (o'rnida "—" qoladi)
+  const loadNow = useCallback(() => {
     ordersApi
       .list({ limit: 6 })
-      .then((d) => active && setRecent(d.items))
-      .catch(() => active && setRecent([]));
-    return () => {
-      active = false;
-    };
+      .then((d) => {
+        setRecent(d.items);
+        setByStatus(d.byStatus ?? {});
+      })
+      .catch(() => setRecent((r) => r ?? []));
+    topupsApi
+      .list({ status: 'REVIEW', limit: 1 })
+      .then((d) => setReceipts(d.byStatus?.REVIEW ?? 0))
+      .catch(() => {});
+    supportApi
+      .unread()
+      .then((d) => setUnread(d.unread ?? 0))
+      .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    loadNow();
+    const id = setInterval(() => document.visibilityState === 'visible' && loadNow(), NOW_REFRESH_MS);
+    return () => clearInterval(id);
+  }, [loadNow]);
 
   const deltaHint = (pct) =>
     pct === null || pct === undefined ? t('Tanlangan davr uchun') : t('{pct}% oldingi davrga nisbatan', { pct: `${pct > 0 ? '+' : ''}${pct}` });
@@ -81,7 +128,7 @@ export default function SuperadminDashboard() {
   }));
   const total = points.reduce((s, p) => s + p.value, 0);
   const best = points.reduce((top, p) => (p.value > (top?.value ?? 0) ? p : top), null);
-  const late = stats?.lateCount ?? 0;
+  const countOf = (statuses) => (byStatus ? statuses.reduce((s, key) => s + (byStatus[key] ?? 0), 0) : null);
 
   return (
     <>
@@ -90,6 +137,45 @@ export default function SuperadminDashboard() {
           <h1>{t('Xayrli kun, {name}', { name })}</h1>
           <p>{t(WEEKDAYS[now.getDay()])}, {now.getDate()}-{t(MONTHS[now.getMonth()])}</p>
         </div>
+      </div>
+
+      {/* 1. Hozir: sizdan ish kutayotgan narsalar — davr tanloviga bog'liq emas */}
+      <div className="sa-section">
+        <h2>{t('Sizni kutayotgan ishlar')}</h2>
+      </div>
+      <div className="sa-todos">
+        <Todo
+          to={`${BASE}/orders?status=NEW`}
+          icon={ShoppingBag}
+          label={t('Yangi buyurtmalar')}
+          count={countOf(['NEW'])}
+          hint={t('Sexga yuborish kerak')}
+          done={t("Yangi buyurtma yo'q")}
+          color="var(--sa-accent)"
+        />
+        <Todo
+          to={`${BASE}/topups`}
+          icon={CreditCard}
+          label={t("To'lov cheklari")}
+          count={receipts}
+          hint={t('Tekshirib, tasdiqlash kerak')}
+          done={t("Tekshiriladigan chek yo'q")}
+          color="var(--sa-teal)"
+        />
+        <Todo
+          to={`${BASE}/messages`}
+          icon={MessagesSquare}
+          label={t('Javobsiz xabarlar')}
+          count={unread}
+          hint={t('Mijozlar javob kutmoqda')}
+          done={t("Hammasiga javob berilgan")}
+          color="var(--sa-blue)"
+        />
+      </div>
+
+      {/* 2. Savdo: tanlangan davr bo'yicha */}
+      <div className="sa-section">
+        <h2>{t('Savdo')}</h2>
         <RangePicker range={range} onRange={setRange} from={from} to={to} onFrom={setFrom} onTo={setTo} />
       </div>
 
@@ -106,34 +192,12 @@ export default function SuperadminDashboard() {
         />
         <Kpi
           icon={Wallet}
-          label={t('Tushum')}
+          label={t('Daromad')}
           value={<CountUp value={stats?.revenue ?? 0} format={money} />}
           hint={deltaHint(stats?.revenueDeltaPct)}
           tone={tone(stats?.revenueDeltaPct)}
           color="var(--sa-teal)"
           delay={70}
-        />
-        <Kpi
-          icon={Factory}
-          label={t('Hozir sexlarda')}
-          value={<CountUp value={stats?.activeCount ?? 0} />}
-          hint={
-            stats?.capacity
-              ? t("Sexlar sig'imi {b} dona · {pct}% band", { b: stats.capacity, pct: stats.loadPct })
-              : t("Sexlar sig'imi kiritilmagan")
-          }
-          color="var(--sa-violet)"
-          delay={140}
-        />
-        <Kpi
-          icon={AlarmClock}
-          label={t('Kechikayotgan')}
-          value={<CountUp value={late} />}
-          hint={late > 0 ? t("Qabul qilinganiga 21 soatdan oshgan, hali tayyor emas") : t("Hammasi o'z vaqtida")}
-          tone={late > 0 ? 'down' : 'up'}
-          color="var(--sa-green)"
-          alert={late > 0}
-          delay={210}
         />
       </div>
 
@@ -141,7 +205,7 @@ export default function SuperadminDashboard() {
         <div className="sa-panel">
           <div className="sa-panel__head" style={{ alignItems: 'flex-start', flexWrap: 'wrap' }}>
             <div>
-              <div className="sa-panel__title">{t(isRevenue ? 'Kunlik tushum' : 'Kunlik buyurtmalar')}</div>
+              <div className="sa-panel__title">{t(isRevenue ? 'Kunlik daromad' : 'Kunlik buyurtmalar')}</div>
               <div className="sa-panel__sub">{custom ? `${dayLabel(from)} — ${dayLabel(to)}` : t(range.label)}</div>
             </div>
             <div className="sa-tabs" style={{ marginBottom: 0 }}>
@@ -159,10 +223,6 @@ export default function SuperadminDashboard() {
             </div>
           </div>
           <div className="sa-facts">
-            <div>
-              <span>{t('Jami')}</span>
-              <b>{format(total)}</b>
-            </div>
             <div>
               <span>{t("Kuniga o'rtacha")}</span>
               <b>{format(points.length ? total / points.length : 0)}</b>
@@ -185,7 +245,7 @@ export default function SuperadminDashboard() {
         <div className="sa-panel">
           <div className="sa-panel__head">
             <div className="sa-panel__title">{t("So'nggi buyurtmalar")}</div>
-            <Link className="sa-panel__link" to="/superadmin/orders">{t('Barchasi →')}</Link>
+            <Link className="sa-panel__link" to={`${BASE}/orders`}>{t('Barchasi →')}</Link>
           </div>
           {recent === null ? (
             <div className="sa-chart-empty">{t('Yuklanmoqda...')}</div>
@@ -201,8 +261,8 @@ export default function SuperadminDashboard() {
                     className="sa-feed__row"
                     role="link"
                     tabIndex={0}
-                    onClick={() => navigate(openOrderUrl(o.code))}
-                    onKeyDown={(e) => e.key === 'Enter' && navigate(openOrderUrl(o.code))}
+                    onClick={() => navigate(openOrderUrl(o))}
+                    onKeyDown={(e) => e.key === 'Enter' && navigate(openOrderUrl(o))}
                   >
                     <div className="sa-feed__who">
                       <b>{o.customerName}</b>
@@ -217,6 +277,30 @@ export default function SuperadminDashboard() {
               })}
             </div>
           )}
+        </div>
+      </div>
+
+      <div className="sa-panel sa-flow-panel">
+        <div className="sa-panel__head">
+          <div>
+            <div className="sa-panel__title">{t('Buyurtmalar hozir qayerda')}</div>
+            <div className="sa-panel__sub">{t("Tugallanmagan buyurtmalar bosqichlar bo'yicha. Bosqichni bossangiz ro'yxati ochiladi.")}</div>
+          </div>
+        </div>
+        <div className="sa-flow">
+          {FLOW.map((step, i) => (
+            <Link key={step.label} to={step.to} className="sa-flow__step" style={{ '--flow': step.color }}>
+              <span className="sa-flow__icon">
+                <step.icon size={18} strokeWidth={1.9} aria-hidden="true" />
+              </span>
+              <span className="sa-flow__text">
+                <b>{countOf(step.statuses) ?? '—'}</b>
+                <span>{t(step.label)}</span>
+                <small>{t(step.hint)}</small>
+              </span>
+              {i < FLOW.length - 1 && <ChevronRight className="sa-flow__arrow" size={18} strokeWidth={2} aria-hidden="true" />}
+            </Link>
+          ))}
         </div>
       </div>
     </>

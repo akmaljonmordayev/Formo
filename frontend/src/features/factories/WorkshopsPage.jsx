@@ -4,6 +4,7 @@ import PhoneInput, { phoneDigits } from '../../components/ui/PhoneInput';
 import { formatDate, prettyPhone, workshopsApi } from '../accounts/accountsApi';
 import { useDebounced } from '../../hooks/useDebounced';
 import { useT } from '../../pages/Superadmin/i18n';
+import Select from '../../pages/Superadmin/Select';
 
 const LIMIT = 10;
 
@@ -85,11 +86,17 @@ export default function WorkshopsPage({ readOnly = false }) {
           onChange={(e) => setSearch(e.target.value)}
           maxLength={100}
         />
-        <select value={status} onChange={(e) => setStatus(e.target.value)} aria-label={t('Holat')}>
-          <option value="">{t('Barchasi')}</option>
-          <option value="true">{t('Faol')}</option>
-          <option value="false">{t('Bloklangan')}</option>
-        </select>
+        <Select
+          value={status}
+          onChange={setStatus}
+          ariaLabel={t('Holat')}
+          style={{ minWidth: 190 }}
+          options={[
+            { value: '', label: t('Barchasi'), dot: 'gray' },
+            { value: 'true', label: t('Faol'), dot: 'green' },
+            { value: 'false', label: t('Bloklangan'), dot: 'red' },
+          ]}
+        />
       </div>
 
       {error && <div className="form-error">{error}</div>}

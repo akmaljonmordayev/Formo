@@ -1,4 +1,4 @@
-/* Superadmin sahifalari: Dashboard, Sotuvlar, Ishlab chiqarish va Formalar uchun bloklar.
+/* Superadmin sahifalari: Dashboard, Tushum, Ishlab chiqarish va Formalar uchun bloklar.
    Ranglar SuperadminLayout.css dagi --sa-* o'zgaruvchilaridan — qorong'i va yorug' mavzuda bir xil ishlaydi. */
 
 @keyframes sa-fade-up {
@@ -90,7 +90,7 @@
   color: var(--sa-red);
 }
 
-/* ---------- Sotuvlar: asosiy raqamlar ---------- */
+/* ---------- Tushum: asosiy raqamlar ---------- */
 .sa-hero {
   display: grid;
   grid-template-columns: 1.4fr 1fr;
@@ -901,6 +901,122 @@
 }
 
 /* ---------- Profil: parolni yangilash ---------- */
+/* ---------- Profil: kim kirgani, til/mavzu va parol ---------- */
+.sa-profile {
+  display: grid;
+  grid-template-columns: minmax(260px, 360px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.sa-profile__side {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sa-profile__card {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.sa-profile__avatar {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 60px;
+  height: 60px;
+  border-radius: 18px;
+  background: color-mix(in srgb, var(--sa-accent) 18%, transparent);
+  color: var(--sa-accent);
+  font-family: var(--font-display, sans-serif);
+  font-size: 21px;
+  font-weight: 700;
+}
+
+.sa-profile__who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sa-profile__who b {
+  font-size: 16px;
+  color: var(--sa-ink);
+  overflow-wrap: anywhere;
+}
+
+.sa-profile__who span,
+.sa-profile__who small {
+  font-size: 13px;
+  color: var(--sa-mu);
+}
+
+.sa-profile__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sa-ink);
+}
+
+.sa-profile__title svg {
+  color: var(--sa-mu);
+}
+
+.sa-seg {
+  display: flex;
+  gap: 4px;
+  padding: 4px;
+  border: 1px solid var(--sa-line);
+  border-radius: 12px;
+  background: var(--sa-surface-2);
+}
+
+.sa-seg button {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 0 10px;
+  border: none;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--sa-mu);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sa-seg button:hover {
+  color: var(--sa-ink);
+}
+
+.sa-seg button.is-active {
+  background: var(--sa-surface);
+  color: var(--sa-ink);
+  box-shadow: 0 0 0 1px var(--sa-line);
+}
+
+.sa-seg button:focus-visible {
+  outline: 2px solid var(--sa-accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 900px) {
+  .sa-profile {
+    grid-template-columns: 1fr;
+  }
+}
+
 .sa-pass {
   position: relative;
   display: block;
@@ -999,5 +1115,541 @@
 
   .sa-job {
     transition: none;
+  }
+}
+
+/* ---------- Select (Select.jsx): panel uslubidagi ochiladigan ro'yxat ---------- */
+.sa-select {
+  position: relative;
+  display: inline-flex;
+  min-width: 0;
+}
+
+.field > .sa-select,
+.kd-field > .sa-select {
+  display: flex;
+}
+
+.sa-select__btn {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  min-width: 0;
+  height: 44px;
+  padding: 0 12px 0 14px;
+  border: 1.5px solid var(--sa-line);
+  border-radius: 12px;
+  background: var(--sa-surface);
+  color: var(--sa-ink);
+  font: inherit;
+  font-size: 14.5px;
+  text-align: left;
+  cursor: pointer;
+  outline: none;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.sa .modal .sa-select__btn,
+.kd-field .sa-select__btn {
+  background: var(--sa-surface-2);
+}
+
+.sa-select--compact .sa-select__btn {
+  height: 38px;
+  border-width: 1px;
+  border-radius: 10px;
+  font-size: 13.5px;
+}
+
+.sa-select__btn > svg:not(.sa-select__chev) {
+  flex-shrink: 0;
+  color: var(--sa-mu);
+}
+
+.sa-select__btn:hover:not(:disabled) {
+  border-color: rgba(var(--sa-hover-rgb), 0.28);
+}
+
+.sa-select__btn:focus-visible,
+.sa-select__btn.is-open {
+  border-color: var(--sa-accent);
+  box-shadow: 0 0 0 4px rgba(242, 163, 58, 0.16);
+}
+
+.sa-select__btn:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+}
+
+.sa-select__value {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.sa-select__value.is-empty {
+  font-weight: 400;
+  color: var(--sa-mu-2);
+}
+
+.sa-select__chev {
+  flex-shrink: 0;
+  color: var(--sa-mu);
+  transition: transform 0.18s ease;
+}
+
+.sa-select__btn.is-open .sa-select__chev {
+  transform: rotate(180deg);
+  color: var(--sa-accent);
+}
+
+/* "required" uchun yashirin input — brauzer ogohlantirishi tugma ostida chiqadi */
+.sa-select__req {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.sa-select__dot {
+  flex-shrink: 0;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: var(--dot, var(--sa-mu-2));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--dot, var(--sa-mu-2)) 22%, transparent);
+}
+
+.sa-select__dot--green { --dot: var(--sa-green); }
+.sa-select__dot--red { --dot: var(--sa-red); }
+.sa-select__dot--orange { --dot: var(--sa-accent); }
+.sa-select__dot--blue { --dot: var(--sa-blue); }
+.sa-select__dot--violet { --dot: var(--sa-violet); }
+.sa-select__dot--teal { --dot: var(--sa-teal); }
+.sa-select__dot--gray { --dot: var(--sa-mu-2); }
+
+.sa-select__pop {
+  position: fixed;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  padding: 6px;
+  border: 1px solid var(--sa-line);
+  border-radius: 14px;
+  background: var(--sa-surface);
+  color: var(--sa-ink);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.45);
+  animation: sa-select-in 0.14s ease-out;
+}
+
+.sa[data-theme='light'] .sa-select__pop {
+  box-shadow: 0 18px 44px rgba(10, 19, 48, 0.18);
+}
+
+@keyframes sa-select-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+}
+
+.sa-select__search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+  padding: 0 10px;
+  height: 36px;
+  border-radius: 9px;
+  background: var(--sa-surface-2);
+  color: var(--sa-mu);
+}
+
+.sa-select__search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: none;
+  background: transparent;
+  color: var(--sa-ink);
+  font: inherit;
+  font-size: 13.5px;
+}
+
+.sa-select__search input::placeholder {
+  color: var(--sa-mu-2);
+}
+
+.sa-select__list {
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.sa-select__opt {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  color: var(--sa-ink);
+  font: inherit;
+  font-size: 13.5px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sa-select__opt > svg:not(.sa-select__check) {
+  flex-shrink: 0;
+  color: var(--sa-mu);
+}
+
+.sa-select__opt.is-cursor {
+  background: rgba(var(--sa-hover-rgb), 0.07);
+}
+
+.sa-select__opt.is-selected {
+  background: rgba(242, 163, 58, 0.14);
+  font-weight: 700;
+}
+
+.sa-select__opt:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+.sa-select__text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sa-select__text > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sa-select__text small {
+  margin-top: 1px;
+  font-size: 11.5px;
+  font-weight: 400;
+  color: var(--sa-mu);
+}
+
+.sa-select__check {
+  flex-shrink: 0;
+  color: var(--sa-accent);
+}
+
+.sa-select__empty {
+  padding: 14px 10px;
+  text-align: center;
+  font-size: 13px;
+  color: var(--sa-mu);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-select__pop {
+    animation: none;
+  }
+}
+
+/* ---------- Dashboard: bo'lim sarlavhasi, ish navbati va buyurtmalar yo'li ---------- */
+.sa-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px 16px;
+  margin: 26px 0 12px;
+}
+
+.sa-head + .sa-section {
+  margin-top: 0;
+}
+
+.sa-section h2 {
+  margin: 0;
+  font-family: var(--font-display, sans-serif);
+  font-size: 17px;
+  font-weight: 700;
+}
+
+.sa-todos {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.sa-todo {
+  --todo: var(--sa-blue);
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px 18px;
+  border: 1px solid var(--sa-line);
+  border-radius: var(--sa-radius);
+  background: var(--sa-surface);
+  text-decoration: none;
+  transition: border-color 0.15s ease, transform 0.15s ease;
+  animation: sa-fade-up 0.5s cubic-bezier(0.22, 1, 0.36, 1) backwards;
+}
+
+.sa-todo:hover,
+.sa-todo:focus-visible {
+  border-color: color-mix(in srgb, var(--todo) 55%, transparent);
+  transform: translateY(-1px);
+  outline: none;
+}
+
+/* Ish kutayotgan karta rangli, bo'sh karta tinch (kulrang) */
+.sa-todo.is-waiting {
+  border-color: color-mix(in srgb, var(--todo) 45%, transparent);
+  background: linear-gradient(0deg, color-mix(in srgb, var(--todo) 9%, transparent), color-mix(in srgb, var(--todo) 9%, transparent)), var(--sa-surface);
+}
+
+.sa-todo__icon {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  background: rgba(var(--sa-hover-rgb), 0.06);
+  color: var(--sa-mu);
+}
+
+.sa-todo.is-waiting .sa-todo__icon {
+  background: color-mix(in srgb, var(--todo) 18%, transparent);
+  color: var(--todo);
+}
+
+.sa-todo__body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.sa-todo__label {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.sa-todo__hint {
+  font-size: 12.5px;
+  color: var(--sa-mu);
+}
+
+.sa-todo__count {
+  flex-shrink: 0;
+  font-family: var(--font-display, sans-serif);
+  font-size: 30px;
+  font-weight: 800;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  color: var(--sa-mu-2);
+}
+
+.sa-todo.is-waiting .sa-todo__count {
+  color: var(--todo);
+}
+
+.sa-flow-panel {
+  margin-bottom: 0;
+}
+
+.sa-flow {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.sa-flow__step {
+  --flow: var(--sa-blue);
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 26px 14px 14px;
+  border-radius: 12px;
+  background: var(--sa-surface-2);
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+
+.sa-flow__step:hover,
+.sa-flow__step:focus-visible {
+  background: color-mix(in srgb, var(--flow) 12%, var(--sa-surface-2));
+  outline: none;
+}
+
+.sa-flow__icon {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--flow) 16%, transparent);
+  color: var(--flow);
+}
+
+.sa-flow__text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sa-flow__text b {
+  font-family: var(--font-display, sans-serif);
+  font-size: 22px;
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.sa-flow__text span {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sa-flow__text small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11.5px;
+  color: var(--sa-mu);
+}
+
+.sa-flow__arrow {
+  position: absolute;
+  right: 6px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--sa-mu-2);
+}
+
+@media (max-width: 900px) {
+  .sa-flow {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .sa-flow__arrow {
+    display: none;
+  }
+}
+
+/* ---------- Bildirishnoma: yangi buyurtma / chek kelganda o'ng pastda chiqadi ---------- */
+.sa-toasts {
+  position: fixed;
+  right: 20px;
+  bottom: 20px;
+  z-index: 90;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(360px, calc(100vw - 40px));
+}
+
+.sa-toast {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 14px 14px 16px;
+  border: 1px solid color-mix(in srgb, var(--sa-accent) 45%, transparent);
+  border-radius: 14px;
+  background: var(--sa-surface);
+  color: var(--sa-ink);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.4);
+  animation: sa-toast-in 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.sa[data-theme='light'] .sa-toast {
+  box-shadow: 0 16px 40px rgba(10, 19, 48, 0.18);
+}
+
+@keyframes sa-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+}
+
+.sa-toast__icon {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border-radius: 11px;
+  background: color-mix(in srgb, var(--sa-accent) 18%, transparent);
+  color: var(--sa-accent);
+}
+
+.sa-toast__body {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  padding: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.sa-toast__body b,
+.sa-toast__body span {
+  display: block;
+}
+
+.sa-toast__body b {
+  font-size: 14px;
+}
+
+.sa-toast__body span {
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--sa-mu);
+}
+
+.sa-toast__close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--sa-mu);
+  cursor: pointer;
+}
+
+.sa-toast__close:hover {
+  background: rgba(var(--sa-hover-rgb), 0.08);
+  color: var(--sa-ink);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-todo,
+  .sa-toast {
+    animation: none;
   }
 }

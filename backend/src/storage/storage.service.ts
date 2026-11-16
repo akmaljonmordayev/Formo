@@ -1,8 +1,9 @@
 import { DeleteObjectCommand, PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
-import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, Optional, ServiceUnavailableException } from '@nestjs/common';
 import { randomUUID } from 'crypto';
 import { mkdir, unlink, writeFile } from 'fs/promises';
 import { dirname, join, resolve, sep } from 'path';
+import { PrismaService } from '../prisma/prisma.service';
 
 /** Lokal rejimda fayllar shu yo'lda beriladi (global "api" prefiksi ostida — Vite proxy va mobil BASE_URL bilan ishlaydi) */
 export const LOCAL_UPLOADS_ROUTE = '/api/uploads';
@@ -14,7 +15,8 @@ export const uploadDir = () => resolve(process.env.UPLOAD_DIR || 'uploads');
  *  - S3_BUCKET berilgan bo'lsa — S3-mos xotira (AWS S3, Cloudflare R2, MinIO). URL: S3_PUBLIC_URL/<kalit>
  *  - aks holda — lokal disk (UPLOAD_DIR, standart ./uploads). URL: /api/uploads/<kalit>
  * Productionda lokal disk faqat UPLOAD_DIR aniq berilganda (doimiy volume) — aks holda Railway qayta
- * deploy qilganda fayllar yo'qolardi, shuning uchun yuklash 503 qaytaradi.
+ * deploy qilganda fayllar yo'qolardi, shuning uchun fayl bazada (StoredFile) saqlanadi; URL o'sha
+ * /api/uploads/<kalit>, uni UploadsController beradi.
  * Fayl nomlari tasodifiy (UUID); foydalanuvchi bergan nom hech qayerda ishlatilmaydi.
  */
 @Injectable()
@@ -24,7 +26,7 @@ export class StorageService {
   private readonly bucket = process.env.S3_BUCKET || '';
   private readonly publicBase = (process.env.S3_PUBLIC_URL || '').replace(/\/+$/, '');
 
-  constructor() {
+  constructor(@Optional() private readonly prisma?: PrismaService) {
     this.s3 = this.bucket
       ? new S3Client({
           region: process.env.S3_REGION || 'auto',
@@ -38,12 +40,17 @@ export class StorageService {
       : null;
   }
 
-  get driver(): 's3' | 'local' {
-    return this.s3 ? 's3' : 'local';
+  /** S3 ham, doimiy disk ham yo'q production — fayllar bazada */
+  private get inDb(): boolean {
+    return !this.s3 && process.env.NODE_ENV === 'production' && !process.env.UPLOAD_DIR;
+  }
+
+  get driver(): 's3' | 'local' | 'db' {
+    return this.s3 ? 's3' : this.inDb ? 'db' : 'local';
   }
 
   private assertConfigured() {
-    if (this.s3 || process.env.NODE_ENV !== 'production' || process.env.UPLOAD_DIR) return;
+    if (!this.inDb || this.prisma) return;
     throw new ServiceUnavailableException('Fayl saqlash sozlanmagan (S3_BUCKET yoki UPLOAD_DIR)');
   }
 
@@ -63,10 +70,21 @@ export class StorageService {
       );
       return `${this.publicBase}/${key}`;
     }
+    if (this.prisma && this.inDb) {
+      await this.prisma.storedFile.create({ data: { key, contentType, data: body } });
+      return `${LOCAL_UPLOADS_ROUTE}/${key}`;
+    }
     const file = join(uploadDir(), ...key.split('/'));
     await mkdir(dirname(file), { recursive: true });
     await writeFile(file, body);
     return `${LOCAL_UPLOADS_ROUTE}/${key}`;
+  }
+
+  /** Bazada saqlangan fayl (UploadsController uchun); kalit noto'g'ri yoki fayl yo'q bo'lsa — null */
+  async read(key: string): Promise<{ contentType: string; data: Buffer } | null> {
+    if (!this.prisma || !this.isOwnUrl(`${LOCAL_UPLOADS_ROUTE}/${key}`)) return null;
+    const row = await this.prisma.storedFile.findUnique({ where: { key } });
+    return row ? { contentType: row.contentType, data: Buffer.from(row.data) } : null;
   }
 
   /** URL shu xotira bergan faylmi (boshqa saytdagi rasm dizaynga qo'yilmasin) */
@@ -84,6 +102,8 @@ export class StorageService {
     try {
       if (this.s3) {
         await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
+      } else if (this.inDb) {
+        await this.prisma?.storedFile.deleteMany({ where: { key } });
       } else {
         const root = uploadDir();
         const file = resolve(root, ...key.split('/'));
