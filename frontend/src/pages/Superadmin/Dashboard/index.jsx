@@ -21,7 +21,7 @@ const NOW_REFRESH_MS = 30_000;
 // Buyurtma yo'li: faol buyurtmalar hozir qaysi bosqichda turgani (chapdan o'ngga)
 const FLOW = [
   { label: 'Yangi', hint: 'Sexga yuborilmagan', statuses: ['NEW'], icon: Inbox, color: 'var(--sa-accent)', to: `${BASE}/orders?status=NEW` },
-  { label: 'Sexda', hint: 'Qabul qilingan', statuses: ['SENT_TO_WORKSHOP', 'ACCEPTED', 'PRINTING'], icon: Scissors, color: 'var(--sa-blue)', to: `${BASE}/production` },
+  { label: 'Sexda', hint: 'Qabul qilingan', statuses: ['SENT_TO_WORKSHOP', 'ACCEPTED', 'PRINTING'], icon: Scissors, color: 'var(--sa-blue)', to: `${BASE}/orders?status=ACCEPTED` },
   { label: 'Tayyor', hint: 'Yetkazishni kutmoqda', statuses: ['READY'], icon: PackageCheck, color: 'var(--sa-teal)', to: `${BASE}/orders?status=READY` },
   { label: 'Yetkazishda', hint: "Mijozga yo'lda", statuses: ['DELIVERING'], icon: Truck, color: 'var(--sa-violet)', to: `${BASE}/orders?status=DELIVERING` },
 ];

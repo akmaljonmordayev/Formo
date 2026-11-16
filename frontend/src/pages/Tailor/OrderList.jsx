@@ -5,6 +5,9 @@ import OrderDrawer from './OrderDrawer';
 import { groupActiveOrders } from './orderBuckets';
 import { useT } from './i18n';
 import { useTailor } from './prefs';
+
+// Toshkent vaqti bo'yicha sana ('YYYY-MM-DD') — tayyorlar "bugun" va "avvalgilar"ga shu bo'yicha ajratiladi
+const tashkentDay = (value) => new Date(value).toLocaleDateString('en-CA', { timeZone: 'Asia/Tashkent' });
 import useOrderActions from './useOrderActions';
 
 const PAGE_SIZE = 10;
@@ -33,7 +36,11 @@ export default function OrderList({ view }) {
   // Faol ro'yxatda yangi (qabul kutayotgan) buyurtmalar tepada, alohida bo'limda.
   // Tartib raqami butun ro'yxat bo'yicha uzluksiz — keyingi sahifa 11 dan davom etadi
   const { numbered, counts } = useMemo(() => {
-    const sectionOf = ({ order }) => (view !== 'active' ? view : order.status === 'yangi' ? 'new' : 'progress');
+    const today = tashkentDay(Date.now());
+    const sectionOf = ({ order }) => {
+      if (view === 'ready') return tashkentDay(order.updatedAt ?? order.createdAt) === today ? 'readyToday' : 'readyOld';
+      return view !== 'active' ? view : order.status === 'yangi' ? 'new' : 'progress';
+    };
     const ordered = view === 'active'
       ? [...rows.filter((row) => sectionOf(row) === 'new'), ...rows.filter((row) => sectionOf(row) === 'progress')]
       : rows;
@@ -65,6 +72,8 @@ export default function OrderList({ view }) {
   const sections = [
     { key: 'new', title: t('q.new') },
     { key: 'progress', title: t('prod.inProgress') },
+    { key: 'readyToday', title: t('prod.readyToday') },
+    { key: 'readyOld', title: t('prod.readyOld') },
     { key: view },
   ]
     .map((section) => ({ ...section, rows: pageRows.filter((row) => row.section === section.key) }))

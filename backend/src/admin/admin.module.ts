@@ -15,6 +15,7 @@ import { CampaignsService } from './campaigns.service';
 import { ClubsController } from './clubs.controller';
 import { ClubsService } from './clubs.service';
 import { DiagnosticsController } from './diagnostics.controller';
+import { AnalyticsController } from './analytics.controller';
 import { InsightsController } from './insights.controller';
 import { InventoryController } from './inventory.controller';
 import { InventoryService } from './inventory.service';
@@ -48,6 +49,7 @@ import { WorkshopsController } from './workshops.controller';
     AdminSupportChatController,
     SupportChatController,
     InsightsController,
+    AnalyticsController,
     InventoryController,
     PricingController,
     PromocodesController,

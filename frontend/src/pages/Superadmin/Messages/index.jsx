@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ArrowLeft, MessagesSquare, Phone, Send } from 'lucide-react';
-import { supportApi } from '../../../features/platform/platformApi';
+import { chatApi, supportApi } from '../../../features/platform/platformApi';
 import { prettyPhone } from '../../../features/accounts/accountsApi';
 import { useDebounced } from '../../../hooks/useDebounced';
 import { useLang, useT } from '../i18n';
@@ -8,13 +8,21 @@ import { CHAT_READ_EVENT, usePolling } from '../ui';
 
 const NEAR_BOTTOM = 120;
 
-// Mijozlar (mobil ilova) bilan qo'llab-quvvatlash yozishmasi.
-// Tikuv sexi (Otabek) bilan yozishma — uning o'z paneli: https://admin.formo.uz/tailor
+// Ikki xil yozishma: mobil ilova mijozlari (qo'llab-quvvatlash) va tikuv sexlari (sex o'z panelidagi "Admin bilan chat"dan yozadi)
+const KINDS = [
+  ['support', 'Mijozlar', supportApi],
+  ['workshop', 'Tikuv sexlari', chatApi],
+];
+const API = Object.fromEntries(KINDS.map(([key, , api]) => [key, api]));
+
 export default function SuperadminMessages() {
   const t = useT();
   const { locale } = useLang();
   const [search, setSearch] = useState('');
-  const [threads, setThreads] = useState(null);
+  const [kind, setKind] = useState('support');
+  const [threadsBy, setThreadsBy] = useState({});
+  const threads = threadsBy[kind] ?? null;
+  const kindRef = useRef(kind);
   const [error, setError] = useState('');
   const [activeId, setActiveId] = useState(null);
   const [messages, setMessages] = useState([]);
@@ -28,14 +36,13 @@ export default function SuperadminMessages() {
   const activeRef = useRef(null);
 
   const loadThreads = useCallback(async () => {
-    try {
-      const list = await supportApi.threads();
-      setThreads(list);
-      setError('');
-    } catch (err) {
-      setError(err.message);
-      setThreads((prev) => prev ?? []);
-    }
+    // Ikkala ro'yxat ham yuklanadi — yopiq turgan bo'limdagi o'qilmaganlar soni ham tabda ko'rinadi
+    const results = await Promise.allSettled(KINDS.map(([, , api]) => api.threads()));
+    setThreadsBy((prev) =>
+      Object.fromEntries(KINDS.map(([key], i) => [key, results[i].status === 'fulfilled' ? results[i].value : prev[key] ?? []])),
+    );
+    const failed = results[KINDS.findIndex(([key]) => key === kindRef.current)];
+    setError(failed.status === 'rejected' ? failed.reason.message : '');
   }, []);
 
   // Yangi xabarlarni qo'shadi (id bo'yicha takrorlanmaydi)
@@ -54,7 +61,7 @@ export default function SuperadminMessages() {
     const wid = activeRef.current;
     if (!wid) return;
     try {
-      const res = await supportApi.messages(wid, lastIdRef.current || undefined);
+      const res = await API[kindRef.current].messages(wid, lastIdRef.current || undefined);
       appendMessages(wid, res.items);
     } catch {
       // keyingi poll qayta urinadi
@@ -75,7 +82,7 @@ export default function SuperadminMessages() {
     setSendError('');
     if (!activeId) return undefined;
     let cancelled = false;
-    supportApi
+    API[kindRef.current]
       .messages(activeId)
       .then((res) => {
         if (cancelled) return;
@@ -107,7 +114,7 @@ export default function SuperadminMessages() {
     setSending(true);
     setSendError('');
     try {
-      const msg = await supportApi.send(activeId, value);
+      const msg = await API[kind].send(activeId, value);
       setText('');
       stickRef.current = true;
       appendMessages(activeId, [msg]);
@@ -117,6 +124,14 @@ export default function SuperadminMessages() {
     } finally {
       setSending(false);
     }
+  };
+
+  const switchKind = (next) => {
+    if (next === kind) return;
+    kindRef.current = next;
+    setActiveId(null);
+    setError('');
+    setKind(next);
   };
 
   const visible = useMemo(() => {
@@ -135,8 +150,20 @@ export default function SuperadminMessages() {
       <div className="sa-head">
         <div>
           <h1>{t('Xabarlar')}</h1>
-          <p>{t('Mobil ilova mijozlari bilan qo‘llab-quvvatlash yozishmasi.')}</p>
+          <p>{t('Mijozlar va tikuv sexlari bilan yozishma.')}</p>
         </div>
+      </div>
+
+      <div className="sa-tabs">
+        {KINDS.map(([key, label]) => {
+          const unread = (threadsBy[key] ?? []).reduce((s, th) => s + (th.unread ?? 0), 0);
+          return (
+            <button key={key} type="button" className={`sa-tab${kind === key ? ' is-active' : ''}`} onClick={() => switchKind(key)}>
+              {t(label)}
+              {unread > 0 && ` · ${unread}`}
+            </button>
+          );
+        })}
       </div>
 
       <section className={`sa-chat${activeId ? ' has-active' : ''}`}>
@@ -187,7 +214,7 @@ export default function SuperadminMessages() {
             <div className="sa-chat-empty">
               <MessagesSquare size={28} aria-hidden="true" />
               <h3>{t('Suhbatni tanlang')}</h3>
-              <p>{t('Chapdagi ro‘yxatdan mijozni tanlang')}</p>
+              <p>{t(kind === 'support' ? 'Chapdagi ro‘yxatdan mijozni tanlang' : 'Chapdagi ro‘yxatdan sexni tanlang')}</p>
             </div>
           ) : (
             <>

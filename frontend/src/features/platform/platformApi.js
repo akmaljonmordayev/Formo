@@ -21,6 +21,11 @@ export const reportsApi = {
   get: (days) => api(`/admin/reports${qs({ days })}`),
 };
 
+// Sotuv analitikasi — superadmin va tikuv sexi paneli uchun bitta API (sex faqat o'z buyurtmalarini, summasiz oladi)
+export const analyticsApi = {
+  kitSales: (params) => api(`/analytics/kit-sales${qs(params)}`), // { totalQuantity, totalRevenue, kits: [{ name, type, quantity, revenue, sizes }], sizes: [{ size, quantity }] }
+};
+
 export const productionApi = {
   get: () => api('/admin/production'),
 };

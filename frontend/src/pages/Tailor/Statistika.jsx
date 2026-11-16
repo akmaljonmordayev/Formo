@@ -3,7 +3,7 @@ import { ClipboardList, Loader2 } from 'lucide-react';
 import { Card } from './ui';
 import { useT } from './i18n';
 import { cx } from './utils';
-import { getTailorDashboard, listWorkshopOrdersPage } from './tailorApi';
+import { getKitSales, getTailorDashboard, listWorkshopOrdersPage } from './tailorApi';
 
 const RANGES = [
   [7, 'stat.week'],
@@ -185,6 +185,19 @@ export default function Statistika() {
     };
   }, [days]);
 
+  // Forma va o'lcham reytingi — superadmin bilan umumiy API; xato bo'lsa (eski server) sex statistikasidagi hisob qoladi
+  const [sales, setSales] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    setSales(null);
+    getKitSales(days)
+      .then((data) => !cancelled && setSales(data))
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [days]);
+
   const weekdays = t.locale.startsWith('ru') ? WEEKDAYS.ru : WEEKDAYS.uz;
   const points = (dashboard?.dailyTrend ?? []).map((item) => {
     const date = new Date(`${item.date}T00:00:00`);
@@ -206,6 +219,11 @@ export default function Statistika() {
   const allTime = Object.values(counts).reduce((sum, n) => sum + n, 0);
   const shown = (n) => (byStatus ? n : '—');
   const toRows = (list) => (list ?? []).map((row) => ({ key: row.name, label: row.name, value: row.pieces }));
+  // Umumiy analitika API'si javob bersa — o'shandan (forma nomi to'liq), aks holda sex statistikasidagi eski hisob
+  const modelRows = sales
+    ? sales.kits.slice(0, 6).map((k, i) => ({ key: `${k.type}-${k.name}-${i}`, label: k.name || t('stat.customDesign'), value: k.quantity }))
+    : dashboard?.topModels && toRows(dashboard.topModels);
+  const sizeRows = sales ? sales.sizes.map((s) => ({ key: s.size, label: s.size, value: s.quantity })) : dashboard?.sizes && toRows(dashboard.sizes);
 
   return (
     <div className="space-y-5">
@@ -252,12 +270,8 @@ export default function Statistika() {
 
       <div className="grid gap-5 lg:grid-cols-2">
         {/* Forma va o'lcham hisobi serverning yangi javobida bor — eski serverda bu kartalar ko'rsatilmaydi */}
-        {dashboard?.topModels && (
-          <RankCard title={t('stat.topModels')} hint={t('stat.inPeriodPieces')} rows={toRows(dashboard.topModels)} empty={t('api.empty')} />
-        )}
-        {dashboard?.sizes && (
-          <RankCard title={t('stat.sizes')} hint={t('stat.inPeriodPieces')} rows={toRows(dashboard.sizes)} empty={t('api.empty')} />
-        )}
+        {modelRows && <RankCard title={t('stat.topModels')} hint={t('stat.inPeriodPieces')} rows={modelRows} empty={t('api.empty')} />}
+        {sizeRows && <RankCard title={t('stat.sizes')} hint={t('stat.inPeriodPieces')} rows={sizeRows} empty={t('api.empty')} />}
       </div>
     </div>
   );

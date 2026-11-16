@@ -146,6 +146,9 @@ export const getTailorProduction = () => api('/workshop/production');
 export const getTailorDashboard = (days) =>
   api(`/workshop/stats?days=${encodeURIComponent(days)}`);
 
+// Forma va o'lcham bo'yicha sotuv — superadmin paneli bilan bitta API (sex faqat o'z buyurtmalarini oladi)
+export const getKitSales = (days) => api(`/analytics/kit-sales?days=${encodeURIComponent(days)}`);
+
 // ---------- chat ----------
 export const listChatMessages = (after) =>
   api(after ? `/workshop/chat/messages?after=${encodeURIComponent(after)}` : '/workshop/chat/messages');

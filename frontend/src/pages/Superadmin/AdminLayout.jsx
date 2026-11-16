@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Check, CreditCard, Globe, MessagesSquare, ShoppingBag, X } from 'lucide-react';
-import { ordersApi, supportApi, topupsApi } from '../../features/platform/platformApi';
+import { chatApi, ordersApi, supportApi, topupsApi } from '../../features/platform/platformApi';
 import SuperadminLayout from '../../components/layout/SuperadminLayout';
 import { LANGS, LangProvider, useLang } from './i18n';
 import { CHAT_READ_EVENT, COUNTS_EVENT, usePolling } from './ui';
@@ -99,9 +99,12 @@ function TranslatedLayout({ menu }) {
     [dismiss],
   );
 
-  // Mijozlardan kelgan o'qilmagan xabarlar — Telegram kabi «Xabarlar» belgisi ustida
+  // Mijozlar va tikuv sexlaridan kelgan o'qilmagan xabarlar — Telegram kabi «Xabarlar» belgisi ustida
   const loadUnread = useCallback(
-    () => supportApi.unread().then((r) => setCount('messages', r.unread ?? 0)).catch(() => {}), // xato bo'lsa keyingi poll
+    () =>
+      Promise.all([supportApi.unread(), chatApi.threads()])
+        .then(([support, workshops]) => setCount('messages', (support.unread ?? 0) + workshops.reduce((s, th) => s + (th.unread ?? 0), 0)))
+        .catch(() => {}), // xato bo'lsa keyingi poll
     [setCount],
   );
   // Yangi (sexga yuborilmagan) buyurtmalar va tekshiruvdagi cheklar

@@ -1,8 +1,8 @@
 import { Suspense, lazy } from 'react';
 import {
+  BarChart3,
   CreditCard,
   Factory,
-  History,
   LayoutDashboard,
   MessagesSquare,
   Rotate3d,
@@ -19,7 +19,6 @@ import Dashboard from './Dashboard';
 import CustomersUsers from './Users';
 import Factories_ from './Factories';
 import Orders from './Orders';
-import Production from './Production';
 import Kit360 from './Kit360';
 import Forms from './Forms';
 import Messages from './Messages';
@@ -30,7 +29,6 @@ import Finance from './Finance';
 import TopUps from './TopUps';
 import Reports from './Reports';
 import SettingsPage from './Settings';
-import AuditLog from './AuditLog';
 
 const BASE = '/superadmin';
 
@@ -60,7 +58,6 @@ function legacy(El) {
 export const superadminRoutes = [
   { path: '', element: <Dashboard /> },
   { path: 'orders', element: <Orders /> },
-  { path: 'production', element: <Production /> },
   { path: 'kit-360', element: <Kit360 /> },
   { path: 'forms', element: <Forms /> },
   { path: 'messages', element: <Messages /> },
@@ -80,7 +77,6 @@ export const superadminRoutes = [
   { path: 'topups', element: <TopUps /> },
   { path: 'reports', element: <Reports /> },
   { path: 'settings', element: <SettingsPage /> },
-  { path: 'audit-log', element: <AuditLog /> },
 ];
 
 // group bo'yicha sidebarda bo'limlarga ajratiladi (SuperadminLayout shuni o'qiydi)
@@ -89,7 +85,6 @@ export const superadminMenu = [
   { to: `${BASE}/orders`, label: 'Buyurtmalar', icon: ShoppingBag, group: 'Asosiy' },
   { to: `${BASE}/messages`, label: 'Xabarlar', icon: MessagesSquare, group: 'Asosiy' },
   { to: `${BASE}/topups`, label: "Balans to'ldirish", icon: CreditCard, group: 'Asosiy' },
-  { to: `${BASE}/production`, label: 'Ishlab chiqarish', icon: Factory, group: 'Asosiy' },
 
   { to: `${BASE}/kit-360`, label: 'Forma 360°', icon: Rotate3d, group: 'Formalar' },
   { to: `${BASE}/forms`, label: 'Formalar', icon: Shirt, group: 'Formalar' },
@@ -98,11 +93,11 @@ export const superadminMenu = [
   { to: `${BASE}/factories`, label: 'Sexlar', icon: Factory, group: 'Sex va Sifat' },
 
   { to: `${BASE}/finance`, label: 'Daromad', icon: Wallet, group: 'Moliya va Mijozlar' },
+  { to: `${BASE}/reports`, label: 'Analitika', icon: BarChart3, group: 'Moliya va Mijozlar' },
   { to: `${BASE}/promocodes`, label: 'Promokodlar', icon: Ticket, group: 'Moliya va Mijozlar' },
   { to: `${BASE}/users`, label: 'Mijozlar', icon: Users, group: 'Moliya va Mijozlar' },
 
-  // Kampaniyalar va Hisobotlar menyudan yashirildi — marshrutlari superadminRoutes da qoladi
+  // Kampaniyalar menyudan yashirildi — marshruti superadminRoutes da qoladi
   // Operator akkaunti sahifasi olib tashlandi
   { to: `${BASE}/settings`, label: 'Profil', icon: Settings, group: 'Tizim' },
-  { to: `${BASE}/audit-log`, label: 'Audit jurnali', icon: History, group: 'Tizim' },
 ];
