@@ -40,7 +40,7 @@ describe('Ilova: login oqimi', () => {
     render(<App />);
     expect(await screen.findByText('Telefon raqam')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/login');
-  });
+  }); 
 
   it('himoyalangan sahifa tokensiz ochilmaydi', async () => {
     mockBackend({});
