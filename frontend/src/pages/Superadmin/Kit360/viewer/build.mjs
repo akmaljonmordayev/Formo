@@ -1,6 +1,9 @@
 /**
- * Mobil ilova uchun Forma 360° viewer: bitta HTML (JS va 80 kadr data: URL ichida), JS moduli sifatida
- * mobile/src/components/ui/kit360/viewerHtml.js ga yoziladi.
+ * Mobil ilova uchun Forma 360° viewer: kadrlarsiz yengil HTML (mobile/src/components/ui/kit360/viewerHtml.js) va
+ * har jamoaning kadrlari alohida modulda (kit360/frames/<id>.js, data: URL). Ilova viewer'ga faqat ko'rsatilayotgan
+ * jamoaning kadrlarini "update" xabarida yuboradi — WebView har ochilishda barcha jamoalarning ~6.7 MB kadrini emas,
+ * ~0.2 MB HTML va bitta jamoaning ~0.5 MB kadrini o'qiydi.
+ * Uzun yeng (l*) kadrlari faqat mobil KIT360_LONG ro'yxatidagi jamoalar uchun olinadi (ilova bilan bir xil manba).
  *
  *   node src/pages/Superadmin/Kit360/viewer/build.mjs          — yig'adi
  *   node src/pages/Superadmin/Kit360/viewer/build.mjs --check  — mobil nusxa manbaga mosligini tekshiradi
@@ -20,6 +23,10 @@ const mobileOut = resolve(here, '../../../../../../mobile/src/components/ui/kit3
 // Katalog kartalari uchun old tomon surati (f0) — mobile/assets/kit360/<id>.jpg va require() xaritasi
 const thumbsDir = resolve(here, '../../../../../../mobile/assets/kit360');
 const thumbsOut = resolve(here, '../../../../../../mobile/src/components/ui/kit360/thumbs.js');
+const framesOutDir = resolve(here, '../../../../../../mobile/src/components/ui/kit360/frames');
+// Uzun yeng ilovada yoqilgan jamoalar — mobile/src/features/kit360/index.js KIT360_LONG
+const kit360Src = await readFile(resolve(here, '../../../../../../mobile/src/features/kit360/index.js'), 'utf8');
+const LONG_ENABLED = JSON.parse(kit360Src.match(/export const KIT360_LONG = (\[[^\]]*\]);/)[1].replace(/'/g, '"'));
 
 const result = await build({
   entryPoints: [resolve(here, 'main.js')],
@@ -41,6 +48,7 @@ for (const team of (await readdir(framesDir)).sort()) {
   frames[team] = {};
   for (const v of ['f', 'l']) {
     if (!files.has(`${v}0.jpg`)) continue;
+    if (v === 'l' && !LONG_ENABLED.includes(team)) continue;
     frames[team][v] = [];
     for (let i = 0; i < 8; i += 1) {
       const jpg = await readFile(resolve(framesDir, team, `${v}${i}.jpg`));
@@ -56,14 +64,37 @@ const html = `<!doctype html>
 <style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#b8b8ba;-webkit-user-select:none;user-select:none}
 #kit{display:block;width:100%;height:100%;object-fit:contain;touch-action:pan-y}</style>
 </head><body><canvas id="kit"></canvas>
-<script>window.FORMO_FRAMES=${JSON.stringify(frames)}</script>
 <script>${js}</script></body></html>
 `;
 
 const moduleText = `// AVTOMATIK YARATILGAN — tahrirlamang. Manba: frontend/src/pages/Superadmin/Kit360 (viewer/build.mjs)
-// Admin paneldagi Forma 360° bilan bir xil chizish; WebView'ga lokal HTML sifatida beriladi (kadrlar ichida).
+// Admin paneldagi Forma 360° bilan bir xil chizish; WebView'ga lokal HTML sifatida beriladi. Kadrlar — kit360/frames
+// (ilova faqat kerakli jamoanikini "update" xabarida yuboradi).
 export default ${JSON.stringify(html)};
 `;
+
+// Har jamoa — alohida modul; index faqat require() xaritasi: modul birinchi kerak bo'lganda baholanadi
+const frameModules = Object.entries(frames).map(([team, sets]) => ({
+  file: resolve(framesOutDir, `${team}.js`),
+  text: `// AVTOMATIK YARATILGAN — tahrirlamang (Kit360/viewer/build.mjs). ${team}: { f: kalta yeng, l?: uzun yeng } — 8 kadrdan\nexport default ${JSON.stringify(sets)};\n`,
+}));
+frameModules.push({
+  file: resolve(framesOutDir, 'index.js'),
+  text: `// AVTOMATIK YARATILGAN — tahrirlamang (Kit360/viewer/build.mjs).
+// Jamoa kadrlari kerak bo'lganda yuklanadi: framesOf('ar') -> { f: [8 ta data: URL], l?: [...] } | null
+/* eslint-disable global-require */
+const LOADERS = {
+${Object.keys(frames).map((t) => `  ${JSON.stringify(t)}: () => require('./${t}').default,`).join('\n')}
+};
+const cache = {};
+export function framesOf(team) {
+  if (!LOADERS[team]) return null;
+  if (!cache[team]) cache[team] = LOADERS[team]();
+  return cache[team];
+}
+export const FRAME_TEAMS = Object.keys(LOADERS);
+`,
+});
 
 const teams = Object.keys(frames);
 // Kartalar surati: <id>.jpg — f0 (kalta yeng), <id>_l.jpg — l0 (uzun yeng)
@@ -93,6 +124,10 @@ if (process.argv.includes('--check')) {
     const [src, copy] = await Promise.all([readFile(t.src), readFile(resolve(thumbsDir, t.file)).catch(() => null)]);
     if (!copy || !src.equals(copy)) stale.push(`mobile/assets/kit360/${t.file}`);
   }
+  for (const m of frameModules) {
+    const text = await readFile(m.file, 'utf8').catch(() => '');
+    if (text.replace(/\r\n/g, '\n') !== m.text) stale.push(m.file);
+  }
   if (stale.length) {
     console.error(`${stale.join(', ')} eskirgan — Kit360/viewer/build.mjs ni ishga tushiring`);
     process.exit(1);
@@ -104,5 +139,11 @@ if (process.argv.includes('--check')) {
   await mkdir(thumbsDir, { recursive: true });
   for (const t of thumbFiles) await writeFile(resolve(thumbsDir, t.file), await readFile(t.src));
   await writeFile(thumbsOut, thumbsText);
-  console.log(`kit360 viewer.html: ${(html.length / 1024).toFixed(0)} KB, kartalar: ${thumbFiles.length} surat (uzun yeng: ${longTeams.length})`);
+  await mkdir(framesOutDir, { recursive: true });
+  for (const m of frameModules) await writeFile(m.file, m.text);
+  const biggest = Math.max(...frameModules.map((m) => m.text.length));
+  console.log(
+    `kit360 viewer.html: ${(html.length / 1024).toFixed(0)} KB, jamoa kadrlari: ${frameModules.length - 1} modul ` +
+      `(eng kattasi ${(biggest / 1024).toFixed(0)} KB), kartalar: ${thumbFiles.length} surat (uzun yeng: ${longTeams.length})`,
+  );
 }

@@ -74,6 +74,18 @@ export async function retrySerializable<T>(run: () => Promise<T>, attempts = 3):
   }
 }
 
+/**
+ * Naqd faqat Toshkent shahri ichiga (kuryer); viloyatlarga (pochta) — faqat shaxsiy hisobdan.
+ * Viloyat ko'rsatilgan manzilda — viloyat bo'yicha, eski manzilda — xarita nuqtasi bo'yicha (isPostalDelivery).
+ * Checkout'da ham, keyin "to'lov usulini o'zgartirish"da ham (Click → naqd) bir xil tekshiriladi.
+ */
+export function assertCashArea(a: { region?: string | null; latitude?: number | null; longitude?: number | null }) {
+  const outside = !a.region ? !inTashkentCity(a.latitude, a.longitude) : isPostalDelivery(a);
+  if (outside) {
+    throw new BadRequestException("Naqd to'lov faqat Toshkent shahri ichida. Shahardan tashqariga yetkazishda shaxsiy hisobdan to'lang");
+  }
+}
+
 export const orderCode = (id: number) => `FRM-${String(id).padStart(6, '0')}`;
 
 /**
@@ -235,13 +247,7 @@ export class ShopOrdersService {
     ]);
     const online = ONLINE.includes(dto.paymentMethod);
     const fromBalance = dto.paymentMethod === PaymentMethod.BALANCE;
-    // Naqd faqat Toshkent shahri ichiga (kuryer); viloyatlarga (pochta) — faqat shaxsiy hisobdan.
-    // Viloyat ko'rsatilgan manzilda — viloyat bo'yicha, eski manzilda — xarita nuqtasi bo'yicha (isPostalDelivery)
-    if (dto.paymentMethod === PaymentMethod.CASH && (!address.region ? !inTashkentCity(address.latitude, address.longitude) : isPostalDelivery(address))) {
-      throw new BadRequestException(
-        "Naqd to'lov faqat Toshkent shahri ichida. Shahardan tashqariga yetkazishda shaxsiy hisobdan to'lang",
-      );
-    }
+    if (dto.paymentMethod === PaymentMethod.CASH) assertCashArea(address);
 
     // Viloyatlarga — pochta bo'limigacha; Toshkent shahri ichida — kuryer uygacha 2–3 kunda. Kun/vaqt tanlanmaydi;
     // ilovaning eski versiyasi yuborsa (Toshkent shahri) — avvalgidek tekshirilib saqlanadi
@@ -530,7 +536,11 @@ export class ShopOrdersService {
     if (order.status !== OrderStatus.PENDING_PAYMENT) throw new ConflictException("To'lov usulini endi o'zgartirib bo'lmaydi");
 
     const online = ONLINE.includes(dto.paymentMethod);
-    if (!online) await this.rules.assertCheckout({ subtotal: Number.MAX_SAFE_INTEGER, totalQty: 0, cash: true });
+    if (!online) {
+      await this.rules.assertCheckout({ subtotal: Number.MAX_SAFE_INTEGER, totalQty: 0, cash: true });
+      // Click/Payme bilan berilgan viloyat (pochta) buyurtmasi naqdga o'tib, to'lovsiz operatorga tushmasin
+      assertCashArea({ region: order.deliveryRegion, latitude: order.deliveryLat, longitude: order.deliveryLng });
+    }
     await this.prisma.$transaction(async (tx) => {
       const { count } = await tx.order.updateMany({
         where: { id, status: OrderStatus.PENDING_PAYMENT },

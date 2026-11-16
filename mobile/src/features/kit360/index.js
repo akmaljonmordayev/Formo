@@ -91,12 +91,16 @@ export function itemVariant(item) {
   return team ? kit360Variant(team, item?.kit?.sleeve ?? item?.sleeve) : 'f';
 }
 
-/** Ilova → viewer xabari (WebView.postMessage va iframe uchun matn) */
-export function kit360Message({ team, variant, name, number, shortsNumber, side }) {
+/**
+ * Ilova → viewer xabari (WebView.postMessage va iframe uchun matn).
+ * `frames` — jamoa kadrlari ({ f, l? }); faqat jamoa almashganda yoki viewer qayta yuklanganda beriladi.
+ */
+export function kit360Message({ team, variant, name, number, shortsNumber, side, frames }) {
   return JSON.stringify({
     source: KIT360_SOURCE,
     type: 'update',
     team,
+    ...(frames && { frames }),
     // 'l' — uzun yeng + shalvar suratlari; berilmasa kalit yo'q (viewer kalta yengni ko'rsatadi)
     ...(variant === 'l' && { variant: 'l' }),
     name: String(name ?? ''),

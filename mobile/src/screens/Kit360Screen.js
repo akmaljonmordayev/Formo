@@ -13,6 +13,8 @@ import StepBar from '../components/ui/kit360/StepBar';
 import { visibleSizes } from '../features/config';
 import { KIT360_TEAMS, cleanPrintName, cleanPrintNumber, findKit360Team, kit360Team, kit360Variant } from '../features/kit360';
 import { useClub, useClubs } from '../features/products';
+import { useToast } from '../components/ui/Toast';
+import { api } from '../services/api';
 import { errorText } from '../utils/errors';
 
 const SIZES = ['S', 'M', 'L', 'XL', 'XXL', '3XL'];
@@ -137,15 +139,52 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
   // O'lcham tanlanmaguncha narx ko'rsatilmaydi (hamma o'lchamda narx har xil)
   const kitPrice = shirtSize ? (sizeRow?.price ?? (pb.shirt ?? 159000) + (pb.shorts ?? 0)) : null;
 
-  const availableSizes = useMemo(() => {
-    const raw = matchedKit?.sizes || SIZES;
-    const sizeObjects = raw.map((s) => (typeof s === 'string' ? { size: s, available: true } : { size: s.size, available: s.available !== false }));
-    return visibleSizes(sizeObjects, rules).filter((s) => s.available).map((s) => s.size);
-  }, [matchedKit, rules]);
+  // "Keyingi"da serverdan olingan eng yangi o'lchamlar (zaxira shu orada tugagan bo'lishi mumkin) — katalog keshidan ustun
+  const [liveSizes, setLiveSizes] = useState(null); // { kitId, sizes }
+  const [stockChecking, setStockChecking] = useState(false);
+  const toast = useToast();
+
+  // Sotuvdagi o'lchamlar; omborda tugagani (soldOut) ham ko'rinadi, lekin tanlanmaydi — qizil "Tugagan"
+  const sizeOptions = useMemo(() => {
+    const raw = (liveSizes && liveSizes.kitId === kitId ? liveSizes.sizes : null) || matchedKit?.sizes || SIZES;
+    const sizeObjects = raw.map((s) =>
+      typeof s === 'string' ? { size: s, available: true, soldOut: false } : { size: s.size, available: s.available !== false, soldOut: s.soldOut === true },
+    );
+    return visibleSizes(sizeObjects, rules)
+      .filter((s) => s.available)
+      .map(({ size, soldOut }) => ({ size, soldOut }));
+  }, [matchedKit, rules, liveSizes, kitId]);
 
   useEffect(() => {
-    if (shirtSize && !availableSizes.includes(shirtSize)) setShirtSize(null);
-  }, [availableSizes, shirtSize]);
+    if (shirtSize && !sizeOptions.some((s) => s.size === shirtSize && !s.soldOut)) setShirtSize(null);
+  }, [sizeOptions, shirtSize]);
+
+  const soldOutToast = (size) => toast.show(t('sizeSoldOutToast').replace('{size}', size), 'error', 4500, { big: true });
+
+  /**
+   * O'lcham bosqichidan o'tishdan oldin zaxira serverdan qayta tekshiriladi: tanlangan o'lcham shu orada tugagan
+   * bo'lsa — katta toast, tanlov bekor, bosqichda qoladi. Tarmoq xatosida o'tkaziladi (savatga qo'shishda server
+   * baribir tekshiradi). true — davom etish mumkin.
+   */
+  const confirmStock = async () => {
+    if (!kitId || !shirtSize) return true;
+    setStockChecking(true);
+    try {
+      const fresh = await api.catalog.kit(kitId);
+      if (Array.isArray(fresh?.sizes)) setLiveSizes({ kitId, sizes: fresh.sizes });
+      const row = fresh?.sizes?.find((s) => s.size === shirtSize);
+      if (row && (row.soldOut || row.available === false)) {
+        soldOutToast(shirtSize);
+        setShirtSize(null);
+        return false;
+      }
+      return true;
+    } catch {
+      return true;
+    } finally {
+      setStockChecking(false);
+    }
+  };
 
   const maxNumber = rules.printNumberMax || 99;
   const printName = cleanPrintName(name, rules.printNameMaxLength || 30);
@@ -178,7 +217,7 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
   // Joriy bosqichni o'tkazmaydigan sabab (yoki null)
   const blocker = (id) => {
     if (id === 'type' && !sleeve) return t('kitStepType');
-    if (id === 'size' && !shirtSize) return t('kitStepSize');
+    if (id === 'size' && !shirtSize) return t(sizeOptions.length && sizeOptions.every((s) => s.soldOut) ? 'kitSoldOut' : 'kitStepSize');
     return null;
   };
 
@@ -186,12 +225,14 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
   const printAt = steps.findIndex((s) => s.id === 'print') + 1;
   const needsPrintConfirm = !printName.trim() && !skipOk.current;
 
-  const onNext = () => {
+  const onNext = async () => {
+    if (stockChecking) return;
     const why = blocker(current);
     if (why) {
       setFeedback({ ok: false, text: why });
       return;
     }
+    if (current === 'size' && !(await confirmStock())) return;
     if (current === 'print' && needsPrintConfirm) {
       setSkipAsk(step + 1);
       return;
@@ -200,13 +241,17 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
   };
 
   // Bosqichlar paneli: oldingi yoki majburiy bosqichlari to'ldirilgan keyingisiga o'tiladi
-  const openStep = (n) => {
+  const openStep = async (n) => {
     if (n <= step) return goStep(n);
+    if (stockChecking) return undefined;
     const missing = steps.slice(0, n - 1).findIndex((s) => blocker(s.id));
     if (missing !== -1) {
       goStep(missing + 1);
       return setFeedback({ ok: false, text: blocker(steps[missing].id) });
     }
+    // O'lcham bosqichidan oldinga sakralsa ham zaxira tekshiriladi
+    const sizeAt = steps.findIndex((s) => s.id === 'size') + 1;
+    if (step <= sizeAt && n > sizeAt && !(await confirmStock())) return goStep(sizeAt);
     // Ism bosqichini sakrab o'tib bo'lmaydi: avval o'sha bosqich ochiladi, undan keyin — tasdiq
     if (n > printAt && needsPrintConfirm) return step === printAt ? setSkipAsk(n) : goStep(printAt);
     return goStep(n);
@@ -308,8 +353,8 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
                 </Text>
               ) : null}
               {!isLast ? (
-                <Button onPress={onNext} disabled={Boolean(blocker(current))} style={styles.footerButton}>
-                  {`${t('nextStep')} →`}
+                <Button onPress={onNext} disabled={Boolean(blocker(current)) || stockChecking} style={styles.footerButton}>
+                  {stockChecking ? t('stockChecking') : `${t('nextStep')} →`}
                 </Button>
               ) : (
                 <Button disabled={paused || adding || (kitPending && !kitId)} onPress={addToCart} style={styles.footerButton}>
@@ -370,11 +415,13 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
             />
           ) : current === 'size' ? (
             <SizeStep
-              sizes={availableSizes}
+              t={t}
+              sizes={sizeOptions}
               value={shirtSize}
               hint={t(long ? 'sameSizeHintLong' : 'sameSizeHint')}
               price={kitPrice}
               priceLabel={t('shirtPrice')}
+              onSoldOut={soldOutToast}
               onChange={(size) => {
                 setShirtSize(size);
                 setFeedback(null);

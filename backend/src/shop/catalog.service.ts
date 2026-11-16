@@ -1,5 +1,5 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
-import { Kit, KitBottom, KitSleeve, OrderStatus, Prisma } from '@prisma/client';
+import { InventoryProductType, Kit, KitBottom, KitSleeve, OrderStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { ListCatalogClubsQueryDto } from './dto/catalog.dto';
 import { ADULT_SIZES, ALL_SIZES, fullSetPrice, KID_SIZES, priceForSize } from './pricing';
@@ -36,8 +36,24 @@ export function kitIncludes(kit: Pick<Kit, 'sleeve' | 'bottom'>) {
   return `${top} + ${kit.bottom === KitBottom.PANTS ? 'shalvar' : 'shortik'}`;
 }
 
-/** Forma (mahsulot) — narxlari bilan */
-export function toKitProduct(kit: Kit) {
+/** Ombordagi komplekt qoldig'i (o'lcham bo'yicha). Yozuvi yo'q o'lcham kuzatilmaydi — cheklovsiz sotiladi
+ *  (InventoryService.reserve bilan bir xil siyosat) */
+const kitStock = {
+  inventoryItems: { where: { productType: InventoryProductType.TSHIRT }, select: { size: true, qty: true } },
+} satisfies Prisma.KitInclude;
+
+type KitWithStock = Kit & { inventoryItems?: { size: string; qty: number }[] };
+
+/** Forma (mahsulot) — narxlari bilan. `soldOut` — o'lcham omborda tugagan (qoldig'i kuzatiladi va 0 ga tushgan);
+ *  forma darajasida — sotuvdagi hamma o'lcham tugagan */
+export function toKitProduct(kit: KitWithStock) {
+  const stock = new Map((kit.inventoryItems ?? []).map((i) => [i.size, i.qty]));
+  // Har bir o'lchamning o'z narxi (sizePrices'da yo'q bo'lsa — shirtPrice, komplekt narxi)
+  const sizes = ALL_SIZES.map((size) => {
+    const available = kit.sizes.includes(size);
+    return { size, available, soldOut: available && stock.has(size) && (stock.get(size) ?? 0) <= 0, price: priceForSize(kit, size) };
+  }).filter((s) => s.available || (ADULT_SIZES as readonly string[]).includes(s.size));
+  const onSale = sizes.filter((s) => s.available);
   return {
     id: kit.id,
     clubId: kit.clubId,
@@ -53,15 +69,14 @@ export function toKitProduct(kit: Kit) {
     includes: kitIncludes(kit),
     price: fullSetPrice(kit),
     priceBreakdown: { shirt: kit.shirtPrice, print: kit.printPrice },
-    // Har bir o'lchamning o'z narxi (sizePrices'da yo'q bo'lsa — shirtPrice, komplekt narxi)
-    sizes: ALL_SIZES.map((size) => ({ size, available: kit.sizes.includes(size), price: priceForSize(kit, size) })).filter(
-      (s) => s.available || (ADULT_SIZES as readonly string[]).includes(s.size),
-    ),
+    sizes,
+    soldOut: onSale.length > 0 && onSale.every((s) => s.soldOut),
   };
 }
 
 /** Forma kartasi: mahsulot + klub (Forma 360° surati uchun kit360Id) */
 const kitCardInclude = {
+  ...kitStock,
   club: {
     select: {
       id: true,
@@ -151,7 +166,7 @@ export class CatalogService {
       where: { id, ...visibleClub },
       include: {
         category: { select: { id: true, name: true, slug: true } },
-        kits: { where: { isActive: true }, orderBy: { sortOrder: 'asc' } },
+        kits: { where: { isActive: true }, orderBy: { sortOrder: 'asc' }, include: kitStock },
       },
     });
     if (!club) throw new NotFoundException('Klub topilmadi');
@@ -164,6 +179,7 @@ export class CatalogService {
     const kit = await this.prisma.kit.findFirst({
       where: { id, isActive: true, club: visibleClub },
       include: {
+        ...kitStock,
         club: {
           select: {
             id: true,

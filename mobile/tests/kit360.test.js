@@ -50,18 +50,31 @@ test('xabarlar: update va javoblar formo-kit360 belgisi bilan, boshqa postMessag
   assert.equal(parseKit360Message('not json'), null);
 });
 
-test("viewer.html: har jamoaning (KIT360_IDS) 8 tadan kadri ichida (data: URL), tashqi skript yo'q", () => {
-  const frames = JSON.parse(viewerHtml.match(/window\.FORMO_FRAMES=(\{.*?\})<\/script>/s)[1]);
-  assert.deepEqual(Object.keys(frames).sort(), [...KIT360_IDS].sort());
+test("viewer: HTML yengil (kadrsiz, tashqi skript yo'q); har jamoaning (KIT360_IDS) 8 tadan kadri alohida modulda", () => {
+  // Har ochilishda WebView o'qiydigan HTML — 6.7 MB emas (avval barcha jamoa kadrlari ichida edi)
+  assert.ok(viewerHtml.length < 200 * 1024, `viewerHtml ${viewerHtml.length} bayt`);
+  assert.ok(!viewerHtml.includes('data:image/jpeg'));
+  assert.ok(!/<script[^>]+src=/i.test(viewerHtml));
+
+  const { framesOf, FRAME_TEAMS } = require(src('components/ui/kit360/frames/index.js'));
+  assert.deepEqual([...FRAME_TEAMS].sort(), [...KIT360_IDS].sort());
+  assert.equal(framesOf('nope'), null);
   // { f: kalta yeng, l?: uzun yeng } — har biri 8 kadr
-  for (const [id, sets] of Object.entries(frames)) {
+  for (const id of KIT360_IDS) {
+    const sets = framesOf(id);
+    assert.equal(framesOf(id), sets); // keshlanadi
     assert.deepEqual(Object.keys(sets).sort(), KIT360_LONG.includes(id) ? ['f', 'l'] : ['f']);
     for (const list of Object.values(sets)) {
       assert.equal(list.length, 8);
       for (const url of list) assert.ok(url.startsWith('data:image/jpeg;base64,'));
     }
   }
-  assert.ok(!/<script[^>]+src=/i.test(viewerHtml));
+});
+
+test("kit360Message: kadrlar faqat berilganda xabarga qo'shiladi", () => {
+  const frames = { f: ['data:image/jpeg;base64,AA'] };
+  assert.deepEqual(JSON.parse(kit360Message({ team: 'ar', frames })).frames, frames);
+  assert.equal('frames' in JSON.parse(kit360Message({ team: 'ar' })), false);
 });
 
 test('uzun yeng: KIT360_LONG viewer build (thumbs.js → LONG_TEAMS) va backend KIT360_LONG_IDS bilan bir xil', () => {

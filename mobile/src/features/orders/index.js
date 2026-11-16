@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState } from 'react-native';
 import { api } from '../../services/api';
 import { getCached, setCached } from '../../utils/memCache';
 
@@ -58,13 +59,15 @@ export function progressOf(order) {
   return steps.filter((s) => s.done).length / steps.length;
 }
 
-/** Interval bilan qayta yuklash; ekran yopilganda to'xtaydi */
+/** Interval bilan qayta yuklash; ekran yopilganda to'xtaydi, ilova fonda bo'lsa so'rov yuborilmaydi (tarmoq va batareya) */
 function usePolling(fn, enabled = true) {
   const fnRef = useRef(fn);
   fnRef.current = fn;
   useEffect(() => {
     if (!enabled) return undefined;
-    const timer = setInterval(() => fnRef.current(), POLL_MS);
+    const timer = setInterval(() => {
+      if (AppState.currentState === 'active') fnRef.current();
+    }, POLL_MS);
     return () => clearInterval(timer);
   }, [enabled]);
 }

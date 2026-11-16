@@ -11,11 +11,13 @@ import { colors, fonts, spacing, themedStyles } from '../constants/theme';
 import {
   REGION_CODES,
   addressCoords,
+  addressTitle,
   areaOf,
   districtsOf,
   isDistrictOf,
   isPostalRegion,
   lookupArea,
+  matchDistrict,
   pointProblem,
   saveAddress,
   useReverseGeocode,
@@ -59,7 +61,8 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved, on
       house: address?.house || '',
       houseEdited: Boolean(address?.house),
       apartment: address?.apartment || '',
-      label: address?.label || t('addrLabelHome'),
+      // Manzil nomi (Uy/Ish) so'ralmaydi — saqlashda tuman nomidan olinadi (addressTitle)
+      label: address?.label || '',
       isDefault: Boolean(address?.isDefault),
     };
   });
@@ -152,12 +155,23 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved, on
       geocodeTimer.current = setTimeout(async () => {
         const found = await geocoder.resolve(next);
         if (!found) return;
-        setForm((current) => ({
-          ...current,
-          address: current.addressEdited ? current.address : found.text,
-          house: current.houseEdited ? current.house : found.house || '',
-          geoText: found.text,
-        }));
+        setForm((current) => {
+          // Nuqta (GPS "Mening joylashuvim" yoki xaritani surish) boshqa tumanga tushdi — manzil tumani ham shu:
+          // aks holda "Toshkent shahri, Mirobod tumani, Sergeli-7 ..." kabi ikki joy aralash manzil saqlanardi
+          const district = matchDistrict(current.region, found.areas) || current.district;
+          const moved = district !== current.district;
+          return {
+            ...current,
+            district,
+            // Tuman almashsa — qo'lda yozilgan ko'cha/uy ham eski tumanniki, yangi nuqtanikiga almashadi
+            address: current.addressEdited && !moved ? current.address : found.text,
+            addressEdited: moved ? false : current.addressEdited,
+            house: current.houseEdited && !moved ? current.house : found.house || '',
+            houseEdited: moved ? false : current.houseEdited,
+            apartment: moved ? '' : current.apartment,
+            geoText: found.text,
+          };
+        });
       }, GEOCODE_DELAY_MS);
     },
     [geocoder],
@@ -167,7 +181,9 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved, on
 
   const save = async () => {
     if (saving) return;
-    const found = validateAddressForm(form);
+    // Nom (server uchun majburiy) — tuman, bo'lmasa viloyat nomi: ro'yxat va checkout'da manzil sarlavhasi
+    const ready = { ...form, label: addressTitle(form, t) };
+    const found = validateAddressForm(ready);
     // Xarita nuqtasi faqat Toshkent shahri (kuryer) manzilida majburiy
     const pointError = postal ? null : pointProblem(form.region, form.coords);
     if (pointError) found.coords = pointError;
@@ -177,7 +193,7 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved, on
     setSaving(true);
     setSaveError(null);
     try {
-      const saved = await saveAddress(form, address?.id);
+      const saved = await saveAddress(ready, address?.id);
       toast.show(t('addressSaved'), 'success');
       onSaved?.(saved);
     } catch (err) {

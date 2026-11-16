@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, Promocode } from '@prisma/client';
+import { InventoryProductType, Prisma, Promocode } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { visibleClub } from './catalog.service';
 import { DeliveryService } from './delivery.service';
@@ -17,6 +17,8 @@ type Db = PrismaService | Prisma.TransactionClient;
 const lineInclude = {
   kit: {
     include: {
+      // Komplekt qoldig'i — tugagan o'lcham savatda "tugagan" deb ko'rinadi (checkout'da InventoryService.reserve ham to'xtatadi)
+      inventoryItems: { where: { productType: InventoryProductType.TSHIRT }, select: { size: true, qty: true } },
       club: {
         select: {
           id: true,
@@ -67,6 +69,11 @@ export function lineProblem(line: CartLine): string | null {
   }
   if (!kit.isActive || !kit.club.isActive || kit.club.category?.isActive === false) return 'Forma sotuvda emas';
   if (!kit.sizes.includes(line.shirtSize)) return `Futbolka ${line.shirtSize} o'lchami tugagan`;
+  // Ombori kuzatilayotgan o'lcham qoldig'i savatdagi sonidan kam (yozuvi yo'q o'lcham — cheklovsiz)
+  const stock = kit.inventoryItems?.find((i) => i.size === line.shirtSize);
+  if (stock && stock.qty < line.quantity) {
+    return stock.qty > 0 ? `${line.shirtSize} o'lchamidan faqat ${stock.qty} ta qoldi` : `${line.shirtSize} o'lchami tugagan`;
+  }
   if (line.withShorts && (!line.shortsSize || !kit.sizes.includes(line.shortsSize))) {
     return `Shortik ${line.shortsSize} o'lchami tugagan`;
   }
@@ -212,6 +219,14 @@ export class CartService {
     const quantity = dto.quantity ?? 1;
     await this.rules.assertAccepting();
     await this.rules.assertLine({ ...config, quantity });
+    if (kit) {
+      // Omborda tugagan o'lcham savatga qo'shilmaydi (yozuvi yo'q o'lcham kuzatilmaydi — cheklovsiz)
+      const stock = await this.prisma.inventoryItem.findUnique({
+        where: { productType_kitId_size: { productType: InventoryProductType.TSHIRT, kitId: kit.id, size: config.shirtSize } },
+        select: { qty: true },
+      });
+      if (stock && stock.qty <= 0) throw new BadRequestException(`${config.shirtSize} o'lchami tugagan`);
+    }
 
     // Aynan shu sozlamadagi mahsulot savatda bo'lsa — yangi qator emas, soni oshiriladi
     const same = await this.prisma.cartItem.findFirst({

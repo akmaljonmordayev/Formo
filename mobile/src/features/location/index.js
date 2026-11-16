@@ -75,7 +75,7 @@ export function useDeviceLocation() {
 }
 
 /**
- * Pin nuqtasi uchun manzil: `resolve(coords)` -> { text, house } | null. Har bir yangi nuqtada oldingi
+ * Pin nuqtasi uchun manzil: `resolve(coords)` -> { text, house, areas } | null (areas — tuman/shahar nomlari). Har bir yangi nuqtada oldingi
  * so'rov natijasi e'tiborga olinmaydi (eski javob yangisini bosib ketmasin).
  */
 export function useReverseGeocode() {
@@ -96,10 +96,16 @@ export function useReverseGeocode() {
         found = null;
       }
       if (id !== requestId.current) return null;
+      const osmAreas = found?.areas;
       if (!found?.text) {
         const [place] = await Location.reverseGeocodeAsync(coords);
         if (id !== requestId.current) return null;
-        found = { text: formatGeocode(place), house: String(place?.streetNumber || '').trim() };
+        found = {
+          text: formatGeocode(place),
+          house: String(place?.streetNumber || '').trim(),
+          // OpenStreetMap ko'cha bermagan, lekin tumanni aniqlagan bo'lishi mumkin — u ham saqlanadi
+          areas: [...(osmAreas || []), place?.district, place?.subregion, place?.city].filter(Boolean),
+        };
       }
       if (!found.text) setFailed(true);
       return found.text ? found : null;

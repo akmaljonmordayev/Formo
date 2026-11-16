@@ -112,6 +112,16 @@ export function formatFullAddress(a, t) {
   return [...lead, text, houseLabel(a.house), a.apartment].filter(Boolean).join(', ');
 }
 
+/**
+ * Manzil nomi (server `label`, 1–30 belgi) — foydalanuvchidan so'ralmaydi (Uy/Ish olib tashlangan): tuman, bo'lmasa
+ * viloyat nomi. Ro'yxat va checkout kartasida sarlavha bo'lib ko'rinadi.
+ */
+export function addressTitle({ region, district, label } = {}, t) {
+  // Viloyati yo'q eski manzil — saqlangan nomi
+  const name = district || (region && t ? t(`region_${region}`) : '') || label || 'Manzil';
+  return String(name).trim().slice(0, ADDRESS_LIMITS.label);
+}
+
 /** Forma qiymatlarini tekshiradi: { field: i18nKey } (bo'sh obyekt — xato yo'q). Viloyat (pochta) manzilida
  *  ko'cha va uy raqami majburiy emas. */
 export function validateAddressForm({ label, address, apartment, region, district, house, coords }) {

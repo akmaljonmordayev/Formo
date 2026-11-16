@@ -257,7 +257,13 @@ const SHADE_R = 9;
 const BEND_R = 4;
 const MAX_SHIFT = 3;
 const SHEEN_MAX = 18;
-function shadeInto(ctx, zone, K) {
+// Shortik/shalvar raqamida siljish chegarasi harf balandligiga nisbatan: kichik (~18 px) raqamda 3 px siljish harfning ~17% i —
+// qora shalvarda (ar, de) "1" qiyshayib, yirtilib qolardi. Orqadagi ism/raqamda — avvalgidek MAX_SHIFT.
+const SHIFT_PER_SIZE = 0.05;
+function shadeInto(ctx, zone, K, size = Infinity) {
+  const maxShift = Math.min(MAX_SHIFT, size * SHIFT_PER_SIZE);
+  // Kichik raqam qora matodagi chuqur burma soyasida kulrang bo'lib, harfi yo'qolib qolmasin
+  const minShade = Number.isFinite(size) ? 0.9 : 0.7;
   const pad = Math.ceil(MAX_SHIFT * K) + 1;
   const Rs = Math.max(1, Math.round(SHADE_R * K));
   const Rb = Math.max(1, Math.round(BEND_R * K));
@@ -309,7 +315,7 @@ function shadeInto(ctx, zone, K) {
     const r1 = Math.min(bh, r + R + 1);
     return (I[r1 * stride + c1] - I[r0 * stride + c1] - I[r1 * stride + c0] + I[r0 * stride + c0]) / ((c1 - c0) * (r1 - r0));
   };
-  const clampShift = (v) => Math.max(-MAX_SHIFT, Math.min(MAX_SHIFT, v)) * K;
+  const clampShift = (v) => Math.max(-maxShift, Math.min(maxShift, v)) * K;
   const ink = zone.ink;
   // Siljigan joydagi bosma pikseli (bilinear, premultiplied)
   const sample = (fx, fy, out) => {
@@ -349,7 +355,7 @@ function shadeInto(ctx, zone, K) {
       if (alpha < 0.004) continue;
       const p = r * bw + c;
       const rel = Lum[p] / (box(IL, c, r, Rs) || 1);
-      const shade = 1 + (Math.min(1.12, Math.max(0.7, rel)) - 1) * (0.3 + 0.7 * fold);
+      const shade = 1 + (Math.min(1.12, Math.max(minShade, rel)) - 1) * (0.3 + 0.7 * fold);
       const ir = px[0] / px[3];
       const ig = px[1] / px[3];
       const ib = px[2] / px[3];
@@ -388,6 +394,6 @@ export function paint(canvas, img, frame, { name, number, shortsNumber, team, st
     const layer = textLayer(text, z, style.font, color, z.shorts ? null : team.outline, K);
     // Shalvar: soyadagi oq mato fon bilan birga "fon" deb belgilanadi (fr) — raqam son o'rtasida, niqobsiz chiziladi
     const zone = warp(layer, z, z.pants ? null : mask, img.naturalWidth, K, canvas.width, canvas.height);
-    if (zone) shadeInto(ctx, zone, K);
+    if (zone) shadeInto(ctx, zone, K, z.shorts ? z.size : Infinity);
   }
 }

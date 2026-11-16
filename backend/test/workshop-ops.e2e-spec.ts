@@ -412,6 +412,16 @@ describe('Sex paneli, studiya va bildirishnomalar (e2e)', () => {
   });
 
   // ---------------------------------------------------------------------------
+  describe("Zaxira qoldig'ini kiritish", () => {
+    it("o'lcham forma o'lchamiga keltiriladi (\"xl\" → \"XL\"); noma'lum o'lcham va mavjud bo'lmagan forma — 400", async () => {
+      await as(admin).put('/api/admin/inventory', { items: [{ productType: 'TSHIRT', kitId, size: ' xl ', qty: 3 }] }).expect(200);
+      expect(await prisma.inventoryItem.findFirst({ where: { kitId, size: 'XL', productType: 'TSHIRT' } })).toMatchObject({ qty: 3 });
+      await as(admin).put('/api/admin/inventory', { items: [{ productType: 'TSHIRT', kitId, size: 'Medium', qty: 3 }] }).expect(400);
+      await as(admin).put('/api/admin/inventory', { items: [{ productType: 'TSHIRT', kitId: 999_999, size: 'M', qty: 3 }] }).expect(400);
+      await prisma.inventoryItem.deleteMany({ where: { kitId, size: 'XL' } });
+    });
+  });
+
   describe("Zaxira qoldig'ini o'chirish", () => {
     it("formaning faqat tanlangan turi o'chiriladi, auditga yoziladi; tikuv sexi va noto'g'ri tur — rad", async () => {
       await as(admin)

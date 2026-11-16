@@ -28,9 +28,10 @@ export function ToastProvider({ children }) {
   }, [opacity, translateY]);
 
   const show = useCallback(
-    (message, type = 'info', duration = 2800) => {
+    // big — muhim ogohlantirish (masalan "bu o'lchamli forma qolmagan"): kattaroq quti, matn va belgi
+    (message, type = 'info', duration = 2800, { big = false } = {}) => {
       if (timerRef.current) clearTimeout(timerRef.current);
-      setToast({ message, type });
+      setToast({ message, type, big });
 
       opacity.setValue(0);
       translateY.setValue(-24);
@@ -100,6 +101,7 @@ export function ToastProvider({ children }) {
           <View
             style={[
               styles.box,
+              toast.big && styles.boxBig,
               {
                 backgroundColor: currentStyle.bg,
                 borderColor: currentStyle.border,
@@ -108,11 +110,11 @@ export function ToastProvider({ children }) {
           >
             <MaterialCommunityIcons
               name={currentStyle.icon}
-              size={20}
+              size={toast.big ? 30 : 20}
               color={currentStyle.iconColor}
               style={styles.icon}
             />
-            <Text style={styles.text} numberOfLines={2}>
+            <Text style={[styles.text, toast.big && styles.textBig]} numberOfLines={toast.big ? 4 : 2}>
               {toast.message}
             </Text>
           </View>
@@ -145,9 +147,11 @@ const styles = StyleSheet.create({
     maxWidth: 420,
     width: '100%',
   },
+  boxBig: { paddingVertical: 18, paddingHorizontal: 18, borderWidth: 2 },
   icon: {
     marginRight: 10,
   },
+  textBig: { fontSize: 16, fontWeight: '800', lineHeight: 22 },
   text: {
     flex: 1,
     color: '#F3F5F9',

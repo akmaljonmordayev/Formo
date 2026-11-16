@@ -239,4 +239,27 @@ describe('uzun shalvar (l* kadrlari)', () => {
     expect(zone.surface.mid).toBeGreaterThan(310);
     expect(zone.surface.mid).toBeLessThan(365);
   });
+
+  it("uzun yengli 180° kadrda qo'llar bilan o'lchangan keng tana (> 75 px) raqamni kattalashtirmaydi (juv, atm)", () => {
+    const img = kit({ pants: true, color: [30, 40, 120] });
+    const wide = kit({ pants: true, color: [30, 40, 120] });
+    // Orqa kadr: tana + yopishgan uzun yenglar — y 300 da x 130..470 (yarim kenglik ~170)
+    for (let x = 130; x <= 470; x += 1) for (let y = 150; y < 400; y += 1) wide.data.set([30, 40, 120], (y * 600 + x) * 4);
+    const [normal] = printLayout(0, img, kit({ pants: true, color: [30, 40, 120] }));
+    const [zone] = printLayout(0, img, wide);
+    // Qisqichsiz ~54 px chiqardi (170 × 0.64 × 0.5); tana medianasi bilan — oddiy tana atrofida
+    expect(zone.size).toBeGreaterThan(normal.size * 0.7);
+    expect(zone.size).toBeLessThanOrEqual(normal.size);
+  });
+
+  it("shalvarda 45° va 315° kadrlarda raqam ko'rinadigan oyoq o'rtasiga yaqin — qiyada siqilib qiyshaymaydi", () => {
+    const img = kit({ pants: true, color: [30, 40, 120] });
+    for (const frame of [1, 7]) {
+      const [zone] = printLayout(frame, img, img);
+      const { a, b, theta, t0 } = zone.surface;
+      // Raqam markazining ko'rinadigan oyoqdagi nisbiy o'rni: u = sin(t0 + phi), |u| kichik — siqilish yo'q
+      const phi = Math.atan2(b * Math.sin(theta), a * Math.cos(theta));
+      expect(Math.abs(Math.sin(t0 + phi))).toBeLessThan(0.3);
+    }
+  });
 });

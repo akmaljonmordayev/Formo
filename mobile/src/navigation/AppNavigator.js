@@ -229,9 +229,15 @@ export default function AppNavigator({ store, t, auth }) {
     return () => sub.remove();
   }, []);
 
-  // Sarlavhalardagi savat tugmasi (Header cart) — soni va qaysi ekrandan ochilgani
+  // Sarlavhalardagi savat va bildirishnoma tugmalari (Header cart) — savat soni va qaysi ekrandan ochilgani.
+  // Bildirishnoma qo'ng'irog'i faqat bosh sahifada emas — savatli hamma sarlavhada (katalog, buyurtmalar, profil, studiya)
   const cartValue = useMemo(
-    () => ({ count: cart.count, open: () => openCart(route === 'cart' ? cartFrom : route), t }),
+    () => ({
+      count: cart.count,
+      open: () => openCart(route === 'cart' ? cartFrom : route),
+      openNotifications: () => openNotifications(route),
+      t,
+    }),
     [cart.count, route, cartFrom, t], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
@@ -265,7 +271,6 @@ export default function AppNavigator({ store, t, auth }) {
         t={t}
         onNavigate={navigateTab}
         onOrder={(id) => openOrder(id, 'home')}
-        onNotifications={() => openNotifications('home')}
         onOpenKit={openKit}
         favorites={favorites}
         rules={config.rules}

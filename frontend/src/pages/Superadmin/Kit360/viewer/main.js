@@ -1,7 +1,8 @@
 /* Mobil ilova uchun Forma 360° — admin sahifasidagi bilan bir xil chizish (render.js), WebView ichidagi lokal HTML.
-   Kadrlar HTML ichida (data: URL, tarmoq kerak emas); shriftlar Google Fonts'dan, internet bo'lmasa — tizim shrifti.
+   Kadrlar HTML ichida emas: ilova jamoa almashganda "update" xabarida `frames` ({ f: [8], l?: [8] }, data: URL)
+   yuboradi — WebView faqat kerakli jamoani o'qiydi. Shriftlar Google Fonts'dan, internet bo'lmasa — tizim shrifti.
 
-   Ilova → viewer:  { source, type: 'update', team, variant?, name, number, shortsNumber?, side?: 'front' | 'back', font?: id }
+   Ilova → viewer:  { source, type: 'update', team, frames?, variant?, name, number, shortsNumber?, side?: 'front' | 'back', font?: id }
                     variant: 'f' — kalta yeng + shortik (standart), 'l' — uzun yeng + shalvar (suratlari yo'q bo'lsa — 'f')
                     shortsNumber berilsa (bo'sh qator — shortik raqamsiz) shortikka alohida; berilmasa — orqadagi raqam
    Viewer → ilova:  { source, type: 'ready' } · { source, type: 'face', view: 'front' | 'back' | 'side' } · { source, type: 'error', message } */
@@ -9,7 +10,9 @@ import { BACK_FRAMES, FRONT_FRAMES } from '../measure';
 import { FONTS, FONTS_CSS, FONT_SAMPLE, H, N, TEAMS, W, fontCss, layerCache, paint, prepare, ready } from '../render';
 
 export const SOURCE = 'formo-kit360';
+// Jamoa kadrlari ilovadan keladi (update.frames); eski usul — HTML ichidagi window.FORMO_FRAMES ham o'qiladi
 const FRAMES = window.FORMO_FRAMES || {};
+const isFrameList = (v) => Array.isArray(v) && v.length === N && v.every((u) => typeof u === 'string' && u.startsWith('data:image/'));
 
 const canvas = document.getElementById('kit');
 const dpr = Math.min(window.devicePixelRatio || 1, 2);
@@ -41,6 +44,8 @@ function post(msg) {
 
 function image(id, i, v = state.variant) {
   const key = `${id}/${v}${i}`;
+  // Kadrlar hali kelmagan — rasm yaratilmaydi (bo'sh src xato bermasin); kelgach update qayta chaqiradi
+  if (!images[key] && !framesOf(id, v)?.[i]) return null;
   if (!images[key]) {
     const im = new Image();
     // Faqat ko'rinib turgan kadr (yoki 180° namuna) yuklanganda qayta chiziladi — 8 ta ortiqcha chizish yo'q
@@ -48,7 +53,7 @@ function image(id, i, v = state.variant) {
       if (id === state.team.id && v === state.variant && (i === state.frame || i === 4)) schedule();
     };
     im.onerror = () => post({ type: 'error', message: `frame ${key}` });
-    im.src = framesOf(id, v)?.[i] ?? '';
+    im.src = framesOf(id, v)[i];
     images[key] = im;
   }
   return images[key];
@@ -114,6 +119,10 @@ function draw() {
 function update(msg) {
   const team = TEAMS.find((t) => t.id === msg.team);
   if (!team) return post({ type: 'error', message: `team ${msg.team}` });
+  if (msg.frames && typeof msg.frames === 'object' && isFrameList(msg.frames.f)) {
+    FRAMES[team.id] = { f: msg.frames.f, ...(isFrameList(msg.frames.l) && { l: msg.frames.l }) };
+  }
+  if (!FRAMES[team.id]) return post({ type: 'error', message: `frames ${msg.team}` });
   const variant = variantFor(team.id, msg.variant);
   if (team !== state.team || variant !== state.variant) for (let i = 0; i < N; i += 1) image(team.id, i, variant);
   state.team = team;
