@@ -2,6 +2,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from './App';
 import { session } from './services/session';
+import { rejectTailorOrder } from './pages/Tailor/tailorApi';
 
 /**
  * Integratsion test: haqiqiy router + AuthProvider + api.js, faqat tarmoq (fetch) soxta.
@@ -40,7 +41,7 @@ describe('Ilova: login oqimi', () => {
     render(<App />);
     expect(await screen.findByText('Telefon raqam')).toBeInTheDocument();
     expect(window.location.pathname).toBe('/login');
-  }); 
+  }); rejectTailorOrderx``
 
   it('himoyalangan sahifa tokensiz ochilmaydi', async () => {
     mockBackend({});
