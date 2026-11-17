@@ -195,6 +195,27 @@ export class CartService {
     return design;
   }
 
+  /**
+   * Ombori kuzatilayotgan o'lcham: savatdagi shu forma+o'lchamning BARCHA qatorlari (turli ism/raqam bilan
+   * ham) va qo'shilayotgan son qoldiqdan oshmasin. Yozuvi yo'q o'lcham kuzatilmaydi — cheklovsiz.
+   * excludeLineId — tahrirlanayotgan qatorning eski soni hisobga olinmaydi.
+   */
+  private async assertStock(userId: number, kitId: number, size: string, quantity: number, excludeLineId?: number) {
+    const stock = await this.prisma.inventoryItem.findUnique({
+      where: { productType_kitId_size: { productType: InventoryProductType.TSHIRT, kitId, size } },
+      select: { qty: true },
+    });
+    if (!stock) return;
+    if (stock.qty <= 0) throw new BadRequestException(`${size} o'lchami tugagan`);
+    const inCart = await this.prisma.cartItem.aggregate({
+      where: { userId, kitId, shirtSize: size, ...(excludeLineId != null && { id: { not: excludeLineId } }) },
+      _sum: { quantity: true },
+    });
+    if ((inCart._sum.quantity ?? 0) + quantity > stock.qty) {
+      throw new BadRequestException(`${size} o'lchamidan faqat ${stock.qty} ta qoldi`);
+    }
+  }
+
   async add(userId: number, dto: AddCartItemDto) {
     // Uch xil mahsulot: klub formasi (kitId), maxsus futbolka (design) yoki Superadmin 3D dizayni (kitDesignId)
     const custom = dto.design !== undefined;
@@ -219,14 +240,7 @@ export class CartService {
     const quantity = dto.quantity ?? 1;
     await this.rules.assertAccepting();
     await this.rules.assertLine({ ...config, quantity });
-    if (kit) {
-      // Omborda tugagan o'lcham savatga qo'shilmaydi (yozuvi yo'q o'lcham kuzatilmaydi — cheklovsiz)
-      const stock = await this.prisma.inventoryItem.findUnique({
-        where: { productType_kitId_size: { productType: InventoryProductType.TSHIRT, kitId: kit.id, size: config.shirtSize } },
-        select: { qty: true },
-      });
-      if (stock && stock.qty <= 0) throw new BadRequestException(`${config.shirtSize} o'lchami tugagan`);
-    }
+    if (kit) await this.assertStock(userId, kit.id, config.shirtSize, quantity);
 
     // Aynan shu sozlamadagi mahsulot savatda bo'lsa — yangi qator emas, soni oshiriladi
     const same = await this.prisma.cartItem.findFirst({
@@ -269,6 +283,7 @@ export class CartService {
       shortsSize: dto.shortsSize ?? line.shortsSize,
     });
     await this.rules.assertLine({ ...config, quantity: dto.quantity });
+    if (line.kitId != null) await this.assertStock(userId, line.kitId, config.shirtSize, dto.quantity ?? line.quantity, line.id);
     await this.prisma.cartItem.update({
       where: { id },
       data: { ...config, ...(dto.quantity !== undefined && { quantity: dto.quantity }) },

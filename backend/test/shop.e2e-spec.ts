@@ -249,6 +249,24 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
       expect(res.body.sizes.find((s: { size: string }) => s.size === 'L')).toMatchObject({ soldOut: false });
     });
 
+    it("savatdagi shu o'lchamning barcha qatorlari (turli ism bilan ham) qoldiqdan oshmaydi", async () => {
+      await as(user).delete('/api/cart').expect(200);
+      await prisma.inventoryItem.create({ data: { productType: 'TSHIRT', kitId: homeKit, size: 'L', qty: 2 } });
+      try {
+        const base = { kitId: homeKit, shirtSize: 'L', shortsSize: 'L' };
+        await as(user).post('/api/cart/items', { ...base, quantity: 3 }).expect(400);
+        const first = await as(user).post('/api/cart/items', { ...base, printName: 'ALI', quantity: 2 }).expect(201);
+        const other = await as(user).post('/api/cart/items', { ...base, printName: 'VALI' }).expect(400);
+        expect(other.body.message).toContain("faqat 2 ta qoldi");
+        const id = first.body.items[0].id;
+        await as(user).patch(`/api/cart/items/${id}`, { quantity: 3 }).expect(400);
+        await as(user).patch(`/api/cart/items/${id}`, { quantity: 1 }).expect(200);
+      } finally {
+        await as(user).delete('/api/cart').expect(200);
+        await prisma.inventoryItem.deleteMany({ where: { kitId: homeKit, size: 'L' } });
+      }
+    });
+
     it("nofaol forma va klub ko'rinmaydi", async () => {
       await as(admin).patch(`/api/admin/clubs/kits/${real.kits[2].id}`, { isActive: false }).expect(200);
       await api(app).get(`/api/catalog/kits/${real.kits[2].id}`).expect(404);

@@ -96,4 +96,20 @@ describe('StorageService (lokal disk)', () => {
     await s.remove(url);
     expect(await s.read(key)).toBeNull();
   });
+
+  it("keyin UPLOAD_DIR yoqilsa ham bazadagi eski fayl o'qiladi va o'chiriladi", async () => {
+    const key = 'avatars/00000000-0000-0000-0000-000000000000.png';
+    const rows = new Map([[key, { key, contentType: 'image/png', data: PNG }]]);
+    const prisma = {
+      storedFile: {
+        findUnique: async ({ where }: { where: { key: string } }) => rows.get(where.key) ?? null,
+        deleteMany: async ({ where }: { where: { key: string } }) => rows.delete(where.key),
+      },
+    };
+    const s = new StorageService(prisma as never);
+    expect(s.driver).toBe('local');
+    expect(await s.read(key)).toEqual({ contentType: 'image/png', data: PNG });
+    await s.remove(`/api/uploads/${key}`);
+    expect(rows.has(key)).toBe(false);
+  });
 });

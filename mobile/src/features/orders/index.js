@@ -68,7 +68,14 @@ function usePolling(fn, enabled = true) {
     const timer = setInterval(() => {
       if (AppState.currentState === 'active') fnRef.current();
     }, POLL_MS);
-    return () => clearInterval(timer);
+    // Fondan qaytganda keyingi tikni kutmasdan darhol yangilanadi (holat fonda o'zgargan bo'lishi mumkin)
+    const sub = AppState.addEventListener?.('change', (state) => {
+      if (state === 'active') fnRef.current();
+    });
+    return () => {
+      clearInterval(timer);
+      sub?.remove?.();
+    };
   }, [enabled]);
 }
 

@@ -168,7 +168,7 @@ export default function LocationPickerScreen({ t, address, onCancel, onSaved, on
             addressEdited: moved ? false : current.addressEdited,
             house: current.houseEdited && !moved ? current.house : found.house || '',
             houseEdited: moved ? false : current.houseEdited,
-            apartment: moved ? '' : current.apartment,
+            // Xonadon raqamini geokoder bermaydi — jimgina o'chirilmaydi, foydalanuvchi o'zi tekshiradi
             geoText: found.text,
           };
         });

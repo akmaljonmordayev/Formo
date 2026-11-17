@@ -235,10 +235,11 @@ export default function AppNavigator({ store, t, auth }) {
     () => ({
       count: cart.count,
       open: () => openCart(route === 'cart' ? cartFrom : route),
-      openNotifications: () => openNotifications(route),
+      // Muharrirda (Forma 360°, studiya dizayni) qo'ng'iroq yo'q: o'tish ekranni yopib, kiritilgan dizaynni yo'qotardi
+      openNotifications: route === 'kit360' || (route === 'studio' && studioKit) ? null : () => openNotifications(route),
       t,
     }),
-    [cart.count, route, cartFrom, t], // eslint-disable-line react-hooks/exhaustive-deps
+    [cart.count, route, cartFrom, studioKit, t], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   // ─── 1. Sessiya tiklanguncha — ustida BrandSplash (App.js) turadi ─────────────
