@@ -25,7 +25,7 @@ import { NotifyService } from '../notify/notify.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { InventoryService } from '../admin/inventory.service';
 import { AddressesService, formatAddress } from './addresses.service';
-import { CartService, lineProblem, toCartItem } from './cart.service';
+import { CartService, lineProblem, sizeTotals, toCartItem } from './cart.service';
 import { CUSTOMER_STAGES, customerStageOf, STATUS_LABEL } from './order-status';
 import { dayLabel, DeliveryService, todayLocal } from './delivery.service';
 import { ChangePaymentMethodDto, CheckoutDto, MyOrdersQueryDto } from './dto/checkout.dto';
@@ -268,8 +268,9 @@ export class ShopOrdersService {
           }
         }
         const prices = await this.cart.prices(tx);
+        const totals = sizeTotals(lines);
         const problems = lines
-          .map((l) => [l, lineProblem(l)] as const)
+          .map((l) => [l, lineProblem(l, totals)] as const)
           .filter(([, p]) => p)
           .map(([l, p]) => `${l.kit ? `${l.kit.club.name} · ${l.kit.label}` : (l.kitDesign?.name ?? CUSTOM_TITLE)}: ${p}`);
         if (problems.length) throw new BadRequestException(`Savatni yangilang — ${problems.join('; ')}`);

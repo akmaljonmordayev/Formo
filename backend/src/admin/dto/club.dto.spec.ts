@@ -48,6 +48,7 @@ describe("KitDto — sizePrices (o'lcham bo'yicha narx)", () => {
 
   it("manfiy yoki butun bo'lmagan narx — 400", async () => {
     await expect(update({ kits: [{ ...baseKit, sizePrices: { S: -1 } }] })).rejects.toBeInstanceOf(BadRequestException);
+    await expect(update({ kits: [{ ...baseKit, sizePrices: { S: 0 } }] })).rejects.toBeInstanceOf(BadRequestException);
     await expect(update({ kits: [{ ...baseKit, sizePrices: { S: 1.5 } }] })).rejects.toBeInstanceOf(BadRequestException);
   });
 

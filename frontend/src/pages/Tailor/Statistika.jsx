@@ -3,6 +3,7 @@ import { ClipboardList, Loader2 } from 'lucide-react';
 import { Card } from './ui';
 import { useT } from './i18n';
 import { cx } from './utils';
+import { useAuth } from '../../hooks/useAuth';
 import { getKitSales, getTailorDashboard, listWorkshopOrdersPage } from './tailorApi';
 
 const RANGES = [
@@ -16,7 +17,8 @@ const WEEKDAYS = {
   ru: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
 };
 
-// Oxirgi javoblar: sahifaga qaytilganda grafik darhol ko'rinadi, yangi ma'lumot fonda olinadi
+// Oxirgi javoblar: sahifaga qaytilganda grafik darhol ko'rinadi, yangi ma'lumot fonda olinadi.
+// Kalit — sex + davr: chiqib boshqa sex kirsa, oldingi sexning raqamlari ko'rinmasin
 const dashboardCache = {};
 
 // Brauzer uz-UZ uchun sanani inglizcha yoki "11-03" ko'rinishida beradi — o'zimiz yozamiz
@@ -143,9 +145,11 @@ function RankCard({ title, hint, rows, empty }) {
 
 export default function Statistika() {
   const t = useT();
+  const { user } = useAuth();
   const [days, setDays] = useState(7);
-  const [dashboard, setDashboard] = useState(dashboardCache[7] ?? null);
-  const [loading, setLoading] = useState(!dashboardCache[7]);
+  const cacheKey = (d) => `${user?.id ?? ''}:${d}`;
+  const [dashboard, setDashboard] = useState(dashboardCache[cacheKey(7)] ?? null);
+  const [loading, setLoading] = useState(!dashboardCache[cacheKey(7)]);
   const [error, setError] = useState('');
   // Holatlar bo'yicha jami sonlar buyurtmalar ro'yxati javobidan keladi (barcha vaqt uchun)
   const [byStatus, setByStatus] = useState(null);
@@ -164,11 +168,12 @@ export default function Statistika() {
 
   useEffect(() => {
     let cancelled = false;
-    setDashboard(dashboardCache[days] ?? null);
-    setLoading(!dashboardCache[days]);
+    const key = `${user?.id ?? ''}:${days}`;
+    setDashboard(dashboardCache[key] ?? null);
+    setLoading(!dashboardCache[key]);
     getTailorDashboard(days)
       .then((data) => {
-        dashboardCache[days] = data;
+        dashboardCache[key] = data;
         if (!cancelled) {
           setDashboard(data);
           setError('');
@@ -183,7 +188,7 @@ export default function Statistika() {
     return () => {
       cancelled = true;
     };
-  }, [days]);
+  }, [days, user?.id]);
 
   // Forma va o'lcham reytingi — superadmin bilan umumiy API; xato bo'lsa (eski server) sex statistikasidagi hisob qoladi
   const [sales, setSales] = useState(null);

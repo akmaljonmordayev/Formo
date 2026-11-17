@@ -261,6 +261,11 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
         const id = first.body.items[0].id;
         await as(user).patch(`/api/cart/items/${id}`, { quantity: 3 }).expect(400);
         await as(user).patch(`/api/cart/items/${id}`, { quantity: 1 }).expect(200);
+        await as(user).post('/api/cart/items', { ...base, printName: 'VALI' }).expect(201);
+        // Qoldiq keyin kamaysa: har qator alohida (1 ≤ 1) emas, jami (2 > 1) — savat ogohlantiradi
+        await prisma.inventoryItem.updateMany({ where: { kitId: homeKit, size: 'L' }, data: { qty: 1 } });
+        const cart = await as(user).get('/api/cart').expect(200);
+        expect(cart.body.items.every((i: { available: boolean }) => !i.available)).toBe(true);
       } finally {
         await as(user).delete('/api/cart').expect(200);
         await prisma.inventoryItem.deleteMany({ where: { kitId: homeKit, size: 'L' } });

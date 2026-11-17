@@ -39,7 +39,7 @@ function IsSizePrices(options?: ValidationOptions) {
       target: object.constructor,
       propertyName,
       options: {
-        message: `O'lcham narxlari {"S": 150000, ...} ko'rinishida, kalit — ${ALL_SIZES.join('/')}, qiymat 0–${MAX_PRICE} bo'lishi kerak`,
+        message: `O'lcham narxlari {"S": 150000, ...} ko'rinishida, kalit — ${ALL_SIZES.join('/')}, qiymat 1–${MAX_PRICE} bo'lishi kerak`,
         ...options,
       },
       validator: {
@@ -50,7 +50,8 @@ function IsSizePrices(options?: ValidationOptions) {
               (ALL_SIZES as readonly string[]).includes(size) &&
               typeof price === 'number' &&
               Number.isInteger(price) &&
-              price >= 0 &&
+              // 0 — narx hisobida "berilmagan" (priceForSize shirtPrice'ni oladi): saqlanib, jimgina e'tiborsiz qolmasin
+              price > 0 &&
               price <= MAX_PRICE,
           );
         },

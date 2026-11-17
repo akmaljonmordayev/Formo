@@ -53,8 +53,20 @@ interface Config {
   shortsSize: string | null;
 }
 
-/** Savat qatori hozir ham sotib olinadimi (forma o'chirilmagan, o'lcham tugamagan) */
-export function lineProblem(line: CartLine): string | null {
+/** Savatdagi har bir forma+o'lcham bo'yicha jami son (turli ism/raqamli qatorlar birga) — zaxira shu bilan solishtiriladi */
+export function sizeTotals(lines: Pick<CartLine, 'kitId' | 'shirtSize' | 'quantity'>[]) {
+  const totals = new Map<string, number>();
+  for (const l of lines) {
+    if (l.kitId == null) continue;
+    const key = `${l.kitId}:${l.shirtSize}`;
+    totals.set(key, (totals.get(key) ?? 0) + l.quantity);
+  }
+  return totals;
+}
+
+/** Savat qatori hozir ham sotib olinadimi (forma o'chirilmagan, o'lcham tugamagan).
+ *  `totals` (sizeTotals) berilsa — zaxira savatdagi shu o'lchamning jami soni bilan solishtiriladi */
+export function lineProblem(line: CartLine, totals?: Map<string, number>): string | null {
   const { kit } = line;
   if (line.kitDesignId) {
     if (!line.kitDesign?.isActive) return 'Dizayn sotuvda emas';
@@ -71,7 +83,8 @@ export function lineProblem(line: CartLine): string | null {
   if (!kit.sizes.includes(line.shirtSize)) return `Futbolka ${line.shirtSize} o'lchami tugagan`;
   // Ombori kuzatilayotgan o'lcham qoldig'i savatdagi sonidan kam (yozuvi yo'q o'lcham — cheklovsiz)
   const stock = kit.inventoryItems?.find((i) => i.size === line.shirtSize);
-  if (stock && stock.qty < line.quantity) {
+  const needed = totals?.get(`${line.kitId}:${line.shirtSize}`) ?? line.quantity;
+  if (stock && stock.qty < needed) {
     return stock.qty > 0 ? `${line.shirtSize} o'lchamidan faqat ${stock.qty} ta qoldi` : `${line.shirtSize} o'lchami tugagan`;
   }
   if (line.withShorts && (!line.shortsSize || !kit.sizes.includes(line.shortsSize))) {
@@ -87,11 +100,11 @@ function linePrice(line: CartLine, prices: CartPrices) {
   return studioPrice(line.design as unknown as Design, prices.studio, line.withShorts);
 }
 
-export function toCartItem(line: CartLine, prices: CartPrices) {
+export function toCartItem(line: CartLine, prices: CartPrices, totals?: Map<string, number>) {
   const { kit, kitDesign } = line;
   const design = (line.design as unknown as Design | null) ?? null;
   const price = linePrice(line, prices);
-  const problem = lineProblem(line);
+  const problem = lineProblem(line, totals);
   const print = [line.printName, line.printNumber].filter(Boolean).join(' · ');
   const sizes = line.withShorts ? `${line.shirtSize} / ${line.shortsSize}` : line.shirtSize;
   const title = kit
@@ -157,7 +170,8 @@ export class CartService {
 
   async view(userId: number, promocode?: string, region?: string) {
     const [lines, prices] = await Promise.all([this.lines(userId), this.prices()]);
-    const items = lines.map((l) => toCartItem(l, prices));
+    const totals = sizeTotals(lines);
+    const items = lines.map((l) => toCartItem(l, prices, totals));
     const subtotal = items.filter((i) => i.available).reduce((s, i) => s + i.totalPrice, 0);
     const promo = promocode ? await this.resolvePromo(promocode, subtotal) : null;
     const summary = summarize(subtotal, await this.delivery.fee(region), promo);
