@@ -132,7 +132,7 @@ export default function SuperadminMessages() {
   const hideThread = async () => {
     setHiding(true);
     try {
-      await supportApi.hide(activeId);
+      await API[kind].hide(activeId);
       setConfirmHide(false);
       setActiveId(null);
       await loadThreads();
@@ -248,7 +248,7 @@ export default function SuperadminMessages() {
                   <b>{active?.name}</b>
                   {phone && <small>{prettyPhone(phone)}</small>}
                 </div>
-                {kind === 'support' && messages.length > 0 && (
+                {messages.length > 0 && (
                   <button type="button" className="sa-btn sa-btn--ghost" onClick={() => setConfirmHide(true)} title={t('Chatni o‘chirish')}>
                     <Trash2 size={14} strokeWidth={2.2} aria-hidden="true" />
                     <span>{t('O‘chirish')}</span>
@@ -296,7 +296,9 @@ export default function SuperadminMessages() {
       {confirmHide && (
         <ConfirmModal
           title={t('Chatni o‘chirish')}
-          text={t('Suhbat faqat sizning ro‘yxatingizdan o‘chadi, mijozda yozishma saqlanib qoladi. Mijoz yana yozsa, suhbat eski xabarlari bilan qaytadi.')}
+          text={t(kind === 'support'
+            ? 'Suhbat faqat sizning ro‘yxatingizdan o‘chadi, mijozda yozishma saqlanib qoladi. Mijoz yana yozsa, suhbat eski xabarlari bilan qaytadi.'
+            : 'Yozishma faqat sizdan yashiriladi, sexda saqlanib qoladi. Sex yana yozsa, suhbat eski xabarlari bilan qaytadi.')}
           confirmLabel={t('O‘chirish')}
           busy={hiding}
           onConfirm={hideThread}

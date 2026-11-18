@@ -17,8 +17,9 @@ export class ChatService {
   constructor(private readonly prisma: PrismaService) {}
 
   private async assertParty(partyId: number, role: ChatPartyRole) {
-    const p = await this.prisma.user.findFirst({ where: { id: partyId, role }, select: { id: true } });
+    const p = await this.prisma.user.findFirst({ where: { id: partyId, role }, select: { id: true, chatHiddenUpTo: true } });
     if (!p) throw new NotFoundException(role === Role.TAILOR ? 'Tikuv sexi topilmadi' : 'Mijoz topilmadi');
+    return p;
   }
 
   /** Operator uchun: suhbatlar, oxirgi xabar va o'qilmaganlar soni (oxirgi yozilgani birinchi) */
@@ -46,11 +47,14 @@ export class ChatService {
     const unreadBy = new Map(unread.map((u) => [u.workshopId, u._count._all]));
 
     const lastIdBy = new Map(last.map((l) => [l.workshopId, l._max.id ?? 0]));
+    const isHidden = (p: { id: number; chatHiddenUpTo: number | null }) =>
+      p.chatHiddenUpTo != null && (lastIdBy.get(p.id) ?? 0) <= p.chatHiddenUpTo;
     return parties
-      // Operator o'zidan o'chirgan suhbat yangi xabar kelguncha ro'yxatda ko'rinmaydi
-      .filter((p) => p.chatHiddenUpTo == null || (lastIdBy.get(p.id) ?? 0) > p.chatHiddenUpTo)
+      // Operator o'zidan o'chirgan mijoz suhbati yangi xabar kelguncha ro'yxatda ko'rinmaydi;
+      // sex esa ro'yxatda qoladi (unga yozish uchun), faqat eski yozishmasiz
+      .filter((p) => role === Role.TAILOR || !isHidden(p))
       .map((p) => {
-        const lm = lastBy.get(p.id);
+        const lm = isHidden(p) ? undefined : lastBy.get(p.id);
         return {
           workshopId: p.id,
           userId: p.id,
@@ -67,7 +71,13 @@ export class ChatService {
    * Xabarlar ro'yxati. `viewer` — kim ochyapti: qarama-qarshi tomonning xabarlari o'qilgan deb belgilanadi.
    */
   async messages(partyId: number, viewer: 'operator' | 'workshop', after?: number, role: ChatPartyRole = Role.TAILOR) {
-    await this.assertParty(partyId, role);
+    const party = await this.assertParty(partyId, role);
+    // Operator o'chirgan suhbat: yangi xabar kelguncha unga eski yozishma ko'rinmaydi (tomonda esa turaveradi),
+    // yangi xabar kelgach butun yozishma qaytadi
+    if (viewer === 'operator' && !after && party.chatHiddenUpTo != null) {
+      const newer = await this.prisma.chatMessage.count({ where: { workshopId: partyId, id: { gt: party.chatHiddenUpTo } } });
+      if (!newer) return { items: [] };
+    }
     const where = { workshopId: partyId, ...(after ? { id: { gt: after } } : {}) };
     const items = after
       ? await this.prisma.chatMessage.findMany({ where, orderBy: { id: 'asc' }, take: PAGE })

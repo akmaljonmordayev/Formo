@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiForbiddenResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Role } from '@prisma/client';
 import { AuthUser, CurrentUser } from '../common/decorators/current-user.decorator';
@@ -32,5 +32,14 @@ export class AdminChatController {
   @ApiOperation({ summary: 'Sexga xabar yuborish' })
   send(@Param('workshopId', ParseIdPipe) workshopId: number, @CurrentUser() user: AuthUser, @Body() dto: SendChatMessageDto) {
     return this.chat.send(workshopId, user, dto.text);
+  }
+
+  @Delete(':workshopId')
+  @ApiOperation({
+    summary: 'Suhbatni faqat operatordan yashirish',
+    description: 'Xabarlar o‘chmaydi — sex ko‘raveradi. Kim yangi xabar yozsa suhbat eski yozishmasi bilan qaytadi',
+  })
+  hide(@Param('workshopId', ParseIdPipe) workshopId: number) {
+    return this.chat.hide(workshopId, Role.TAILOR);
   }
 }

@@ -904,6 +904,7 @@ const RU = {
   "Qo'ng'iroq": 'Позвонить',
   "Chatni o'chirish": 'Удалить чат',
   "Suhbat faqat sizning ro'yxatingizdan o'chadi, mijozda yozishma saqlanib qoladi. Mijoz yana yozsa, suhbat eski xabarlari bilan qaytadi.": 'Чат удалится только из вашего списка, у клиента переписка сохранится. Если клиент напишет снова, чат вернётся вместе со старыми сообщениями.',
+  "Yozishma faqat sizdan yashiriladi, sexda saqlanib qoladi. Sex yana yozsa, suhbat eski xabarlari bilan qaytadi.": 'Переписка скроется только у вас, у цеха она сохранится. Если цех напишет снова, чат вернётся вместе со старыми сообщениями.',
   'Javob yozing...': 'Напишите ответ...',
   Yuborish: 'Отправить',
   "Kun statistikasi uchun ustun ustiga olib boring": "Наведите на столбец, чтобы увидеть статистику дня",

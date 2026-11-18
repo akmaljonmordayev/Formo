@@ -31,7 +31,7 @@ describe('ChatService (support chat: mijoz ↔ superadmin)', () => {
   it('mijoz o‘z suhbatiga yozadi — fromWorkshop=true', async () => {
     prisma.user.findFirst.mockResolvedValue({ id: 7 });
     const msg = await service.send(7, as(7, Role.USER), '  Salom ', Role.USER);
-    expect(prisma.user.findFirst).toHaveBeenCalledWith({ where: { id: 7, role: Role.USER }, select: { id: true } });
+    expect(prisma.user.findFirst).toHaveBeenCalledWith({ where: { id: 7, role: Role.USER }, select: { id: true, chatHiddenUpTo: true } });
     expect(msg).toMatchObject({ workshopId: 7, senderId: 7, fromWorkshop: true, text: 'Salom' });
   });
 
@@ -102,5 +102,29 @@ describe('ChatService (support chat: mijoz ↔ superadmin)', () => {
       where: { workshopId: 7, fromWorkshop: true, readAt: null, id: { lte: 9 } },
       data: { readAt: expect.any(Date) },
     });
+  });
+
+  it('operator o‘chirgan suhbatni ochsa eski xabarlar ko‘rinmaydi', async () => {
+    prisma.user.findFirst.mockResolvedValue({ id: 7, chatHiddenUpTo: 9 });
+    prisma.chatMessage.count.mockResolvedValue(0);
+    await expect(service.messages(7, 'operator', undefined, Role.USER)).resolves.toEqual({ items: [] });
+    expect(prisma.chatMessage.findMany).not.toHaveBeenCalled();
+  });
+
+  it('yangi xabar kelgach operatorga butun yozishma qaytadi, tomon esa doim hammasini ko‘radi', async () => {
+    prisma.user.findFirst.mockResolvedValue({ id: 7, chatHiddenUpTo: 9 });
+    prisma.chatMessage.count.mockResolvedValue(1);
+    prisma.chatMessage.findMany.mockResolvedValue([{ id: 10 }, { id: 3 }]);
+    await expect(service.messages(7, 'operator', undefined, Role.USER)).resolves.toEqual({ items: [{ id: 3 }, { id: 10 }] });
+    prisma.chatMessage.count.mockClear();
+    await service.messages(7, 'workshop', undefined, Role.USER);
+    expect(prisma.chatMessage.count).not.toHaveBeenCalled();
+  });
+
+  it('o‘chirilgan sex ro‘yxatda qoladi, lekin eski xabarsiz', async () => {
+    prisma.chatMessage.groupBy.mockResolvedValueOnce([{ workshopId: 7, _max: { id: 5 } }]).mockResolvedValueOnce([]);
+    prisma.user.findMany.mockResolvedValue([{ id: 7, fullName: 'Sex', workshopName: 'Sex', phone: null, chatHiddenUpTo: 5 }]);
+    prisma.chatMessage.findMany.mockResolvedValue([{ id: 5, workshopId: 7, text: 'Salom', fromWorkshop: true, createdAt: new Date() }]);
+    expect(await service.threads(Role.TAILOR)).toEqual([expect.objectContaining({ workshopId: 7, lastMessage: null })]);
   });
 });

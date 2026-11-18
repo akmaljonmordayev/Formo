@@ -105,6 +105,7 @@ export const chatApi = {
   threads: () => api('/admin/chat/threads'), // [{ workshopId, name, unread, lastMessage }]
   messages: (workshopId, after) => api(`/admin/chat/${workshopId}/messages${qs({ after })}`), // { items }
   send: (workshopId, text) => api(`/admin/chat/${workshopId}/messages`, { method: 'POST', body: { text } }),
+  hide: (workshopId) => api(`/admin/chat/${workshopId}`, { method: 'DELETE' }), // faqat bizdan yashiriladi
 };
 
 // Superadmin ↔ mobil ilova mijozi (qo'llab-quvvatlash chati)
