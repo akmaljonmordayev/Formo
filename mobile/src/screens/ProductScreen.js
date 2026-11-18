@@ -116,14 +116,15 @@ export default function ProductScreen({ clubId, kitId, rules, t, onBack, onCusto
         {visibleSizes(product.sizes, rules).map((sz) => (
           <View
             key={sz.size}
-            style={[styles.sizeChip, !sz.available && styles.sizeChipDisabled]}
+            style={[styles.sizeChip, (!sz.available || sz.soldOut) && styles.sizeChipDisabled, sz.soldOut && styles.sizeChipSoldOut]}
           >
-            <Text style={[styles.sizeChipText, !sz.available && styles.sizeChipTextDisabled]}>
+            <Text style={[styles.sizeChipText, (!sz.available || sz.soldOut) && styles.sizeChipTextDisabled]}>
               {sz.size}
             </Text>
           </View>
         ))}
       </View>
+      {product.soldOut ? <Text style={styles.soldOutNote}>{t('kitSoldOut')}</Text> : null}
 
       {/* Tavsif — faqat serverda bo'lsa (Kit.description) */}
       {product.description ? (
@@ -189,6 +190,8 @@ const styles = themedStyles(() => ({
   sizeChipDisabled: {
     opacity: 0.4,
   },
+  sizeChipSoldOut: { borderColor: colors.danger, opacity: 0.7 },
+  soldOutNote: { color: colors.danger, fontSize: 13, fontWeight: '700', marginTop: spacing.sm },
   sizeChipText: {
     color: colors.text,
     fontSize: 12,

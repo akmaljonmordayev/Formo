@@ -3,7 +3,7 @@ import { Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, fonts, radii, spacing, themedStyles } from '../../constants/theme';
-import { addressCoords, formatFullAddress, isDistrictOf, isPostalRegion } from '../../features/location';
+import { addressCoords, addressTitle, formatFullAddress, isDistrictOf, isPostalRegion } from '../../features/location';
 
 /** Manzil to'liqmi: viloyatlarga (pochta bo'limigacha) — viloyat va tuman; Toshkent shahriga (kuryer uygacha) —
  *  yana uy raqami va xaritadagi nuqta */
@@ -53,7 +53,7 @@ export default function AddressPicker({ t, addresses, selected, onSelect, onAdd,
             </View>
             <View style={styles.flex}>
               <View style={styles.titleRow}>
-                <Text style={styles.cardTitle} numberOfLines={1}>{selected.label}</Text>
+                <Text style={styles.cardTitle} numberOfLines={1}>{addressTitle(selected, t)}</Text>
                 {selected.isDefault ? <Text style={styles.badge}>{t('addressDefault')}</Text> : null}
               </View>
               <Text style={styles.cardText}>{formatFullAddress(selected, t)}</Text>
@@ -106,7 +106,7 @@ export default function AddressPicker({ t, addresses, selected, onSelect, onAdd,
                   >
                     <MaterialCommunityIcons name={on ? 'radiobox-marked' : 'radiobox-blank'} size={22} color={on ? colors.accent : colors.dim} />
                     <View style={styles.flex}>
-                      <Text style={[styles.optionTitle, on && styles.optionTitleOn]} numberOfLines={1}>{a.label}</Text>
+                      <Text style={[styles.optionTitle, on && styles.optionTitleOn]} numberOfLines={1}>{addressTitle(a, t)}</Text>
                       <Text style={styles.optionText} numberOfLines={2}>{formatFullAddress(a, t)}</Text>
                     </View>
                   </Pressable>

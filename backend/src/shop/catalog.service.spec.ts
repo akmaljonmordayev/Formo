@@ -102,4 +102,19 @@ describe("toKitProduct — o'lcham bo'yicha narx", () => {
     expect(bySize.S).toBe(159000);
     expect(bySize.M).toBe(159000);
   });
+
+  it("omborda 0 qolgan o'lcham — soldOut; yozuvi yo'q o'lcham kuzatilmaydi (sotuvda)", () => {
+    const product = toKitProduct({ ...kit, inventoryItems: [{ size: 'M', qty: 0 }, { size: 'L', qty: 3 }] });
+    const bySize = Object.fromEntries(product.sizes.map((s) => [s.size, s.soldOut]));
+    expect(bySize.M).toBe(true);
+    expect(bySize.L).toBe(false);
+    expect(bySize.S).toBe(false);
+    expect(product.soldOut).toBe(false);
+  });
+
+  it("sotuvdagi hamma o'lcham tugagan — forma ham soldOut", () => {
+    const inventoryItems = kit.sizes.map((size) => ({ size, qty: 0 }));
+    expect(toKitProduct({ ...kit, inventoryItems }).soldOut).toBe(true);
+    expect(toKitProduct(kit).soldOut).toBe(false);
+  });
 });

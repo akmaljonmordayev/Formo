@@ -67,6 +67,10 @@ export class InventoryService {
   }
 
   async upsert(dto: UpsertInventoryDto, actor: AuditEntry['actor'], ip?: string) {
+    // Mavjud bo'lmagan forma — FK xatosi (500) o'rniga tushunarli 400
+    const kitIds = [...new Set(dto.items.map((i) => i.kitId))];
+    const found = await this.prisma.kit.count({ where: { id: { in: kitIds } } });
+    if (found !== kitIds.length) throw new BadRequestException('Forma topilmadi');
     await this.prisma.$transaction(
       dto.items.map((item) =>
         this.prisma.inventoryItem.upsert({

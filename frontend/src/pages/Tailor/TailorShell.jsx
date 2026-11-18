@@ -53,6 +53,16 @@ const OUTER_CHROME_CSS = `
   }
 `;
 
+// Buyurtmalar keshi: har bir sahifa (marshrut) o'z TailorShell'ini yaratadi — sahifa almashganda ro'yxat
+// bo'shab, «Yuklanmoqda» chiqib turmasin. Oxirgi ro'yxat xotirada (faqat shu tab, foydalanuvchi bo'yicha)
+// saqlanadi va yangi sahifa undan darhol chiziladi, fon so'rovi esa uni yangilaydi
+const ordersCache = { userId: undefined, orders: null };
+const cachedOrders = (userId) => (ordersCache.userId === userId ? ordersCache.orders : null);
+const cacheOrders = (userId, orders) => {
+  ordersCache.userId = userId;
+  ordersCache.orders = orders;
+};
+
 /* Tepa paneldagi sana va soat (Toshkent vaqti). O'z holati bor — har soniyada faqat shu qism qayta chiziladi */
 function Clock({ locale }) {
   const [now, setNow] = useState(() => new Date());
@@ -79,11 +89,11 @@ export default function TailorShell({ title, subtitle, children }) {
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [prefs, setPrefs] = useState(() => loadPrefs(user?.id));
-  const [orders, setOrdersState] = useState([]);
+  const [orders, setOrders] = useState(() => cachedOrders(user?.id) ?? []);
   const [menuOpen, setMenuOpen] = useState(false);
   const [notesOpen, setNotesOpen] = useState(false);
   const [prefsError, setPrefsError] = useState('');
-  const [ordersLoading, setOrdersLoading] = useState(true);
+  const [ordersLoading, setOrdersLoading] = useState(() => !cachedOrders(user?.id));
   const [ordersError, setOrdersError] = useState('');
   const [orderActionLoading, setOrderActionLoading] = useState(false);
   const [noteReadIds, setNoteReadIds] = useState(() => {
@@ -108,6 +118,16 @@ export default function TailorShell({ title, subtitle, children }) {
     setPrefsError('');
   }, [user?.id]);
 
+  // Har o'zgarish keshga ham yoziladi — keyingi sahifa shu ro'yxatdan boshlanadi
+  const userId = user?.id;
+  const setOrdersState = useCallback((update) => {
+    setOrders((prev) => {
+      const next = typeof update === 'function' ? update(prev) : update;
+      cacheOrders(userId, next);
+      return next;
+    });
+  }, [userId]);
+
   // Har so'rov tartib raqami oladi: eskirgan javob (masalan, qabul qilishdan oldin ketgan fon so'rovi) yangi holatni bosib ketmaydi
   const loadSeq = useRef(0);
   const loadsInFlight = useRef(0);
@@ -115,7 +135,8 @@ export default function TailorShell({ title, subtitle, children }) {
   const reloadOrders = useCallback(async ({ silent = false } = {}) => {
     const seq = ++loadSeq.current;
     loadsInFlight.current += 1;
-    if (!silent) setOrdersLoading(true);
+    // Keshda ro'yxat bo'lsa — u ko'rinib turadi, yangilanish fonda (yuklanish holatisiz) ketadi
+    if (!silent && !cachedOrders(userId)) setOrdersLoading(true);
     try {
       const freshOrders = await listTailorOrders();
       if (seq !== loadSeq.current) return;
@@ -128,7 +149,7 @@ export default function TailorShell({ title, subtitle, children }) {
       loadsInFlight.current -= 1;
       setOrdersLoading(false);
     }
-  }, []);
+  }, [setOrdersState, userId]);
 
   // Server javobi darhol ro'yxatga qo'llanadi (butun ro'yxat qayta yuklanishi kutilmaydi), keyin fon rejimida tekshiriladi
   const applyOrder = useCallback((apiId, updated) => {
@@ -136,7 +157,7 @@ export default function TailorShell({ title, subtitle, children }) {
     const next = updated ? orderToQueueItem(updated) : null;
     setOrdersState((prev) => prev.flatMap((item) => (item.apiId !== apiId ? [item] : next ? [next] : [])));
     reloadOrders({ silent: true });
-  }, [reloadOrders]);
+  }, [reloadOrders, setOrdersState]);
 
   const processOrder = useCallback(async (order) => {
     if (!order.apiBacked || !order.apiId || !order.apiStatus) {

@@ -1,5 +1,5 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import { Prisma, Promocode } from '@prisma/client';
+import { InventoryProductType, Prisma, Promocode } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { visibleClub } from './catalog.service';
 import { DeliveryService } from './delivery.service';
@@ -17,6 +17,8 @@ type Db = PrismaService | Prisma.TransactionClient;
 const lineInclude = {
   kit: {
     include: {
+      // Komplekt qoldig'i — tugagan o'lcham savatda "tugagan" deb ko'rinadi (checkout'da InventoryService.reserve ham to'xtatadi)
+      inventoryItems: { where: { productType: InventoryProductType.TSHIRT }, select: { size: true, qty: true } },
       club: {
         select: {
           id: true,
@@ -51,8 +53,20 @@ interface Config {
   shortsSize: string | null;
 }
 
-/** Savat qatori hozir ham sotib olinadimi (forma o'chirilmagan, o'lcham tugamagan) */
-export function lineProblem(line: CartLine): string | null {
+/** Savatdagi har bir forma+o'lcham bo'yicha jami son (turli ism/raqamli qatorlar birga) — zaxira shu bilan solishtiriladi */
+export function sizeTotals(lines: Pick<CartLine, 'kitId' | 'shirtSize' | 'quantity'>[]) {
+  const totals = new Map<string, number>();
+  for (const l of lines) {
+    if (l.kitId == null) continue;
+    const key = `${l.kitId}:${l.shirtSize}`;
+    totals.set(key, (totals.get(key) ?? 0) + l.quantity);
+  }
+  return totals;
+}
+
+/** Savat qatori hozir ham sotib olinadimi (forma o'chirilmagan, o'lcham tugamagan).
+ *  `totals` (sizeTotals) berilsa — zaxira savatdagi shu o'lchamning jami soni bilan solishtiriladi */
+export function lineProblem(line: CartLine, totals?: Map<string, number>): string | null {
   const { kit } = line;
   if (line.kitDesignId) {
     if (!line.kitDesign?.isActive) return 'Dizayn sotuvda emas';
@@ -67,6 +81,12 @@ export function lineProblem(line: CartLine): string | null {
   }
   if (!kit.isActive || !kit.club.isActive || kit.club.category?.isActive === false) return 'Forma sotuvda emas';
   if (!kit.sizes.includes(line.shirtSize)) return `Futbolka ${line.shirtSize} o'lchami tugagan`;
+  // Ombori kuzatilayotgan o'lcham qoldig'i savatdagi sonidan kam (yozuvi yo'q o'lcham — cheklovsiz)
+  const stock = kit.inventoryItems?.find((i) => i.size === line.shirtSize);
+  const needed = totals?.get(`${line.kitId}:${line.shirtSize}`) ?? line.quantity;
+  if (stock && stock.qty < needed) {
+    return stock.qty > 0 ? `${line.shirtSize} o'lchamidan faqat ${stock.qty} ta qoldi` : `${line.shirtSize} o'lchami tugagan`;
+  }
   if (line.withShorts && (!line.shortsSize || !kit.sizes.includes(line.shortsSize))) {
     return `Shortik ${line.shortsSize} o'lchami tugagan`;
   }
@@ -80,11 +100,11 @@ function linePrice(line: CartLine, prices: CartPrices) {
   return studioPrice(line.design as unknown as Design, prices.studio, line.withShorts);
 }
 
-export function toCartItem(line: CartLine, prices: CartPrices) {
+export function toCartItem(line: CartLine, prices: CartPrices, totals?: Map<string, number>) {
   const { kit, kitDesign } = line;
   const design = (line.design as unknown as Design | null) ?? null;
   const price = linePrice(line, prices);
-  const problem = lineProblem(line);
+  const problem = lineProblem(line, totals);
   const print = [line.printName, line.printNumber].filter(Boolean).join(' · ');
   const sizes = line.withShorts ? `${line.shirtSize} / ${line.shortsSize}` : line.shirtSize;
   const title = kit
@@ -150,7 +170,8 @@ export class CartService {
 
   async view(userId: number, promocode?: string, region?: string) {
     const [lines, prices] = await Promise.all([this.lines(userId), this.prices()]);
-    const items = lines.map((l) => toCartItem(l, prices));
+    const totals = sizeTotals(lines);
+    const items = lines.map((l) => toCartItem(l, prices, totals));
     const subtotal = items.filter((i) => i.available).reduce((s, i) => s + i.totalPrice, 0);
     const promo = promocode ? await this.resolvePromo(promocode, subtotal) : null;
     const summary = summarize(subtotal, await this.delivery.fee(region), promo);
@@ -188,6 +209,27 @@ export class CartService {
     return design;
   }
 
+  /**
+   * Ombori kuzatilayotgan o'lcham: savatdagi shu forma+o'lchamning BARCHA qatorlari (turli ism/raqam bilan
+   * ham) va qo'shilayotgan son qoldiqdan oshmasin. Yozuvi yo'q o'lcham kuzatilmaydi — cheklovsiz.
+   * excludeLineId — tahrirlanayotgan qatorning eski soni hisobga olinmaydi.
+   */
+  private async assertStock(userId: number, kitId: number, size: string, quantity: number, excludeLineId?: number) {
+    const stock = await this.prisma.inventoryItem.findUnique({
+      where: { productType_kitId_size: { productType: InventoryProductType.TSHIRT, kitId, size } },
+      select: { qty: true },
+    });
+    if (!stock) return;
+    if (stock.qty <= 0) throw new BadRequestException(`${size} o'lchami tugagan`);
+    const inCart = await this.prisma.cartItem.aggregate({
+      where: { userId, kitId, shirtSize: size, ...(excludeLineId != null && { id: { not: excludeLineId } }) },
+      _sum: { quantity: true },
+    });
+    if ((inCart._sum.quantity ?? 0) + quantity > stock.qty) {
+      throw new BadRequestException(`${size} o'lchamidan faqat ${stock.qty} ta qoldi`);
+    }
+  }
+
   async add(userId: number, dto: AddCartItemDto) {
     // Uch xil mahsulot: klub formasi (kitId), maxsus futbolka (design) yoki Superadmin 3D dizayni (kitDesignId)
     const custom = dto.design !== undefined;
@@ -212,6 +254,7 @@ export class CartService {
     const quantity = dto.quantity ?? 1;
     await this.rules.assertAccepting();
     await this.rules.assertLine({ ...config, quantity });
+    if (kit) await this.assertStock(userId, kit.id, config.shirtSize, quantity);
 
     // Aynan shu sozlamadagi mahsulot savatda bo'lsa — yangi qator emas, soni oshiriladi
     const same = await this.prisma.cartItem.findFirst({
@@ -254,6 +297,7 @@ export class CartService {
       shortsSize: dto.shortsSize ?? line.shortsSize,
     });
     await this.rules.assertLine({ ...config, quantity: dto.quantity });
+    if (line.kitId != null) await this.assertStock(userId, line.kitId, config.shirtSize, dto.quantity ?? line.quantity, line.id);
     await this.prisma.cartItem.update({
       where: { id },
       data: { ...config, ...(dto.quantity !== undefined && { quantity: dto.quantity }) },

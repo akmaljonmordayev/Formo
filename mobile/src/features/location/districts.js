@@ -78,6 +78,47 @@ export const DISTRICTS = Object.fromEntries(Object.entries(RAW).map(([code, list
 export const districtsOf = (region) => DISTRICTS[region] || [];
 export const isDistrictOf = (region, name) => districtsOf(region).some((d) => d.name === name);
 
+// Geokoder (OpenStreetMap, qurilma) Toshkent tumanlarini ruscha/kirillcha ham qaytaradi: "Мирабадский район"
+const TASHKENT_ALIASES = {
+  Bektemir: ['бектемир'],
+  Chilonzor: ['chilanzar', 'чиланзар', 'чилонзор'],
+  Mirobod: ['mirabad', 'мирабад', 'миробод'],
+  "Mirzo Ulug'bek": ['mirzo ulugbek', 'mirzo-ulugbek', 'улугбек', 'улуғбек'],
+  Olmazor: ['almazar', 'алмазар', 'олмазор'],
+  Sergeli: ['sirgali', 'сергели', 'сергелий'],
+  Shayxontohur: ['shaykhantakhur', 'shayhontohur', 'шайхантах', 'шайхонтоҳур'],
+  Uchtepa: ['учтепа', 'учтепин'],
+  Yakkasaroy: ['yakkasaray', 'яккасарай', 'яккасарой'],
+  Yangihayot: ['yangihayat', 'янгихаёт', 'янгихает', 'янгиҳаёт'],
+  Yashnobod: ['yashnabad', 'яшнабад', 'яшнобод'],
+  Yunusobod: ['yunusabad', 'юнусабад', 'юнусобод'],
+};
+const fold = (s) => String(s || '').toLowerCase().replace(/[‘’ʻʼ`']/g, '').replace(/\s+/g, ' ').trim();
+
+/**
+ * Geokoder bergan hudud nomlaridan ("Mirobod tumani", "Мирабадский район") viloyatdagi tumanni topadi:
+ * tuman nomi (`name`) yoki null. Xarita nuqtasi boshqa tumanga tushsa manzil tumani shunga almashadi —
+ * aks holda "Mirobod tumani, Sergeli-7" kabi ikki joy aralash manzil saqlanardi.
+ */
+export function matchDistrict(region, areas) {
+  const list = districtsOf(region);
+  if (!list.length) return null;
+  for (const raw of [].concat(areas || [])) {
+    const text = fold(raw);
+    if (!text) continue;
+    // Shahar ("Nurafshon shahri") va tuman ("Bekobod tumani") nomi bir xil bo'lishi mumkin — avval aniq turi bilan
+    const kind = /shahri|город|shahar/.test(text) ? true : /tuman|район|district/.test(text) ? false : null;
+    const hits = list.filter((d) => {
+      const names = [d.base, ...(region === 'TOSHKENT_SHAHRI' ? TASHKENT_ALIASES[d.base] || [] : [])].map(fold);
+      return names.some((n) => n && text.includes(n));
+    });
+    const exact = kind === null ? hits : hits.filter((d) => d.city === kind);
+    const hit = (exact.length ? exact : hits)[0];
+    if (hit) return hit.name;
+  }
+  return null;
+}
+
 /**
  * Xarita birinchi ochilganda ko'rsatiladigan hudud: viloyat markazi va taxminiy kengligi (gradus).
  * Tumanning aniq chegarasi tarmoqdan (geocode.lookupArea) olinadi — bu faqat darhol ko'rsatish uchun.

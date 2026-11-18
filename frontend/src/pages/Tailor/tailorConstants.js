@@ -15,4 +15,5 @@ export const STOCK_COLORS = [
   { name: "Ko'k", key: 'kok', hex: '#2563eb' },
 ];
 
-export const STOCK_SIZES = ['S', 'M', 'L', 'XL', 'XXL'];
+// Formalar 3XL gacha sotiladi (backend ADULT_SIZES) — 3XL qoldig'i ham yuritilsin, aks holda u doim cheklovsiz sotilardi
+export const STOCK_SIZES = ['S', 'M', 'L', 'XL', 'XXL', '3XL'];

@@ -226,11 +226,50 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
       expect(res.body.siblings.map((k: { label: string }) => k.label)).toEqual(['Uy', 'Mehmon', 'Uchinchi']);
       expect(res.body.sizes).toEqual(
         expect.arrayContaining([
-          { size: 'L', available: true, price: 159000 },
-          { size: 'XXL', available: false, price: 159000 },
-          { size: '8-9', available: true, price: 159000 },
+          { size: 'L', available: true, soldOut: false, price: 159000 },
+          { size: 'XXL', available: false, soldOut: false, price: 159000 },
+          { size: '8-9', available: true, soldOut: false, price: 159000 },
         ]),
       );
+      expect(res.body.soldOut).toBe(false);
+    });
+
+    it("omborda qoldig'i 0 bo'lgan o'lcham — soldOut, savatga qo'shilmaydi; qoldiq kiritilsa — yana sotuvda", async () => {
+      await prisma.inventoryItem.create({ data: { productType: 'TSHIRT', kitId: homeKit, size: 'L', qty: 0 } });
+      try {
+        const res = await api(app).get(`/api/catalog/kits/${homeKit}`).expect(200);
+        expect(res.body.sizes.find((s: { size: string }) => s.size === 'L')).toMatchObject({ available: true, soldOut: true });
+        expect(res.body.sizes.find((s: { size: string }) => s.size === 'M')).toMatchObject({ soldOut: false });
+        const added = await as(user).post('/api/cart/items', { kitId: homeKit, shirtSize: 'L', shortsSize: 'L' }).expect(400);
+        expect(added.body.message).toContain("L o'lchami tugagan");
+      } finally {
+        await prisma.inventoryItem.deleteMany({ where: { kitId: homeKit, size: 'L' } });
+      }
+      const res = await api(app).get(`/api/catalog/kits/${homeKit}`).expect(200);
+      expect(res.body.sizes.find((s: { size: string }) => s.size === 'L')).toMatchObject({ soldOut: false });
+    });
+
+    it("savatdagi shu o'lchamning barcha qatorlari (turli ism bilan ham) qoldiqdan oshmaydi", async () => {
+      await as(user).delete('/api/cart').expect(200);
+      await prisma.inventoryItem.create({ data: { productType: 'TSHIRT', kitId: homeKit, size: 'L', qty: 2 } });
+      try {
+        const base = { kitId: homeKit, shirtSize: 'L', shortsSize: 'L' };
+        await as(user).post('/api/cart/items', { ...base, quantity: 3 }).expect(400);
+        const first = await as(user).post('/api/cart/items', { ...base, printName: 'ALI', quantity: 2 }).expect(201);
+        const other = await as(user).post('/api/cart/items', { ...base, printName: 'VALI' }).expect(400);
+        expect(other.body.message).toContain("faqat 2 ta qoldi");
+        const id = first.body.items[0].id;
+        await as(user).patch(`/api/cart/items/${id}`, { quantity: 3 }).expect(400);
+        await as(user).patch(`/api/cart/items/${id}`, { quantity: 1 }).expect(200);
+        await as(user).post('/api/cart/items', { ...base, printName: 'VALI' }).expect(201);
+        // Qoldiq keyin kamaysa: har qator alohida (1 ≤ 1) emas, jami (2 > 1) — savat ogohlantiradi
+        await prisma.inventoryItem.updateMany({ where: { kitId: homeKit, size: 'L' }, data: { qty: 1 } });
+        const cart = await as(user).get('/api/cart').expect(200);
+        expect(cart.body.items.every((i: { available: boolean }) => !i.available)).toBe(true);
+      } finally {
+        await as(user).delete('/api/cart').expect(200);
+        await prisma.inventoryItem.deleteMany({ where: { kitId: homeKit, size: 'L' } });
+      }
     });
 
     it("nofaol forma va klub ko'rinmaydi", async () => {
@@ -617,6 +656,22 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
       expect(res.body.status).toBe('PENDING_PAYMENT');
       const changed = await as(user).patch(`/api/orders/${res.body.id}/payment-method`, { paymentMethod: 'CASH' }).expect(200);
       expect(changed.body).toMatchObject({ status: 'NEW', paymentMethod: 'CASH', paymentExpiresAt: null });
+    });
+
+    it("\"Boshqa usulni tanlash\": shahardan tashqari (pochta) buyurtma Click → Naqdga o'tmaydi", async () => {
+      await as(user).post('/api/cart/items', { kitId: awayKit, shirtSize: 'S' }).expect(201);
+      const far = await as(user)
+        .post('/api/addresses', { label: 'Dacha', address: 'Chirchiq, Amir Temur 5', latitude: 41.4689, longitude: 69.5822 })
+        .expect(201);
+      const res = await as(user)
+        .post('/api/orders/checkout', checkoutBody({ addressId: far.body.id, paymentMethod: 'CLICK', promocode: undefined }))
+        .expect(201);
+      expect(res.body.status).toBe('PENDING_PAYMENT');
+      const denied = await as(user).patch(`/api/orders/${res.body.id}/payment-method`, { paymentMethod: 'CASH' }).expect(400);
+      expect(denied.body.message).toMatch(/Toshkent shahri/);
+      const order = await as(user).get(`/api/orders/${res.body.id}`).expect(200);
+      expect(order.body).toMatchObject({ status: 'PENDING_PAYMENT', paymentMethod: 'CLICK' });
+      await as(user).post(`/api/orders/${res.body.id}/cancel`).expect(200);
     });
 
     it('30 daqiqada to‘lanmagan buyurtma avtomatik bekor bo‘ladi', async () => {

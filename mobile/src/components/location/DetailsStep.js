@@ -7,11 +7,9 @@ import { KeyboardAwareScrollView } from '../ui/KeyboardAware';
 import { colors, fonts, radii, spacing, themedStyles } from '../../constants/theme';
 import { ADDRESS_LIMITS, formatFullAddress } from '../../features/location';
 
-const LABEL_KEYS = ['addrLabelHome', 'addrLabelWork'];
-
 /**
- * Manzil qo'shishning oxirgi bosqichi — aniq manzil: mahalla/ko'cha, uy raqami (majburiy), xonadon,
- * manzil nomi (Uy/Ish) va "asosiy" belgisi. Tepada kuryer/admin ko'radigan to'liq manzil ko'rinishi.
+ * Manzil qo'shishning oxirgi bosqichi — aniq manzil: mahalla/ko'cha, uy raqami (majburiy), xonadon va "asosiy" belgisi.
+ * Manzil nomi (Uy/Ish) so'ralmaydi — saqlashda tuman nomidan olinadi (features/location addressTitle). Tepada kuryer/admin ko'radigan to'liq manzil ko'rinishi.
  *
  * Viloyat manzilida (`postal`) ko'cha/uy/xonadon va xarita nuqtasi so'ralmaydi — buyurtma pochta bo'limigacha boradi.
  *
@@ -20,7 +18,6 @@ const LABEL_KEYS = ['addrLabelHome', 'addrLabelWork'];
  */
 export default function DetailsStep({ t, postal, form, onChange, errors, saveError, saving, onEditPoint, onChangeArea, onSave, bottomInset = 0 }) {
   const preview = formatFullAddress(form, t);
-  const customLabel = LABEL_KEYS.some((k) => t(k) === form.label) ? '' : form.label;
 
   return (
     <View style={styles.root}>
@@ -90,34 +87,6 @@ export default function DetailsStep({ t, postal, form, onChange, errors, saveErr
           </>
         )}
 
-        <Text style={styles.label}>{t('addrLabel')}</Text>
-        <View style={styles.chips}>
-          {LABEL_KEYS.map((key) => {
-            const value = t(key);
-            const on = form.label === value;
-            return (
-              <Pressable key={key} onPress={() => onChange({ label: value })} style={[styles.chip, on && styles.chipOn]}>
-                <MaterialCommunityIcons
-                  name={key === 'addrLabelHome' ? 'home-outline' : 'briefcase-outline'}
-                  size={16}
-                  color={on ? colors.primaryDark : colors.muted}
-                />
-                <Text style={[styles.chipText, on && styles.chipTextOn]}>{value}</Text>
-              </Pressable>
-            );
-          })}
-          <TextInput
-            value={customLabel}
-            onChangeText={(v) => onChange({ label: v })}
-            placeholder={t('addrLabelOther')}
-            placeholderTextColor={colors.dim}
-            maxLength={ADDRESS_LIMITS.label}
-            selectionColor={colors.accent}
-            style={[styles.chip, styles.chipInput, errors.label && styles.inputError]}
-          />
-        </View>
-        {errors.label ? <Text style={styles.fieldError}>{t(errors.label)}</Text> : null}
-
         <View style={styles.defaultRow}>
           <Text style={styles.defaultText}>{t('addrMakeDefault')}</Text>
           <Switch
@@ -177,22 +146,6 @@ const styles = themedStyles(() => ({
   pair: { flexDirection: 'row', gap: spacing.md },
   hint: { color: colors.muted, fontFamily: fonts.body, fontSize: 12, lineHeight: 17, marginTop: 8 },
   fieldError: { color: colors.danger, fontFamily: fonts.bodyMedium, fontSize: 12, marginTop: 6 },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    height: 42,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: colors.surface,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-  },
-  chipOn: { borderColor: colors.accent, backgroundColor: colors.accent },
-  chipText: { color: colors.muted, fontFamily: fonts.bodySemi, fontSize: 14 },
-  chipTextOn: { color: colors.primaryDark },
-  chipInput: { flex: 1, minWidth: 110, paddingVertical: 0, color: colors.text, fontFamily: fonts.bodyMedium, fontSize: 14 },
   defaultRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginTop: spacing.lg, marginBottom: spacing.sm },
   defaultText: { color: colors.textSecondary, fontFamily: fonts.bodyMedium, fontSize: 14 },
   footer: { paddingHorizontal: spacing.xl, paddingTop: 10, borderTopWidth: 1, borderTopColor: colors.border, backgroundColor: colors.background },

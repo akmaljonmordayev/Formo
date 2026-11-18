@@ -6,7 +6,7 @@ import { BackButton, ErrorNote, OutlineButton, authColors as c } from '../compon
 import { useToast } from '../components/ui/Toast';
 import { fonts, themedStyles } from '../constants/theme';
 import { useAddresses } from '../features/checkout';
-import { addressCoords, formatFullAddress } from '../features/location';
+import { addressCoords, addressTitle, formatFullAddress } from '../features/location';
 import { errorText } from '../utils/errors';
 
 /**
@@ -83,7 +83,7 @@ export default function AddressesScreen({ t, onBack, onEdit, refreshKey }) {
                   </View>
                   <View style={styles.flex}>
                     <View style={styles.cardTitleRow}>
-                      <Text style={styles.cardTitle} numberOfLines={1}>{item.label}</Text>
+                      <Text style={styles.cardTitle} numberOfLines={1}>{addressTitle(item, t)}</Text>
                       {item.isDefault && <Text style={styles.badge}>{t('addressDefault')}</Text>}
                     </View>
                     <Text style={styles.cardText}>{formatFullAddress(item, t)}</Text>

@@ -4,7 +4,7 @@ import { colors, radii, themedStyles } from '../../constants/theme';
 import useKit360Bridge from './kit360/useKit360Bridge';
 
 // Eski dev-build'da native modul bo'lmasa import xato beradi — unda `fallback` (old tomon surati)
-// 3.2 MB'lik viewer HTML (kadrlar ichida) — ilova ishga tushishida emas, birinchi 360° ko'rinishda yuklanadi
+// Viewer HTML (~25 KB, kadrlarsiz) — birinchi 360° ko'rinishda yuklanadi; jamoa kadrlari useKit360Bridge orqali keladi
 let viewerHtml = null;
 const getViewerHtml = () => {
   if (viewerHtml == null) viewerHtml = require('./kit360/viewerHtml').default; // eslint-disable-line global-require

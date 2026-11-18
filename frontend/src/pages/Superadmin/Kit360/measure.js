@@ -555,6 +555,8 @@ const SHORTS_TOP = 424;
 
 // Shalvardagi raqam — son o'rtasi (harflar pastki chizig'i); 12 jamoaning l0/l1/l7 kadrlarida tekshirilgan
 const PANTS_Y = 532;
+// Shalvar raqami 45°/315° da kamera tomonga qanchalik buriladi (0 — son oldida, 1 — ko'rinadigan oyoq o'rtasida)
+const PANTS_FACE = 0.6;
 // Shortik ostida — maneken soni (neytral kulrang), shalvarda — mato: tizza balandligida ikki oyoq mato bo'lsa, shalvar
 // (soyadagi oq shalvar ham neytral, lekin maneken sonidan ancha yorug': l ≥ PANTS_WHITE_L)
 const PANTS_WHITE_L = 165;
@@ -582,6 +584,17 @@ function pantsRight(img, y) {
   return null;
 }
 
+// Tana yarim kengligi (180° kadr, y = 300): 12 jamoada 45–62 px; undan kattasi — o'lchov xatosi
+const MAX_TORSO_HALF = 75;
+const MEDIAN_TORSO_HALF = 55;
+// Shalvar oyog'i shortik o'lchovisiz: o'ng chet — son o'rtasidagi qatordan, yarim kenglik — tana o'lchamidan
+function pantsLeg(img, legA, theta) {
+  const x = pantsRight(img, PANTS_Y);
+  if (x === null) return null;
+  const half = legA * Math.hypot(Math.cos(theta), LEG_DEPTH * Math.sin(theta));
+  return { cx: x - half, half, hem: PANTS_Y + 60, edge: () => x };
+}
+
 // Ellips proyeksiyasining yarim kengligi
 export const projectedHalf = ({ a, b, theta }) => Math.hypot(a * Math.cos(theta), b * Math.sin(theta));
 
@@ -589,8 +602,15 @@ export function printLayout(frame, img, backImg, scale = 1) {
   if (frame in FRONT_FRAMES) {
     const theta = FRONT_FRAMES[frame];
     const straight = backImg && measureTorso(backImg);
+    // Uzun yengli (l*) 180° kadrda qo'llar tanaga yopishgan — o'lchov tana o'rniga qo'llar bilan birga (juv, atm: ~115 px)
+    // chiqadi va raqam ikki baravar kattalashardi. Bunday o'lchov o'rniga jamoalar medianasi olinadi.
+    const torsoHalf = straight ? (straight.half <= MAX_TORSO_HALF ? straight.half : MEDIAN_TORSO_HALF) : null;
     // Oyoq radiusi ≈ 0.64 × tana yarim kengligi (10 jamoaning 0° kadrlari medianasi)
-    const leg = measureShorts(img, straight ? straight.half * 0.64 : null, theta);
+    const legA = torsoHalf ? torsoHalf * 0.64 : null;
+    const pants = isPants(img);
+    // Shalvarda shortik o'lchovi (bel/pastki chet) ba'zan topilmaydi (ar, psg 315°; es 45°) — raqam yo'qolmasin:
+    // shalvarning o'z o'ng chetidan
+    const leg = measureShorts(img, legA, theta) ?? (pants ? pantsLeg(img, legA ?? MEDIAN_TORSO_HALF * 0.64, theta) : null);
     if (!leg) return [];
     const a = leg.half / Math.hypot(Math.cos(theta), LEG_DEPTH * Math.sin(theta));
     const base = Math.round(a * 0.5);
@@ -598,13 +618,16 @@ export function printLayout(frame, img, backImg, scale = 1) {
     // Uzun shalvar (l* kadrlari): shortikning "pastki cheti" yo'q (o'lchov tasodifiy 430–640 px chiqadi) — raqam son
     // o'rtasiga (PANTS_Y), o'ng chet shu qatorning o'zidan o'lchanadi (son pastga torayadi, chiziqli ekstrapolyatsiya emas)
     // (chet topilmagan qatorda — son o'rtasidagi chet, u ham bo'lmasa shortik o'lchovidagi chiziq)
-    const pants = isPants(img);
     const pantsMid = pants ? pantsRight(img, PANTS_Y - Math.round(size / 2)) : null;
     // Silindr markazi raqamning o'z qatoridagi o'ng chetdan: cx = edge(yPrint) − half
     const edgeAt = pants
       ? (y) => pantsRight(img, y - Math.round(size / 2)) ?? pantsMid ?? leg.edge(y - size / 2)
       : (y) => leg.edge(y - size / 2);
-    const surfaceAt = (y) => ({ mid: edgeAt(y) - leg.half, a, b: a * LEG_DEPTH, theta, t0: LEG_T0 });
+    // Shalvar — ingichka va uzun: 45°/315° da son oldidagi raqam oyoq qiyasiga tushib siqilar, choklarga egilib
+    // qiyshiq ko'rinardi (ar, de). Raqam kameraga qaragan tomonga yaqinlashtiriladi (ko'rinadigan oyoq o'rtasidan ~0.2 R)
+    const phi = Math.atan2(a * LEG_DEPTH * Math.sin(theta), a * Math.cos(theta));
+    const t0 = pants ? -PANTS_FACE * phi : LEG_T0;
+    const surfaceAt = (y) => ({ mid: edgeAt(y) - leg.half, a, b: a * LEG_DEPTH, theta, t0 });
     const centerX = (s) => s.mid + s.a * Math.sin(s.t0) * Math.cos(theta) + s.b * Math.cos(s.t0) * Math.sin(theta);
     // Odatiy joy — pastki chetdan 1.5 raqam balandligida; ostida brend logotipi bo'lsa, undan 6 px yuqoriga ko'tariladi
     let y = pants ? PANTS_Y : leg.hem - Math.round(base * 1.5);

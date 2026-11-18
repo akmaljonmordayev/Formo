@@ -7,24 +7,38 @@ import { formatMoney } from '../Common';
  * Forma 360° o'lcham bosqichi: sotuvdagi o'lchamlar tugmalari. O'lcham tanlangach shu o'lchamdagi komplekt
  * narxi chiqadi (har o'lchamning o'z narxi bo'lishi mumkin) — tanlanmaguncha narx ko'rsatilmaydi.
  *
- * Props: sizes, value, onChange(size), hint, price (tanlangan o'lcham narxi | null), priceLabel
+ * Omborda tugagan o'lcham (soldOut) tanlanmaydi: tugma o'chiq, ostida qizil "Tugagan"; hammasi tugagan bo'lsa —
+ * qizil "Bu forma tugagan".
+ *
+ * Tugagan o'lcham bosilsa — onSoldOut(size) (ekran katta toast ko'rsatadi).
+ *
+ * Props: t, sizes ([{ size, soldOut }]), value, onChange(size), onSoldOut(size), hint, price (tanlangan o'lcham narxi | null), priceLabel
  */
-export function SizeStep({ sizes, value, onChange, hint, price, priceLabel }) {
+export function SizeStep({ t, sizes, value, onChange, onSoldOut, hint, price, priceLabel }) {
+  const allSoldOut = sizes.length > 0 && sizes.every((s) => s.soldOut);
+  const someSoldOut = sizes.some((s) => s.soldOut);
   return (
     <>
       <View style={styles.sizesGrid}>
-        {sizes.map((size) => (
+        {sizes.map(({ size, soldOut }) => (
           <Pressable
             key={size}
-            onPress={() => onChange(size)}
-            style={[styles.sizeChip, value === size && styles.sizeChipActive]}
+            onPress={() => (soldOut ? onSoldOut?.(size) : onChange(size))}
+            style={[styles.sizeChip, value === size && styles.sizeChipActive, soldOut && styles.sizeChipSoldOut]}
             accessibilityRole="button"
-            accessibilityState={{ selected: value === size }}
+            accessibilityLabel={soldOut ? `${size} · ${t('sizeSoldOut')}` : size}
+            accessibilityState={{ selected: value === size, disabled: soldOut }}
           >
-            <Text style={[styles.sizeText, value === size && styles.sizeTextActive]}>{size}</Text>
+            <Text style={[styles.sizeText, value === size && styles.sizeTextActive, soldOut && styles.sizeTextSoldOut]}>{size}</Text>
+            {soldOut ? <Text style={styles.soldOutText}>{t('sizeSoldOut')}</Text> : null}
           </Pressable>
         ))}
       </View>
+      {allSoldOut ? (
+        <Text style={styles.soldOutNote}>{t('kitSoldOut')}</Text>
+      ) : someSoldOut ? (
+        <Text style={styles.soldOutNote}>{t('sizeSoldOutHint')}</Text>
+      ) : null}
       {value && price != null ? (
         <View style={styles.priceRow}>
           <Text style={styles.priceLabel} numberOfLines={1}>{`${value} · ${priceLabel}`}</Text>
@@ -88,6 +102,10 @@ const styles = themedStyles(() => ({
   sizeChipActive: { borderColor: colors.accent, backgroundColor: colors.accentGlow },
   sizeText: { color: colors.muted, fontSize: 15, fontWeight: '800' },
   sizeTextActive: { color: colors.accent, fontWeight: '900' },
+  sizeChipSoldOut: { paddingVertical: 6, borderColor: colors.danger, borderStyle: 'dashed', opacity: 0.85 },
+  sizeTextSoldOut: { color: colors.dim, textDecorationLine: 'line-through' },
+  soldOutText: { color: colors.danger, fontSize: 11, fontWeight: '800', marginTop: 1 },
+  soldOutNote: { color: colors.danger, fontSize: 12, fontWeight: '700', marginTop: spacing.sm },
   priceRow: {
     flexDirection: 'row',
     alignItems: 'center',

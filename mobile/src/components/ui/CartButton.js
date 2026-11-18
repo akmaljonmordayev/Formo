@@ -3,14 +3,30 @@ import { Animated, Easing, Pressable, Text } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, themedStyles } from '../../constants/theme';
 
-/** { count, open, t } — AppNavigator beradi; Header `cart` bo'lsa shu orqali savatni ochadi */
+/** { count, open, openNotifications, t } — AppNavigator beradi; Header `cart` bo'lsa shu orqali savat va
+ *  bildirishnomalarni ochadi */
 export const CartContext = createContext(null);
 
-/** Sarlavhadagi savat: kontekst bo'lmasa (masalan, kirish ekranlari) hech narsa chizmaydi */
+/** Sarlavhadagi bildirishnoma + savat: kontekst bo'lmasa (masalan, kirish ekranlari) hech narsa chizmaydi */
 export function HeaderCart() {
   const cart = useContext(CartContext);
   if (!cart) return null;
-  return <CartButton count={cart.count} onPress={cart.open} t={cart.t} />;
+  return (
+    <>
+      {cart.openNotifications ? (
+        <Pressable
+          onPress={cart.openNotifications}
+          accessibilityRole="button"
+          accessibilityLabel={cart.t ? cart.t('notifications') : 'Notifications'}
+          hitSlop={6}
+          style={({ pressed }) => [styles.btn, pressed && styles.pressed]}
+        >
+          <MaterialCommunityIcons name="bell-outline" size={20} color={colors.text} />
+        </Pressable>
+      ) : null}
+      <CartButton count={cart.count} onPress={cart.open} t={cart.t} />
+    </>
+  );
 }
 
 /** Soni oshganda (savatga qo'shildi) savat "sakraydi", nishon esa kattalashib qaytadi */

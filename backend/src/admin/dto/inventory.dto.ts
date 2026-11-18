@@ -1,7 +1,8 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { InventoryProductType } from '@prisma/client';
-import { ArrayMinSize, IsArray, IsEnum, IsInt, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
+import { ArrayMinSize, IsArray, IsEnum, IsIn, IsInt, IsOptional, IsString, Max, Min, ValidateNested } from 'class-validator';
+import { ALL_SIZES } from '../../shop/pricing';
 
 export class InventoryItemInput {
   @ApiProperty({ enum: InventoryProductType })
@@ -12,8 +13,12 @@ export class InventoryItemInput {
   @IsInt()
   kitId: number;
 
-  @ApiProperty({ example: 'M' })
+  // Forma o'lchamlari bilan aynan bir xil yozuv ("M", "8-9"): "m" yoki "Medium" saqlansa qoldiq hech qachon
+  // buyurtmaga mos kelmasdi (checkout va "tugagan" belgisi o'lchamni aniq solishtiradi)
+  @ApiProperty({ example: 'M', enum: ALL_SIZES })
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim().toUpperCase() : value))
   @IsString()
+  @IsIn(ALL_SIZES)
   size: string;
 
   @ApiProperty({ example: 12 })

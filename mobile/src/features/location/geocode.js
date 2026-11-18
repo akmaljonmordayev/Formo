@@ -184,12 +184,19 @@ const uniq = (parts) => {
     .filter((p) => p && !seen.has(p.toLowerCase()) && seen.add(p.toLowerCase()));
 };
 
-/** Nominatim `address` -> { text: "Madadkor mahallasi, Yangi Sergeli ko'chasi", house: "32" } */
+/**
+ * Nominatim `address` -> { text: "Madadkor mahallasi, Yangi Sergeli ko'chasi", house: "32", areas: ["Sergeli tumani", ...] }.
+ * `areas` — nuqta tushgan tuman/shahar nomlari (xom): tanlangan tuman bilan solishtirish uchun (features/location matchDistrict).
+ */
 export function formatReverse(address) {
-  if (!address) return { text: '', house: '' };
+  if (!address) return { text: '', house: '', areas: [] };
   const mahalla = address.neighbourhood || address.quarter || address.residential || address.hamlet || address.village;
   const street = address.road || address.pedestrian || address.footway;
-  return { text: uniq([mahalla, street]).join(', '), house: String(address.house_number || '').trim() };
+  return {
+    text: uniq([mahalla, street]).join(', '),
+    house: String(address.house_number || '').trim(),
+    areas: uniq([address.city_district, address.district, address.borough, address.county, address.suburb, address.town, address.city]),
+  };
 }
 
 /** Nuqta -> { text, house } (hech narsa aniqlanmasa — bo'sh satrlar) */

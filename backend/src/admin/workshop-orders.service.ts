@@ -123,7 +123,8 @@ export class WorkshopOrdersService {
     // Faqat hisob uchun kerakli maydonlar (forma nomi, o'lcham, dona) — to'liq buyurtma yuklanmaydi; so'rovlar bir vaqtda ketadi
     const [inPeriod, activeCount, lateCount, me] = await Promise.all([
       this.prisma.order.findMany({
-        where: { workshopId: workshop.id, createdAt: { gte: from } },
+        // Bekor qilingan/qaytarilganlar sanalmaydi — shu sahifadagi /analytics/kit-sales bilan mos bo'lsin
+        where: { workshopId: workshop.id, createdAt: { gte: from }, status: { notIn: [OrderStatus.CANCELLED, OrderStatus.RETURNED] } },
         select: { createdAt: true, quantity: true, items: { select: { clubName: true, shirtSize: true, quantity: true } } },
       }),
       this.prisma.order.count({ where: { workshopId: workshop.id, status: { in: ACTIVE_STATUSES } } }),

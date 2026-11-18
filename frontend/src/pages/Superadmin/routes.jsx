@@ -10,6 +10,7 @@ import {
   Shirt,
   ShoppingBag,
   Ticket,
+  Truck,
   Users,
   Wallet,
 } from 'lucide-react';
@@ -21,6 +22,7 @@ import Factories_ from './Factories';
 import Orders from './Orders';
 import Kit360 from './Kit360';
 import Forms from './Forms';
+import Delivery from './Delivery';
 import Messages from './Messages';
 import Pricing from './Pricing';
 import Promocodes from './Promocodes';
@@ -60,6 +62,7 @@ export const superadminRoutes = [
   { path: 'orders', element: <Orders /> },
   { path: 'kit-360', element: <Kit360 /> },
   { path: 'forms', element: <Forms /> },
+  { path: 'delivery', element: <Delivery /> },
   { path: 'messages', element: <Messages /> },
   // Eski katalog (har klubda 3 forma) olib tashlandi — eski havolalar Forma 360° ga olib boradi
   { path: 'clubs', element: <Navigate to={`${BASE}/kit-360`} replace /> },
@@ -88,6 +91,8 @@ export const superadminMenu = [
 
   { to: `${BASE}/kit-360`, label: 'Forma 360°', icon: Rotate3d, group: 'Formalar' },
   { to: `${BASE}/forms`, label: 'Formalar', icon: Shirt, group: 'Formalar' },
+  // Yetkazish narxlari Formalar sahifasidan alohida sahifaga chiqarildi
+  { to: `${BASE}/delivery`, label: 'Yetkazib berish', icon: Truck, group: 'Formalar' },
   // Narxlar menyudan olib tashlandi (narx Formalar sahifasida tahrirlanadi) — marshrut saqlanib qoladi
 
   { to: `${BASE}/factories`, label: 'Sexlar', icon: Factory, group: 'Sex va Sifat' },

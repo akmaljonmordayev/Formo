@@ -10,6 +10,9 @@ export const LOCAL_UPLOADS_ROUTE = '/api/uploads';
 
 export const uploadDir = () => resolve(process.env.UPLOAD_DIR || 'uploads');
 
+/** Fayl kaliti: papka/UUID.kengaytma — yo'l aylanib o'tishga (../) yo'l qo'ymaydi */
+const FILE_KEY = /^[a-z0-9/-]+\/[0-9a-f-]{36}\.(png|jpg|webp)$/;
+
 /**
  * Yuklangan fayllar:
  *  - S3_BUCKET berilgan bo'lsa — S3-mos xotira (AWS S3, Cloudflare R2, MinIO). URL: S3_PUBLIC_URL/<kalit>
@@ -81,8 +84,9 @@ export class StorageService {
   }
 
   /** Bazada saqlangan fayl (UploadsController uchun); kalit noto'g'ri yoki fayl yo'q bo'lsa — null */
+  // Joriy drayverdan qat'iy nazar: S3 yoki UPLOAD_DIR keyinroq yoqilsa ham bazadagi eski fayllar ochilaversin
   async read(key: string): Promise<{ contentType: string; data: Buffer } | null> {
-    if (!this.prisma || !this.isOwnUrl(`${LOCAL_UPLOADS_ROUTE}/${key}`)) return null;
+    if (!this.prisma || !FILE_KEY.test(key)) return null;
     const row = await this.prisma.storedFile.findUnique({ where: { key } });
     return row ? { contentType: row.contentType, data: Buffer.from(row.data) } : null;
   }
@@ -91,26 +95,41 @@ export class StorageService {
   isOwnUrl(url: string, prefix = ''): boolean {
     const base = this.s3 ? this.publicBase : LOCAL_UPLOADS_ROUTE;
     const rest = url.startsWith(`${base}/`) ? url.slice(base.length + 1) : null;
-    return Boolean(rest && rest.startsWith(prefix) && /^[a-z0-9/-]+\/[0-9a-f-]{36}\.(png|jpg|webp)$/.test(rest));
+    return Boolean(rest && rest.startsWith(prefix) && FILE_KEY.test(rest));
   }
 
   /** O'chirish — xato bo'lsa faqat log (asosiy amal to'xtamasin) */
   async remove(url: string | null | undefined) {
-    if (!url || !this.isOwnUrl(url)) return;
+    if (!url) return;
+    const localKey = url.startsWith(`${LOCAL_UPLOADS_ROUTE}/`) ? url.slice(LOCAL_UPLOADS_ROUTE.length + 1) : null;
+    // Drayver almashgandan keyin ham bazada qolgan eski fayl o'chiriladi (yetim qator qolmasin)
+    if (this.s3 && localKey && FILE_KEY.test(localKey)) {
+      await this.prisma?.storedFile.deleteMany({ where: { key: localKey } }).catch(() => undefined);
+      return;
+    }
+    if (!this.isOwnUrl(url)) return;
     const base = this.s3 ? this.publicBase : LOCAL_UPLOADS_ROUTE;
     const key = url.slice(base.length + 1);
     try {
       if (this.s3) {
         await this.s3.send(new DeleteObjectCommand({ Bucket: this.bucket, Key: key }));
-      } else if (this.inDb) {
-        await this.prisma?.storedFile.deleteMany({ where: { key } });
+      } else if (this.prisma) {
+        // db rejimi yoki UPLOAD_DIR keyin yoqilgan — bazadagi nusxa ham (bo'lsa) o'chadi
+        await this.prisma.storedFile.deleteMany({ where: { key } });
+        if (!this.inDb) await this.unlinkLocal(key);
       } else {
-        const root = uploadDir();
-        const file = resolve(root, ...key.split('/'));
-        if (file.startsWith(root + sep)) await unlink(file);
+        await this.unlinkLocal(key);
       }
     } catch (err) {
       this.logger.warn(`Faylni o'chirib bo'lmadi: ${key} (${(err as Error).message})`);
     }
+  }
+
+  private async unlinkLocal(key: string) {
+    const root = uploadDir();
+    const file = resolve(root, ...key.split('/'));
+    if (file.startsWith(root + sep)) await unlink(file).catch((err: NodeJS.ErrnoException) => {
+      if (err.code !== 'ENOENT') throw err;
+    });
   }
 }

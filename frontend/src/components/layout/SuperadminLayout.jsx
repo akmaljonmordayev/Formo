@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
-import { ChevronDown, LogOut, Menu, Moon, Sun } from 'lucide-react';
+import { LogOut, Menu, Moon, Sun } from 'lucide-react';
 import { useAuth } from '../../hooks/useAuth';
 import { ROLE_LABELS } from '../../constants/roles';
 import '../ui/ui.css';
@@ -50,11 +50,9 @@ export default function SuperadminLayout({ menu, labels: customLabels, actions, 
   const navigate = useNavigate();
   const { pathname } = useLocation();
   const [drawer, setDrawer] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [leaving, setLeaving] = useState(false);
   const [theme, setTheme] = useState(readStoredTheme);
-  const popRef = useRef(null);
 
   useEffect(() => {
     try {
@@ -73,20 +71,7 @@ export default function SuperadminLayout({ menu, labels: customLabels, actions, 
 
   useEffect(() => {
     setDrawer(false);
-    setProfileOpen(false);
   }, [pathname]);
-
-  useEffect(() => {
-    if (!profileOpen) return undefined;
-    const onDown = (e) => !popRef.current?.contains(e.target) && setProfileOpen(false);
-    const onKey = (e) => e.key === 'Escape' && setProfileOpen(false);
-    document.addEventListener('mousedown', onDown);
-    document.addEventListener('keydown', onKey);
-    return () => {
-      document.removeEventListener('mousedown', onDown);
-      document.removeEventListener('keydown', onKey);
-    };
-  }, [profileOpen]);
 
   // Chiqish tasdig'i: Escape bilan yopiladi (chiqish ketayotgan bo'lsa — yo'q)
   useEffect(() => {
@@ -115,7 +100,7 @@ export default function SuperadminLayout({ menu, labels: customLabels, actions, 
   );
 
   const askLogout = () => {
-    setProfileOpen(false);
+    setDrawer(false);
     setConfirmOpen(true);
   };
 
@@ -168,6 +153,12 @@ export default function SuperadminLayout({ menu, labels: customLabels, actions, 
             </div>
           ))}
         </nav>
+
+        {/* Chiqish — tikuv sexi paneli kabi sidebar pastida, katta qizil tugma */}
+        <button type="button" className="sa-logout" onClick={askLogout}>
+          <LogOut size={19} strokeWidth={2} aria-hidden="true" />
+          {labels.logout}
+        </button>
       </aside>
 
       <div className="sa-ov" onClick={() => setDrawer(false)} aria-hidden="true" />
@@ -194,30 +185,14 @@ export default function SuperadminLayout({ menu, labels: customLabels, actions, 
               {nextTheme === 'light' ? <Sun size={17} strokeWidth={1.8} /> : <Moon size={17} strokeWidth={1.8} />}
             </button>
 
-            <div className="sa-pp" ref={popRef}>
-              <button
-                type="button"
-                className="sa-user"
-                onClick={() => setProfileOpen((v) => !v)}
-                aria-haspopup="menu"
-                aria-expanded={profileOpen}
-              >
-                <span className="sa-avatar">{initials(name)}</span>
-                <span className="sa-user__who">
-                  <b>{name}</b>
-                  <small>{roleLabel}</small>
-                </span>
-                <ChevronDown size={14} strokeWidth={2} aria-hidden="true" />
-              </button>
-              {profileOpen && (
-                <div className="sa-pop" role="menu">
-                  <button type="button" className="sa-pop__item sa-pop__item--danger" role="menuitem" onClick={askLogout}>
-                    <LogOut size={15} strokeWidth={1.8} aria-hidden="true" />
-                    {labels.logout}
-                  </button>
-                </div>
-              )}
-            </div>
+            {/* Profil chipi — Profil sahifasiga olib boradi (chiqish sidebar pastida) */}
+            <NavLink to="/superadmin/settings" className="sa-user">
+              <span className="sa-avatar">{initials(name)}</span>
+              <span className="sa-user__who">
+                <b>{name}</b>
+                <small>{roleLabel}</small>
+              </span>
+            </NavLink>
           </div>
         </header>
 

@@ -229,10 +229,17 @@ export default function AppNavigator({ store, t, auth }) {
     return () => sub.remove();
   }, []);
 
-  // Sarlavhalardagi savat tugmasi (Header cart) — soni va qaysi ekrandan ochilgani
+  // Sarlavhalardagi savat va bildirishnoma tugmalari (Header cart) — savat soni va qaysi ekrandan ochilgani.
+  // Bildirishnoma qo'ng'irog'i faqat bosh sahifada emas — savatli hamma sarlavhada (katalog, buyurtmalar, profil, studiya)
   const cartValue = useMemo(
-    () => ({ count: cart.count, open: () => openCart(route === 'cart' ? cartFrom : route), t }),
-    [cart.count, route, cartFrom, t], // eslint-disable-line react-hooks/exhaustive-deps
+    () => ({
+      count: cart.count,
+      open: () => openCart(route === 'cart' ? cartFrom : route),
+      // Muharrirda (Forma 360°, studiya dizayni) qo'ng'iroq yo'q: o'tish ekranni yopib, kiritilgan dizaynni yo'qotardi
+      openNotifications: route === 'kit360' || (route === 'studio' && studioKit) ? null : () => openNotifications(route),
+      t,
+    }),
+    [cart.count, route, cartFrom, studioKit, t], // eslint-disable-line react-hooks/exhaustive-deps
   );
 
   // ─── 1. Sessiya tiklanguncha — ustida BrandSplash (App.js) turadi ─────────────
@@ -265,7 +272,6 @@ export default function AppNavigator({ store, t, auth }) {
         t={t}
         onNavigate={navigateTab}
         onOrder={(id) => openOrder(id, 'home')}
-        onNotifications={() => openNotifications('home')}
         onOpenKit={openKit}
         favorites={favorites}
         rules={config.rules}

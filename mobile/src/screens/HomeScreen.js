@@ -19,9 +19,11 @@ const BEST_ON_HOME = 8;
  * tezkor bo'limlar, eng ko'p sotilgan formalar (buyurtmalardagi soni bo'yicha), yoqtirilgan formalar,
  * Studio banneri va "Qanday ishlaydi".
  *
- * Props: t, onNavigate(route), onOrder(id), onNotifications, onOpenKit(kit), favorites (useFavoriteKits), rules, auth
+ * Bildirishnoma qo'ng'irog'i — umumiy sarlavhada (Header cart → HeaderCart), hamma sahifada bir xil.
+ *
+ * Props: t, onNavigate(route), onOrder(id), onOpenKit(kit), favorites (useFavoriteKits), rules, auth
  */
-export default function HomeScreen({ t, onNavigate, onOrder, onNotifications, onOpenKit, favorites, rules, auth }) {
+export default function HomeScreen({ t, onNavigate, onOrder, onOpenKit, favorites, rules, auth }) {
   const { order } = useActiveOrder();
   const tabSpace = useTabBarSpace();
   const { kits, isLoading } = useBestSellingKits();
@@ -63,14 +65,9 @@ export default function HomeScreen({ t, onNavigate, onOrder, onNotifications, on
         overline={t('goodDay')}
         title={name}
         right={
-          <>
-            <Pressable onPress={onNotifications} style={styles.iconCircle} hitSlop={6} accessibilityLabel={t('notifications')}>
-              <MaterialCommunityIcons name="bell-outline" size={20} color={colors.text} />
-            </Pressable>
-            <Pressable onPress={() => onNavigate('profile')} style={styles.avatar} accessibilityLabel={t('profile')}>
-              <Text style={styles.avatarText}>{avatarInitial}</Text>
-            </Pressable>
-          </>
+          <Pressable onPress={() => onNavigate('profile')} style={styles.avatar} accessibilityLabel={t('profile')}>
+            <Text style={styles.avatarText}>{avatarInitial}</Text>
+          </Pressable>
         }
       />
 
@@ -197,16 +194,6 @@ const styles = themedStyles(() => ({
   contentWithOrder: { paddingBottom: 220 },
   padded: { marginHorizontal: spacing.lg },
   sectionGap: { marginTop: spacing.lg },
-  iconCircle: {
-    width: 42,
-    height: 42,
-    borderRadius: radii.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.border,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   avatar: {
     width: 42,
     height: 42,

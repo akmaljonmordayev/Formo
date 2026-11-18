@@ -255,8 +255,13 @@ test('geokod: nuqtadan mahalla/ko\'cha va uy; natija nomi qisqartiriladi; tuman 
   assert.deepEqual(geo.formatReverse({ neighbourhood: 'Sergeli-8', road: "Yangi Sirg'ali ko'chasi", house_number: '8/2' }), {
     text: "Sergeli-8, Yangi Sirg'ali ko'chasi",
     house: '8/2',
+    areas: [],
   });
-  assert.deepEqual(geo.formatReverse(null), { text: '', house: '' });
+  assert.deepEqual(geo.formatReverse(null), { text: '', house: '', areas: [] });
+  assert.deepEqual(geo.formatReverse({ road: 'Bobur ko‘chasi', city_district: 'Mirobod tumani', city: 'Toshkent' }).areas, [
+    'Mirobod tumani',
+    'Toshkent',
+  ]);
   assert.deepEqual(geo.splitDisplayName("Madadkor mahallasi, Sergeli tumani, Toshkent, 100000, O'zbekiston"), {
     title: 'Madadkor mahallasi, Sergeli tumani',
     subtitle: 'Toshkent',
@@ -308,4 +313,27 @@ test('qidiruv: tanlangan viloyatdan tashqaridagi natijalar ko\'rsatilmaydi', asy
   // Oxirgi bosqich ham butun mamlakat emas — viloyat nomi bilan
   assert.ok(urls[urls.length - 1].includes('q=Madadkor, Toshkent shahri'));
   assert.ok(geo.isInside(areaOf('TOSHKENT_SHAHRI'), { latitude: 41.2234, longitude: 69.2219 }));
+});
+
+test("matchDistrict: nuqta tushgan tuman (lotin/kirill/rus) — Mirobod tanlanib GPS Sergelida bo'lsa Sergeli", () => {
+  const { matchDistrict } = require(src('features/location/districts.js'));
+  assert.equal(matchDistrict('TOSHKENT_SHAHRI', ['Sergeli tumani', 'Toshkent']), 'Sergeli tumani');
+  assert.equal(matchDistrict('TOSHKENT_SHAHRI', ['Мирабадский район', 'Ташкент']), 'Mirobod tumani');
+  assert.equal(matchDistrict('TOSHKENT_SHAHRI', ["Mirzo Ulug‘bek tumani"]), "Mirzo Ulug'bek tumani");
+  assert.equal(matchDistrict('TOSHKENT_SHAHRI', ['Юнусабадский район']), 'Yunusobod tumani');
+  // Viloyatda shahar va tuman nomi bir xil — turi bo'yicha
+  assert.equal(matchDistrict('TOSHKENT_VILOYATI', ['Bekobod shahri']), 'Bekobod shahri');
+  assert.equal(matchDistrict('TOSHKENT_VILOYATI', ['Bekobod tumani']), 'Bekobod tumani');
+  // Topilmasa — null (tuman o'zgarmaydi)
+  assert.equal(matchDistrict('TOSHKENT_SHAHRI', ['Toshkent']), null);
+  assert.equal(matchDistrict('TOSHKENT_SHAHRI', []), null);
+  assert.equal(matchDistrict(null, ['Sergeli tumani']), null);
+});
+
+test("addressTitle: Uy/Ish o'rniga tuman (bo'lmasa viloyat) nomi; viloyatsiz eski manzil — saqlangan nomi", () => {
+  const t = (k) => ({ region_TOSHKENT_SHAHRI: 'Toshkent shahri' })[k] || k;
+  assert.equal(loc.addressTitle({ region: 'TOSHKENT_SHAHRI', district: 'Mirobod tumani', label: 'Uy' }, t), 'Mirobod tumani');
+  assert.equal(loc.addressTitle({ region: 'TOSHKENT_SHAHRI', label: 'Ish' }, t), 'Toshkent shahri');
+  assert.equal(loc.addressTitle({ label: 'Ofis' }, t), 'Ofis');
+  assert.equal(loc.addressTitle({}, t), 'Manzil');
 });

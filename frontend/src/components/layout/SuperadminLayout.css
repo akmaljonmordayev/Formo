@@ -267,6 +267,37 @@
   background: var(--sa-surface);
   color: var(--sa-ink);
   cursor: pointer;
+  text-decoration: none;
+}
+
+/* Sidebar pastidagi chiqish tugmasi — katta, qizil (tikuv sexi paneli bilan bir xil) */
+.sa-logout {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  width: 100%;
+  margin-top: 10px;
+  padding: 13px 14px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  border: 1px solid rgba(229, 89, 107, 0.45);
+  background: rgba(229, 89, 107, 0.12);
+  color: var(--sa-red);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s ease, color 0.15s ease, transform 0.1s ease;
+}
+
+.sa-logout:hover {
+  background: var(--sa-red);
+  color: #fff;
+}
+
+.sa-logout:active {
+  transform: scale(0.97);
 }
 
 .sa-avatar {
