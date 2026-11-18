@@ -1,7 +1,7 @@
 import React from 'react';
 import { RefreshControl, ScrollView, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, spacing, themedStyles } from '../constants/theme';
+import { colors, spacing, themedStyles } from '../constants/theme';
 import { Card, EmptyState, Header, Screen } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
 import LoadingSpinner from '../components/ui/LoadingSpinner';

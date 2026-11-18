@@ -179,11 +179,13 @@ export function useOrder(id) {
   }, []);
 
   const cancel = useCallback(() => run(() => api.orders.cancel(id)), [id, run]);
+  // "Buyurtmani qabul qildim" — yetkazilayotgan buyurtma darhol "Yetkazildi" bo'ladi
+  const received = useCallback(() => run(() => api.orders.received(id)), [id, run]);
   const confirmPayment = useCallback(() => run(() => api.orders.confirmPayment(id)), [id, run]);
   const changePaymentMethod = useCallback(
     (method) => run(() => api.orders.changePaymentMethod(id, method)),
     [id, run],
   );
 
-  return { order, isLoading, error, refetch: fetchOrder, cancel, confirmPayment, changePaymentMethod };
+  return { order, isLoading, error, refetch: fetchOrder, cancel, received, confirmPayment, changePaymentMethod };
 }

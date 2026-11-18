@@ -4,6 +4,7 @@ import * as ImagePicker from 'expo-image-picker';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing, themedStyles } from '../constants/theme';
 import { Button, Header, Overline, Screen } from '../components/ui/Common';
+import { ConfirmModal } from '../components/ui/Modals';
 import { api, assetUrl } from '../services/api';
 import { errorText } from '../utils/errors';
 import { formatUzPhone } from '../utils/phone';
@@ -22,6 +23,24 @@ export default function AccountScreen({ t, auth, onBack }) {
   const user = auth?.user || {};
   const avatarInitial = nameInitial(user);
   const avatarUri = assetUrl(user.avatarUrl);
+
+  // ─── Akkauntni o'chirish (Google Play / App Store talabi) ──────────────────
+  const [deleteAsk, setDeleteAsk] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [deleteError, setDeleteError] = useState(null);
+  const deleteAccount = async () => {
+    setDeleteAsk(false);
+    setDeleting(true);
+    setDeleteError(null);
+    try {
+      await api.auth.deleteAccount();
+      // Tokenlar tozalangan — ilova kirish ekraniga qaytadi
+      await auth.logout();
+    } catch (err) {
+      setDeleteError(errorText(err, t));
+      setDeleting(false);
+    }
+  };
 
   // ─── Profil rasmi ────────────────────────────────────────────────────────
   const [avatarBusy, setAvatarBusy] = useState(false);
@@ -355,12 +374,70 @@ export default function AccountScreen({ t, auth, onBack }) {
         )}
       </View>
 
+      {/* Xavfli hudud: akkauntni butunlay o'chirish */}
+      <View style={styles.deleteCard}>
+        <View style={styles.deleteHead}>
+          <View style={styles.deleteIcon}>
+            <MaterialCommunityIcons name="account-remove-outline" size={20} color={colors.danger} />
+          </View>
+          <View style={{ flex: 1 }}>
+            <Text style={styles.deleteTitle}>{t('deleteAccount')}</Text>
+            <Text style={styles.deleteSub}>{t('deleteAccountSub')}</Text>
+          </View>
+        </View>
+        {deleteError ? <Text style={styles.errorText}>{deleteError}</Text> : null}
+        <Pressable
+          onPress={() => setDeleteAsk(true)}
+          disabled={deleting}
+          accessibilityRole="button"
+          style={({ pressed }) => [styles.deleteBtn, (pressed || deleting) && { opacity: 0.75 }]}
+        >
+          <MaterialCommunityIcons name="trash-can-outline" size={18} color={colors.danger} />
+          <Text style={styles.deleteBtnText}>{deleting ? t('checkingOut') : t('deleteAccount')}</Text>
+        </Pressable>
+      </View>
+
+      <ConfirmModal
+        visible={deleteAsk}
+        danger
+        title={t('deleteAccount')}
+        message={t('deleteAccountWarn')}
+        confirmText={t('deleteAccountYes')}
+        cancelText={t('back')}
+        onClose={() => setDeleteAsk(false)}
+        onConfirm={deleteAccount}
+      />
     </Screen>
   );
 }
 
 const styles = themedStyles(() => ({
   sectionGap: { marginTop: spacing.xl },
+  deleteCard: {
+    marginTop: spacing.xxl,
+    marginBottom: spacing.xxl,
+    padding: spacing.lg,
+    gap: spacing.md,
+    borderRadius: radii.lg,
+    borderWidth: 1,
+    borderColor: colors.dangerGlow,
+    backgroundColor: colors.surface,
+  },
+  deleteHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  deleteIcon: { width: 36, height: 36, borderRadius: 10, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.dangerGlow },
+  deleteTitle: { color: colors.text, fontSize: 14, fontWeight: '800' },
+  deleteSub: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  deleteBtn: {
+    height: 48,
+    borderRadius: radii.md,
+    borderWidth: 1.5,
+    borderColor: colors.danger,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+  },
+  deleteBtnText: { color: colors.danger, fontSize: 14, fontWeight: '800' },
   avatarRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md, marginBottom: spacing.md, marginTop: spacing.sm },
   avatarImg: { width: '100%', height: '100%' },
   avatarWrapSmall: {

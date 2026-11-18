@@ -15,6 +15,20 @@ export function pickProfileFields(fields) {
 }
 
 const RESTORE_RETRY_DELAYS_MS = [1000, 2500];
+// Oxirgi profil nusxasi: sekin/uzilgan internetda ilova splash'da qotib qolmasdan shu bilan ochiladi
+const USER_CACHE_KEY = 'formo_user_cache';
+// Server shu vaqt ichida javob bermasa — saqlangan profil bilan ochamiz (javob kelgach yangilanadi)
+const RESTORE_FAST_MS = 4000;
+
+async function readCachedUser() {
+  try {
+    const raw = await storage.getItem(USER_CACHE_KEY);
+    const user = raw ? JSON.parse(raw) : null;
+    return user && typeof user === 'object' && user.id ? user : null;
+  } catch {
+    return null;
+  }
+}
 
 /** Sessiya yaroqsizligi aniq (refresh rad etildi yoki hisob bloklangan) — tarmoq/server xatosi emas */
 export function isSessionInvalid(err) {
@@ -58,6 +72,7 @@ export default function useAuth() {
   // ─── Session expiry: bounce back to the login screen ────────────────────────
   useEffect(() => {
     api.auth.onSessionExpired(() => {
+      storage.removeItem(USER_CACHE_KEY);
       setUser(null);
       setIsAuthenticated(false);
     });
@@ -66,6 +81,8 @@ export default function useAuth() {
   // ─── Restore session on mount ────────────────────────────────────────────────
   useEffect(() => {
     let cancelled = false;
+    let cached = null;
+    let fastTimer = null;
 
     async function restoreSession() {
       try {
@@ -81,7 +98,19 @@ export default function useAuth() {
           return;
         }
 
-        // Validate token against the server. Tarmoq/server xatosida bir necha marta qayta urinamiz
+        // Validate token against the server. Tarmoq/server xatosida bir necha marta qayta urinamiz.
+        // Sekin internetda (har urinish 15 s gacha) splash qotib qolmasin: saqlangan profil bo'lsa
+        // RESTORE_FAST_MS dan keyin u bilan ochamiz, server javobi kelgach profil yangilanadi.
+        cached = await readCachedUser();
+        if (cancelled) return;
+        if (cached) {
+          fastTimer = setTimeout(() => {
+            if (cancelled) return;
+            setUser((current) => current || cached);
+            setIsAuthenticated(true);
+            setIsLoading(false);
+          }, RESTORE_FAST_MS);
+        }
         const me = await meWithRetry(() => cancelled);
         if (!cancelled && me) {
           setUser(me);
@@ -89,18 +118,30 @@ export default function useAuth() {
         }
       } catch (err) {
         // Faqat sessiya haqiqatan yaroqsiz bo'lsa (401/403) tokenlar o'chiriladi. Internet yo'q yoki backend
-        // vaqtincha ishlamasa tokenlar saqlanadi — keyingi ochilishda sessiya tiklanadi, qayta kirish shart emas
+        // vaqtincha ishlamasa tokenlar saqlanadi va saqlangan profil bilan ochiladi (qayta kirish shart emas)
         if (isSessionInvalid(err)) {
           await storage.removeToken();
           await storage.removeRefreshToken();
+          await storage.removeItem(USER_CACHE_KEY);
+          if (!cancelled) {
+            setUser(null);
+            setIsAuthenticated(false);
+          }
+        } else if (cached && !cancelled) {
+          setUser((current) => current || cached);
+          setIsAuthenticated(true);
         }
       } finally {
+        clearTimeout(fastTimer);
         if (!cancelled) setIsLoading(false);
       }
     }
 
     restoreSession();
-    return () => { cancelled = true; };
+    return () => {
+      cancelled = true;
+      clearTimeout(fastTimer);
+    };
   }, []);
 
   // ─── Telegram bot orqali kirish (mijozlar uchun yagona kirish usuli) ──────────────────────────────────────────────
@@ -134,10 +175,16 @@ export default function useAuth() {
     } catch {
       // Server-side logout errors are non-fatal — clear locally regardless
     } finally {
+      await storage.removeItem(USER_CACHE_KEY);
       setUser(null);
       setIsAuthenticated(false);
     }
   }, []);
+
+  // Profil o'zgarsa — keyingi ochilish uchun nusxasi saqlanadi
+  useEffect(() => {
+    if (user?.id) storage.setItem(USER_CACHE_KEY, JSON.stringify(user));
+  }, [user]);
 
   // ─── Refresh profile from the server ─────────────────────────────────────────
   const refreshUser = useCallback(async () => {

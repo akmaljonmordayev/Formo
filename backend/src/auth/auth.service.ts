@@ -315,6 +315,52 @@ export class AuthService {
     return toPublicUser(user);
   }
 
+  /**
+   * "Akkauntni o'chirish" (Google Play / App Store talabi). Shaxsiy ma'lumotlar o'chiriladi: profil, rasm,
+   * manzillar, savat, sevimlilar, sessiyalar, Telegram ulanishi va push tokenlar. Buyurtma va balans yozuvlari
+   * buxgalteriya uchun saqlanadi, lekin hisob anonimlashtiriladi (telefon bo'shatiladi — shu raqam bilan keyin
+   * yangi hisob ochish mumkin). Faol buyurtma bo'lsa — avval u yakunlanishi kerak.
+   */
+  async deleteAccount(userId: number) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new NotFoundException('Foydalanuvchi topilmadi');
+    if (user.role !== Role.USER) throw new ForbiddenException('Xodim hisobini ilovadan o‘chirib bo‘lmaydi');
+    const active = await this.prisma.order.count({
+      where: { customerId: userId, status: { notIn: ['DELIVERED', 'CANCELLED', 'RETURNED', 'PENDING_PAYMENT'] } },
+    });
+    if (active) {
+      throw new ConflictException('Sizda faol buyurtma bor — u yetkazilgandan keyin akkauntni o‘chirish mumkin');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      // To'lanmagan buyurtmalar bekor bo'ladi (tasdiqlanmagan, sexga yetib bormagan)
+      await tx.order.updateMany({ where: { customerId: userId, status: 'PENDING_PAYMENT' }, data: { status: 'CANCELLED' } });
+      await tx.session.deleteMany({ where: { userId } });
+      await tx.cartItem.deleteMany({ where: { userId } });
+      await tx.address.deleteMany({ where: { userId } });
+      await tx.favoriteClub.deleteMany({ where: { userId } });
+      await tx.favoriteKit.deleteMany({ where: { userId } });
+      await tx.telegramAccount.deleteMany({ where: { userId } });
+      await tx.pushToken.deleteMany({ where: { userId } });
+      await tx.user.update({
+        where: { id: userId },
+        data: {
+          phone: `deleted-${userId}-${randomBytes(6).toString('hex')}`,
+          fullName: 'O‘chirilgan foydalanuvchi',
+          passwordHash: await bcrypt.hash(randomBytes(32).toString('hex'), BCRYPT_ROUNDS),
+          isActive: false,
+          avatarUrl: null,
+          gender: null,
+          age: null,
+          height: null,
+          weight: null,
+        },
+      });
+    });
+    await this.storage.remove(user.avatarUrl);
+    return { message: 'Akkaunt o‘chirildi' };
+  }
+
   revokeAllSessions(userId: number) {
     return this.prisma.session.updateMany({
       where: { userId, revokedAt: null },

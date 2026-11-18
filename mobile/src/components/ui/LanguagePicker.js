@@ -5,8 +5,8 @@ import { colors, radii, spacing, themedStyles } from '../../constants/theme';
 import { languageOptions } from '../../i18n';
 
 // Tugmadagi qisqa kod va nom (ro'yxatdagi to'liq nom — "Ōzbekça (yangi alifbo)" — tugmaga sig'maydi)
-const SHORT = { uz: 'UZ', uzn: 'ŌZ', ru: 'RU', en: 'EN' };
-const NAMES = { uzn: 'Ōzbekça' };
+const SHORT = { uz: 'UZ', uzn: 'ŌZ', uzc: 'ЎЗ', ru: 'RU', en: 'EN' };
+const NAMES = { uzn: 'Ōzbekça', uzc: 'Ўзбекча' };
 
 /**
  * Ilova tili (profil sahifasida, ko'rinish almashtirgich ostida): ro'yxat emas — har bir til alohida

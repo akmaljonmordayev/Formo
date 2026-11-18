@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { BackHandler, View } from 'react-native';
+import { BackHandler, PanResponder, Platform, View } from 'react-native';
 import { BottomTabs } from '../components/ui/BottomTabs';
 import { CartContext } from '../components/ui/CartButton';
 import { colors, themedStyles } from '../constants/theme';
@@ -37,8 +37,9 @@ import { profileGaps } from '../utils/userName';
  *   store  — useAppStore() object
  *   t      — translation function
  *   auth   — useAuth() object { isLoading, isAuthenticated, login, register, logout, user, error }
+ *   push   — usePushNotifications() { openOrderId, consumeOrder } — bildirishnoma bosilsa buyurtma ochiladi
  */
-export default function AppNavigator({ store, t, auth }) {
+export default function AppNavigator({ store, t, auth, push }) {
   // ─── Main app routes ─────────────────────────────────────────────────────────
   const [route, setRoute] = useState('home');
   // Klub sahifasi: { clubId, kitId? }; studiyadagi forma; ochilgan buyurtma
@@ -181,6 +182,18 @@ export default function AppNavigator({ store, t, auth }) {
     setRoute('notifications');
   };
 
+  // Push bildirishnoma bosildi ("Buyurtmangiz yetkazildi — qabul qildingizmi?") — o'sha buyurtma ochiladi
+  const pushOrderId = push?.openOrderId;
+  const consumePushOrder = push?.consumeOrder;
+  const appReady = auth.isAuthenticated && !needsSurvey && !surveyOpen;
+  useEffect(() => {
+    if (!pushOrderId || !appReady) return;
+    setOrderId(pushOrderId);
+    setOrderFrom('orders');
+    setRoute('order');
+    consumePushOrder?.();
+  }, [pushOrderId, appReady, consumePushOrder]);
+
   // ─── Android hardware back: one centralized listener for the whole custom stack ──
   // A screen can intercept back itself (e.g. block it while a save request is in
   // flight) by setting `backInterceptRef.current` to a `() => boolean` — returning
@@ -228,6 +241,25 @@ export default function AppNavigator({ store, t, auth }) {
     const sub = BackHandler.addEventListener('hardwareBackPress', () => handleBackRef.current());
     return () => sub.remove();
   }, []);
+
+  // ─── iOS: ekranning chap chetidan o'ngga surish = orqaga (iPhone'da apparat "orqaga" tugmasi yo'q) ──
+  // Tab ildizlarida (bosh sahifa, katalog, buyurtmalar, profil) va xaritada (surish xaritani suradi) o'chiq.
+  const swipeBackEnabledRef = useRef(false);
+  swipeBackEnabledRef.current =
+    Platform.OS === 'ios' &&
+    !['home', 'orders', 'profile', 'locationPicker'].includes(route) &&
+    !(route === 'studio' && !studioKit);
+  const edgeSwipe = useRef(
+    PanResponder.create({
+      // Faqat chap chetdan (24 px) boshlangan, asosan gorizontal harakat — oddiy teginish va skroll tegilmaydi
+      onMoveShouldSetPanResponderCapture: (_e, g) =>
+        swipeBackEnabledRef.current && g.x0 <= 24 && g.dx > 12 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
+      onPanResponderRelease: (_e, g) => {
+        if (g.dx > 70 || g.vx > 0.5) handleBackRef.current();
+      },
+      onPanResponderTerminationRequest: () => false,
+    }),
+  ).current;
 
   // Sarlavhalardagi savat va bildirishnoma tugmalari (Header cart) — savat soni va qaysi ekrandan ochilgani.
   // Bildirishnoma qo'ng'irog'i faqat bosh sahifada emas — savatli hamma sarlavhada (katalog, buyurtmalar, profil, studiya)
@@ -393,7 +425,9 @@ export default function AppNavigator({ store, t, auth }) {
 
   return (
     <CartContext.Provider value={cartValue}>
-      {content}
+      <View style={styles.flex} {...edgeSwipe.panHandlers}>
+        {content}
+      </View>
       {!hideTabs && (
         // Forma 360° ko'ruvchisi Studio katalogidan ochiladi — tab paneli Studio'ni faol ko'rsatadi
         <BottomTabs active={route === 'kit360' || route === 'catalog' ? 'studio' : route} onChange={navigateTab} t={t} />
@@ -403,6 +437,7 @@ export default function AppNavigator({ store, t, auth }) {
 }
 
 const styles = themedStyles(() => ({
+  flex: { flex: 1 },
   loadingContainer: {
     flex: 1,
     backgroundColor: colors.background,

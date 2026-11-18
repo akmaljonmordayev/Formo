@@ -54,6 +54,8 @@ export function normalizePhone(raw) {
 // Tarmoq osilib qolsa ekran abadiy kutmasin. Abort → TypeError, shuning uchun
 // mavjud `networkError` xatosiga aylanadi (secrets/URL log qilinmaydi).
 const REQUEST_TIMEOUT_MS = 15000;
+/** features/notifications/push.js shu kalitga qurilma push tokenini yozadi */
+export const PUSH_TOKEN_KEY = 'formo_push_token';
 
 async function rawRequest(path, { method = 'GET', body, auth = true } = {}) {
   const token = await storage.getToken();
@@ -207,6 +209,21 @@ export const auth = {
   /** Profil rasmini o'chiradi (standart harf-belgiga qaytadi) */
   removeAvatar: () => request('/auth/me/avatar', { method: 'DELETE' }),
 
+  /** Akkauntni butunlay o'chirish (Google Play / App Store talabi). Faol buyurtma bo'lsa 409 */
+  async deleteAccount() {
+    const result = await request('/auth/me', { method: 'DELETE' });
+    // Server sessiyalarni o'chirdi — mahalliy tokenlar ham tozalanadi (keyingi logout serverga so'rov yubormaydi)
+    await storage.removeToken();
+    await storage.removeRefreshToken();
+    await storage.removeItem(PUSH_TOKEN_KEY);
+    return result;
+  },
+
+  /** Qurilmaning Expo push tokeni — buyurtma holati bildirishnomalari shu tilda keladi */
+  savePushToken: (token, language, platform) =>
+    request('/auth/me/push-token', { method: 'POST', body: { token, language, platform } }),
+  removePushToken: (token) => request('/auth/me/push-token/remove', { method: 'POST', body: { token } }),
+
   /**
    * Telefon raqamini almashtirish, 1-qadam: yangi raqamga Telegram orqali tasdiqlash so'rovi.
    * @returns {Promise<{challengeId: string, botUsername: string, deepLink: string, expiresAt: string}>}
@@ -220,7 +237,12 @@ export const auth = {
   /** Invalidate the current session on the server and clear local tokens. */
   async logout() {
     try {
-      if (await storage.getToken()) await request('/auth/logout', { method: 'POST' });
+      if (await storage.getToken()) {
+        // Chiqqan hisobga bu qurilmaga bildirishnoma kelmasin
+        const pushToken = await storage.getItem(PUSH_TOKEN_KEY);
+        if (pushToken) await request('/auth/me/push-token/remove', { method: 'POST', body: { token: pushToken } }).catch(() => {});
+        await request('/auth/logout', { method: 'POST' });
+      }
     } finally {
       await storage.removeToken();
       await storage.removeRefreshToken();
@@ -324,6 +346,9 @@ export const orders = {
   get: (id) => request(`/orders/${id}`),
 
   cancel: (id) => request(`/orders/${id}/cancel`, { method: 'POST' }),
+
+  /** "Buyurtmani qabul qildim" — yetkazilayotgan buyurtma darhol "Yetkazildi" bo'ladi */
+  received: (id) => request(`/orders/${id}/received`, { method: 'POST' }),
 
   /** Demo to'lov (backend PAYMENT_DEMO o'chirilgan bo'lsa 403) */
   confirmPayment: (id) => request(`/orders/${id}/payment/confirm`, { method: 'POST' }),

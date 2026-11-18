@@ -64,7 +64,7 @@ export default function OtpLoginScreen({ auth, t, language }) {
   }
 
   if (step === 'onboarding') {
-    return <OnboardingScreen onFinish={finishOnboarding} />;
+    return <OnboardingScreen onFinish={finishOnboarding} t={t} />;
   }
 
   if (step === 'telegram' && challenge) {

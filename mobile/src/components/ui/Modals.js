@@ -8,7 +8,7 @@ import {
   View,
 } from 'react-native';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { colors, radii, spacing, themedStyles } from '../../constants/theme';
+import { colors, radii, themedStyles } from '../../constants/theme';
 
 // ─── 1. Size Chart Modal ───────────────────────────────────────────────────────
 

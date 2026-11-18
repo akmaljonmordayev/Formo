@@ -1,6 +1,7 @@
 import { Injectable } from '@nestjs/common';
-import { OrderStatus, Prisma } from '@prisma/client';
+import { OrderStatus, Prisma, Role } from '@prisma/client';
 import { AuthUser } from '../common/decorators/current-user.decorator';
+import { PushService } from '../notify/push.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { TelegramOutboxService } from '../telegram/telegram-outbox.service';
 import { customerStageChanged } from '../shop/order-status';
@@ -20,6 +21,7 @@ export class OrderHistoryService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly telegram: TelegramOutboxService,
+    private readonly push: PushService,
   ) {}
 
   async record(change: StatusChange, db: Prisma.TransactionClient = this.prisma) {
@@ -45,6 +47,10 @@ export class OrderHistoryService {
     // bosqichlarini ko'radi: ichki sex qadamlari (masalan qabul → tayyor, ikkalasi "jarayonda") xabarsiz
     if (customerStageChanged(change.from, change.to)) {
       await this.telegram.enqueueOrderStatus(db, change.orderId, change.to, log.id);
+      // Ilovaga push: mijozning o'zi qilgan o'zgarish (bekor qilish, "qabul qildim") haqida xabar kerak emas
+      if (change.actor?.role !== Role.USER) {
+        await this.push.enqueueOrderStatus(db, change.orderId, change.to, log.id);
+      }
     }
   }
 }

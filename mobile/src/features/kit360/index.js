@@ -17,7 +17,6 @@ const ALIASES = {
   mu: ['manchester yunayted', 'манчестер юнайтед', 'manchester united', 'man united', 'man utd', 'mu', 'mun'],
   psg: ['psj', 'псж', 'psg', 'paris saint-germain', 'paris saint germain', 'paris sg'],
   mci: ['manchester siti', 'манчестер сити', 'manchester city', 'man city', 'mci'],
-  uz: ["o'zbekiston", 'ozbekiston', 'ўзбекистон', 'узбекистан', 'uzbekistan', 'uzb'],
   de: ['germaniya', 'германия', 'germany', 'deutschland', 'ger'],
   lfc: ['liverpul', 'ливерпуль', 'liverpool', 'liverpool fc', 'lfc', 'liv'],
   ars: ['arsenal', 'арсенал', 'arsenal fc', 'ars'],

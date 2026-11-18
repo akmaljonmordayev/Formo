@@ -5,6 +5,7 @@ import { colors, radii, spacing, themedStyles } from '../constants/theme';
 import useOrders, { deliveryText, isFinal, progressOf, statusText } from '../features/orders';
 import { Card, EmptyState, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
+import { useTabBarSpace } from '../components/ui/BottomTabs';
 import Kit360Thumb from '../components/ui/Kit360Thumb';
 import { itemKit360, itemVariant } from '../features/kit360';
 import { designText } from '../features/studio';
@@ -16,6 +17,8 @@ import { formatDate } from '../utils/formatters';
 export default function OrdersScreen({ t, onOrder }) {
   const [tab, setTab] = useState('active');
   const { orders, isLoading, error, refetch } = useOrders();
+  // Ro'yxat oxiri suzuvchi tab panel (iPhone'da home-indikator bilan) ostida qolmasin
+  const tabSpace = useTabBarSpace();
 
   const activeLabel = t('tabActive');
   const doneLabel = t('tabDone');
@@ -27,7 +30,7 @@ export default function OrdersScreen({ t, onOrder }) {
     <Screen scroll={false}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, { paddingBottom: Math.max(120, tabSpace + 24) }]}
         refreshControl={
           <RefreshControl
             refreshing={isLoading && orders.length > 0}

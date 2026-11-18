@@ -12,6 +12,8 @@ export function Screen({ children, scroll = true, contentStyle, footer, footerSt
   const styles = useMemo(() => makeStyles(colors), [colors]);
   const insets = useSafeAreaInsets();
   const kb = useKeyboard();
+  // iPhone home-indikatori (insets.bottom ≈ 34) tab panelni yuqoriroq ko'taradi — oxirgi kontent uning ostida qolmasin
+  const bottomRoom = { paddingBottom: 115 + Math.max(0, insets.bottom - 12) };
   const Content = scroll ? KeyboardAwareScrollView : View;
   // Birinchi bola Header bo'lsa — skroll ustida qotib turadi (savat tugmasi doim ko'rinadi)
   const items = React.Children.toArray(children);
@@ -22,8 +24,8 @@ export function Screen({ children, scroll = true, contentStyle, footer, footerSt
       <KeyboardAvoider>
         {lead ? <View style={styles.stickyHeader}>{React.cloneElement(lead, { sticky: true })}</View> : null}
         <Content
-          contentContainerStyle={scroll ? [styles.content, lead && styles.contentUnderHeader, contentStyle] : undefined}
-          style={!scroll ? [styles.content, contentStyle] : undefined}
+          contentContainerStyle={scroll ? [styles.content, bottomRoom, lead && styles.contentUnderHeader, contentStyle] : undefined}
+          style={!scroll ? [styles.content, bottomRoom, contentStyle] : undefined}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >

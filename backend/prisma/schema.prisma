@@ -67,6 +67,9 @@ model User {
 
   telegram TelegramAccount?
 
+  // Mobil ilova push bildirishnomalari (Expo push token, har qurilma alohida)
+  pushTokens PushToken[]
+
   // Ichki balans (so'm). Faqat WalletService o'zgartiradi — har o'zgarish BalanceTransaction'da;
   // bazada CHECK (balance >= 0)
   balance             Int                  @default(0)
@@ -94,6 +97,36 @@ model Session {
   updatedAt            DateTime  @updatedAt
 
   @@index([userId])
+}
+
+// Mobil ilova qurilmasining Expo push tokeni. `language` — ilova tili (bildirishnoma matni shu tilda)
+model PushToken {
+  id        Int      @id @default(autoincrement())
+  userId    Int
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  token     String   @unique
+  platform  String? // ios | android
+  language  String   @default("uz")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+}
+
+// Push xabarlar navbati: holat o'zgarishi tranzaksiyasida yoziladi, commitdan keyin fon jarayoni yuboradi
+model PushOutbox {
+  id        Int       @id @default(autoincrement())
+  token     String
+  title     String
+  body      String
+  data      Json?
+  dedupeKey String    @unique
+  attempts  Int       @default(0)
+  lastError String?
+  sentAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([sentAt, attempts])
 }
 
 // ---------------------------------------------------------------------------
@@ -530,6 +563,8 @@ model Order {
 
   paymentExpiresAt DateTime? // Click/Payme: to'lov kutiladigan muddat (30 daqiqa)
   paidAt           DateTime?
+  // Mijoz ilovada "Buyurtmani qabul qildim" tugmasini bosgan vaqt (null — hali tasdiqlamagan)
+  receivedAt       DateTime?
 
   items      OrderItem[]
   statusLogs OrderStatusLog[]

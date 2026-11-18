@@ -1,7 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, Text, View } from 'react-native';
+import { Pressable, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, spacing, TAB_BAR_HEIGHT, themedStyles } from '../constants/theme';
+import { colors, radii, spacing, themedStyles } from '../constants/theme';
+import { useTabBarSpace } from '../components/ui/BottomTabs';
 import { Button, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
 import AddedToCart from '../components/ui/AddedToCart';
 import Kit360Viewer from '../components/ui/Kit360Viewer';
@@ -38,6 +39,8 @@ const sleeveOf = (kit) => (kit?.sleeve === 'LONG' ? 'LONG' : 'SHORT');
  * Props: t, initialTeam, initialSleeve ('SHORT' | 'LONG' — katalogda bosilgan forma), rules, cart, onBack, onOpenCart()
  */
 export default function Kit360Screen({ t, initialTeam = null, initialSleeve = null, rules = {}, cart, onBack, onOpenCart }) {
+  // Suzuvchi tab panel egallagan joy (iPhone'da home-indikator ham qo'shiladi) — pastki panel aynan uning ustida
+  const tabSpace = useTabBarSpace();
   const [selectedId, setSelectedId] = useState(initialTeam || 'rm');
   const [side, setSide] = useState('back');
   const [step, setStep] = useState(1);
@@ -327,10 +330,11 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
   const isLast = step >= steps.length;
 
   return (
-    <KeyboardAvoidingView behavior={Platform.OS === 'ios' ? 'padding' : undefined} style={styles.keyboardWrap}>
+    // Klaviatura uchun joyni Screen (KeyboardAvoider) o'zi bo'shatadi — iOS'da KeyboardAvoidingView bilan ikki marta surilardi
+    <View style={styles.keyboardWrap}>
       <Screen
         contentStyle={styles.screenContent}
-        footerStyle={{ bottom: TAB_BAR_HEIGHT }}
+        footerStyle={{ bottom: tabSpace - 14, paddingBottom: 14 }}
         footer={
           <View style={styles.footerBar}>
             <View>
@@ -466,7 +470,7 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
       <AddedToCart
         event={addedEvent}
         t={t}
-        bottom={TAB_BAR_HEIGHT + 96}
+        bottom={tabSpace + 82}
         onOpenCart={onOpenCart}
         onDismiss={() => setAddedEvent(null)}
       />
@@ -483,7 +487,7 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
           goStep(skipAsk);
         }}
       />
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

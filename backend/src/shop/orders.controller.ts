@@ -110,6 +110,17 @@ export class ShopOrdersController {
     return this.orders.changePaymentMethod(user, id, dto);
   }
 
+  @Post('orders/:id/received')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: '"Buyurtmani qabul qildim" — mijoz buyurtmani olganini tasdiqlaydi',
+    description: 'DELIVERING → darhol DELIVERED (admin o‘zgartirishi shart emas); DELIVERED — faqat tasdiq vaqti (`receivedAt`) yoziladi.',
+  })
+  @ApiConflictResponse({ description: 'Buyurtma hali yetkazishga chiqmagan' })
+  received(@CurrentUser() user: AuthUser, @Param('id', ParseIdPipe) id: number) {
+    return this.orders.confirmReceived(user, id);
+  }
+
   @Post('orders/:id/cancel')
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Buyurtmani bekor qilish (bosishga berilmaguncha)' })

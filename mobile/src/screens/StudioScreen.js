@@ -75,7 +75,8 @@ function PrintInputs({ t, rules, name, setName, number, setNumber, nameStyle, on
           onChangeText={setName}
           onFocus={onFocus}
           placeholder={t('namePlaceholder')}
-          placeholderTextColor={colors.muted}
+          placeholderTextColor="rgba(242, 163, 58, 0.6)"
+          selectionColor={colors.accent}
           style={[styles.textInput, { flex: 1 }, nameStyle]}
           autoCapitalize="characters"
           maxLength={rules.printNameMaxLength}
@@ -85,7 +86,8 @@ function PrintInputs({ t, rules, name, setName, number, setNumber, nameStyle, on
           onChangeText={(value) => setNumber(value.replace(/\D/g, ''))}
           onFocus={onFocus}
           placeholder="10"
-          placeholderTextColor={colors.muted}
+          placeholderTextColor="rgba(242, 163, 58, 0.6)"
+          selectionColor={colors.accent}
           style={[styles.textInput, styles.number]}
           keyboardType="number-pad"
           maxLength={2}
@@ -137,7 +139,8 @@ function ShortsPanel({ t, rules, sizes, s }) {
                 value={s.shortsNumber}
                 onChangeText={(value) => s.setShortsNumber(value.replace(/\D/g, ''))}
                 placeholder={s.fallbackNumber || '10'}
-                placeholderTextColor={colors.muted}
+                placeholderTextColor="rgba(242, 163, 58, 0.6)"
+          selectionColor={colors.accent}
                 style={[styles.textInput, styles.number]}
                 keyboardType="number-pad"
                 maxLength={2}
@@ -429,8 +432,9 @@ const styles = themedStyles(() => ({
     height: 50,
     borderRadius: radii.md,
     backgroundColor: colors.surfaceRaised,
-    borderWidth: 1,
-    borderColor: colors.border,
+    // Sariq ramka — ism/raqam maydonlari qorong'i fonda aniq ko'rinadi
+    borderWidth: 1.5,
+    borderColor: 'rgba(242, 163, 58, 0.65)',
     color: colors.text,
     paddingHorizontal: spacing.md,
     fontSize: 14,

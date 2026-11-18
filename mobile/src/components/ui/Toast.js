@@ -1,8 +1,8 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, useRef } from 'react';
-import { Animated, StyleSheet, Text, View, Platform } from 'react-native';
+import { Animated, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MaterialCommunityIcons } from '@expo/vector-icons';
-import { colors, radii, spacing } from '../../constants/theme';
+import { radii } from '../../constants/theme';
 
 const ToastContext = createContext({
   show: () => {},

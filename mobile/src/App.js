@@ -17,6 +17,8 @@ import { ThemeProvider, useTheme } from './contexts/ThemeContext';
 import useAuth from './features/auth';
 import { useTranslation } from './i18n';
 import AppNavigator from './navigation/AppNavigator';
+import LanguageSelectScreen from './screens/Auth/LanguageSelectScreen';
+import usePushNotifications from './features/notifications/push';
 import { useAppStore } from './store/appStore';
 
 // Native splash JS splash (BrandSplash) chizilguncha turadi — orada bo'sh ekran ko'rinmaydi
@@ -46,6 +48,9 @@ function AppContent() {
   });
 
   const fontsReady = fontsLoaded || Boolean(fontError);
+  const languageReady = store.languageChosen !== null;
+  // Push: kirgan foydalanuvchi qurilmasi serverga yoziladi; bildirishnoma bosilsa buyurtma ochiladi
+  const push = usePushNotifications(auth.isAuthenticated, store.language);
 
   return (
     <SafeAreaProvider>
@@ -54,12 +59,17 @@ function AppContent() {
         <ErrorBoundary>
           <ToastProvider>
             <OfflineBanner />
-            <AppNavigator store={store} t={t} auth={auth} />
+            {store.languageChosen === false ? (
+              // Birinchi ochilishda — kirishdan oldin — til tanlanadi
+              <LanguageSelectScreen initial={store.language} onDone={store.confirmLanguage} />
+            ) : languageReady ? (
+              <AppNavigator store={store} t={t} auth={auth} push={push} />
+            ) : null}
           </ToastProvider>
         </ErrorBoundary>
       ) : null}
       {/* Faqat ishga tushishda: shriftlar yuklanib, sessiya tiklanguncha */}
-      <BrandSplash ready={fontsReady && !auth.isLoading} />
+      <BrandSplash ready={fontsReady && languageReady && !auth.isLoading} />
     </SafeAreaProvider>
   );
 }

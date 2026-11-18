@@ -10,22 +10,14 @@ import { MaterialCommunityIcons } from '@expo/vector-icons';
 import Kit360Thumb from '../../components/ui/Kit360Thumb';
 import { darkColors as colors } from '../../constants/theme';
 
+// Matnlar lug'atda (i18n): onb1Title/onb1Desc ... — birinchi ochilishda tanlangan tilda ko'rinadi
 const SLIDES = [
-  {
-    title: "O'z formangni yarat",
-    desc: "Ism, raqam, ranglar va boshqa tafsilotlarni tanlang — premium futbol formasini o'zingizcha dizayn qiling.",
-  },
-  {
-    title: 'Sevimli klub estetikasi',
-    desc: "Elit klub formalari asosida o'z ko'rinishingizni yarating — klassik yo'laklar yoki zamonaviy away formalari.",
-  },
-  {
-    title: 'Kontseptsiyadan yetkazishgacha',
-    desc: "Dizayn qiling, buyurtma bering va qolganini Formo'ga qoldiring — premium sifat va o'z vaqtida yetkazish.",
-  },
+  { title: 'onb1Title', desc: 'onb1Desc' },
+  { title: 'onb2Title', desc: 'onb2Desc' },
+  { title: 'onb3Title', desc: 'onb3Desc' },
 ];
 
-export default function OnboardingScreen({ onFinish }) {
+export default function OnboardingScreen({ onFinish, t = (k) => k }) {
   const [index, setIndex] = useState(0);
 
   const handleNext = () => {
@@ -42,7 +34,7 @@ export default function OnboardingScreen({ onFinish }) {
     <SafeAreaView style={styles.safe}>
       <View style={styles.topBar}>
         <Pressable onPress={onFinish} hitSlop={12} style={styles.skipBtn}>
-          <Text style={styles.skipText}>O'tkazib yuborish</Text>
+          <Text style={styles.skipText}>{t('onbSkip')}</Text>
         </Pressable>
       </View>
 
@@ -102,12 +94,12 @@ export default function OnboardingScreen({ onFinish }) {
           ))}
         </View>
 
-        <Text style={styles.title}>{current.title}</Text>
-        <Text style={styles.desc}>{current.desc}</Text>
+        <Text style={styles.title}>{t(current.title)}</Text>
+        <Text style={styles.desc}>{t(current.desc)}</Text>
 
         <Pressable onPress={handleNext} style={styles.actionBtn}>
           <Text style={styles.actionBtnText}>
-            {index < SLIDES.length - 1 ? 'Keyingi' : 'Boshlash'}
+            {index < SLIDES.length - 1 ? t('onbNext') : t('startShort')}
           </Text>
           <MaterialCommunityIcons
             name={index < SLIDES.length - 1 ? 'arrow-right' : 'check'}

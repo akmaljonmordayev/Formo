@@ -106,6 +106,9 @@ export function customerCanCancel(o: { status: OrderStatus; createdAt: Date }, w
   return windowHours == null || now - o.createdAt.getTime() <= windowHours * 3_600_000;
 }
 
+export const canConfirmReceipt = (o: { status: OrderStatus; receivedAt: Date | null }) =>
+  !o.receivedAt && (o.status === OrderStatus.DELIVERING || o.status === OrderStatus.DELIVERED);
+
 export function toOrderView(o: OrderRow, cancelWindowHours?: number) {
   const date = o.deliveryDate?.toISOString().slice(0, 10) ?? null;
   const current = customerStageOf(o.status);
@@ -168,6 +171,9 @@ export function toOrderView(o: OrderRow, cancelWindowHours?: number) {
       };
     }),
     canCancel: customerCanCancel(o, cancelWindowHours),
+    // "Buyurtmani qabul qildim": yetkazilayotgan yoki admin "yetkazildi" degan, mijoz hali tasdiqlamagan buyurtma
+    receivedAt: o.receivedAt,
+    canConfirmReceipt: canConfirmReceipt(o),
     createdAt: o.createdAt,
   };
 }
@@ -558,6 +564,42 @@ export class ShopOrdersService {
         await this.history.record({ orderId: id, from: OrderStatus.PENDING_PAYMENT, to: OrderStatus.NEW, actor: user }, tx);
       }
     });
+    return this.get(user.id, id);
+  }
+
+  /**
+   * Mijoz "Buyurtmani qabul qildim" tugmasini bosdi: yetkazilayotgan buyurtma darhol DELIVERED bo'ladi
+   * (admin o'zgartirishi shart emas); admin allaqachon "yetkazildi" degan bo'lsa — faqat tasdiq vaqti yoziladi.
+   * Takroriy bosish xato bermaydi (idempotent).
+   */
+  async confirmReceived(user: AuthUser, id: number) {
+    const order = await this.own(user.id, id);
+    if (order.receivedAt) return this.get(user.id, id);
+    if (!canConfirmReceipt(order)) {
+      throw new ConflictException('Buyurtma hali yetkazishga chiqmagan — uni qabul qilganingizni tasdiqlab bo‘lmaydi');
+    }
+    await this.prisma.$transaction(async (tx) => {
+      const now = new Date();
+      if (order.status === OrderStatus.DELIVERING) {
+        // Shartli yangilash: shu orada admin holatni o'zgartirgan bo'lsa — qayta tekshiriladi
+        const { count } = await tx.order.updateMany({
+          where: { id, status: OrderStatus.DELIVERING, receivedAt: null },
+          data: { status: OrderStatus.DELIVERED, receivedAt: now },
+        });
+        if (count) {
+          await this.history.record(
+            { orderId: id, from: OrderStatus.DELIVERING, to: OrderStatus.DELIVERED, actor: user, note: 'Mijoz qabul qilganini tasdiqladi' },
+            tx,
+          );
+          return;
+        }
+      }
+      await tx.order.updateMany({
+        where: { id, status: OrderStatus.DELIVERED, receivedAt: null },
+        data: { receivedAt: now },
+      });
+    });
+    await this.audit.log({ actor: user, action: 'Mijoz buyurtmani qabul qildi', category: AuditCategory.ORDER, context: order.code });
     return this.get(user.id, id);
   }
 

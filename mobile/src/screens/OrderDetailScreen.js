@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
-import { colors, radii, spacing, themedStyles } from '../constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { colors, fonts, radii, spacing, themedStyles } from '../constants/theme';
 import { Button, Card, Header, Overline, Screen, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
 import Kit360Thumb from '../components/ui/Kit360Thumb';
@@ -9,6 +10,7 @@ import { itemKit360, itemVariant } from '../features/kit360';
 import { designText } from '../features/studio';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { ConfirmModal } from '../components/ui/Modals';
+import { useToast } from '../components/ui/Toast';
 import StatusPill, { OrderStepper, statusTone } from '../components/ui/StatusPill';
 import {
   CHECKOUT_METHODS,
@@ -33,7 +35,9 @@ const timeOf = (iso) => {
  * Amallar: POST /:id/cancel, POST /:id/payment/confirm (demo), PATCH /:id/payment-method.
  */
 export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
-  const { order, isLoading, error, refetch, cancel, confirmPayment, changePaymentMethod } = useOrder(orderId);
+  const { order, isLoading, error, refetch, cancel, received, confirmPayment, changePaymentMethod } = useOrder(orderId);
+  const toast = useToast();
+  const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(null);
   const [actionError, setActionError] = useState(null);
 
@@ -75,12 +79,20 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
   const stopped = ['CANCELLED', 'RETURNED'].includes(order.status);
   const payment = order.payment || {};
   const tone = statusTone(order.status);
+  // Pastdagi yashil tugma: yetkazilmoqda (yoki admin "yetkazildi" degan, mijoz hali tasdiqlamagan)
+  const askReceipt = Boolean(order.canConfirmReceipt);
+  const deliveredAsk = askReceipt && order.status === 'DELIVERED';
+  const confirmReceived = () =>
+    run('received', async () => {
+      await received();
+      toast.show(t('receivedDone'), 'success');
+    });
 
   return (
     <Screen scroll={false}>
       <ScrollView
         showsVerticalScrollIndicator={false}
-        contentContainerStyle={styles.content}
+        contentContainerStyle={[styles.content, askReceipt && styles.contentWithBar]}
         refreshControl={
           <RefreshControl
             refreshing={isLoading}
@@ -246,6 +258,31 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
         </Pressable>
       </ScrollView>
 
+      {askReceipt ? (
+        <View style={[styles.receiptBar, { paddingBottom: Math.max(insets.bottom, spacing.md) + spacing.sm }]}>
+          {deliveredAsk ? (
+            <View style={styles.receiptAsk}>
+              <MaterialCommunityIcons name="package-variant-closed-check" size={22} color={colors.success} />
+              <View style={{ flex: 1 }}>
+                <Text style={styles.receiptTitle}>{t('receivedAsk')}</Text>
+                <Text style={styles.receiptSub}>{t('receivedAskSub')}</Text>
+              </View>
+            </View>
+          ) : null}
+          <Pressable
+            onPress={confirmReceived}
+            disabled={busy != null}
+            accessibilityRole="button"
+            style={({ pressed }) => [styles.receiptBtn, pressed && styles.receiptBtnPressed, busy != null && styles.receiptBtnBusy]}
+          >
+            <MaterialCommunityIcons name="check-circle" size={22} color="#FFFFFF" />
+            <Text style={styles.receiptBtnText}>
+              {busy === 'received' ? t('checkingOut') : t(deliveredAsk ? 'receivedYes' : 'receivedBtn')}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       <ConfirmModal
         visible={cancelAsk}
         danger
@@ -271,6 +308,40 @@ function Row({ label, value, strong }) {
 
 const styles = themedStyles(() => ({
   content: { paddingTop: 16, paddingHorizontal: spacing.lg, paddingBottom: 50 },
+  contentWithBar: { paddingBottom: 190 },
+  // "Buyurtmani qabul qildim" — ekran pastida doim ko'rinadigan yashil tugma
+  receiptBar: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: spacing.md,
+    paddingHorizontal: spacing.lg,
+    gap: spacing.md,
+    backgroundColor: colors.background,
+    borderTopWidth: 1,
+    borderTopColor: colors.border,
+  },
+  receiptAsk: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  receiptTitle: { color: colors.text, fontSize: 15, fontWeight: '800' },
+  receiptSub: { color: colors.muted, fontSize: 12, marginTop: 2 },
+  receiptBtn: {
+    height: 56,
+    borderRadius: radii.lg,
+    backgroundColor: '#16A34A',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: spacing.sm,
+    shadowColor: '#16A34A',
+    shadowOpacity: 0.45,
+    shadowRadius: 12,
+    shadowOffset: { width: 0, height: 4 },
+    elevation: 6,
+  },
+  receiptBtnPressed: { backgroundColor: '#15803D', transform: [{ scale: 0.98 }] },
+  receiptBtnBusy: { opacity: 0.7 },
+  receiptBtnText: { color: '#FFFFFF', fontSize: 16, fontFamily: fonts.bodySemi },
   payCard: { backgroundColor: colors.surfaceRaised, borderColor: colors.accent, marginBottom: spacing.lg },
   payTitle: { color: colors.accent, fontSize: 16, fontWeight: '800' },
   paySub: { color: colors.textSecondary, fontSize: 12, marginTop: 4 },

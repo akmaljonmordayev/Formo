@@ -30,14 +30,36 @@
           "isAndroidBackgroundLocationEnabled": false,
           "isIosBackgroundLocationEnabled": false
         }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/monochrome-icon.png",
+          "color": "#F2A33A",
+          "defaultChannel": "orders"
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "Formo profil rasmingizni tanlash uchun galereyangizga kiradi.",
+          "cameraPermission": false,
+          "microphonePermission": false
+        }
       ]
     ],
     "ios": {
-      "supportsTablet": true,
+      "supportsTablet": false,
       "bundleIdentifier": "com.formo.app",
       "infoPlist": {
         "LSApplicationQueriesSchemes": [
           "tg"
+        ],
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSPhotoLibraryUsageDescription": "Formo profil rasmingizni tanlash uchun galereyangizga kiradi.",
+        "NSLocationWhenInUseUsageDescription": "Formo yetkazish manzilini xaritada aniqlash uchun joylashuvingizdan foydalanadi.",
+        "UIBackgroundModes": [
+          "remote-notification"
         ]
       },
       "buildNumber": "1"

@@ -21,6 +21,8 @@ import { AuthResponseDto, MessageResponseDto, UserResponseDto } from './dto/auth
 import { ChangePasswordDto } from './dto/change-password.dto';
 import { LoginDto } from './dto/login.dto';
 import { OtpLoginDto } from './dto/otp-login.dto';
+import { PushTokenDto, RemovePushTokenDto } from './dto/push-token.dto';
+import { PushService } from '../notify/push.service';
 import { RefreshDto } from './dto/refresh.dto';
 import { RegisterDto, UpdateProfileDto } from './dto/register.dto';
 
@@ -40,7 +42,10 @@ const clientInfo = (req: Request): ClientInfo => ({
 @ApiTags('Auth')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly auth: AuthService) {}
+  constructor(
+    private readonly auth: AuthService,
+    private readonly push: PushService,
+  ) {}
 
   @Public()
   @Throttle(AUTH_LIMIT)
@@ -155,6 +160,34 @@ export class AuthController {
   @ApiOkResponse({ type: UserResponseDto })
   setAvatar(@CurrentUser() user: AuthUser, @UploadedFile() file?: UploadedImage) {
     return this.auth.setAvatar(user.id, file);
+  }
+
+  @ApiBearerAuth()
+  @Delete('me')
+  @ApiOperation({
+    summary: 'Akkauntni o‘chirish (Google Play / App Store talabi)',
+    description: 'Profil, manzillar, savat, sessiyalar va ulanishlar o‘chiriladi; buyurtma tarixi anonim saqlanadi.',
+  })
+  @ApiConflictResponse({ description: 'Faol buyurtma bor' })
+  @ApiOkResponse({ type: MessageResponseDto })
+  deleteMe(@CurrentUser() user: AuthUser) {
+    return this.auth.deleteAccount(user.id);
+  }
+
+  @ApiBearerAuth()
+  @Post('me/push-token')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Qurilmaning Expo push tokenini saqlash (buyurtma holati bildirishnomalari)' })
+  savePushToken(@CurrentUser() user: AuthUser, @Body() dto: PushTokenDto) {
+    return this.push.register(user.id, dto.token, dto.language, dto.platform);
+  }
+
+  @ApiBearerAuth()
+  @Post('me/push-token/remove')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Push tokenni o‘chirish (hisobdan chiqishda)' })
+  removePushToken(@CurrentUser() user: AuthUser, @Body() dto: RemovePushTokenDto) {
+    return this.push.unregister(user.id, dto.token);
   }
 
   @ApiBearerAuth()
