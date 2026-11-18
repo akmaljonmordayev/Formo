@@ -4,6 +4,7 @@ import { OrderStatus, PaymentStatus } from '@prisma/client';
 import {
   ArrayMaxSize,
   IsArray,
+  IsDateString,
   IsEnum,
   IsIn,
   IsInt,
@@ -105,7 +106,15 @@ export class AssignWorkshopDto {
 }
 
 /** Tikuv sexi o'z buyurtmalari ro'yxatida — boshqa sex bo'yicha filtr kerak emas */
-export class WorkshopOrdersQueryDto extends OmitType(ListOrdersQueryDto, ['workshopId', 'paymentStatus'] as const) {}
+export class WorkshopOrdersQueryDto extends OmitType(ListOrdersQueryDto, ['workshopId', 'paymentStatus'] as const) {
+  @ApiPropertyOptional({
+    description: 'Faqat shu vaqtdan keyin o‘zgarganlar (ISO). Sex paneli yetkazilgan tayyorlarni oxirgi kunlar uchungina so‘raydi',
+    example: '2026-11-15T00:00:00.000Z',
+  })
+  @IsOptional()
+  @IsDateString()
+  updatedSince?: string;
+}
 
 export class RejectOrderDto {
   @ApiProperty({ description: 'Rad etish sababi (operatorga ko‘rinadi)', example: "Bu o'lchamdagi mato tugagan", maxLength: 500 })

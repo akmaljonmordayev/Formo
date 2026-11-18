@@ -38,14 +38,17 @@ export class ChatService {
         role === Role.TAILOR
           ? { role, isActive: true }
           : { role, id: { in: last.map((l) => l.workshopId) } },
-      select: { id: true, fullName: true, workshopName: true, phone: true },
+      select: { id: true, fullName: true, workshopName: true, phone: true, chatHiddenUpTo: true },
     });
     const lastIds = last.map((l) => l._max.id).filter((id): id is number => id != null);
     const lastMessages = await this.prisma.chatMessage.findMany({ where: { id: { in: lastIds } } });
     const lastBy = new Map(lastMessages.map((m) => [m.workshopId, m]));
     const unreadBy = new Map(unread.map((u) => [u.workshopId, u._count._all]));
 
+    const lastIdBy = new Map(last.map((l) => [l.workshopId, l._max.id ?? 0]));
     return parties
+      // Operator o'zidan o'chirgan suhbat yangi xabar kelguncha ro'yxatda ko'rinmaydi
+      .filter((p) => p.chatHiddenUpTo == null || (lastIdBy.get(p.id) ?? 0) > p.chatHiddenUpTo)
       .map((p) => {
         const lm = lastBy.get(p.id);
         return {
@@ -92,6 +95,25 @@ export class ChatService {
     return this.prisma.chatMessage.create({
       data: { workshopId: partyId, senderId: sender.id, fromWorkshop: fromParty, text: text.trim() },
     });
+  }
+
+  /**
+   * Operator suhbatni faqat o'zidan o'chiradi: xabarlar bazada qoladi, mijoz ularni ko'raveradi.
+   * Mijoz (yoki operator) yangi xabar yozsa suhbat ro'yxatga qaytadi va eski yozishma ham ko'rinadi.
+   */
+  async hide(partyId: number, role: ChatPartyRole = Role.USER) {
+    await this.assertParty(partyId, role);
+    const last = await this.prisma.chatMessage.findFirst({ where: { workshopId: partyId }, orderBy: { id: 'desc' }, select: { id: true } });
+    if (!last) return { hidden: false };
+    await this.prisma.$transaction([
+      this.prisma.user.update({ where: { id: partyId }, data: { chatHiddenUpTo: last.id } }),
+      // O'chirilgan suhbatdagi o'qilmaganlar menyudagi nishonda qolib ketmasin
+      this.prisma.chatMessage.updateMany({
+        where: { workshopId: partyId, fromWorkshop: true, readAt: null, id: { lte: last.id } },
+        data: { readAt: new Date() },
+      }),
+    ]);
+    return { hidden: true };
   }
 
   /** Tomon uchun: operatordan kelgan o'qilmagan xabarlar soni (menyudagi nishon) */

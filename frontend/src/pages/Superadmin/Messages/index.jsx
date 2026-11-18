@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, MessagesSquare, Phone, Send } from 'lucide-react';
+import { ArrowLeft, MessagesSquare, Send, Trash2 } from 'lucide-react';
 import { chatApi, supportApi } from '../../../features/platform/platformApi';
 import { prettyPhone } from '../../../features/accounts/accountsApi';
 import { useDebounced } from '../../../hooks/useDebounced';
 import { useLang, useT } from '../i18n';
-import { CHAT_READ_EVENT, usePolling } from '../ui';
+import { CHAT_READ_EVENT, ConfirmModal, usePolling } from '../ui';
 
 const NEAR_BOTTOM = 120;
 
@@ -29,6 +29,8 @@ export default function SuperadminMessages() {
   const [text, setText] = useState('');
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState('');
+  const [confirmHide, setConfirmHide] = useState(false);
+  const [hiding, setHiding] = useState(false);
   const debouncedSearch = useDebounced(search, 300);
   const bodyRef = useRef(null);
   const stickRef = useRef(true);
@@ -123,6 +125,25 @@ export default function SuperadminMessages() {
       setSendError(err.message);
     } finally {
       setSending(false);
+    }
+  };
+
+  // Suhbat faqat bizdan o'chadi — mijozda qoladi; u yangi xabar yozsa ro'yxatga eski yozishmasi bilan qaytadi
+  const hideThread = async () => {
+    setHiding(true);
+    try {
+      await supportApi.hide(activeId);
+      setConfirmHide(false);
+      setActiveId(null);
+      await loadThreads();
+      window.dispatchEvent(new Event(CHAT_READ_EVENT));
+    } catch (err) {
+      // "Cannot DELETE ..." — server hali eski versiyada (o'chirish API'si yo'q): tushunarli xabar ko'rsatamiz
+      const noRoute = err.status === 404 && /^Cannot DELETE/i.test(err.message ?? '');
+      setSendError(noRoute ? t("O'chirish serverda hali yo'q — backend yangilanishi kerak") : err.message);
+      setConfirmHide(false);
+    } finally {
+      setHiding(false);
     }
   };
 
@@ -227,11 +248,11 @@ export default function SuperadminMessages() {
                   <b>{active?.name}</b>
                   {phone && <small>{prettyPhone(phone)}</small>}
                 </div>
-                {phone && (
-                  <a href={`tel:${phone}`} className="sa-btn sa-btn--ghost">
-                    <Phone size={14} strokeWidth={2.2} aria-hidden="true" />
-                    <span>{t('Qo‘ng‘iroq')}</span>
-                  </a>
+                {kind === 'support' && messages.length > 0 && (
+                  <button type="button" className="sa-btn sa-btn--ghost" onClick={() => setConfirmHide(true)} title={t('Chatni o‘chirish')}>
+                    <Trash2 size={14} strokeWidth={2.2} aria-hidden="true" />
+                    <span>{t('O‘chirish')}</span>
+                  </button>
                 )}
               </header>
 
@@ -271,6 +292,17 @@ export default function SuperadminMessages() {
           )}
         </div>
       </section>
+
+      {confirmHide && (
+        <ConfirmModal
+          title={t('Chatni o‘chirish')}
+          text={t('Suhbat faqat sizning ro‘yxatingizdan o‘chadi, mijozda yozishma saqlanib qoladi. Mijoz yana yozsa, suhbat eski xabarlari bilan qaytadi.')}
+          confirmLabel={t('O‘chirish')}
+          busy={hiding}
+          onConfirm={hideThread}
+          onClose={() => setConfirmHide(false)}
+        />
+      )}
     </>
   );
 }

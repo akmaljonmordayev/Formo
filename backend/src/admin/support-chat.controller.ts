@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Post, Query } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Post, Query } from '@nestjs/common';
 import { ApiBearerAuth, ApiForbiddenResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
 import { Role } from '@prisma/client';
@@ -65,6 +65,15 @@ export class AdminSupportChatController {
   @ApiOperation({ summary: 'Mijoz bilan yozishma (`?after=id` — faqat yangilari)' })
   messages(@Param('userId', ParseIdPipe) userId: number, @Query() query: ChatMessagesQueryDto) {
     return this.chat.messages(userId, 'operator', query.after, Role.USER);
+  }
+
+  @Delete(':userId')
+  @ApiOperation({
+    summary: 'Suhbatni faqat operator ro‘yxatidan o‘chirish',
+    description: 'Xabarlar o‘chmaydi — mijoz ko‘raveradi. Mijoz yangi xabar yozsa suhbat eski yozishmasi bilan qaytadi',
+  })
+  hide(@Param('userId', ParseIdPipe) userId: number) {
+    return this.chat.hide(userId, Role.USER);
   }
 
   @Post(':userId/messages')

@@ -58,10 +58,12 @@ model User {
   ordersAsWorkshop Order[] @relation("OrderWorkshop")
 
   // Tikuv sexi: operator bilan yozishmalar, nuqson hisobotlari, xodimlar
-  chatThread    ChatMessage[]  @relation("ChatWorkshop")
-  chatSent      ChatMessage[]  @relation("ChatSender")
-  defectReports DefectReport[]
-  employees     Employee[]
+  chatThread     ChatMessage[]  @relation("ChatWorkshop")
+  // Operator suhbatni o'zidan o'chirgan: shu id gacha xabarlar ro'yxatda ko'rinmaydi (mijozda saqlanadi, yangi xabar kelsa qaytadi)
+  chatHiddenUpTo Int?
+  chatSent       ChatMessage[]  @relation("ChatSender")
+  defectReports  DefectReport[]
+  employees      Employee[]
 
   telegram TelegramAccount?
 
@@ -517,14 +519,14 @@ model Order {
   discountSum Int @default(0)
 
   // Yetkazish (mobil ilovadan rasmiylashtirilganda)
-  deliveryDate    DateTime? @db.Date
-  deliverySlot    String? // "10:00-14:00"
-  deliveryAddress String?
-  deliveryRegion  String? // manzil viloyati (buyurtma paytidagi nusxa) — delivery.feesByRegion kaliti
+  deliveryDate     DateTime? @db.Date
+  deliverySlot     String? // "10:00-14:00"
+  deliveryAddress  String?
+  deliveryRegion   String? // manzil viloyati (buyurtma paytidagi nusxa) — delivery.feesByRegion kaliti
   deliveryDistrict String? // manzil tumani (buyurtma paytidagi nusxa)
-  deliveryLat     Float? // xaritadagi aniq nuqta (kuryer/pochta uchun)
-  deliveryLng     Float?
-  comment         String? // kuryer uchun izoh
+  deliveryLat      Float? // xaritadagi aniq nuqta (kuryer/pochta uchun)
+  deliveryLng      Float?
+  comment          String? // kuryer uchun izoh
 
   paymentExpiresAt DateTime? // Click/Payme: to'lov kutiladigan muddat (30 daqiqa)
   paidAt           DateTime?

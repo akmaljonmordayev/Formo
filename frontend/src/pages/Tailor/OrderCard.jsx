@@ -3,7 +3,7 @@ import { memo } from 'react';
 import { bottomStatus, useT } from './i18n';
 import { JerseyMini } from './ui';
 import { frameUrl, lineVariant, teamForClub } from './OrderKitView';
-import { cx } from './utils';
+import { cx, shippedLabel } from './utils';
 
 const STRIP = {
   late: 'bg-rose-500',
@@ -124,6 +124,9 @@ function OrderCard({ order, index, bucket, onOpen }) {
           </div>
         ))}
         {lines.length > shown && <p className="mt-0.5 text-xs font-bold text-slate-400">+{lines.length - shown}</p>}
+        {small && shippedLabel(t, order) && (
+          <span className="mt-1 inline-block rounded-full bg-sky-400/15 px-2 py-0.5 text-[11px] font-bold text-sky-300">{shippedLabel(t, order)}</span>
+        )}
         {!small && <p className={cx('mt-0.5 text-sm font-semibold', DEADLINE_TEXT[bucket])}>{deadlineText(t, order, bucket)}</p>}
       </div>
 

@@ -597,67 +597,170 @@
   font-variant-numeric: tabular-nums;
 }
 
+.sa-kits {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.sa-kit__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+/* O'lcham kataklari: keng, bosiladigan kartalar (soni katta, narxi ostida) */
 .sa-sizes {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(104px, 1fr));
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 14px;
 }
 
 .sa-size {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 10px;
+  gap: 8px;
+  padding: 14px 16px;
   border: 1px solid var(--sa-line);
-  border-radius: 12px;
+  border-left: 4px solid var(--sa-teal);
+  border-radius: 14px;
   background: var(--sa-surface-2);
+  color: var(--sa-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.sa-size:hover,
+.sa-size:focus-visible {
+  border-color: var(--sa-accent);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  outline: 0;
 }
 
 .sa-size.is-low {
-  border-color: var(--sa-accent);
+  border-left-color: var(--sa-accent);
 }
 
 .sa-size.is-out {
-  border-color: var(--sa-red);
+  border-left-color: var(--sa-red);
+}
+
+.sa-size.is-flash {
+  border-color: var(--sa-teal);
+  box-shadow: 0 0 0 3px rgba(25, 167, 161, 0.25);
+}
+
+.sa-size__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
 }
 
 .sa-size__name {
   font-family: var(--font-display, sans-serif);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 700;
-  text-align: center;
 }
 
-.sa-size label {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  font-size: 10.5px;
+.sa-size__pen {
+  color: var(--sa-mu-2);
+  transition: color 0.15s ease;
+}
+
+.sa-size:hover .sa-size__pen {
+  color: var(--sa-accent);
+}
+
+.sa-size__qty {
+  font-family: var(--font-display, sans-serif);
+  font-size: 24px;
+  font-weight: 700;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
+.sa-size__qty small {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
   color: var(--sa-mu);
 }
 
-.sa-size input {
-  width: 100%;
-  height: 32px;
-  padding: 0 6px;
-  border: 1px solid var(--sa-line);
-  border-radius: 8px;
-  background: var(--sa-surface);
-  color: var(--sa-ink);
-  font-size: 13.5px;
+.sa-size.is-low .sa-size__qty {
+  color: var(--sa-accent);
+}
+
+.sa-size.is-out .sa-size__qty {
+  color: var(--sa-red);
+}
+
+.sa-size__price {
+  padding-top: 8px;
+  border-top: 1px dashed var(--sa-line);
+  color: var(--sa-mu);
+  font-size: 13px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
-  text-align: center;
-  outline: none;
 }
 
-.sa-size input:focus {
-  border-color: var(--sa-accent);
+/* Narx va soni oynasi: tanlanadigan o'lchamlar */
+.sa-size-picks {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
 }
 
-.sa-size input.is-changed {
+.sa-size-picks label {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  gap: 2px 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--sa-line);
+  border-radius: 12px;
+  background: var(--sa-surface-2);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.sa-size-picks label.is-on {
   border-color: var(--sa-teal);
-  background: rgba(25, 167, 161, 0.1);
+  background: rgba(25, 167, 161, 0.08);
+}
+
+.sa-size-picks input {
+  grid-row: span 3;
+}
+
+.sa-size-picks small {
+  color: var(--sa-mu);
+  font-variant-numeric: tabular-nums;
+}
+
+.sa-dlv-modal__block {
+  margin-bottom: 18px;
+  padding: 16px;
+  border: 1px solid var(--sa-line);
+  border-radius: 14px;
+}
+
+.sa-dlv-modal__block .sa-dlv-presets {
+  margin-bottom: 0;
+}
+
+@media (max-width: 560px) {
+  .sa-sizes {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+
+  .sa-size-picks {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 .sa-legend {
@@ -1111,6 +1214,10 @@
   .sa-kit,
   .sa-savebar {
     animation: none;
+  }
+
+  .sa-size {
+    transition: none;
   }
 
   .sa-job {
@@ -1650,6 +1757,322 @@
 @media (prefers-reduced-motion: reduce) {
   .sa-todo,
   .sa-toast {
+    animation: none;
+  }
+}
+
+/* ---------- Yetkazib berish narxi: viloyat kartalari va narx oynasi ---------- */
+.sa-dlv-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 16px;
+}
+
+.sa-dlv-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 240px;
+  max-width: 360px;
+  height: 40px;
+  padding: 0 12px;
+  border: 1px solid var(--sa-line);
+  border-radius: 10px;
+  background: var(--sa-surface-2);
+  color: var(--sa-mu);
+}
+
+.sa-dlv-search:focus-within {
+  border-color: var(--sa-accent);
+}
+
+.sa-dlv-search input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--sa-ink);
+  font: inherit;
+  font-size: 13.5px;
+}
+
+.sa-dlv-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  gap: 12px;
+}
+
+.sa-dlv-card {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+  border: 1px solid var(--sa-line);
+  border-radius: 14px;
+  background: var(--sa-surface-2);
+  color: var(--sa-ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.15s ease, transform 0.15s ease, box-shadow 0.15s ease;
+  animation: sa-fade-up 0.35s ease-out backwards;
+  animation-delay: var(--sa-delay, 0ms);
+}
+
+.sa-dlv-card:hover,
+.sa-dlv-card:focus-visible {
+  border-color: var(--sa-accent);
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.18);
+  outline: 0;
+}
+
+.sa-dlv-card.is-flash {
+  border-color: var(--sa-teal);
+  box-shadow: 0 0 0 3px rgba(25, 167, 161, 0.25);
+}
+
+.sa-dlv-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.sa-dlv-card__name {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  color: var(--sa-mu);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sa-dlv-card__edit {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: rgba(var(--sa-hover-rgb), 0.06);
+  color: var(--sa-mu);
+  transition: background 0.15s ease, color 0.15s ease;
+}
+
+.sa-dlv-card:hover .sa-dlv-card__edit {
+  background: var(--sa-accent);
+  color: var(--sa-accent-ink);
+}
+
+.sa-dlv-card__price {
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.sa-dlv-card__bar {
+  height: 4px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: rgba(var(--sa-hover-rgb), 0.08);
+}
+
+.sa-dlv-card__bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--sa-teal), var(--sa-accent));
+  transform-origin: left;
+  transition: transform 0.4s ease;
+}
+
+.sa-dlv-toast {
+  position: fixed;
+  right: 24px;
+  bottom: 24px;
+  z-index: 60;
+  padding: 12px 18px;
+  border: 1px solid var(--sa-teal);
+  border-radius: 12px;
+  background: var(--sa-surface);
+  color: var(--sa-teal);
+  font-weight: 700;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.35);
+  animation: sa-fade-up 0.25s ease-out;
+}
+
+.sa-dlv-modal {
+  width: min(520px, 100%);
+}
+
+.sa-dlv-modal__current {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--sa-surface-2);
+  color: var(--sa-mu);
+  font-size: 13px;
+}
+
+.sa-dlv-modal__current b {
+  color: var(--sa-ink);
+  font-family: var(--font-display);
+  font-size: 16px;
+}
+
+.sa-dlv-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: 52px;
+  padding: 0 6px;
+  border: 1px solid var(--sa-line);
+  border-radius: 12px;
+  background: var(--sa-surface-2);
+}
+
+.sa-dlv-input:focus-within {
+  border-color: var(--sa-accent);
+}
+
+.sa-dlv-input input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  outline: 0;
+  background: transparent;
+  color: var(--sa-ink);
+  font-family: var(--font-display);
+  font-size: 22px;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.sa-dlv-input__suffix {
+  color: var(--sa-mu);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.sa-dlv-input button {
+  display: grid;
+  place-items: center;
+  width: 38px;
+  height: 38px;
+  flex-shrink: 0;
+  border: 1px solid var(--sa-line);
+  border-radius: 10px;
+  background: var(--sa-surface);
+  color: var(--sa-ink);
+  cursor: pointer;
+}
+
+.sa-dlv-input button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.sa-dlv-diff.is-up {
+  color: var(--sa-red) !important;
+}
+
+.sa-dlv-diff.is-down {
+  color: var(--sa-green) !important;
+}
+
+.sa-dlv-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 16px;
+}
+
+.sa-dlv-presets button {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--sa-line);
+  border-radius: 999px;
+  background: var(--sa-surface);
+  color: var(--sa-mu);
+  font-size: 12.5px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.sa-dlv-presets button.is-active {
+  border-color: var(--sa-accent);
+  background: var(--sa-accent);
+  color: var(--sa-accent-ink);
+}
+
+.sa-dlv-link {
+  border: 0;
+  background: none;
+  color: var(--sa-accent);
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.sa-dlv-checks {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.sa-dlv-checks label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  border: 1px solid var(--sa-line);
+  border-radius: 10px;
+  background: var(--sa-surface-2);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.sa-dlv-checks label.is-on {
+  border-color: var(--sa-teal);
+}
+
+.sa-dlv-checks label span {
+  flex: 1;
+  min-width: 0;
+}
+
+.sa-dlv-checks small {
+  color: var(--sa-mu);
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 560px) {
+  .sa-dlv-checks {
+    grid-template-columns: 1fr;
+  }
+
+  .sa-dlv-toast {
+    right: 16px;
+    left: 16px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sa-dlv-card {
     animation: none;
   }
 }

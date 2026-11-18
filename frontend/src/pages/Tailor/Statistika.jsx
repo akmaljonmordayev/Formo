@@ -12,6 +12,8 @@ const RANGES = [
   [90, 'stat.quarter'],
 ];
 
+const UNCOUNTED = ['CANCELLED', 'RETURNED'];
+
 const WEEKDAYS = {
   uz: ['Yak', 'Du', 'Se', 'Chor', 'Pay', 'Jum', 'Shan'],
   ru: ['Вс', 'Пн', 'Вт', 'Ср', 'Чт', 'Пт', 'Сб'],
@@ -221,7 +223,10 @@ export default function Statistika() {
     .join(' · ');
 
   const counts = byStatus ?? {};
-  const allTime = Object.values(counts).reduce((sum, n) => sum + n, 0);
+  // Bekor qilingan va qaytarilganlar sanalmaydi — davr grafigi va forma/o'lcham hisobi bilan bir xil qoida
+  const allTime = Object.entries(counts)
+    .filter(([status]) => !UNCOUNTED.includes(status))
+    .reduce((sum, [, n]) => sum + n, 0);
   const shown = (n) => (byStatus ? n : '—');
   const toRows = (list) => (list ?? []).map((row) => ({ key: row.name, label: row.name, value: row.pieces }));
   // Umumiy analitika API'si javob bersa — o'shandan (forma nomi to'liq), aks holda sex statistikasidagi eski hisob

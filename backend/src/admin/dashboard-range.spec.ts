@@ -76,6 +76,19 @@ describe('dashboardStats — kunlik tushum', () => {
     });
   });
 
+  it("to'lanmagan (PENDING_PAYMENT) buyurtma soniga ham, tushumga ham kirmaydi", async () => {
+    const at = new Date('2026-11-01T10:00:00.000Z');
+    prisma.order.findMany
+      .mockResolvedValueOnce([
+        { totalSum: 100, status: OrderStatus.DELIVERED, createdAt: at },
+        { totalSum: 80, status: OrderStatus.PENDING_PAYMENT, createdAt: at },
+      ])
+      .mockResolvedValueOnce([{ totalSum: 60, status: OrderStatus.PENDING_PAYMENT }]);
+    const stats = await service.dashboardStats({ from: '2026-11-01', to: '2026-11-01' });
+    expect(stats).toMatchObject({ ordersCount: 1, revenue: 100, ordersDeltaPct: 100 });
+    expect(stats.dailyTrend).toEqual([{ date: '2026-11-01', count: 1, revenue: 100 }]);
+  });
+
   it('tungi buyurtma (02:00 Toshkent = 21:00 UTC kechagi) o‘z Toshkent kuniga tushadi', async () => {
     prisma.order.findMany
       .mockResolvedValueOnce([{ totalSum: 90, status: OrderStatus.DELIVERED, createdAt: new Date('2026-11-01T21:00:00.000Z') }])

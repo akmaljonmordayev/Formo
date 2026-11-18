@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { clubsApi, inventoryApi } from '../../../features/platform/platformApi';
 import Modal from '../../../components/ui/Modal';
-import { Shield } from 'lucide-react';
+import { Layers, Pencil, Search, Shield } from 'lucide-react';
 import { useMoney, useT } from '../i18n';
 import Select from '../Select';
+import { NumberField, Presets, groupDigits } from '../NumberField';
 
 const ADULT_SIZES = ['S', 'M', 'L', 'XL', 'XXL', '3XL'];
 const ALL_SIZES = ADULT_SIZES;
@@ -24,8 +25,9 @@ async function fetchAllClubs() {
 }
 
 /**
- * Formalar: har bir forma — bitta karta, har bir o'lcham — bitta katak (tepada soni, pastida narxi).
- * O'zgarishlar sahifa pastidagi bitta «Saqlash» tugmasi bilan saqlanadi.
+ * Formalar: har bir forma — bitta karta, har bir o'lcham — bitta katak (omborda nechta va narxi).
+ * Katak bosilsa — shu o'lcham uchun soni va narxini o'zgartirish oynasi; «Narx va soni» —
+ * formaning bir nechta o'lchamiga bir yo'la. O'zgarish oynaning o'zida darhol saqlanadi.
  */
 export default function SuperadminForms() {
   const t = useT();
@@ -38,8 +40,9 @@ export default function SuperadminForms() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const [editing, setEditing] = useState(null); // null | 'new' | kit
-  const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [stockEdit, setStockEdit] = useState(null); // { kit, sizes: string[], bulk: boolean }
+  const [notice, setNotice] = useState(null); // { text } — har saqlashda yangi obyekt, taymer qaytadan boshlanadi
+  const [flash, setFlash] = useState([]); // hozirgina saqlangan kataklar — bir lahza yonadi
 
   const load = () =>
     Promise.all([clubsApi.listKits(), fetchAllClubs(), inventoryApi.list({ productType: PRODUCT })])
@@ -55,81 +58,38 @@ export default function SuperadminForms() {
     load();
   }, []);
 
-  // ── Zaxira (har bir formaning o'lcham bo'yicha qoldig'i) ──────────────────
-  const qtyMap = useMemo(() => Object.fromEntries(items.map((i) => [cellKey(i.kitId, i.size), String(i.qty)])), [items]);
-  const [qtyDraft, setQtyDraft] = useState({});
-  useEffect(() => setQtyDraft(qtyMap), [qtyMap]);
-
-  // ── Narx (o'lcham bo'yicha) — alohida narx qo'yilmagan bo'lsa formaning komplekt narxi ────
-  const priceMap = useMemo(
-    () => Object.fromEntries(kits.flatMap((k) => ALL_SIZES.map((s) => [cellKey(k.id, s), String(k.sizePrices?.[s] ?? k.shirtPrice)]))),
-    [kits],
-  );
-  const [priceDraft, setPriceDraft] = useState({});
-  useEffect(() => setPriceDraft(priceMap), [priceMap]);
-
-  const qtyOf = (key) => qtyDraft[key] ?? '';
-  const priceOf = (key) => priceDraft[key] ?? '';
-  const qtyChanged = (key) => qtyOf(key) !== (qtyMap[key] ?? '');
-  const priceChanged = (key) => priceOf(key) !== (priceMap[key] ?? '');
-
-  const setQty = (key, value) => {
-    if (value !== '' && !/^\d{1,6}$/.test(value)) return;
-    setQtyDraft((m) => ({ ...m, [key]: value }));
-    setSaved(false);
-  };
-  const setPrice = (key, value) => {
-    if (value !== '' && !/^\d{1,7}$/.test(value)) return;
-    setPriceDraft((m) => ({ ...m, [key]: value }));
-    setSaved(false);
-  };
-
-  const allKeys = useMemo(() => kits.flatMap((k) => ALL_SIZES.map((s) => cellKey(k.id, s))), [kits]);
-  const changes = allKeys.filter(qtyChanged).length + allKeys.filter(priceChanged).length;
-
-  // «Saqlandi» yozuvi bir necha soniyadan keyin o'zi yo'qoladi
+  // «Saqlandi» yozuvi va katakning yonishi bir necha soniyadan keyin o'zi yo'qoladi
   useEffect(() => {
-    if (!saved) return undefined;
-    const timer = setTimeout(() => setSaved(false), 3000);
+    if (!notice) return undefined;
+    const timer = setTimeout(() => {
+      setNotice(null);
+      setFlash([]);
+    }, 3000);
     return () => clearTimeout(timer);
-  }, [saved]);
+  }, [notice]);
 
-  const reset = () => {
-    setQtyDraft(qtyMap);
-    setPriceDraft(priceMap);
-  };
+  // Zaxira: forma + o'lcham -> soni (yozuv bo'lmasa — null, "—" ko'rinadi)
+  const qtyMap = useMemo(() => Object.fromEntries(items.map((i) => [cellKey(i.kitId, i.size), i.qty])), [items]);
+  const qtyOf = (kit, size) => qtyMap[cellKey(kit.id, size)] ?? null;
+  // Alohida narx qo'yilmagan o'lcham formaning komplekt narxini oladi
+  const priceOf = (kit, size) => kit.sizePrices?.[size] ?? kit.shirtPrice;
 
-  const save = async () => {
-    const stock = [];
-    const prices = [];
-    kits.forEach((k) => {
-      ALL_SIZES.forEach((size) => {
-        const key = cellKey(k.id, size);
-        if (qtyChanged(key)) stock.push({ productType: PRODUCT, kitId: k.id, size, qty: Number(qtyOf(key) || 0) });
-      });
-      if (!ALL_SIZES.some((s) => priceChanged(cellKey(k.id, s)))) return;
+  /** Oyna chaqiradi: qty / price null bo'lsa o'zgarmaydi. Xato bo'lsa throw — oyna o'zida ko'rsatadi */
+  const saveCells = async (kit, sizes, { qty, price }) => {
+    if (qty !== null) await inventoryApi.save(sizes.map((size) => ({ productType: PRODUCT, kitId: kit.id, size, qty })));
+    if (price !== null) {
       // Komplekt narxi bilan teng o'lchamlar yozilmaydi — ular narxni formaning o'zidan oladi
-      const sizePrices = Object.fromEntries(
-        ALL_SIZES.map((s) => [s, Number(priceOf(cellKey(k.id, s)) || 0)]).filter(([, n]) => n > 0 && n !== k.shirtPrice),
-      );
-      prices.push([k.id, { sizePrices }]);
-    });
-    setSaving(true);
-    setError('');
-    try {
-      // Ketma-ket: avval zaxira, keyin narx — oxirida hammasi qayta yuklanadi
-      if (stock.length) await inventoryApi.save(stock);
-      await Promise.all(prices.map(([id, body]) => clubsApi.updateKit(id, body)));
-      await load();
-      setSaved(true);
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setSaving(false);
+      const next = { ...(kit.sizePrices ?? {}), ...Object.fromEntries(sizes.map((s) => [s, price])) };
+      const sizePrices = Object.fromEntries(Object.entries(next).filter(([, n]) => Number(n) > 0 && Number(n) !== kit.shirtPrice));
+      await clubsApi.updateKit(kit.id, { sizePrices });
     }
+    await load();
+    setStockEdit(null);
+    setFlash(sizes.map((s) => cellKey(kit.id, s)));
+    setNotice({ text: sizes.length === 1 ? t('{size} saqlandi ✓', { size: sizes[0] }) : t("{n} ta o'lcham saqlandi ✓", { n: sizes.length }) });
   };
 
-  // ── Ro'yxat, qidiruv va sahifalash (10 tadan) ──────────────────────────────
+  // Ro'yxat, qidiruv va sahifalash (10 tadan)
   const filteredKits = useMemo(() => {
     const q = search.trim().toLowerCase();
     if (!q) return kits;
@@ -149,28 +109,29 @@ export default function SuperadminForms() {
       <div className="sa-head">
         <div>
           <h1>{t('Formalar')}</h1>
-          <p>{t("Har bir o'lcham katagida tepada — omborda nechta borligi, pastida — narxi. O'zgartiring va pastdagi «Saqlash»ni bosing.")}</p>
+          <p>{t("O'lcham katagini bosing — omborda nechta borligi va narxini o'zgartirish oynasi ochiladi.")}</p>
         </div>
         <button type="button" className="sa-btn" onClick={() => setEditing('new')}>{t('+ Yangi forma')}</button>
       </div>
 
       {error && <div className="form-error">{error}</div>}
 
-      <div className="sa-tabs" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
-        <input
-          className="sa-input"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(0);
-          }}
-          placeholder={t('Klub yoki forma nomi bo‘yicha qidirish')}
-          style={{ width: '100%', maxWidth: 320 }}
-        />
+      <div className="sa-dlv-toolbar">
+        <label className="sa-dlv-search">
+          <Search size={16} aria-hidden="true" />
+          <input
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(0);
+            }}
+            placeholder={t('Klub yoki forma nomi bo‘yicha qidirish')}
+            aria-label={t('Klub yoki forma nomi bo‘yicha qidirish')}
+          />
+        </label>
         <div className="sa-legend">
           <span><i style={{ background: 'var(--sa-accent)' }} />{t('kam qoldi (5 dan kam)')}</span>
           <span><i style={{ background: 'var(--sa-red)' }} />{t("tugagan — mijozga ko'rinmaydi")}</span>
-          <span><i style={{ background: 'var(--sa-teal)' }} />{t("o'zgartirilgan, saqlanmagan")}</span>
         </div>
       </div>
 
@@ -181,59 +142,63 @@ export default function SuperadminForms() {
           <div className="sa-table__sub">{t(kits.length === 0 ? '«+ Yangi forma» bilan birinchisini qo‘shing.' : 'Hech narsa topilmadi.')}</div>
         </div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-          {pageKits.map((kit, i) => (
-            <div key={kit.id} className="sa-panel sa-kit">
-              <div className="sa-kit__head">
-                <div className="sa-kit__name">
-                  <span className="sa-kit__no">{first + i + 1}</span>
-                  <SleeveIcon kit={kit} t={t} />
-                  <div style={{ minWidth: 0 }}>
-                    <div>
-                      <b>{kit.club.name}</b> · {kit.label}
-                      {!kit.isActive && <span className="sa-badge sa-badge--red" style={{ marginLeft: 8 }}>{t('faol emas')}</span>}
-                    </div>
-                    <div className="sa-table__sub">
-                      {[kit.colorsLabel, `${t('Komplekt')} ${money(kit.shirtPrice)}`, `${t('bosma')} ${money(kit.printPrice)}`].filter(Boolean).join(' · ')}
+        <div className="sa-kits">
+          {pageKits.map((kit, i) => {
+            const total = ALL_SIZES.reduce((sum, s) => sum + (qtyOf(kit, s) ?? 0), 0);
+            return (
+              <div key={kit.id} className="sa-panel sa-kit">
+                <div className="sa-kit__head">
+                  <div className="sa-kit__name">
+                    <span className="sa-kit__no">{first + i + 1}</span>
+                    <SleeveIcon kit={kit} t={t} />
+                    <div style={{ minWidth: 0 }}>
+                      <div>
+                        <b>{kit.club.name}</b> · {kit.label}
+                        {!kit.isActive && <span className="sa-badge sa-badge--red" style={{ marginLeft: 8 }}>{t('faol emas')}</span>}
+                      </div>
+                      <div className="sa-table__sub">
+                        {[kit.colorsLabel, `${t('Komplekt')} ${money(kit.shirtPrice)}`, `${t('bosma')} ${money(kit.printPrice)}`, t('omborda {n} dona', { n: total })]
+                          .filter(Boolean)
+                          .join(' · ')}
+                      </div>
                     </div>
                   </div>
+                  <div className="sa-kit__actions">
+                    <button type="button" className="sa-btn sa-btn--ghost" onClick={() => setStockEdit({ kit, sizes: [...ALL_SIZES], bulk: true })}>
+                      <Layers size={15} aria-hidden="true" /> {t('Narx va soni')}
+                    </button>
+                    <button type="button" className="sa-btn sa-btn--ghost" onClick={() => setEditing(kit)}>{t('Tahrirlash')}</button>
+                  </div>
                 </div>
-                <button type="button" className="sa-btn sa-btn--ghost" onClick={() => setEditing(kit)}>{t('Tahrirlash')}</button>
-              </div>
 
-              <div className="sa-sizes">
-                {ALL_SIZES.map((size) => {
-                  const key = cellKey(kit.id, size);
-                  const qty = qtyOf(key) === '' ? null : Number(qtyOf(key));
-                  const state = qty === 0 ? ' is-out' : qty !== null && qty < LOW ? ' is-low' : '';
-                  return (
-                    <div key={size} className={`sa-size${state}`}>
-                      <div className="sa-size__name">{size}</div>
-                      <label>
-                        {t('Soni (dona)')}
-                        <input
-                          className={qtyChanged(key) ? 'is-changed' : undefined}
-                          value={qtyOf(key)}
-                          onChange={(e) => setQty(key, e.target.value)}
-                          inputMode="numeric"
-                          placeholder="—"
-                        />
-                      </label>
-                      <label>
-                        {t("Narxi (so'm)")}
-                        <input
-                          className={priceChanged(key) ? 'is-changed' : undefined}
-                          value={priceOf(key)}
-                          onChange={(e) => setPrice(key, e.target.value)}
-                          inputMode="numeric"
-                        />
-                      </label>
-                    </div>
-                  );
-                })}
+                <div className="sa-sizes">
+                  {ALL_SIZES.map((size) => {
+                    const qty = qtyOf(kit, size);
+                    const state = qty === 0 ? ' is-out' : qty !== null && qty < LOW ? ' is-low' : '';
+                    const lit = flash.includes(cellKey(kit.id, size)) ? ' is-flash' : '';
+                    return (
+                      <button
+                        key={size}
+                        type="button"
+                        className={`sa-size${state}${lit}`}
+                        onClick={() => setStockEdit({ kit, sizes: [size], bulk: false })}
+                        aria-label={t('{size} — soni va narxini o‘zgartirish', { size })}
+                      >
+                        <span className="sa-size__top">
+                          <span className="sa-size__name">{size}</span>
+                          <Pencil size={13} aria-hidden="true" className="sa-size__pen" />
+                        </span>
+                        <span className="sa-size__qty">
+                          {qty ?? '—'} <small>{t('dona')}</small>
+                        </span>
+                        <span className="sa-size__price">{money(priceOf(kit, size))}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
@@ -245,18 +210,20 @@ export default function SuperadminForms() {
         </nav>
       )}
 
-      {(changes > 0 || saved) && (
-        <div className="sa-savebar" role="status">
-          <b style={{ color: changes ? undefined : 'var(--sa-teal)' }}>
-            {changes ? t("{n} ta o'zgarish saqlanmagan", { n: changes }) : t('Saqlandi ✓')}
-          </b>
-          {changes > 0 && (
-            <div className="sa-savebar__actions">
-              <button type="button" className="sa-btn sa-btn--ghost" onClick={reset} disabled={saving}>{t('Bekor qilish')}</button>
-              <button type="button" className="sa-btn" onClick={save} disabled={saving}>{saving ? t('Saqlanmoqda...') : t('Saqlash')}</button>
-            </div>
-          )}
+      {notice && (
+        <div className="sa-dlv-toast" role="status">
+          {notice.text}
         </div>
+      )}
+
+      {stockEdit && (
+        <SizeModal
+          {...stockEdit}
+          qtyOf={(s) => qtyOf(stockEdit.kit, s)}
+          priceOf={(s) => priceOf(stockEdit.kit, s)}
+          onSave={(sizes, values) => saveCells(stockEdit.kit, sizes, values)}
+          onClose={() => setStockEdit(null)}
+        />
       )}
 
       {editing && (
@@ -272,6 +239,157 @@ export default function SuperadminForms() {
         />
       )}
     </>
+  );
+}
+
+const MAX_QTY = 999_999;
+const MAX_PRICE = 9_999_999;
+const QTY_ADD = [5, 10, 20, 50];
+const PRICE_PRESETS = [149000, 159000, 179000, 199000];
+
+/**
+ * O'lcham(lar) soni va narxi oynasi. Bitta o'lcham — hozirgi qiymatlar to'ldirilgan;
+ * bulk — tanlangan o'lchamlarga bir xil son/narx (bo'sh qoldirilgan maydon o'zgarmaydi).
+ */
+function SizeModal({ kit, sizes: initialSizes, bulk, qtyOf, priceOf, onSave, onClose }) {
+  const t = useT();
+  const money = useMoney();
+  const single = bulk ? null : initialSizes[0];
+  const [sizes, setSizes] = useState(initialSizes);
+  const [qty, setQty] = useState(single ? String(qtyOf(single) ?? '') : '');
+  const [price, setPrice] = useState(single ? String(priceOf(single)) : '');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  const qtyN = qty === '' ? null : Number(qty);
+  const priceN = price === '' ? null : Number(price);
+  // Bitta o'lchamda — faqat o'zgargan maydon yuboriladi
+  const qtyNext = single && qtyN === qtyOf(single) ? null : qtyN;
+  const priceNext = single && priceN === priceOf(single) ? null : priceN;
+  const badPrice = priceN === 0;
+  const canSave = !saving && sizes.length > 0 && !badPrice && (qtyNext !== null || priceNext !== null);
+  const priceDiff = single && priceN ? priceN - priceOf(single) : 0;
+
+  const submit = async (e) => {
+    e.preventDefault();
+    if (!canSave) return;
+    setSaving(true);
+    setError('');
+    try {
+      await onSave(sizes, { qty: qtyNext, price: priceNext });
+    } catch (err) {
+      setError(err.message);
+      setSaving(false);
+    }
+  };
+
+  const toggle = (s) => setSizes((cur) => ALL_SIZES.filter((x) => (x === s ? !cur.includes(s) : cur.includes(x))));
+  const kitName = `${kit.club.name} · ${kit.label}`;
+
+  return (
+    <Modal title={single ? t('{kit} — {size} o‘lcham', { kit: kitName, size: single }) : t('{kit} — narx va soni', { kit: kitName })} onClose={onClose}>
+      <form onSubmit={submit} className="sa-dlv-modal">
+        {error && <div className="form-error">{error}</div>}
+
+        {single ? (
+          <div className="sa-dlv-modal__current">
+            <span>{t('Hozir')}</span>
+            <b>
+              {qtyOf(single) ?? '—'} {t('dona')} · {money(priceOf(single))}
+            </b>
+          </div>
+        ) : (
+          <div className="field">
+            <span style={{ display: 'flex', justifyContent: 'space-between' }}>
+              {t("O'lchamlar ({n} ta tanlandi)", { n: sizes.length })}
+              <button type="button" className="sa-dlv-link" onClick={() => setSizes(sizes.length === ALL_SIZES.length ? [] : [...ALL_SIZES])}>
+                {sizes.length === ALL_SIZES.length ? t('Tanlovni tozalash') : t('Hammasini tanlash')}
+              </button>
+            </span>
+            <div className="sa-size-picks">
+              {ALL_SIZES.map((s) => (
+                <label key={s} className={sizes.includes(s) ? 'is-on' : ''}>
+                  <input type="checkbox" checked={sizes.includes(s)} onChange={() => toggle(s)} />
+                  <b>{s}</b>
+                  <small>{qtyOf(s) ?? '—'} {t('dona')}</small>
+                  <small>{groupDigits(priceOf(s))}</small>
+                </label>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <section className="sa-dlv-modal__block">
+          <div className="field" style={{ marginBottom: 10 }}>
+            <span>{t('Soni (dona)')}</span>
+            <NumberField
+              autoFocus
+              value={qty}
+              onChange={setQty}
+              max={MAX_QTY}
+              step={1}
+              suffix={t('dona')}
+              label={t('Soni (dona)')}
+              placeholder={bulk ? t("o'zgarmaydi") : '0'}
+            />
+            {bulk && <small>{t("Bo'sh qoldirilsa — soni o'zgarmaydi")}</small>}
+          </div>
+          <Presets
+            label={t("Tez qo'shish")}
+            value={qty}
+            onPick={(next) => setQty(String(next))}
+            // Bitta o'lchamda "+N" hozirgisiga qo'shadi; bir nechtasida har o'lchamga aynan N qo'yiladi (yozuv ham shunday)
+            options={[
+              { value: 0, label: t('Tugadi (0)'), active: qty === '0' },
+              ...QTY_ADD.map((n) =>
+                bulk ? { value: n, label: String(n) } : { value: Math.min(MAX_QTY, (qtyN ?? 0) + n), label: `+${n}`, active: false },
+              ),
+            ]}
+          />
+        </section>
+
+        <section className="sa-dlv-modal__block">
+          <div className="field" style={{ marginBottom: 10 }}>
+            <span>{t("Narxi (so'm)")}</span>
+            <NumberField
+              value={price}
+              onChange={setPrice}
+              max={MAX_PRICE}
+              step={1000}
+              suffix={t("so'm")}
+              label={t("Narxi (so'm)")}
+              placeholder={bulk ? t("o'zgarmaydi") : groupDigits(kit.shirtPrice)}
+            />
+            {badPrice && <small style={{ color: 'var(--sa-red)' }}>{t("Narx 0 bo'lishi mumkin emas")}</small>}
+            {!badPrice && priceDiff !== 0 && (
+              <small className={priceDiff > 0 ? 'sa-dlv-diff is-up' : 'sa-dlv-diff is-down'}>
+                {priceDiff > 0 ? '+' : '−'}
+                {money(Math.abs(priceDiff))} {t('avvalgisiga nisbatan')}
+              </small>
+            )}
+            {bulk && <small>{t("Bo'sh qoldirilsa — narx o'zgarmaydi")}</small>}
+          </div>
+          <Presets
+            label={t('Tez tanlash')}
+            value={price}
+            onPick={(p) => setPrice(String(p))}
+            options={[
+              { value: kit.shirtPrice, label: t('Komplekt narxi') },
+              ...PRICE_PRESETS.filter((p) => p !== kit.shirtPrice).map((p) => ({ value: p, label: groupDigits(p) })),
+            ]}
+          />
+        </section>
+
+        <div className="modal__foot" style={{ padding: '14px 0 0' }}>
+          <button type="button" className="btn btn--ghost" onClick={onClose}>
+            {t('Bekor qilish')}
+          </button>
+          <button type="submit" className="btn btn--accent" disabled={!canSave}>
+            {saving ? t('Saqlanmoqda...') : t('Saqlash')}
+          </button>
+        </div>
+      </form>
+    </Modal>
   );
 }
 

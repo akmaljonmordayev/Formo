@@ -28,6 +28,8 @@ const REVENUE_STATUSES: OrderStatus[] = [
   OrderStatus.DELIVERING,
   OrderStatus.DELIVERED,
 ];
+/** Buyurtma soniga kiradimi: bekor qilingan va hali to'lanmagan (muddati o'tsa bekor bo'ladigan) buyurtmalar sanalmaydi */
+const isCounted = (status: OrderStatus) => status !== OrderStatus.CANCELLED && status !== OrderStatus.PENDING_PAYMENT;
 
 export const include = {
   club: { select: { name: true } },
@@ -276,7 +278,7 @@ export class OrdersService {
       }),
     ]);
 
-    const ordersCount = current.filter((o) => o.status !== OrderStatus.CANCELLED).length;
+    const ordersCount = current.filter((o) => isCounted(o.status)).length;
     const revenue = current.filter((o) => REVENUE_STATUSES.includes(o.status)).reduce((s, o) => s + o.totalSum, 0);
 
     const [activeCount, capacityAgg] = await Promise.all([
@@ -288,7 +290,7 @@ export class OrdersService {
 
     return {
       ordersCount,
-      ordersDeltaPct: previous ? pctDelta(ordersCount, previous.filter((o) => o.status !== OrderStatus.CANCELLED).length) : null,
+      ordersDeltaPct: previous ? pctDelta(ordersCount, previous.filter((o) => isCounted(o.status)).length) : null,
       revenue,
       revenueDeltaPct: previous ? pctDelta(revenue, revenueOf(previous)) : null,
       activeCount,
@@ -330,24 +332,14 @@ export class OrdersService {
   }
 
   async reportsStats(days: number) {
-    const from = new Date();
-    from.setDate(from.getDate() - days);
-    const prevFrom = new Date(from);
-    prevFrom.setDate(prevFrom.getDate() - days);
-
-    const [current, previous] = await Promise.all([
-      this.ordersSince(from),
-      this.ordersSince(prevFrom).then((all) => all.filter((o) => o.createdAt < from)),
-    ]);
+    // Dashboard bilan bir xil davr (butun Toshkent kunlari) va bir xil hisob qoidalari
+    const r = await this.range({ days });
+    const [current, previous] = await Promise.all([this.ordersSince(r.from, r.to), this.previousOrders(r)]);
 
     const revenueOrders = current.filter((o) => REVENUE_STATUSES.includes(o.status));
     const revenue = revenueOrders.reduce((s, o) => s + o.totalSum, 0);
-    const prevRevenue = previous
-      .filter((o) => REVENUE_STATUSES.includes(o.status))
-      .reduce((s, o) => s + o.totalSum, 0);
-    const ordersCount = current.filter((o) => o.status !== OrderStatus.CANCELLED).length;
-    const prevOrdersCount = previous.filter((o) => o.status !== OrderStatus.CANCELLED).length;
-    const avgCheck = ordersCount ? Math.round(revenue / ordersCount) : 0;
+    const ordersCount = current.filter((o) => isCounted(o.status)).length;
+    const prevOrdersCount = (previous ?? []).filter((o) => isCounted(o.status)).length;
 
     const byProductType: Record<string, number> = {};
     for (const o of revenueOrders) {
@@ -356,10 +348,11 @@ export class OrdersService {
 
     return {
       revenue,
-      revenueDeltaPct: pctDelta(revenue, prevRevenue),
+      revenueDeltaPct: pctDelta(revenue, revenueOf(previous ?? [])),
       ordersCount,
       ordersDeltaPct: pctDelta(ordersCount, prevOrdersCount),
-      avgCheck,
+      // O'rtacha chek — tushumga kirgan buyurtmalar bo'yicha (Moliya sahifasi bilan bir xil)
+      avgCheck: revenueOrders.length ? Math.round(revenue / revenueOrders.length) : 0,
       byProductType,
     };
   }
@@ -462,7 +455,7 @@ export class OrdersService {
     for (const o of orders) {
       const b = buckets.get(tashkentDayKey(o.createdAt));
       if (!b) continue;
-      if (o.status !== OrderStatus.CANCELLED) b.count++;
+      if (isCounted(o.status)) b.count++;
       if (REVENUE_STATUSES.includes(o.status)) b.revenue += o.totalSum;
     }
     return Array.from(buckets.values());

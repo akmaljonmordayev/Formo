@@ -38,6 +38,13 @@ describe('orderToQueueItem', () => {
   });
 
   it("sex ko'rmaydigan holat — null", () => {
-    expect(orderToQueueItem(order([line()], { status: 'DELIVERED' }))).toBeNull();
+    expect(orderToQueueItem(order([line()], { status: 'CANCELLED' }))).toBeNull();
+  });
+
+  it("yetkazishga chiqqan tayyor — tayyorlar ro'yxatida qoladi, tayyor bo'lgan vaqti bilan", () => {
+    const item = orderToQueueItem(order([line()], { status: 'DELIVERED', readyAt: '2026-11-16T10:00:00.000Z' }));
+    expect(item.status).toBe('tayyor');
+    expect(item.apiStatus).toBe('DELIVERED');
+    expect(item.readyAt).toBe('2026-11-16T10:00:00.000Z');
   });
 });

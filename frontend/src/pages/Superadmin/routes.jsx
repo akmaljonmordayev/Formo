@@ -92,7 +92,7 @@ export const superadminMenu = [
   { to: `${BASE}/kit-360`, label: 'Forma 360°', icon: Rotate3d, group: 'Formalar' },
   { to: `${BASE}/forms`, label: 'Formalar', icon: Shirt, group: 'Formalar' },
   // Yetkazish narxlari Formalar sahifasidan alohida sahifaga chiqarildi
-  { to: `${BASE}/delivery`, label: 'Yetkazib berish', icon: Truck, group: 'Formalar' },
+  { to: `${BASE}/delivery`, label: 'Yetkazib berish narxi', icon: Truck, group: 'Formalar' },
   // Narxlar menyudan olib tashlandi (narx Formalar sahifasida tahrirlanadi) — marshrut saqlanib qoladi
 
   { to: `${BASE}/factories`, label: 'Sexlar', icon: Factory, group: 'Sex va Sifat' },

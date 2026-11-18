@@ -60,8 +60,9 @@ export class WorkshopOrdersService {
   ) {}
 
   async list(workshop: AuthUser, query: WorkshopOrdersQueryDto) {
-    const { search, status, statuses, page = 1, limit = 20 } = query;
+    const { search, status, statuses, updatedSince, page = 1, limit = 20 } = query;
     const where: Prisma.OrderWhereInput = { workshopId: workshop.id };
+    if (updatedSince) where.updatedAt = { gte: new Date(updatedSince) };
     if (status) where.status = status;
     // Sex paneli faqat faol holatlarni so'raydi — tugagan buyurtmalar tarixi har yangilanishda yuklanmaydi
     else if (statuses?.length) where.status = { in: statuses };
@@ -76,13 +77,21 @@ export class WorkshopOrdersService {
 
     const [[items, total], counts] = await Promise.all([
       this.prisma.$transaction([
-        this.prisma.order.findMany({ where, select: listSelect, orderBy: { createdAt: 'desc' }, skip: (page - 1) * limit, take: limit }),
+        this.prisma.order.findMany({
+          where,
+          // Oxirgi marta tayyor bo'lgan vaqt — sex paneli tayyorlarni "bugungi" va "avvalgi"ga shu bo'yicha ajratadi
+          select: { ...listSelect, statusLogs: { where: { toStatus: OrderStatus.READY }, orderBy: { id: 'desc' }, take: 1, select: { createdAt: true } } },
+          orderBy: { createdAt: 'desc' },
+          skip: (page - 1) * limit,
+          take: limit,
+        }),
         this.prisma.order.count({ where }),
       ]),
       this.prisma.order.groupBy({ by: ['status'], where: { workshopId: workshop.id }, _count: { _all: true } }),
     ]);
     const byStatus = Object.fromEntries(counts.map((c) => [c.status, c._count._all])) as Record<string, number>;
-    return { items, total, page, limit, byStatus };
+    const withReadyAt = items.map(({ statusLogs, ...order }) => ({ ...order, readyAt: statusLogs[0]?.createdAt ?? null }));
+    return { items: withReadyAt, total, page, limit, byStatus };
   }
 
   async get(workshop: AuthUser, id: number) {

@@ -3,7 +3,7 @@ const KEY = 'formo_admin_prefs';
 
 export const DEFAULT_ADMIN_PREFS = {
   dashboardDays: 30,
-  ordersPageSize: 20,
+  ordersPageSize: 10,
 };
 
 export function loadAdminPrefs() {

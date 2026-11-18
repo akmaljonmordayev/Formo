@@ -776,8 +776,17 @@
   white-space: nowrap;
 }
 
-.sa-input[type='date'] {
+/* Sana maydonlari va brauzerning o'z ro'yxatlari panel mavzusiga mos (qorong'ida kalendar belgisi ko'rinsin) */
+.sa input[type='date'],
+.sa input[type='time'],
+.sa select {
   color-scheme: dark;
+}
+
+.sa[data-theme='light'] input[type='date'],
+.sa[data-theme='light'] input[type='time'],
+.sa[data-theme='light'] select {
+  color-scheme: light;
 }
 
 /* Jadval */

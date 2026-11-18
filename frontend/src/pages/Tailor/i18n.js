@@ -13,7 +13,7 @@ const uz = {
   // ---------- shell ----------
   'api.loading': "Ma'lumotlar API dan yuklanmoqda...",
   'api.saving': 'Saqlanmoqda...',
-  'api.empty': "API dan ma'lumot topilmadi.",
+  'api.empty': "Hozircha ma'lumot yo'q",
   'shell.openMenu': 'Menyuni ochish',
   'shell.notifications': 'Bildirishnomalar',
   'shell.markAllRead': 'Barchasini o‘qilgan qilish',
@@ -72,6 +72,9 @@ const uz = {
   'prod.emptyReady': 'Tayyor buyurtma yo‘q',
   'prod.readyToday': 'Bugun tayyor bo‘lganlar',
   'prod.readyOld': 'Avvalgi tayyorlar',
+  'prod.readyAll': 'Jami',
+  'prod.emptyReadyToday': 'Bugun hali tayyor bo‘lgani yo‘q',
+  'prod.emptyReadyOld': 'Avvalgi kunlardan tayyor qolmagan',
 
   // ---------- sidebar ----------
   'nav.queue': 'Bugungi navbat',
@@ -114,6 +117,7 @@ const uz = {
   'status.tayyor': 'Tayyor',
   'status.yangi': 'Yangi',
   'status.yetkazishda': 'Yetkazishda',
+  'status.yetkazildi': 'Yetkazildi',
   'queue.tab.yangi': 'Yangi',
   'order.accept': 'Qabul qilish',
   'order.reject': 'Rad etish',
@@ -239,7 +243,7 @@ const uz = {
   'stat.volumeChartHint': "Oxirgi 7 kun bo'yicha har kungi buyurtmalar",
   'stat.chartHint': "Oxirgi {n} kun bo'yicha har kungi buyurtmalar",
   'stat.kpi.total': 'Jami buyurtmalar',
-  'stat.kpi.totalHint': 'sexga kelgan barcha buyurtmalar',
+  'stat.kpi.totalHint': 'sexga kelgan barcha buyurtmalar (bekor qilinganlarsiz)',
   'stat.kpi.inWork': 'Hozir ishda',
   'stat.kpi.inWorkHint': 'qabul kutayotgan va tikilayotgan',
   'stat.kpi.ready': 'Tayyor',
@@ -545,7 +549,7 @@ const ru = {
   // ---------- shell ----------
   'api.loading': 'Загрузка данных из API...',
   'api.saving': 'Сохранение...',
-  'api.empty': 'Данные из API не найдены.',
+  'api.empty': 'Пока нет данных',
   'shell.openMenu': 'Открыть меню',
   'shell.notifications': 'Уведомления',
   'shell.markAllRead': 'Отметить всё прочитанным',
@@ -604,6 +608,9 @@ const ru = {
   'prod.emptyReady': 'Нет готовых заказов',
   'prod.readyToday': 'Готовы сегодня',
   'prod.readyOld': 'Готовые ранее',
+  'prod.readyAll': 'Всего',
+  'prod.emptyReadyToday': 'Сегодня готовых пока нет',
+  'prod.emptyReadyOld': 'С прошлых дней готовых нет',
 
   // ---------- sidebar ----------
   'nav.queue': 'Очередь на сегодня',
@@ -646,6 +653,7 @@ const ru = {
   'status.tayyor': 'Готов',
   'status.yangi': 'Новый',
   'status.yetkazishda': 'Доставляется',
+  'status.yetkazildi': 'Доставлен',
   'queue.tab.yangi': 'Новые',
   'order.accept': 'Принять',
   'order.reject': 'Отклонить',
@@ -771,7 +779,7 @@ const ru = {
   'stat.volumeChartHint': 'Заказы по дням за последние 7 дней',
   'stat.chartHint': 'Заказы по дням за последние {n} дн.',
   'stat.kpi.total': 'Всего заказов',
-  'stat.kpi.totalHint': 'все заказы, поступившие в цех',
+  'stat.kpi.totalHint': 'все заказы, поступившие в цех (без отменённых)',
   'stat.kpi.inWork': 'Сейчас в работе',
   'stat.kpi.inWorkHint': 'ждут принятия и шьются',
   'stat.kpi.ready': 'Готово',

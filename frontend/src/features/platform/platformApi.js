@@ -113,6 +113,8 @@ export const supportApi = {
   unread: () => api('/admin/support/unread'), // { unread }
   messages: (userId, after) => api(`/admin/support/${userId}/messages${qs({ after })}`), // { items }
   send: (userId, text) => api(`/admin/support/${userId}/messages`, { method: 'POST', body: { text } }),
+  // Faqat operator ro'yxatidan: mijozda yozishma qoladi, u yangi xabar yozsa suhbat eski xabarlari bilan qaytadi
+  hide: (userId) => api(`/admin/support/${userId}`, { method: 'DELETE' }),
 };
 
 

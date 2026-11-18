@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { AlertTriangle, CheckCircle, Truck, X, XCircle } from 'lucide-react';
 import OrderDetail from './OrderDetail';
 import { useT } from './i18n';
+import { shippedLabel } from './utils';
 
 /** Buyurtma tafsiloti — o'ng tomondan ochiladigan panel. Qabul / tayyor / rad etish tugmalari tepada turadi */
 export default function OrderDrawer({ order, onClose, onAdvance, onReject, actionLoading }) {
@@ -145,7 +146,7 @@ export default function OrderDrawer({ order, onClose, onAdvance, onReject, actio
           ) : (
             <p className="flex items-center justify-center gap-2 py-3 text-base font-bold text-emerald-300">
               <Truck className="h-5 w-5" />
-              {t('q.readyWait')}
+              {shippedLabel(t, order) ?? t('q.readyWait')}
             </p>
           )}
         </div>

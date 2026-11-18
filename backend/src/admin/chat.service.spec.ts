@@ -8,19 +8,22 @@ const as = (id: number, role: Role) => ({ id, role }) as AuthUser;
 
 describe('ChatService (support chat: mijoz ↔ superadmin)', () => {
   const prisma = {
-    user: { findFirst: jest.fn(), findMany: jest.fn() },
+    user: { findFirst: jest.fn(), findMany: jest.fn(), update: jest.fn() },
     chatMessage: {
+      findFirst: jest.fn(),
       findMany: jest.fn(),
       create: jest.fn(),
       updateMany: jest.fn(),
       groupBy: jest.fn(),
       count: jest.fn(),
     },
+    $transaction: jest.fn((ops: unknown[]) => Promise.all(ops)),
   };
   const service = new ChatService(prisma as unknown as PrismaService);
 
   beforeEach(() => {
     jest.resetAllMocks();
+    prisma.$transaction.mockImplementation((ops: unknown[]) => Promise.all(ops));
     prisma.chatMessage.create.mockImplementation(({ data }) => Promise.resolve({ id: 1, ...data }));
     prisma.chatMessage.findMany.mockResolvedValue([]);
   });
@@ -73,5 +76,31 @@ describe('ChatService (support chat: mijoz ↔ superadmin)', () => {
     const res = await service.threads(Role.USER);
     expect(prisma.user.findMany.mock.calls[0][0].where).toEqual({ role: Role.USER, id: { in: [7] } });
     expect(res).toEqual([expect.objectContaining({ workshopId: 7, name: 'Ali', unread: 2, phone: '+998901112233' })]);
+  });
+
+  const threadsWith = (hiddenUpTo: number | null, lastId: number) => {
+    prisma.chatMessage.groupBy.mockResolvedValueOnce([{ workshopId: 7, _max: { id: lastId } }]).mockResolvedValueOnce([]);
+    prisma.user.findMany.mockResolvedValue([{ id: 7, fullName: 'Ali', workshopName: null, phone: '+998901112233', chatHiddenUpTo: hiddenUpTo }]);
+    prisma.chatMessage.findMany.mockResolvedValue([{ id: lastId, workshopId: 7, text: 'Salom', fromWorkshop: true, createdAt: new Date() }]);
+    return service.threads(Role.USER);
+  };
+
+  it('operator o‘chirgan suhbat ro‘yxatda ko‘rinmaydi', async () => {
+    expect(await threadsWith(5, 5)).toEqual([]);
+  });
+
+  it('o‘chirilgandan keyin yangi xabar kelsa suhbat qaytadi', async () => {
+    expect(await threadsWith(5, 6)).toEqual([expect.objectContaining({ workshopId: 7 })]);
+  });
+
+  it('hide: xabarlar o‘chmaydi — faqat oxirgi id saqlanadi va o‘qilmaganlar o‘qilgan bo‘ladi', async () => {
+    prisma.user.findFirst.mockResolvedValue({ id: 7 });
+    prisma.chatMessage.findFirst.mockResolvedValue({ id: 9 });
+    await expect(service.hide(7, Role.USER)).resolves.toEqual({ hidden: true });
+    expect(prisma.user.update).toHaveBeenCalledWith({ where: { id: 7 }, data: { chatHiddenUpTo: 9 } });
+    expect(prisma.chatMessage.updateMany).toHaveBeenCalledWith({
+      where: { workshopId: 7, fromWorkshop: true, readAt: null, id: { lte: 9 } },
+      data: { readAt: expect.any(Date) },
+    });
   });
 });

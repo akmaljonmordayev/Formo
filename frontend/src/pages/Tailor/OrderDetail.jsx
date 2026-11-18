@@ -99,13 +99,16 @@ export default function OrderDetail({ order }) {
         <OrderKitView line={line} statusBadge={statusBadge} />
 
         <div className="flex flex-col gap-3">
-          <div className="flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-[#281b10] px-4 py-3">
-            <Clock className="h-5 w-5 shrink-0 text-amber-400" />
-            <div>
-              <span className="block text-[10px] font-bold uppercase tracking-widest text-amber-400/80">{t('order.deadline')}</span>
-              <p className="text-sm font-extrabold text-amber-200">{orderDeadline(t, order)}</p>
+          {/* Muddat noma'lum bo'lsa blok umuman ko'rsatilmaydi ("API dan ma'lumot topilmadi" yozuvi chiqmasin) */}
+          {(order.deadline || order.deliveryTime) && (
+            <div className="flex items-center gap-3 rounded-2xl border border-amber-500/30 bg-[#281b10] px-4 py-3">
+              <Clock className="h-5 w-5 shrink-0 text-amber-400" />
+              <div>
+                <span className="block text-[10px] font-bold uppercase tracking-widest text-amber-400/80">{t('order.deadline')}</span>
+                <p className="text-sm font-extrabold text-amber-200">{orderDeadline(t, order)}</p>
+              </div>
             </div>
-          </div>
+          )}
 
           <dl className="grid grid-cols-2 gap-x-5 gap-y-4 rounded-2xl border border-white/10 bg-[#0e1424] p-5">
             {specs.map((item) => (

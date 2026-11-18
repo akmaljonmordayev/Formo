@@ -10,7 +10,16 @@ export const TAILOR_ORDER_STATUS = {
   ACCEPTED: 'qabul',
   PRINTING: 'qabul',
   READY: 'tayyor',
+  // Sexdan chiqib ketgan tayyorlar — "Avvalgi tayyorlar"da oxirgi kunlar uchun ko'rinib turadi
+  DELIVERING: 'tayyor',
+  DELIVERED: 'tayyor',
 };
+
+// Sex ishlayotgan holatlar — har yangilanishda to'liq yuklanadi
+const ACTIVE_STATUSES = ['SENT_TO_WORKSHOP', 'ACCEPTED', 'PRINTING', 'READY'];
+const SHIPPED_STATUSES = ['DELIVERING', 'DELIVERED'];
+// Yetkazishga chiqqan tayyorlar necha kun ko'rinib turadi
+export const SHIPPED_KEEP_DAYS = 3;
 
 export const TAILOR_NEXT_STATUS = {
   ACCEPTED: 'READY',
@@ -82,6 +91,8 @@ export const orderToQueueItem = (order) => {
     stage: status === 'yangi' ? 0 : status === 'qabul' ? 1 : 2,
     createdAt: order.createdAt,
     updatedAt: order.updatedAt,
+    // Tayyor bo'lgan vaqt (holat tarixidan); eski serverda yo'q bo'lsa — oxirgi o'zgarish
+    readyAt: order.readyAt ?? order.updatedAt,
     deliveryTime,
     deadline: order.deliverySlot
       ? { time: order.deliverySlot, done: status === 'tayyor' }
@@ -91,19 +102,12 @@ export const orderToQueueItem = (order) => {
   };
 };
 
-export async function listTailorOrders() {
-  // Faqat sex ko'radigan holatlar so'raladi — yetkazilgan/bekor qilingan eski buyurtmalar har 5 soniyada yuklanmaydi
-  const params = new URLSearchParams({
-    page: '1',
-    limit: String(PAGE_LIMIT),
-    statuses: Object.keys(TAILOR_ORDER_STATUS).join(','),
-  });
-
+/** Berilgan holatlardagi buyurtmalarning barcha sahifalari (qolgan sahifalar bir vaqtda, ketma-ket kutish yo'q) */
+async function fetchAllPages(statuses, extra = {}) {
+  const params = new URLSearchParams({ page: '1', limit: String(PAGE_LIMIT), statuses: statuses.join(','), ...extra });
   const first = await api(`/workshop/orders?${params}`);
   const records = [...(first.items ?? [])];
   const pageCount = Math.ceil((first.total ?? records.length) / PAGE_LIMIT);
-
-  // Qolgan sahifalar bir vaqtda yuklanadi (ketma-ket kutish yo'q)
   const rest = await Promise.all(
     Array.from({ length: Math.max(0, pageCount - 1) }, (_, i) => {
       const p = new URLSearchParams(params);
@@ -112,8 +116,17 @@ export async function listTailorOrders() {
     })
   );
   rest.forEach((next) => records.push(...(next.items ?? [])));
+  return records;
+}
 
-  return records.map(orderToQueueItem).filter(Boolean);
+export async function listTailorOrders(now = Date.now()) {
+  // Faol holatlar to'liq; yetkazishga chiqqanlar — faqat oxirgi kunlarniki (eski tarix har 5 soniyada yuklanmaydi)
+  const since = new Date(now - SHIPPED_KEEP_DAYS * 86_400_000).toISOString();
+  const [active, shipped] = await Promise.all([
+    fetchAllPages(ACTIVE_STATUSES),
+    fetchAllPages(SHIPPED_STATUSES, { updatedSince: since }).catch(() => []),
+  ]);
+  return [...active, ...shipped].map(orderToQueueItem).filter(Boolean);
 }
 
 /** Sexning barcha buyurtmalari (tugaganlari ham) — sahifalab; javobda `byStatus` (holatlar bo'yicha jami sonlar) */

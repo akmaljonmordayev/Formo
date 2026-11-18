@@ -23,3 +23,10 @@ export const formatPhone = (raw) => {
   return `+998 ${parts.join(' ')}`.trim();
 };
 export const phoneForServer = (value) => value.replace(/\s+/g, '');
+
+/** Tayyor buyurtma sexdan chiqqanmi: yetkazishda / yetkazildi yozuvi, aks holda null */
+export function shippedLabel(t, order) {
+  if (order.apiStatus === 'DELIVERING') return t('status.yetkazishda');
+  if (order.apiStatus === 'DELIVERED') return t('status.yetkazildi');
+  return null;
+}

@@ -31,7 +31,7 @@ const TABS = [
 export default function SuperadminOrders() {
   const money = useMoney();
   const { t } = useLang();
-  const [LIMIT] = useState(() => loadAdminPrefs().ordersPageSize || 20);
+  const [LIMIT] = useState(() => loadAdminPrefs().ordersPageSize || 10);
   // Dashboard / Ishlab chiqarish dan ?search=KOD bilan kelinsa — shu buyurtma darhol topiladi; ?status=READY — shu tab ochiladi
   const [params] = useSearchParams();
   const [tab, setTab] = useState(() => TABS.find((tb) => tb.status === params.get('status')) ?? TABS[0]);
@@ -156,6 +156,7 @@ export default function SuperadminOrders() {
         <table className="sa-table">
           <thead>
             <tr>
+              <th style={{ width: 44 }}>№</th>
               <th>{t("Raqam")}</th>
               <th>{t("Mijoz")}</th>
               <th>{t("Summa")}</th>
@@ -170,18 +171,18 @@ export default function SuperadminOrders() {
           <tbody>
             {loading && !data.items.length ? (
               <tr>
-                <td colSpan={9} className="sa-table__sub" style={{ textAlign: 'center', padding: 20 }}>
+                <td colSpan={10} className="sa-table__sub" style={{ textAlign: 'center', padding: 20 }}>
                   {t("Yuklanmoqda...")}
                 </td>
               </tr>
             ) : !data.items.length ? (
               <tr>
-                <td colSpan={9} className="sa-table__sub" style={{ textAlign: 'center', padding: 20 }}>
+                <td colSpan={10} className="sa-table__sub" style={{ textAlign: 'center', padding: 20 }}>
                   {t("Buyurtma topilmadi")}
                 </td>
               </tr>
             ) : (
-              data.items.map((o) => {
+              data.items.map((o, i) => {
                 const st = ORDER_STATUS[o.status] ?? { label: o.status, color: 'blue' };
                 return (
                   <tr
@@ -196,6 +197,8 @@ export default function SuperadminOrders() {
                     }}
                     style={{ cursor: 'pointer' }}
                   >
+                    {/* Tartib raqami sahifalar bo'yicha uzluksiz: 2-sahifa LIMIT+1 dan davom etadi */}
+                    <td className="sa-table__sub" style={{ fontWeight: 700 }}>{(page - 1) * LIMIT + i + 1}</td>
                     <td>
                       <b>{o.code}</b>
                       {o.productType === 'KIT_DESIGN' && (
@@ -273,9 +276,6 @@ function OrderModal({ order, onClose, onSaved }) {
   const workshopChanged = workshopId !== savedWorkshopId;
   const changed = status !== order.status || workshopChanged;
   const close = () => (assigned.current ? onSaved() : onClose());
-
-  // Sex o'rniga operator qabul qiladi: yangi yoki sexga yuborilgan buyurtma (sex tanlangan bo'lishi shart)
-  const canAccept = order.status === 'NEW' || order.status === 'SENT_TO_WORKSHOP';
 
   const submit = (e) => {
     e.preventDefault();
@@ -463,18 +463,7 @@ function OrderModal({ order, onClose, onSaved }) {
           <button type="button" className="btn btn--ghost" onClick={close}>
             {t("Yopish")}
           </button>
-          {canAccept && (
-            <button
-              type="button"
-              className="btn btn--accent"
-              disabled={saving || !workshopId}
-              title={workshopId ? undefined : t('Avval tikuv sexini tanlang')}
-              onClick={() => save('ACCEPTED')}
-            >
-              {t("Qabul qilish")}
-            </button>
-          )}
-          <button type="submit" className={`btn ${canAccept ? 'btn--ghost' : 'btn--accent'}`} disabled={saving || !changed}>
+          <button type="submit" className="btn btn--accent" disabled={saving || !changed}>
             {saving ? t("Saqlanmoqda...") : t("Saqlash")}
           </button>
         </div>
