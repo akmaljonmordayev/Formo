@@ -50,7 +50,7 @@ export class ShopOrdersController {
     summary: 'Savatdan buyurtma berish ("To‘lash")',
     description:
       'Narxlar serverda qayta hisoblanadi. CLICK/PAYME — buyurtma `PENDING_PAYMENT` holatida 30 daqiqa band turadi; ' +
-      'CASH — darhol `NEW` (operatorga tushadi). Muvaffaqiyatli bo‘lsa savat tozalanadi.',
+      'CASH (faqat Toshkent shahri) — darhol `NEW`; CARD (istalgan hudud) — `NEW` + to‘lov PENDING, admin qo‘ng‘iroq qilib karta raqamini beradi. Muvaffaqiyatli bo‘lsa savat tozalanadi.',
   })
   @ApiBadRequestResponse({ description: 'Savat bo‘sh, mahsulot sotuvda emas, promokod yoki sana noto‘g‘ri' })
   @ApiConflictResponse({ description: 'Tanlangan vaqt band yoki promokod limiti tugadi' })

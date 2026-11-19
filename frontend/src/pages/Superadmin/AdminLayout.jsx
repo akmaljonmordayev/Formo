@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, CreditCard, Globe, MessagesSquare, ShoppingBag, X } from 'lucide-react';
+import { Check, CreditCard, Globe, HandCoins, MessagesSquare, ShoppingBag, X } from 'lucide-react';
 import { chatApi, ordersApi, supportApi, topupsApi } from '../../features/platform/platformApi';
 import SuperadminLayout from '../../components/layout/SuperadminLayout';
 import { LANGS, LangProvider, useLang } from './i18n';
@@ -71,6 +71,14 @@ const COUNTS_REFRESH_MS = 15_000;
 const TOAST_MS = 8000;
 const ALERTS = {
   orders: { path: '/orders', to: '/superadmin/orders?status=NEW', icon: ShoppingBag, title: 'Yangi buyurtma keldi', text: '{n} ta yangi buyurtma kutmoqda' },
+  cardPayments: {
+    path: '/card-payments',
+    to: '/superadmin/card-payments',
+    icon: HandCoins,
+    title: "Kartadan to'lov so'rovi keldi",
+    // Navbatda qo'ng'iroq kutayotganlar ham, to'langan-u sex tanlanmaganlar ham bor
+    text: "{n} ta kartadan to'lov buyurtmasi kutmoqda",
+  },
   topups: { path: '/topups', to: '/superadmin/topups', icon: CreditCard, title: "Balans to'ldirish cheki keldi", text: '{n} ta chek tekshiruvda' },
   messages: { path: '/messages', to: '/superadmin/messages', icon: MessagesSquare, title: 'Yangi xabar keldi', text: "{n} ta o'qilmagan xabar" },
 };
@@ -109,7 +117,14 @@ function TranslatedLayout({ menu }) {
   );
   // Yangi (sexga yuborilmagan) buyurtmalar va tekshiruvdagi cheklar
   const loadCounts = useCallback(() => {
-    ordersApi.list({ status: 'NEW', limit: 1 }).then((d) => setCount('orders', d.byStatus?.NEW ?? 0)).catch(() => {});
+    // Shu so'rovning o'zi kartadan to'lov navbatini ham qaytaradi (cardQueue)
+    ordersApi
+      .list({ status: 'NEW', limit: 1 })
+      .then((d) => {
+        setCount('orders', d.byStatus?.NEW ?? 0);
+        setCount('cardPayments', d.cardQueue ?? 0);
+      })
+      .catch(() => {});
     topupsApi.list({ status: 'REVIEW', limit: 1 }).then((d) => setCount('topups', d.byStatus?.REVIEW ?? 0)).catch(() => {});
   }, [setCount]);
   useEffect(() => {

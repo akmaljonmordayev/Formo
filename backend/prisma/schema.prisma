@@ -499,6 +499,7 @@ enum PaymentMethod {
   PAYME
   CASH
   BALANCE // ichki Formo balansidan — checkout tranzaksiyasida yechiladi
+  CARD // kartaga o'tkazma: admin mijozga qo'ng'iroq qilib karta raqamini beradi, pul tushgach "to'landi" qiladi
 }
 
 enum PaymentStatus {

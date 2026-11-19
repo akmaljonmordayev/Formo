@@ -6,7 +6,7 @@ import { useCompactNumber, useDayLabel, useMoney, useT } from '../i18n';
 import RangePicker, { RANGES, rangeParams, todayKey } from '../RangePicker';
 import { CountUp, Kpi, TrendChart } from '../ui';
 
-const METHOD_COLOR = { CLICK: '#5b7cfa', PAYME: '#19a7a1', CASH: '#f2a33a', BALANCE: '#8b5cf6', WALLET: '#8b5cf6' };
+const METHOD_COLOR = { CLICK: '#5b7cfa', PAYME: '#19a7a1', CASH: '#f2a33a', BALANCE: '#8b5cf6', WALLET: '#8b5cf6', CARD: '#e0567a' };
 
 /** Daromad: tanlangan davrda qancha pul tushdi, nechta buyurtma sotildi va qaysi to'lov usuli bilan */
 export default function SuperadminSales() {

@@ -7,6 +7,8 @@ import { AssignWorkshopDto, ListOrdersQueryDto, UpdateOrderStatusDto } from './d
 import { InventoryService } from './inventory.service';
 import { OrderHistoryService } from './order-history.service';
 import { WalletService } from '../wallet/wallet.service';
+import { RangeInput, resolveRange, tashkentDayKey } from './dashboard-range';
+import { CARD_AWAITING, CARD_QUEUE, cardUnpaid, isRevenue, REVENUE_WHERE } from './card-payments';
 
 /** Workshop hali faol ishlab chiqarish bosqichida bo'lgan buyurtmalarga biriktirilgan holatlar.
  *  accounts.service.ts ham shu ro'yxatdan foydalanadi (workshop o'chirilganda tekshirish uchun) —
@@ -19,15 +21,6 @@ export const ACTIVE_STATUSES: OrderStatus[] = [
   OrderStatus.DELIVERING,
 ];
 const WORKSHOP_STAGES: OrderStatus[] = ACTIVE_STATUSES;
-const REVENUE_STATUSES: OrderStatus[] = [
-  OrderStatus.NEW,
-  OrderStatus.SENT_TO_WORKSHOP,
-  OrderStatus.ACCEPTED,
-  OrderStatus.PRINTING,
-  OrderStatus.READY,
-  OrderStatus.DELIVERING,
-  OrderStatus.DELIVERED,
-];
 /** Buyurtma soniga kiradimi: bekor qilingan va hali to'lanmagan (muddati o'tsa bekor bo'ladigan) buyurtmalar sanalmaydi */
 const isCounted = (status: OrderStatus) => status !== OrderStatus.CANCELLED && status !== OrderStatus.PENDING_PAYMENT;
 
@@ -46,6 +39,10 @@ export const detailInclude = {
 /** Operator sexga yubora oladigan holatlar: yangi yoki hali sex tasdiqlamagan (qayta biriktirish) */
 const ASSIGNABLE: OrderStatus[] = [OrderStatus.NEW, OrderStatus.SENT_TO_WORKSHOP];
 
+// Eski importlar (spec, workshop-orders.service) uchun
+export { resolveRange, tashkentDayKey } from './dashboard-range';
+export type { RangeInput } from './dashboard-range';
+
 @Injectable()
 export class OrdersService {
   constructor(
@@ -57,8 +54,12 @@ export class OrdersService {
   ) {}
 
   async list(query: ListOrdersQueryDto) {
-    const { search, status, statuses, paymentStatus, workshopId, page = 1, limit = 20 } = query;
+    const { search, status, statuses, paymentStatus, paymentMethod, workshopId, page = 1, limit = 20 } = query;
     const where: Prisma.OrderWhereInput = {};
+    // Usul berilmasa (oddiy Buyurtmalar sahifasi) — kartadan to'lov navbatidagilar alohida sahifada.
+    // Qidiruvda esa (kod/telefon bo'yicha) ular ham topiladi — buyurtma "yo'qolib" qolmasin
+    const scope: Prisma.OrderWhereInput = paymentMethod ? { paymentMethod } : { NOT: CARD_QUEUE };
+    if (paymentMethod || !search) where.AND = [scope];
     if (status) where.status = status;
     else if (statuses?.length) where.status = { in: statuses };
     if (workshopId) where.workshopId = workshopId;
@@ -83,7 +84,7 @@ export class OrdersService {
         }),
         this.prisma.order.count({ where }),
       ]),
-      this.prisma.order.groupBy({ by: ['status'], _count: { _all: true } }),
+      this.prisma.order.groupBy({ by: ['status'], where: scope, _count: { _all: true } }),
       // Bekor qilingan buyurtmalar tushum/kutilayotgan summaga kirmaydi
       this.prisma.order.groupBy({
         by: ['paymentStatus'],
@@ -91,10 +92,15 @@ export class OrdersService {
         _sum: { totalSum: true },
       }),
     ]);
+    // Menyudagi "Kartadan to'lovchilar": navbatdagi barcha buyurtmalar va ulardan qo'ng'iroq kutayotganlari (to'lanmagan)
+    const [cardQueue, cardAwaiting] = await Promise.all([
+      this.prisma.order.count({ where: CARD_QUEUE }),
+      this.prisma.order.count({ where: CARD_AWAITING }),
+    ]);
 
     const byStatus = Object.fromEntries(counts.map((c) => [c.status, c._count._all])) as Record<string, number>;
     const paymentTotals = Object.fromEntries(payments.map((p) => [p.paymentStatus, p._sum.totalSum ?? 0])) as Record<string, number>;
-    return { items, total, page, limit, byStatus, paymentTotals };
+    return { items, total, page, limit, byStatus, paymentTotals, cardQueue, cardAwaiting };
   }
 
   async get(id: number) {
@@ -105,8 +111,12 @@ export class OrdersService {
 
   /** Operator buyurtmani tekshirib, tikuv sexiga yuboradi (yoki hali tasdiqlanmagan bo'lsa boshqa sexga o'tkazadi) */
   async assign(id: number, dto: AssignWorkshopDto, actor: NonNullable<AuditEntry['actor']>, ip?: string) {
-    const order = await this.prisma.order.findUnique({ where: { id }, select: { status: true, code: true } });
+    const order = await this.prisma.order.findUnique({
+      where: { id },
+      select: { status: true, code: true, paymentMethod: true, paymentStatus: true },
+    });
     if (!order) throw new NotFoundException('Buyurtma topilmadi');
+    if (cardUnpaid(order)) throw new ConflictException("Kartadan to'lov hali tasdiqlanmagan — avval «To'landi» deb belgilang");
     if (!ASSIGNABLE.includes(order.status)) {
       throw new ConflictException(
         order.status === OrderStatus.PENDING_PAYMENT
@@ -124,7 +134,8 @@ export class OrdersService {
     await this.prisma.$transaction(async (tx) => {
       // Shu orada holat o'zgargan bo'lsa (mijoz bekor qildi, sex qabul qildi) — yozilmaydi
       const { count } = await tx.order.updateMany({
-        where: { id, status: order.status },
+        // to'lov holati ham shart: shu orada "to'landi" bekor qilinmagan bo'lsin
+        where: { id, status: order.status, paymentStatus: order.paymentStatus },
         data: { status: OrderStatus.SENT_TO_WORKSHOP, workshopId: dto.workshopId },
       });
       if (!count) throw new ConflictException("Buyurtma holati hozirgina o'zgardi, qayta urinib ko'ring");
@@ -195,7 +206,14 @@ export class OrdersService {
   }
 
   /** Yakuniy holatdan qaytib bo'lmaydi; DELIVERED faqat yetkazishdan keyin; sex bosqichlari sexsiz bo'lmaydi */
-  private assertTransition(current: { status: OrderStatus; workshopId: number | null }, dto: UpdateOrderStatusDto) {
+  private assertTransition(
+    current: { status: OrderStatus; workshopId: number | null } & Parameters<typeof cardUnpaid>[0],
+    dto: UpdateOrderStatusDto,
+  ) {
+    // Kartaga pul tushmaguncha buyurtma ishlab chiqarishga o'tmaydi (faqat bekor qilish mumkin)
+    if (cardUnpaid(current) && dto.status !== current.status && dto.status !== OrderStatus.CANCELLED) {
+      throw new ConflictException("Kartadan to'lov hali tasdiqlanmagan — avval «To'landi» deb belgilang");
+    }
     // Sexni almashtirish faqat sexga yuborish bosqichida (assign qoidalari bilan bir xil): to'lanmagan buyurtma
     // sexga bog'lanmasin, tikilayotgan buyurtma esa tarixsiz va sexga xabarsiz boshqa sexga o'tib ketmasin
     if (dto.workshopId !== undefined && dto.workshopId !== current.workshopId) {
@@ -258,7 +276,7 @@ export class OrdersService {
     const prevFrom = new Date(from.getTime() - ((to ?? new Date()).getTime() - from.getTime()));
     return this.prisma.order.findMany({
       where: { createdAt: { gte: prevFrom, lt: from } },
-      select: { totalSum: true, status: true },
+      select: { totalSum: true, status: true, paymentMethod: true, paymentStatus: true },
     });
   }
 
@@ -279,7 +297,7 @@ export class OrdersService {
     ]);
 
     const ordersCount = current.filter((o) => isCounted(o.status)).length;
-    const revenue = current.filter((o) => REVENUE_STATUSES.includes(o.status)).reduce((s, o) => s + o.totalSum, 0);
+    const revenue = current.filter(isRevenue).reduce((s, o) => s + o.totalSum, 0);
 
     const [activeCount, capacityAgg] = await Promise.all([
       this.prisma.order.count({ where: { status: { in: ACTIVE_STATUSES } } }),
@@ -305,7 +323,7 @@ export class OrdersService {
     const r = await this.range(range);
     const [current, previous] = await Promise.all([this.ordersSince(r.from, r.to), this.previousOrders(r)]);
 
-    const revenueOrders = current.filter((o) => REVENUE_STATUSES.includes(o.status));
+    const revenueOrders = current.filter(isRevenue);
     const revenue = revenueOrders.reduce((s, o) => s + o.totalSum, 0);
     const refundedOrders = current.filter((o) => o.status === OrderStatus.RETURNED);
     const refunded = refundedOrders.reduce((s, o) => s + o.totalSum, 0);
@@ -336,7 +354,7 @@ export class OrdersService {
     const r = await this.range({ days });
     const [current, previous] = await Promise.all([this.ordersSince(r.from, r.to), this.previousOrders(r)]);
 
-    const revenueOrders = current.filter((o) => REVENUE_STATUSES.includes(o.status));
+    const revenueOrders = current.filter(isRevenue);
     const revenue = revenueOrders.reduce((s, o) => s + o.totalSum, 0);
     const ordersCount = current.filter((o) => isCounted(o.status)).length;
     const prevOrdersCount = (previous ?? []).filter((o) => isCounted(o.status)).length;
@@ -368,7 +386,7 @@ export class OrdersService {
       where: {
         order: {
           createdAt: { gte: r.from, ...(r.to && { lte: r.to }) },
-          status: { in: REVENUE_STATUSES },
+          ...REVENUE_WHERE,
           ...(tailor && { workshopId: viewer.id }),
         },
       },
@@ -449,70 +467,21 @@ export class OrdersService {
     };
   }
 
-  /** Har kun uchun: buyurtmalar soni (bekor qilinganlarsiz) va tushum (REVENUE_STATUSES — yuqoridagi "Tushum" bilan bir xil) */
-  private groupByDay(orders: { totalSum: number; status: OrderStatus; createdAt: Date }[], dayKeys: string[]) {
+  /** Har kun uchun: buyurtmalar soni (bekor qilinganlarsiz) va tushum (isRevenue — yuqoridagi "Tushum" bilan bir xil) */
+  private groupByDay(orders: (Parameters<typeof isRevenue>[0] & { totalSum: number; createdAt: Date })[], dayKeys: string[]) {
     const buckets = new Map(dayKeys.map((k) => [k, { date: k, count: 0, revenue: 0 }]));
     for (const o of orders) {
       const b = buckets.get(tashkentDayKey(o.createdAt));
       if (!b) continue;
       if (isCounted(o.status)) b.count++;
-      if (REVENUE_STATUSES.includes(o.status)) b.revenue += o.totalSum;
+      if (isRevenue(o)) b.revenue += o.totalSum;
     }
     return Array.from(buckets.values());
   }
 }
 
-const DAY_MS = 24 * 60 * 60 * 1000;
-const MAX_RANGE_DAYS = 3660;
-
-export interface RangeInput {
-  days?: number;
-  from?: string;
-  to?: string;
-  all?: boolean;
-}
-
-/** Toshkent vaqti UTC+5, yozgi vaqt yo'q — kun chegarasi doimiy siljish bilan hisoblanadi */
-const TASHKENT_OFFSET_MS = 5 * 60 * 60 * 1000;
-/** Sana qaysi Toshkent kuniga tegishli: "2026-11-12" */
-export const tashkentDayKey = (d: Date) => new Date(d.getTime() + TASHKENT_OFFSET_MS).toISOString().slice(0, 10);
-/** Toshkent kunining boshlanishi (00:00 Toshkent = oldingi kun 19:00 UTC) */
-const dayStart = (key: string) => new Date(Date.parse(`${key}T00:00:00.000Z`) - TASHKENT_OFFSET_MS);
-
-/**
- * Dashboard davri. `all` — birinchi buyurtma kunidan bugungacha (buyurtma yo'q bo'lsa — bugun);
- * from/to — shu oraliq; aks holda oxirgi `days` kun. Har doim butun Toshkent kunlari: `from` birinchi kun
- * 00:00 dan, shuning uchun kartochkalar (ordersCount, revenue) grafikdagi kunlar yig'indisiga teng.
- */
-export function resolveRange(range: RangeInput, firstOrderAt?: Date | null) {
-  if (range.all) {
-    const today = tashkentDayKey(new Date());
-    const from = dayStart(firstOrderAt ? tashkentDayKey(firstOrderAt) : today);
-    const count = Math.round((dayStart(today).getTime() - from.getTime()) / DAY_MS) + 1;
-    return { from, to: new Date(dayStart(today).getTime() + DAY_MS - 1), dayKeys: dayKeysFrom(from, count) };
-  }
-  if (range.from || range.to) {
-    if (!range.from || !range.to) throw new BadRequestException("from va to birga yuborilishi kerak");
-    const from = dayStart(range.from);
-    const toStart = dayStart(range.to);
-    // 2026-02-31 kabi sanalar JS'da jimgina 03-03 ga o'tib ketadi — qaytib solishtirib ushlaymiz
-    const valid = (d: Date, s: string) => !Number.isNaN(d.getTime()) && tashkentDayKey(d) === s;
-    if (!valid(from, range.from) || !valid(toStart, range.to)) throw new BadRequestException("Sana noto'g'ri");
-    const count = Math.round((toStart.getTime() - from.getTime()) / DAY_MS) + 1;
-    if (count < 1) throw new BadRequestException("from sanasi to dan keyin bo'lmasligi kerak");
-    if (count > MAX_RANGE_DAYS) throw new BadRequestException(`Davr ${MAX_RANGE_DAYS} kundan oshmasligi kerak`);
-    return { from, to: new Date(toStart.getTime() + DAY_MS - 1), dayKeys: dayKeysFrom(from, count) };
-  }
-  const days = range.days ?? 30;
-  const from = new Date(dayStart(tashkentDayKey(new Date())).getTime() - (days - 1) * DAY_MS);
-  return { from, to: undefined as Date | undefined, dayKeys: dayKeysFrom(from, days) };
-}
-
-const dayKeysFrom = (start: Date, count: number) =>
-  Array.from({ length: count }, (_, i) => tashkentDayKey(new Date(start.getTime() + i * DAY_MS)));
-
-const revenueOf = (orders: { totalSum: number; status: OrderStatus }[]) =>
-  orders.filter((o) => REVENUE_STATUSES.includes(o.status)).reduce((s, o) => s + o.totalSum, 0);
+const revenueOf = (orders: (Parameters<typeof isRevenue>[0] & { totalSum: number })[]) =>
+  orders.filter(isRevenue).reduce((s, o) => s + o.totalSum, 0);
 
 function pctDelta(current: number, previous: number) {
   if (!previous) return current ? 100 : 0;

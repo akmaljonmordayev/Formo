@@ -5,7 +5,10 @@ import {
   HttpException,
   HttpStatus,
   Injectable,
+  Logger,
   NotFoundException,
+  OnModuleDestroy,
+  OnModuleInit,
 } from '@nestjs/common';
 import {
   AuditCategory,
@@ -26,160 +29,61 @@ import { PrismaService } from '../prisma/prisma.service';
 import { InventoryService } from '../admin/inventory.service';
 import { AddressesService, formatAddress } from './addresses.service';
 import { CartService, lineProblem, sizeTotals, toCartItem } from './cart.service';
-import { CUSTOMER_STAGES, customerStageOf, STATUS_LABEL } from './order-status';
-import { dayLabel, DeliveryService, todayLocal } from './delivery.service';
+import { STATUS_LABEL } from './order-status';
+import { DeliveryService } from './delivery.service';
 import { ChangePaymentMethodDto, CheckoutDto, MyOrdersQueryDto } from './dto/checkout.dto';
 import { summarize } from './pricing';
 import { RulesService } from './rules.service';
-import { COURIER_DAYS, inTashkentCity, isPostalDelivery, POSTAL_DAYS } from './tashkent';
+import { isPostalDelivery } from './tashkent';
 import { CUSTOM_TITLE, designSummary } from './studio';
 import { KIT_DESIGN_TITLE } from '../kits/kit-design';
 import { StudioService } from './studio.service';
 import { WalletService } from '../wallet/wallet.service';
+import {
+  assertCashArea,
+  CANCELLABLE,
+  canConfirmReceipt,
+  customerCanCancel,
+  demoPaymentEnabled,
+  include,
+  OrderRow,
+  orderCode,
+  retrySerializable,
+  toOrderView,
+} from './order-view';
+import { CARD_AWAITING, CARD_HOLD_MS } from '../admin/card-payments';
 
 /** Click/Payme: buyurtma to'lov uchun shuncha vaqt band turadi */
 export const PAYMENT_HOLD_MS = 30 * 60 * 1000;
-/** Bir mijozning bir vaqtdagi to'lanmagan onlayn buyurtmalari (slot/promokod band qilib turish suiiste'molidan) */
+/** Bir mijozning bir vaqtdagi to'lanmagan buyurtmalari — Click/Payme va karta birga (zaxira/slot/promokod band qilib turish suiiste'molidan) */
 export const MAX_UNPAID_ONLINE_ORDERS = 3;
+/** Muddati o'tgan to'lanmagan buyurtmalar shu oraliqda fonda ham tozalanadi (mijoz ilovani ochmasa ham) */
+const EXPIRE_SWEEP_MS = 10 * 60 * 1000;
 
 const ONLINE: PaymentMethod[] = [PaymentMethod.CLICK, PaymentMethod.PAYME];
 const FINAL: OrderStatus[] = [OrderStatus.DELIVERED, OrderStatus.CANCELLED, OrderStatus.RETURNED];
-// Mijoz o'zi faqat admin buyurtmani qabul qilguncha bekor qila oladi: "Buyurtma qabul qilindi"
-// (SENT_TO_WORKSHOP — operator sexga yuborgan) holatidan boshlab — faqat administratsiya orqali
-const CANCELLABLE: OrderStatus[] = [OrderStatus.PENDING_PAYMENT, OrderStatus.NEW];
-
 export { STATUS_LABEL };
+export {
+  assertCashArea,
+  canConfirmReceipt,
+  customerCanCancel,
+  demoPaymentEnabled,
+  orderCode,
+  retrySerializable,
+  toOrderView,
+} from './order-view';
 
-const include = {
-  items: { orderBy: { id: 'asc' }, include: { kit: { select: { bgColor: true, textColor: true } } } },
-  promocode: { select: { code: true } },
-  statusLogs: { orderBy: { id: 'asc' }, select: { toStatus: true, createdAt: true } },
-} satisfies Prisma.OrderInclude;
-
-type OrderRow = Prisma.OrderGetPayload<{ include: typeof include }>;
-
-/**
- * Serializable tranzaksiya parallel so'rov bilan to'qnashsa (P2034) — butun tranzaksiya
- * qaytariladi, demak qayta urinish xavfsiz. Mijoz "qayta urinib ko'ring" ko'rmasin.
- */
-export async function retrySerializable<T>(run: () => Promise<T>, attempts = 3): Promise<T> {
-  for (let i = 1; ; i++) {
-    try {
-      return await run();
-    } catch (e) {
-      const conflict = e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2034';
-      if (!conflict || i >= attempts) throw e;
-      await new Promise((r) => setTimeout(r, 50 * i + Math.floor(Math.random() * 50)));
-    }
-  }
-}
-
-/**
- * Naqd faqat Toshkent shahri ichiga (kuryer); viloyatlarga (pochta) — faqat shaxsiy hisobdan.
- * Viloyat ko'rsatilgan manzilda — viloyat bo'yicha, eski manzilda — xarita nuqtasi bo'yicha (isPostalDelivery).
- * Checkout'da ham, keyin "to'lov usulini o'zgartirish"da ham (Click → naqd) bir xil tekshiriladi.
- */
-export function assertCashArea(a: { region?: string | null; latitude?: number | null; longitude?: number | null }) {
-  const outside = !a.region ? !inTashkentCity(a.latitude, a.longitude) : isPostalDelivery(a);
-  if (outside) {
-    throw new BadRequestException("Naqd to'lov faqat Toshkent shahri ichida. Shahardan tashqariga yetkazishda shaxsiy hisobdan to'lang");
-  }
-}
-
-export const orderCode = (id: number) => `FRM-${String(id).padStart(6, '0')}`;
-
-/**
- * Demo to'lov tasdig'i (Click/Payme integratsiyasigacha) — faqat dev/test muhitida.
- * Productionda HECH QACHON yoqilmaydi: aks holda har kim pulsiz buyurtmani "to'langan" qila oladi.
- */
-export const demoPaymentEnabled = () =>
-  process.env.NODE_ENV !== 'production' && process.env.PAYMENT_DEMO !== 'false';
-
-/**
- * Mijoz o'zi bekor qila oladimi: to'lanmagan buyurtma — har doim; qolganlari admin qabul qilguncha (NEW) va
- * Superadmin sozlamasidagi muddat (`cancelWindowHours`, buyurtmadan keyin) ichida.
- * `windowHours` berilmasa — faqat holat bo'yicha.
- */
-export function customerCanCancel(o: { status: OrderStatus; createdAt: Date }, windowHours?: number, now = Date.now()) {
-  if (o.status === OrderStatus.PENDING_PAYMENT) return true;
-  if (!CANCELLABLE.includes(o.status)) return false;
-  return windowHours == null || now - o.createdAt.getTime() <= windowHours * 3_600_000;
-}
-
-export const canConfirmReceipt = (o: { status: OrderStatus; receivedAt: Date | null }) =>
-  !o.receivedAt && (o.status === OrderStatus.DELIVERING || o.status === OrderStatus.DELIVERED);
-
-export function toOrderView(o: OrderRow, cancelWindowHours?: number) {
-  const date = o.deliveryDate?.toISOString().slice(0, 10) ?? null;
-  const current = customerStageOf(o.status);
-  // Mobil buyurtma sana/vaqtsiz — viloyatga pochta orqali (operator qo'lda kiritgan buyurtmada manzil ham yo'q)
-  const postal =
-    !date &&
-    Boolean(o.deliveryAddress) &&
-    isPostalDelivery({ region: o.deliveryRegion, latitude: o.deliveryLat, longitude: o.deliveryLng });
-  // Toshkent shahri ichida kuryer: kun/vaqt tanlanmaydi (eski buyurtmalarda sana va vaqt bor — o'shanisi ko'rsatiladi)
-  const courier = !date && Boolean(o.deliveryAddress) && !postal;
-  // Tarix tartib bilan o'qiladi — keyingi yozuv oldingisini bosadi
-  const reached = new Map(o.statusLogs.map((l) => [l.toStatus, l.createdAt]));
-  return {
-    id: o.id,
-    code: o.code,
-    status: o.status,
-    statusLabel: STATUS_LABEL[o.status],
-    paymentMethod: o.paymentMethod,
-    paymentStatus: o.paymentStatus,
-    paymentExpiresAt: o.status === OrderStatus.PENDING_PAYMENT ? o.paymentExpiresAt : null,
-    summary: { subtotal: o.subtotalSum, discount: o.discountSum, delivery: o.deliverySum, total: o.totalSum },
-    promocode: o.promocode?.code ?? null,
-    delivery: {
-      date,
-      slot: o.deliverySlot,
-      // Viloyatlarga — pochta bo'limigacha, Toshkent shahri ichida — kuryer uygacha (kun/vaqt tanlanmaydi);
-      // eski buyurtmalarda: "ertaga, 10:00–14:00"
-      label:
-        date && o.deliverySlot
-          ? `${dayLabel(date, todayLocal()).toLowerCase()}, ${o.deliverySlot}`
-          : postal
-            ? `pochta orqali, ${POSTAL_DAYS.min}–${POSTAL_DAYS.max} ish kuni`
-            : courier
-              ? `kuryer orqali, ${COURIER_DAYS.min}–${COURIER_DAYS.max} kun`
-              : null,
-      address: o.deliveryAddress,
-      region: o.deliveryRegion,
-      district: o.deliveryDistrict,
-      latitude: o.deliveryLat,
-      longitude: o.deliveryLng,
-      postal,
-      postalDays: postal ? POSTAL_DAYS : null,
-      courierDays: courier ? COURIER_DAYS : null,
-    },
-    comment: o.comment,
-    itemsCount: o.items.reduce((s, i) => s + i.quantity, 0),
-    items: o.items.map(({ kit, orderId: _o, ...i }) => ({ ...i, bgColor: kit?.bgColor ?? null, textColor: kit?.textColor ?? null })),
-    // Mijoz 4 bosqichni ko'radi (+ yetkazildi): ichki sex holatlari (bosish, sifat nazorati, tayyor) "jarayonda"
-    timeline: CUSTOMER_STAGES.map(({ status, statuses }, i) => {
-      // bosqichga oxirgi marta qachon kirilgan (sex rad etib qayta yuborilsa ham to'g'ri chiqadi) — bosqich
-      // ichidagi holatlardan eng birinchisi
-      const times = statuses.map((s) => reached.get(s)).filter((d): d is Date => Boolean(d));
-      const at = times.length ? times.reduce((a, b) => (a < b ? a : b)) : null;
-      return {
-        status,
-        label: STATUS_LABEL[status],
-        done: current >= 0 && i <= current,
-        current: i === current,
-        at: current >= 0 && i <= current ? at : null,
-      };
-    }),
-    canCancel: customerCanCancel(o, cancelWindowHours),
-    // "Buyurtmani qabul qildim": yetkazilayotgan yoki admin "yetkazildi" degan, mijoz hali tasdiqlamagan buyurtma
-    receivedAt: o.receivedAt,
-    canConfirmReceipt: canConfirmReceipt(o),
-    createdAt: o.createdAt,
-  };
-}
+/** Unpaid buyurtmalar soni: Click/Payme to'lov kutayotganlar + admin hali tasdiqlamagan karta buyurtmalari */
+const unpaidOf = (customerId: number): Prisma.OrderWhereInput => ({
+  customerId,
+  OR: [{ status: OrderStatus.PENDING_PAYMENT }, CARD_AWAITING],
+});
 
 @Injectable()
-export class ShopOrdersService {
+export class ShopOrdersService implements OnModuleInit, OnModuleDestroy {
+  private readonly logger = new Logger(ShopOrdersService.name);
+  private timer?: NodeJS.Timeout;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly cart: CartService,
@@ -194,19 +98,48 @@ export class ShopOrdersService {
     private readonly inventory: InventoryService,
   ) {}
 
-  /** Muddati o'tgan to'lanmagan buyurtmalarni bekor qiladi (slot va promokod bo'shaydi) */
+  onModuleInit() {
+    if (process.env.NODE_ENV === 'test') return;
+    this.timer = setInterval(() => {
+      this.expireStale().catch((e: unknown) => this.logger.warn(`Muddati o'tgan buyurtmalar tozalanmadi: ${String(e)}`));
+    }, EXPIRE_SWEEP_MS);
+    this.timer.unref();
+  }
+
+  onModuleDestroy() {
+    if (this.timer) clearInterval(this.timer);
+  }
+
+  /**
+   * Muddati o'tgan to'lanmagan buyurtmalarni bekor qiladi (zaxira, slot va promokod bo'shaydi):
+   * Click/Payme — 30 daqiqa; karta — admin 24 soat ichida "To'landi" qilmasa.
+   */
   async expireStale(customerId?: number) {
-    const stale = await this.prisma.order.findMany({
-      where: {
-        status: OrderStatus.PENDING_PAYMENT,
-        paymentExpiresAt: { lt: new Date() },
-        ...(customerId && { customerId }),
-      },
-      select: { id: true, code: true, promocodeId: true },
-    });
+    const now = Date.now();
+    const [stale, staleCard] = await Promise.all([
+      this.prisma.order.findMany({
+        where: {
+          status: OrderStatus.PENDING_PAYMENT,
+          paymentExpiresAt: { lt: new Date(now) },
+          ...(customerId && { customerId }),
+        },
+        select: { id: true, code: true },
+      }),
+      this.prisma.order.findMany({
+        where: { ...CARD_AWAITING, createdAt: { lt: new Date(now - CARD_HOLD_MS) }, ...(customerId && { customerId }) },
+        select: { id: true, code: true },
+      }),
+    ]);
     for (const o of stale) {
       await this.release(o.id, PaymentStatus.FAILED, OrderStatus.PENDING_PAYMENT, null, "To'lov muddati tugadi");
       void this.notify.notify('paymentFailed', `❌ To'lov kutilib bekor qilindi: ${o.code}`);
+    }
+    for (const o of staleCard) {
+      // Faqat hali to'lanmagan bo'lsa: shu orada admin "To'landi" qilgan bo'lsa — tegilmaydi
+      const done = await this.release(o.id, PaymentStatus.FAILED, OrderStatus.NEW, null, "Kartadan to'lov 24 soatda kelmadi", {
+        paymentStatus: PaymentStatus.PENDING,
+      });
+      if (done) void this.notify.notify('paymentFailed', `❌ Kartadan to'lov 24 soatda kelmadi, bekor qilindi: ${o.code}`);
     }
   }
 
@@ -215,10 +148,18 @@ export class ShopOrdersService {
    * `from` — faqat shu holatdagi buyurtma o'zgaradi (parallel so'rovlardan himoya).
    */
   /** true — bekor qilindi; false — holat shu orada o'zgargan (masalan, sex qabul qildi) */
-  private async release(id: number, paymentStatus: PaymentStatus, from: OrderStatus, actor: AuthUser | null, note?: string): Promise<boolean> {
+  private async release(
+    id: number,
+    paymentStatus: PaymentStatus,
+    from: OrderStatus,
+    actor: AuthUser | null,
+    note?: string,
+    // qo'shimcha shart (masalan karta: hali to'lanmagan) — parallel o'zgarishdan himoya
+    guard?: Prisma.OrderWhereInput,
+  ): Promise<boolean> {
     return this.prisma.$transaction(async (tx) => {
       const { count } = await tx.order.updateMany({
-        where: { id, status: from },
+        where: { id, status: from, ...guard },
         data: { status: OrderStatus.CANCELLED, paymentStatus },
       });
       if (!count) return false;
@@ -266,9 +207,9 @@ export class ShopOrdersService {
       async (tx) => {
         const lines = await this.cart.lines(user.id, tx);
         if (!lines.length) throw new BadRequestException("Savat bo'sh");
-        // To'lanmagan onlayn buyurtmalar slot va promokodni band qiladi — bitta mijoz ko'p ocholmasin
-        if (online) {
-          const unpaid = await tx.order.count({ where: { customerId: user.id, status: OrderStatus.PENDING_PAYMENT } });
+        // To'lanmagan onlayn va karta buyurtmalar zaxira, slot va promokodni band qiladi — bitta mijoz ko'p ocholmasin
+        if (online || dto.paymentMethod === PaymentMethod.CARD) {
+          const unpaid = await tx.order.count({ where: unpaidOf(user.id) });
           if (unpaid >= MAX_UNPAID_ONLINE_ORDERS) {
             throw new HttpException("To'lanmagan buyurtmalaringiz ko'p — avval ularni to'lang yoki bekor qiling", HttpStatus.TOO_MANY_REQUESTS);
           }
@@ -343,7 +284,8 @@ export class ShopOrdersService {
             totalSum: summary.total,
             channel: OrderChannel.APP,
             paymentMethod: dto.paymentMethod,
-            // Naqd va balans — darhol operatorga tushadi; Click/Payme — to'lovdan keyin
+            // Naqd, balans va karta — darhol adminga tushadi; Click/Payme — to'lovdan keyin.
+            // Karta: to'lov PENDING qoladi — admin "Kartadan to'lovchilar" sahifasida mijozga qo'ng'iroq qilib, pul tushgach "to'landi" qiladi
             status: online ? OrderStatus.PENDING_PAYMENT : OrderStatus.NEW,
             paymentExpiresAt: online ? new Date(Date.now() + PAYMENT_HOLD_MS) : null,
             ...(fromBalance && { paymentStatus: PaymentStatus.PAID, paidAt: new Date() }),
@@ -411,8 +353,9 @@ export class ShopOrdersService {
       category: AuditCategory.ORDER,
       context: order.code,
     });
-    // Naqd buyurtma darhol operatorga tushadi; onlayn to'lovlar to'lovdan keyin (confirmPayment)
-    if (order.status === OrderStatus.NEW) void this.announceNew(order.code, order.customerName, order.totalSum);
+    // Naqd/karta buyurtma darhol adminga tushadi; onlayn to'lovlar to'lovdan keyin (confirmPayment)
+    if (order.paymentMethod === PaymentMethod.CARD) void this.announceCard(order.code, order.customerName, order.customerPhone, order.totalSum);
+    else if (order.status === OrderStatus.NEW) void this.announceNew(order.code, order.customerName, order.totalSum);
     return { ...toOrderView(order, await this.cancelWindow()), payment: this.paymentInfo(order) };
   }
 
@@ -499,6 +442,14 @@ export class ShopOrdersService {
     return this.notify.notify('newOrder', `🆕 Yangi buyurtma ${code} · ${customer} · ${total.toLocaleString('ru-RU')} so'm`);
   }
 
+  /** Kartadan to'lov so'rovi: admin mijozga qo'ng'iroq qilib karta raqamini beradi */
+  private announceCard(code: string, customer: string, phone: string, total: number) {
+    return this.notify.notify(
+      'newOrder',
+      `💳 Kartadan to'lov so'rovi ${code} · ${customer} · ${phone} · ${total.toLocaleString('ru-RU')} so'm — mijozga qo'ng'iroq qiling`,
+    );
+  }
+
   /**
    * To'lov kutayotgan buyurtmani balansdan to'lash. Holat sharti + balans sharti bitta tranzaksiyada:
    * ikki marta bosilsa ham bir marta yechiladi (ORDER_PAYMENT har buyurtmaga bitta).
@@ -543,17 +494,19 @@ export class ShopOrdersService {
     if (order.status !== OrderStatus.PENDING_PAYMENT) throw new ConflictException("To'lov usulini endi o'zgartirib bo'lmaydi");
 
     const online = ONLINE.includes(dto.paymentMethod);
-    if (!online) {
+    const card = dto.paymentMethod === PaymentMethod.CARD;
+    // Karta — istalgan hududga (admin qo'ng'iroq qiladi); naqd — faqat Toshkent shahri ichida
+    if (!online && !card) {
       await this.rules.assertCheckout({ subtotal: Number.MAX_SAFE_INTEGER, totalQty: 0, cash: true });
       // Click/Payme bilan berilgan viloyat (pochta) buyurtmasi naqdga o'tib, to'lovsiz operatorga tushmasin
       assertCashArea({ region: order.deliveryRegion, latitude: order.deliveryLat, longitude: order.deliveryLng });
     }
-    await this.prisma.$transaction(async (tx) => {
+    const changed = await this.prisma.$transaction(async (tx) => {
       const { count } = await tx.order.updateMany({
         where: { id, status: OrderStatus.PENDING_PAYMENT },
         data: {
           paymentMethod: dto.paymentMethod,
-          // Naqd — kuryerga to'lanadi, buyurtma darhol operatorga tushadi
+          // Naqd — kuryerga to'lanadi, karta — admin qo'ng'iroq qiladi: buyurtma darhol adminga tushadi
           status: online ? OrderStatus.PENDING_PAYMENT : OrderStatus.NEW,
           // Onlayn usullar orasida almashtirish muddatni uzaytirmaydi — aks holda slot va promokodni
           // cheksiz band qilib turish mumkin edi (har 25 daqiqada CLICK↔PAYME)
@@ -563,7 +516,9 @@ export class ShopOrdersService {
       if (count && !online) {
         await this.history.record({ orderId: id, from: OrderStatus.PENDING_PAYMENT, to: OrderStatus.NEW, actor: user }, tx);
       }
+      return count;
     });
+    if (changed && card) void this.announceCard(order.code, order.customerName, order.customerPhone, order.totalSum);
     return this.get(user.id, id);
   }
 
@@ -608,6 +563,9 @@ export class ShopOrdersService {
     const order = await this.own(user.id, id);
     if (!CANCELLABLE.includes(order.status)) {
       throw new ConflictException('Buyurtma qabul qilingan — bekor qilish uchun administratsiyaga murojaat qiling');
+    }
+    if (order.paymentMethod === PaymentMethod.CARD && order.paymentStatus === PaymentStatus.PAID) {
+      throw new ConflictException("To'lov qabul qilingan — bekor qilish va pulni qaytarish uchun administratsiyaga murojaat qiling");
     }
     const windowHours = await this.cancelWindow();
     if (!customerCanCancel(order, windowHours)) {

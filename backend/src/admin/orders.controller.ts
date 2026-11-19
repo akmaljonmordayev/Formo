@@ -16,6 +16,7 @@ import { Roles } from '../common/decorators/roles.decorator';
 import { ParseIdPipe } from '../common/pipes/parse-id.pipe';
 import { AssignWorkshopDto, ListOrdersQueryDto, UpdateOrderStatusDto } from './dto/order.dto';
 import { OrdersService } from './orders.service';
+import { CardPaymentsService } from './card-payments.service';
 
 @ApiTags('Admin · Buyurtmalar')
 @ApiBearerAuth()
@@ -23,7 +24,10 @@ import { OrdersService } from './orders.service';
 @Roles(Role.SUPERADMIN)
 @Controller('admin/orders')
 export class OrdersController {
-  constructor(private readonly orders: OrdersService) {}
+  constructor(
+    private readonly orders: OrdersService,
+    private readonly cardPayments: CardPaymentsService,
+  ) {}
 
   @Get()
   @ApiOperation({
@@ -60,6 +64,20 @@ export class OrdersController {
     @Req() req: Request,
   ) {
     return this.orders.assign(id, dto, user, req.ip);
+  }
+
+  @Post(':id/card-paid')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: "Kartadan to'lovni tasdiqlash",
+    description:
+      "Mijoz admin bergan karta raqamiga pul o'tkazdi — `paymentStatus` → `PAID`. Holat o'zgarmaydi (`NEW`); " +
+      "keyin `assign` bilan sexga yuboriladi va buyurtma «Kartadan to'lovchilar» navbatidan chiqadi. Takroriy chaqiruv xato bermaydi.",
+  })
+  @ApiConflictResponse({ description: 'Buyurtma CARD usulida emas yoki NEW holatida emas (sexga yuborilgan / bekor qilingan)' })
+  @ApiNotFoundResponse({ description: 'Buyurtma topilmadi' })
+  cardPaid(@Param('id', ParseIdPipe) id: number, @CurrentUser() user: AuthUser, @Req() req: Request) {
+    return this.cardPayments.markPaid(id, user, req.ip);
   }
 
   @Patch(':id/status')

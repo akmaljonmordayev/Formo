@@ -2076,3 +2076,37 @@
     animation: none;
   }
 }
+
+/* ---------- Kartadan to'lov: buyurtma oynasidagi "qo'ng'iroq qiling → To'landi" bloki ---------- */
+.sa-cardpay {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 14px;
+  margin-bottom: 14px;
+  border: 1px solid color-mix(in srgb, var(--sa-accent) 45%, transparent);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--sa-accent) 8%, transparent);
+  font-size: 13px;
+}
+.sa-cardpay > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.sa-cardpay span {
+  color: var(--sa-mu);
+  line-height: 1.45;
+}
+.sa-cardpay a {
+  font-weight: 700;
+  color: var(--sa-accent);
+}
+@media (max-width: 560px) {
+  .sa-cardpay {
+    flex-direction: column;
+    align-items: stretch;
+  }
+}

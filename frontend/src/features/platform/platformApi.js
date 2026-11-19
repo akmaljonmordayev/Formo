@@ -52,6 +52,8 @@ export const ordersApi = {
   list: (params) => api(`/admin/orders${qs(params)}`),
   assign: (id, body) => api(`/admin/orders/${id}/assign`, { method: 'POST', body }),
   updateStatus: (id, body) => api(`/admin/orders/${id}/status`, { method: 'PATCH', body }),
+  // Kartadan to'lov: mijoz admin bergan kartaga pul o'tkazdi
+  cardPaid: (id) => api(`/admin/orders/${id}/card-paid`, { method: 'POST' }),
 };
 
 export const inventoryApi = {
@@ -148,7 +150,7 @@ export const ORDER_STATUS = {
   RETURNED: { label: 'Qaytarildi', color: 'red' },
 };
 
-export const PAYMENT_METHOD = { CLICK: 'Click', PAYME: 'Payme', CASH: 'Naqd', BALANCE: 'Balans', WALLET: 'Balans' };
+export const PAYMENT_METHOD = { CLICK: 'Click', PAYME: 'Payme', CASH: 'Naqd', BALANCE: 'Balans', WALLET: 'Balans', CARD: 'Karta' };
 export const PAYMENT_STATUS = { PENDING: 'kutilmoqda', PAID: "to'landi", FAILED: 'xato', REFUNDED: 'qaytarildi' };
 
 /** `t` berilsa — usul va holat alohida tarjima qilinadi (superadmin tili) */

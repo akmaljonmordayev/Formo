@@ -20,8 +20,8 @@ import { errorText } from '../utils/errors';
  *   2) Qachon? — kun/vaqt tanlanmaydi, faqat muddat ko'rsatiladi. Toshkent shahri: kuryer uygacha 2–3 kunda;
  *      viloyatlar: pochta bo'limigacha (topshirish punkti) 2–5 ish kunida, viloyat bo'yicha pochta narxi
  *      (GET /api/checkout/delivery-slots).
- *   3) To'lov — balans (asosiy); Toshkent shahri ichida kuryerga naqd ham (Superadmin allowCash). Viloyatlarga —
- *      faqat balansdan. Balans yetmasa "To'ldirish".
+ *   3) To'lov — balans (asosiy), kartadan (istalgan hudud: admin qo'ng'iroq qilib karta raqamini beradi);
+ *      Toshkent shahri ichida kuryerga naqd ham (Superadmin allowCash). Balans yetmasa "To'ldirish".
  * Narx serverda qayta hisoblanadi; savatdagi promokod buyurtmaga uzatiladi.
  */
 export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPickOnMap, onEditAddress, onWallet, initialAddressId }) {
@@ -181,10 +181,23 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
           warn={balanceShort}
           onPress={() => setPaymentMethod('BALANCE')}
         />
+        <PayOption
+          icon="credit-card-outline"
+          title={t('pay_CARD')}
+          sub={t('payCardSub')}
+          selected={method === 'CARD'}
+          onPress={() => setPaymentMethod('CARD')}
+        />
         {cashAllowed ? (
           <PayOption icon="cash" title={t('pay_CASH')} sub={t('payCashSub')} selected={method === 'CASH'} onPress={() => setPaymentMethod('CASH')} />
         ) : null}
       </View>
+      {method === 'CARD' ? (
+        <View style={styles.cardNote}>
+          <MaterialCommunityIcons name="phone-in-talk-outline" size={20} color={colors.accent} />
+          <Text style={styles.cardNoteText}>{t('payCardNote')}</Text>
+        </View>
+      ) : null}
       {postal && rules.allowCash ? <Text style={[styles.note, styles.payNote]}>{t('cashCityOnly')}</Text> : null}
       {balanceShort ? (
         <View style={styles.short}>
@@ -326,6 +339,18 @@ const styles = themedStyles(() => ({
     gap: spacing.md,
   },
   shortText: { flex: 1, color: colors.text, fontSize: 12, lineHeight: 17, fontWeight: '700' },
+  cardNote: {
+    marginTop: spacing.sm,
+    padding: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.accent,
+    backgroundColor: colors.surfaceRaised,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.md,
+  },
+  cardNoteText: { flex: 1, color: colors.text, fontSize: 12.5, lineHeight: 18, fontWeight: '600' },
   input: {
     minHeight: 50,
     borderRadius: radii.md,

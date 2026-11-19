@@ -1,6 +1,6 @@
 import { ApiProperty, ApiPropertyOptional, OmitType } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
-import { OrderStatus, PaymentStatus } from '@prisma/client';
+import { OrderStatus, PaymentMethod, PaymentStatus } from '@prisma/client';
 import {
   ArrayMaxSize,
   IsArray,
@@ -46,6 +46,16 @@ export class ListOrdersQueryDto {
   @IsOptional()
   @IsEnum(PaymentStatus)
   paymentStatus?: PaymentStatus;
+
+  @ApiPropertyOptional({
+    enum: PaymentMethod,
+    description:
+      "To'lov usuli bo'yicha filtr. Berilmasa — kartadan to'lov navbatidagi (CARD + NEW) buyurtmalar chiqmaydi; " +
+      "«Kartadan to'lovchilar» sahifasi: `?paymentMethod=CARD&status=NEW`",
+  })
+  @IsOptional()
+  @IsEnum(PaymentMethod)
+  paymentMethod?: PaymentMethod;
 
   @ApiPropertyOptional({ description: 'Tikuv sexi (workshop) id' })
   @IsOptional()
@@ -106,7 +116,7 @@ export class AssignWorkshopDto {
 }
 
 /** Tikuv sexi o'z buyurtmalari ro'yxatida — boshqa sex bo'yicha filtr kerak emas */
-export class WorkshopOrdersQueryDto extends OmitType(ListOrdersQueryDto, ['workshopId', 'paymentStatus'] as const) {
+export class WorkshopOrdersQueryDto extends OmitType(ListOrdersQueryDto, ['workshopId', 'paymentStatus', 'paymentMethod'] as const) {
   @ApiPropertyOptional({
     description: 'Faqat shu vaqtdan keyin o‘zgarganlar (ISO). Sex paneli yetkazilgan tayyorlarni oxirgi kunlar uchungina so‘raydi',
     example: '2026-11-15T00:00:00.000Z',

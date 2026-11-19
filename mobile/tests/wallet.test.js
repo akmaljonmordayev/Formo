@@ -36,8 +36,8 @@ describe('balans: to‘ldirish faqat Telegram bot orqali', () => {
     assert.equal(Linking.opened.length, 2);
   });
 
-  it('checkout: balans (asosiy) va naqd — Click/Payme mijozga ko‘rsatilmaydi', () => {
-    assert.deepEqual(CHECKOUT_METHODS, ['BALANCE', 'CASH']);
+  it('checkout: balans (asosiy), karta va naqd — Click/Payme mijozga ko‘rsatilmaydi', () => {
+    assert.deepEqual(CHECKOUT_METHODS, ['BALANCE', 'CARD', 'CASH']);
     assert.ok(!CHECKOUT_METHODS.includes('CLICK') && !CHECKOUT_METHODS.includes('PAYME'));
   });
 

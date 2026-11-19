@@ -3,6 +3,7 @@ import {
   BarChart3,
   CreditCard,
   Factory,
+  HandCoins,
   LayoutDashboard,
   MessagesSquare,
   Rotate3d,
@@ -20,6 +21,7 @@ import Dashboard from './Dashboard';
 import CustomersUsers from './Users';
 import Factories_ from './Factories';
 import Orders from './Orders';
+import CardPayments from './CardPayments';
 import Kit360 from './Kit360';
 import Forms from './Forms';
 import Delivery from './Delivery';
@@ -60,6 +62,7 @@ function legacy(El) {
 export const superadminRoutes = [
   { path: '', element: <Dashboard /> },
   { path: 'orders', element: <Orders /> },
+  { path: 'card-payments', element: <CardPayments /> },
   { path: 'kit-360', element: <Kit360 /> },
   { path: 'forms', element: <Forms /> },
   { path: 'delivery', element: <Delivery /> },
@@ -86,6 +89,8 @@ export const superadminRoutes = [
 export const superadminMenu = [
   { to: BASE, label: 'Dashboard', end: true, icon: LayoutDashboard, group: 'Asosiy' },
   { to: `${BASE}/orders`, label: 'Buyurtmalar', icon: ShoppingBag, group: 'Asosiy' },
+  // Kartadan to'lash tanlangan buyurtmalar: admin qo'ng'iroq qiladi, pul tushgach sexga yuboradi
+  { to: `${BASE}/card-payments`, label: "Kartadan to'lovchilar", icon: HandCoins, group: 'Asosiy' },
   { to: `${BASE}/messages`, label: 'Xabarlar', icon: MessagesSquare, group: 'Asosiy' },
   { to: `${BASE}/topups`, label: "Balans to'ldirish", icon: CreditCard, group: 'Asosiy' },
 

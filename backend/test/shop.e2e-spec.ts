@@ -674,6 +674,110 @@ describe('Katalog, savat va buyurtma (e2e)', () => {
       await as(user).post(`/api/orders/${res.body.id}/cancel`).expect(200);
     });
 
+    it("kartadan to'lov: istalgan hududga; admin to'landi qilmaguncha sexga ketmaydi, keyin navbatdan chiqadi", async () => {
+      await as(user).post('/api/cart/items', { kitId: awayKit, shirtSize: 'S' }).expect(201);
+      const far = await as(user)
+        .post('/api/addresses', { label: 'Dacha', address: 'Chirchiq, Amir Temur 5', latitude: 41.4689, longitude: 69.5822 })
+        .expect(201);
+      // Naqd shahardan tashqariga mumkin emas, karta — mumkin
+      const res = await as(user)
+        .post('/api/orders/checkout', checkoutBody({ addressId: far.body.id, paymentMethod: 'CARD', promocode: undefined }))
+        .expect(201);
+      expect(res.body).toMatchObject({ status: 'NEW', paymentMethod: 'CARD', paymentStatus: 'PENDING', payment: { required: false } });
+      const id = res.body.id;
+
+      // Oddiy Buyurtmalar ro'yxatida yo'q, "Kartadan to'lovchilar"da bor
+      const regular = await as(admin).get('/api/admin/orders?status=NEW&limit=100').expect(200);
+      expect(regular.body.items.map((o: { id: number }) => o.id)).not.toContain(id);
+      expect(regular.body.cardQueue).toBeGreaterThanOrEqual(1);
+      const queue = await as(admin).get('/api/admin/orders?paymentMethod=CARD&status=NEW').expect(200);
+      expect(queue.body.items.map((o: { id: number }) => o.id)).toContain(id);
+
+      // Pul tushmaguncha sexga yuborib / ishlab chiqarishga o'tkazib bo'lmaydi
+      const workshop = await as(admin)
+        .post('/api/admin/workshops', { phone: '+998901112298', password: 'tailor123', fullName: 'Karta sexi', workshopName: 'Sex-karta' })
+        .expect(201);
+      const denied = await as(admin).post(`/api/admin/orders/${id}/assign`, { workshopId: workshop.body.id }).expect(409);
+      expect(denied.body.message).toMatch(/To'landi/);
+      await as(admin).patch(`/api/admin/orders/${id}/status`, { status: 'SENT_TO_WORKSHOP', workshopId: workshop.body.id }).expect(409);
+
+      // Admin to'landi qiladi (takroriy bosish xato bermaydi), keyin sexga yuboradi
+      const paid = await as(admin).post(`/api/admin/orders/${id}/card-paid`).expect(200);
+      expect(paid.body).toMatchObject({ status: 'NEW', paymentStatus: 'PAID' });
+      expect(paid.body.paidAt).toBeTruthy();
+      await as(admin).post(`/api/admin/orders/${id}/card-paid`).expect(200);
+      await as(admin).post(`/api/admin/orders/${id}/assign`, { workshopId: workshop.body.id }).expect(200);
+
+      const after = await as(admin).get('/api/admin/orders?paymentMethod=CARD&status=NEW').expect(200);
+      expect(after.body.items.map((o: { id: number }) => o.id)).not.toContain(id);
+      const sent = await as(admin).get('/api/admin/orders?status=SENT_TO_WORKSHOP&limit=100').expect(200);
+      expect(sent.body.items.map((o: { id: number }) => o.id)).toContain(id);
+      expect((await as(user).get(`/api/orders/${id}`).expect(200)).body.paymentStatus).toBe('PAID');
+      await as(user).delete(`/api/addresses/${far.body.id}`).expect(200);
+    });
+
+    it("to'landi faqat kartadan to'lov buyurtmasiga; Click → Karta darhol adminga tushadi", async () => {
+      await as(user).post('/api/cart/items', { kitId: awayKit, shirtSize: 'S' }).expect(201);
+      const res = await as(user).post('/api/orders/checkout', checkoutBody({ paymentMethod: 'CLICK', promocode: undefined })).expect(201);
+      expect(res.body.status).toBe('PENDING_PAYMENT');
+      await as(admin).post(`/api/admin/orders/${res.body.id}/card-paid`).expect(409);
+      const changed = await as(user).patch(`/api/orders/${res.body.id}/payment-method`, { paymentMethod: 'CARD' }).expect(200);
+      expect(changed.body).toMatchObject({ status: 'NEW', paymentMethod: 'CARD', paymentStatus: 'PENDING', paymentExpiresAt: null });
+      await as(user).post(`/api/orders/${res.body.id}/cancel`).expect(200);
+    });
+
+    it("karta: to'lanmaganlar limiti, 24 soatda avtomatik bekor, daromadga faqat to'langani, to'langanini mijoz bekor qila olmaydi", async () => {
+      const buyer = await register('Karta Mijoz');
+      // Viloyat (pochta) manzili — Toshkent kuryer slotlarini band qilmaydi
+      const far = await as(buyer)
+        .post('/api/addresses', { label: 'Uy', address: 'Chirchiq, Amir Temur 5', latitude: 41.4689, longitude: 69.5822 })
+        .expect(201);
+      const body = { addressId: far.body.id, paymentMethod: 'CARD' };
+      const placeCard = async (status = 201) => {
+        await as(buyer).post('/api/cart/items', { kitId: awayKit, shirtSize: 'S' }).expect(201);
+        return (await as(buyer).post('/api/orders/checkout', body).expect(status)).body;
+      };
+
+      // 1) Bir vaqtda 3 tadan ortiq to'lanmagan buyurtma (zaxira/promokod band qilib turish) — 429
+      const orders = [await placeCard(), await placeCard(), await placeCard()];
+      const tooMany = await placeCard(429);
+      expect(tooMany.message).toMatch(/To'lanmagan buyurtmalaringiz ko'p/);
+
+      // 2) Daromad: to'lanmagan karta buyurtmasi kirmaydi, "To'landi"dan keyin kiradi
+      const cardStats = async () => (await as(admin).get('/api/admin/finance?days=1').expect(200)).body;
+      const before = await cardStats();
+      await as(admin).post(`/api/admin/orders/${orders[0].id}/card-paid`).expect(200);
+      const after = await cardStats();
+      expect((after.byMethod.CARD?.count ?? 0) - (before.byMethod.CARD?.count ?? 0)).toBe(1);
+      expect(after.revenue - before.revenue).toBe(orders[0].summary.total);
+
+      // 3) To'langan karta buyurtmasini mijoz o'zi bekor qila olmaydi (pul admin kartasida — qaytarish qo'lda)
+      expect((await as(buyer).get(`/api/orders/${orders[0].id}`).expect(200)).body.canCancel).toBe(false);
+      const denied = await as(buyer).post(`/api/orders/${orders[0].id}/cancel`).expect(409);
+      expect(denied.body.message).toMatch(/administratsiyaga/);
+
+      // 4) 24 soatda to'lanmagan karta buyurtmasi avtomatik bekor bo'ladi; keyin "To'landi" qilib bo'lmaydi
+      await prisma.order.update({ where: { id: orders[1].id }, data: { createdAt: new Date(Date.now() - 25 * 3_600_000) } });
+      const expired = await as(buyer).get(`/api/orders/${orders[1].id}`).expect(200);
+      expect(expired.body).toMatchObject({ status: 'CANCELLED', paymentStatus: 'FAILED' });
+      await as(admin).post(`/api/admin/orders/${orders[1].id}/card-paid`).expect(409);
+      // To'langan buyurtma muddat o'tsa ham bekor bo'lmaydi
+      await prisma.order.update({ where: { id: orders[0].id }, data: { createdAt: new Date(Date.now() - 25 * 3_600_000) } });
+      expect((await as(buyer).get(`/api/orders/${orders[0].id}`).expect(200)).body.status).toBe('NEW');
+      // Limit bo'shadi — yana buyurtma berish mumkin
+      const next = await placeCard();
+
+      // 5) Oddiy Buyurtmalar sahifasida qidiruv navbatdagi karta buyurtmasini ham topadi
+      const found = await as(admin).get(`/api/admin/orders?search=${orders[2].code}`).expect(200);
+      expect(found.body.items.map((o: { id: number }) => o.id)).toContain(orders[2].id);
+      const awaiting = await as(admin).get('/api/admin/orders?status=NEW&limit=1').expect(200);
+      expect(awaiting.body.cardAwaiting).toBeGreaterThanOrEqual(2);
+
+      for (const o of [orders[0], orders[2], next]) {
+        await as(admin).patch(`/api/admin/orders/${o.id}/status`, { status: 'CANCELLED' }).expect(200);
+      }
+    });
+
     it('30 daqiqada to‘lanmagan buyurtma avtomatik bekor bo‘ladi', async () => {
       await as(user).post('/api/cart/items', { kitId: homeKit, shirtSize: 'M' }).expect(201);
       const res = await as(user).post('/api/orders/checkout', checkoutBody()).expect(201);

@@ -14,6 +14,7 @@ import { useToast } from '../components/ui/Toast';
 import StatusPill, { OrderStepper, statusTone } from '../components/ui/StatusPill';
 import {
   CHECKOUT_METHODS,
+  awaitingCardCall,
   canCancelOrder,
   deliveryText,
   paymentText,
@@ -121,6 +122,16 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
             </View>
           )}
         </Card>
+
+        {awaitingCardCall(order) ? (
+          <Card style={styles.payCard}>
+            <Text style={styles.payTitle}>{t('cardCallTitle')}</Text>
+            <Text style={styles.paySub}>
+              {formatMoney(order.summary.total)} · {paymentText(t, order.paymentMethod)}
+            </Text>
+            <Text style={styles.payNote}>{t('cardCallSub')}</Text>
+          </Card>
+        ) : null}
 
         {pending ? (
           <Card style={styles.payCard}>

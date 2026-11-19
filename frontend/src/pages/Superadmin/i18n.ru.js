@@ -1069,6 +1069,22 @@ const RU = {
   "Summadan foiz chegirma": "Скидка в процентах от суммы",
   "Aniq so'm chegirma": "Скидка фиксированной суммой",
   "Yetkazish narxi olinmaydi": "Доставка бесплатно",
+  // --- kartadan to'lov ---
+  Karta: 'Карта',
+  "To'landi": 'Оплачено',
+  'Sexga yuborish': 'Отправить в цех',
+  "Kartadan to'lovchilar": 'Оплата картой',
+  "Kartadan to'lov so'rovi keldi": 'Новая заявка на оплату картой',
+  "{n} ta kartadan to'lov buyurtmasi kutmoqda": 'Заказов с оплатой картой ждут: {n}',
+  "Qo'ng'iroq kutayotganlar 24 soat ichida to'lamasa, buyurtma avtomatik bekor bo'ladi.":
+    'Если клиент не оплатит в течение 24 часов, заказ отменится автоматически.',
+  "Kartadan to'lashni tanlagan mijozlar. Qo'ng'iroq qilib karta raqamini bering, pul tushgach «To'landi»ni bosing va tikuv sexini tanlang — buyurtma sexga ketadi va bu ro'yxatdan chiqadi.":
+    'Клиенты, выбравшие оплату картой. Позвоните и сообщите номер карты, после поступления денег нажмите «Оплачено» и выберите цех — заказ уйдёт в цех и исчезнет из этого списка.',
+  "Kartadan to'lov so'rovlari yo'q": 'Заявок на оплату картой нет',
+  "Qo'ng'iroq kutmoqda": 'Ждёт звонка',
+  "Kartadan to'lov kutilmoqda": 'Ожидается оплата картой',
+  "Mijozga qo'ng'iroq qiling va karta raqamini bering. Pul tushgach «To'landi»ni bosing, so'ng tikuv sexini tanlang.":
+    'Позвоните клиенту и сообщите номер карты. После поступления денег нажмите «Оплачено», затем выберите цех.',
 };
 
 export default RU;

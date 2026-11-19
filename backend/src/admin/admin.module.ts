@@ -22,6 +22,7 @@ import { InventoryService } from './inventory.service';
 import { OrdersController } from './orders.controller';
 import { OrderHistoryService } from './order-history.service';
 import { OrdersService } from './orders.service';
+import { CardPaymentsService } from './card-payments.service';
 import { PricingController } from './pricing.controller';
 import { PricingService } from './pricing.service';
 import { PromocodesController } from './promocodes.controller';
@@ -63,6 +64,7 @@ import { WorkshopsController } from './workshops.controller';
     CategoriesService,
     ClubsService,
     OrdersService,
+    CardPaymentsService,
     OrderHistoryService,
     WorkshopOrdersService,
     ChatService,

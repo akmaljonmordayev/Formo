@@ -19,10 +19,15 @@ export const canCancelOrder = (order) => Boolean(order?.canCancel) && CUSTOMER_C
 export const toCustomerOrder = (order) =>
   order?.status === 'RETURNED' ? { ...order, status: 'CANCELLED', statusLabel: null, canCancel: false } : order;
 
-// Backend `PaymentMethod`: BALANCE | CASH | CLICK | PAYME (prisma/schema.prisma).
-// Mijoz ilovasida: balans (asosiy) va naqd — naqd faqat Toshkent shahri ichida kuryerga (Superadmin allowCash);
-// viloyatlarga (pochta) — faqat balansdan. Click/Payme ko'rsatilmaydi, balans Telegram bot orqali to'ldiriladi.
-export const CHECKOUT_METHODS = ['BALANCE', 'CASH'];
+// Backend `PaymentMethod`: BALANCE | CASH | CARD | CLICK | PAYME (prisma/schema.prisma).
+// Mijoz ilovasida: balans (asosiy), kartadan va naqd — naqd faqat Toshkent shahri ichida kuryerga (Superadmin allowCash).
+// Kartadan — O'zbekistonning istalgan joyiga: admin mijozga qo'ng'iroq qilib karta raqamini beradi, pul tushgach
+// buyurtma qabul qilinadi. Click/Payme ko'rsatilmaydi, balans Telegram bot orqali to'ldiriladi.
+export const CHECKOUT_METHODS = ['BALANCE', 'CARD', 'CASH'];
+
+/** Kartadan to'lov: admin hali pul tushganini tasdiqlamagan — "siz bilan bog'lanamiz" kartasi */
+export const awaitingCardCall = (order) =>
+  order?.paymentMethod === 'CARD' && order?.paymentStatus !== 'PAID' && order?.status === 'NEW';
 
 /** Buyurtmaning yetkazish qatori: viloyatga "Pochta orqali · 2–5 ish kuni", Toshkent shahriga "Kuryer orqali · 2–3 kun"
  *  (kun/vaqt tanlangan eski buyurtmada — "20.10.2026 · 18:00–22:00") */
