@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import React, { useEffect, useRef, useState } from 'react';
+import { Pressable, RefreshControl, ScrollView, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { colors, fonts, radii, spacing, themedStyles } from '../constants/theme';
@@ -11,7 +11,8 @@ import { designText } from '../features/studio';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
 import { ConfirmModal } from '../components/ui/Modals';
 import { useToast } from '../components/ui/Toast';
-import StatusPill, { OrderStepper, statusTone } from '../components/ui/StatusPill';
+import { statusTone } from '../components/ui/StatusPill';
+import OrderStatusHero from '../components/ui/OrderStatusHero';
 import {
   CHECKOUT_METHODS,
   awaitingCardCall,
@@ -42,9 +43,13 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
   const [busy, setBusy] = useState(null);
   const [actionError, setActionError] = useState(null);
 
+  // Mijozning o'z amali (bekor qilish, to'lov, "qabul qildim") — "Holat yangilandi" xabari chiqmasin
+  const localChangeUntil = useRef(0);
+
   const run = async (key, action) => {
     setBusy(key);
     setActionError(null);
+    localChangeUntil.current = Date.now() + 5000;
     try {
       await action();
     } catch (err) {
@@ -58,6 +63,23 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
 
   // "Rostdan ham bekor qilmoqchimisiz?" — tasdiqlanmaguncha bekor qilinmaydi
   const [cancelAsk, setCancelAsk] = useState(false);
+
+  // Holat operator/sex tomonida o'zgarsa (20 s polling) — mijoz darhol sezsin: xabar + karta "sakraydi"
+  // Faqat shu buyurtmaning o'zi o'zgarganda (boshqa buyurtmaga o'tilganda emas, mijozning o'z amalida emas)
+  const status = order?.status;
+  const shownId = order?.id;
+  const prev = useRef({ id: null, status: null });
+  const [flashKey, setFlashKey] = useState(0);
+  useEffect(() => {
+    if (!status) return;
+    const sameOrder = prev.current.id === shownId;
+    if (sameOrder && prev.current.status && prev.current.status !== status && Date.now() > localChangeUntil.current) {
+      setFlashKey((k) => k + 1);
+      toast.show(`${t('statusUpdated')}: ${statusText(t, status, order?.statusLabel)}`, 'success');
+    }
+    prev.current = { id: shownId, status };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [status, shownId]);
 
   if (!order) {
     return (
@@ -80,6 +102,13 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
   const stopped = ['CANCELLED', 'RETURNED'].includes(order.status);
   const payment = order.payment || {};
   const tone = statusTone(order.status);
+  // Holat oxirgi marta qachon o'zgargan: server `statusChangedAt` (sex ichidagi o'zgarishlar ham);
+  // eski backend javobida yo'q bo'lsa — timeline'dagi eng so'nggi sana
+  const lastAt = [order.statusChangedAt, ...order.timeline.map((s) => s.at)]
+    .map((v) => (v ? new Date(v) : null))
+    .filter((d) => d && !Number.isNaN(d.getTime()))
+    .sort((a, b) => b - a)[0];
+  const updatedAt = lastAt || null;
   // Pastdagi yashil tugma: yetkazilmoqda (yoki admin "yetkazildi" degan, mijoz hali tasdiqlamagan)
   const askReceipt = Boolean(order.canConfirmReceipt);
   const deliveredAsk = askReceipt && order.status === 'DELIVERED';
@@ -105,23 +134,15 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
       >
         <Header title={order.code} subtitle={formatDate(order.createdAt)} onBack={onBack} />
 
-        {/* Holat kartasi: rangli belgi + 4 bosqichli kuzatish */}
-        <Card style={[styles.statusCard, { borderColor: tone.border }]}>
-          <View style={styles.statusHead}>
-            <View style={[styles.statusIcon, { backgroundColor: tone.bg, borderColor: tone.border }]}>
-              <MaterialCommunityIcons name={tone.icon} size={26} color={tone.color} />
-            </View>
-            <View style={{ flex: 1 }}>
-              <Overline style={styles.statusOverline}>{t('orderStatus')}</Overline>
-              <StatusPill size="large" status={order.status} label={statusText(t, order.status, order.statusLabel)} />
-            </View>
-          </View>
-          {stopped ? null : (
-            <View style={styles.statusStepper}>
-              <OrderStepper t={t} status={order.status} />
-            </View>
-          )}
-        </Card>
+        {/* Premium holat kartasi: gradient, jonli halqa, tushuntirish, progress + 4 bosqich */}
+        <OrderStatusHero
+          t={t}
+          status={order.status}
+          label={statusText(t, order.status, order.statusLabel)}
+          updatedAt={updatedAt}
+          updatedText={updatedAt ? timeOf(updatedAt.toISOString()) : null}
+          flashKey={flashKey}
+        />
 
         {awaitingCardCall(order) ? (
           <Card style={styles.payCard}>
@@ -175,29 +196,52 @@ export default function OrderDetailScreen({ t, orderId, rules, onBack }) {
               <Text style={styles.stoppedText}>{statusText(t, order.status, order.statusLabel)}</Text>
             </View>
           ) : (
-            order.timeline.map((step, index) => (
-              <View key={step.status} style={styles.step}>
-                <View style={styles.stepRail}>
-                  <View
-                    style={[
-                      styles.dot,
-                      step.done && styles.dotDone,
-                      step.current && { borderColor: tone.color, backgroundColor: tone.color, shadowColor: tone.color },
-                      step.current && styles.dotCurrent,
-                    ]}
-                  />
-                  {index < order.timeline.length - 1 ? (
-                    <View style={[styles.line, step.done && !step.current && styles.lineDone]} />
-                  ) : null}
-                </View>
-                <View style={styles.stepCopy}>
-                  <Text style={[styles.stepLabel, !step.done && styles.stepLabelTodo]}>
-                    {statusText(t, step.status, step.label)}
-                  </Text>
-                  {step.at ? <Text style={styles.stepAt}>{timeOf(step.at)}</Text> : null}
-                </View>
-              </View>
-            ))
+            <>
+              <Overline>{t('orderTimeline')}</Overline>
+              {order.timeline.map((step, index) => {
+                const stepTone = statusTone(step.status);
+                const passed = step.done && !step.current;
+                return (
+                  <View key={step.status} style={styles.step}>
+                    <View style={styles.stepRail}>
+                      <View
+                        style={[
+                          styles.node,
+                          passed && styles.nodeDone,
+                          step.current && [styles.nodeCurrent, { backgroundColor: tone.color, borderColor: tone.color, shadowColor: tone.color }],
+                        ]}
+                      >
+                        <MaterialCommunityIcons
+                          name={passed ? 'check-bold' : stepTone.icon}
+                          size={step.current ? 16 : 13}
+                          color={step.current ? colors.primaryDark : passed ? '#FFFFFF' : colors.dim}
+                        />
+                      </View>
+                      {index < order.timeline.length - 1 ? (
+                        <View style={[styles.line, passed && styles.lineDone]} />
+                      ) : null}
+                    </View>
+                    <View style={styles.stepCopy}>
+                      <Text
+                        style={[
+                          styles.stepLabel,
+                          !step.done && styles.stepLabelTodo,
+                          step.current && { color: tone.color },
+                        ]}
+                      >
+                        {statusText(t, step.status, step.label)}
+                      </Text>
+                      {step.at ? (
+                        <View style={styles.stepAtChip}>
+                          <MaterialCommunityIcons name="clock-outline" size={11} color={colors.muted} />
+                          <Text style={styles.stepAt}>{timeOf(step.at)}</Text>
+                        </View>
+                      ) : null}
+                    </View>
+                  </View>
+                );
+              })}
+            </>
           )}
         </Card>
 
@@ -365,22 +409,37 @@ const styles = themedStyles(() => ({
   lockText: { flex: 1, color: colors.muted, fontSize: 12, lineHeight: 17 },
   stopped: { flexDirection: 'row', alignItems: 'center', gap: spacing.sm },
   stoppedText: { color: colors.danger, fontSize: 14, fontWeight: '800' },
-  step: { flexDirection: 'row', gap: spacing.md, minHeight: 44 },
-  stepRail: { width: 14, alignItems: 'center' },
-  dot: { width: 12, height: 12, borderRadius: 6, borderWidth: 2, borderColor: colors.border, backgroundColor: colors.surface, marginTop: 3 },
-  dotDone: { borderColor: colors.teal, backgroundColor: colors.teal },
-  dotCurrent: { width: 14, height: 14, borderRadius: 7, marginTop: 2, shadowOpacity: 0.6, shadowRadius: 6, shadowOffset: { width: 0, height: 0 }, elevation: 3 },
-  statusCard: { marginBottom: spacing.lg, backgroundColor: colors.surfaceRaised, borderWidth: 1 },
-  statusHead: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  statusIcon: { width: 52, height: 52, borderRadius: 18, borderWidth: 1, alignItems: 'center', justifyContent: 'center' },
-  statusOverline: { marginBottom: 6 },
-  statusStepper: { marginTop: spacing.lg, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.borderLight },
-  line: { flex: 1, width: 2, backgroundColor: colors.border, marginVertical: 2 },
+  step: { flexDirection: 'row', gap: spacing.md, minHeight: 52 },
+  stepRail: { width: 30, alignItems: 'center' },
+  // Tarix qadamlari: har biri o'z belgisi bilan doira; o'tilgani — yashil ✓, joriysi — holat rangida nur bilan
+  node: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    borderWidth: 1.5,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  nodeDone: { borderColor: colors.teal, backgroundColor: colors.teal },
+  nodeCurrent: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    borderWidth: 2,
+    shadowOpacity: 0.7,
+    shadowRadius: 8,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 5,
+  },
+  line: { flex: 1, width: 2, backgroundColor: colors.border, marginVertical: 3 },
   lineDone: { backgroundColor: colors.teal },
-  stepCopy: { flex: 1, paddingBottom: spacing.sm },
-  stepLabel: { color: colors.text, fontSize: 13, fontWeight: '800' },
+  stepCopy: { flex: 1, paddingBottom: spacing.sm, paddingTop: 4 },
+  stepLabel: { color: colors.text, fontSize: 14, fontWeight: '800' },
   stepLabelTodo: { color: colors.muted, fontWeight: '500' },
-  stepAt: { color: colors.muted, fontSize: 11, marginTop: 2 },
+  stepAtChip: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 3 },
+  stepAt: { color: colors.muted, fontSize: 11 },
   item: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   thumb: {
     width: 48,

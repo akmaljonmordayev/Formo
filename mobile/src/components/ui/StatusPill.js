@@ -94,11 +94,12 @@ export function OrderStepper({ t, status }) {
                 style={[
                   stepper.dot,
                   reached && { borderColor: tone.color, backgroundColor: active ? tone.color : tone.bg },
+                  active && [stepper.dotActive, { shadowColor: tone.color }],
                 ]}
               >
                 <MaterialCommunityIcons
-                  name={done ? 'check' : stage.icon}
-                  size={active ? 17 : 15}
+                  name={done ? 'check-bold' : stage.icon}
+                  size={active ? 20 : 15}
                   color={active ? colors.primaryDark : reached ? tone.color : colors.dim}
                 />
               </View>
@@ -126,7 +127,19 @@ const stepper = themedStyles(() => ({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  line: { flex: 1, height: 2, borderRadius: 1, backgroundColor: colors.border, marginTop: 16 },
+  // Faol bosqich: kattaroq va atrofida rangli nur
+  dotActive: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    marginTop: -3,
+    borderWidth: 2,
+    shadowOpacity: 0.7,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 0 },
+    elevation: 6,
+  },
+  line: { flex: 1, height: 3, borderRadius: 2, backgroundColor: colors.border, marginTop: 16 },
   label: { color: colors.dim, fontSize: 10, fontWeight: '700', textAlign: 'center', marginTop: 6, lineHeight: 13 },
   labelActive: { fontWeight: '900' },
 }));

@@ -27,6 +27,7 @@ process.env.PAYME_MERCHANT_ID = 'payme-test-merchant';
 process.env.PAYME_KEY = 'payme-test-key';
 process.env.PAYME_TEST = 'true';
 process.env.PAYMENT_RETURN_URL = '';
+process.env.PAYMENT_DEMO = 'true';
 // Fayl xotirasi: hech qachon real S3 emas, lokal vaqtinchalik papka
 process.env.S3_BUCKET = '';
 process.env.UPLOAD_DIR = join(tmpdir(), 'formo-e2e-uploads');

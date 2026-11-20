@@ -51,9 +51,10 @@ export const orderCode = (id: number) => `FRM-${String(id).padStart(6, '0')}`;
 /**
  * Demo to'lov tasdig'i (Click/Payme integratsiyasigacha) — faqat dev/test muhitida.
  * Productionda HECH QACHON yoqilmaydi: aks holda har kim pulsiz buyurtmani "to'langan" qila oladi.
+ * Faqat aniq yoqilganda ishlaydi (PAYMENT_DEMO=true) — NODE_ENV qo'yilmagan staging deploy ham xavfsiz.
  */
 export const demoPaymentEnabled = () =>
-  process.env.NODE_ENV !== 'production' && process.env.PAYMENT_DEMO !== 'false';
+  process.env.NODE_ENV !== 'production' && process.env.PAYMENT_DEMO?.trim().toLowerCase() === 'true';
 
 /**
  * Mijoz o'zi bekor qila oladimi: to'lanmagan buyurtma — har doim; qolganlari admin qabul qilguncha (NEW) va
@@ -141,6 +142,8 @@ export function toOrderView(o: OrderRow, cancelWindowHours?: number) {
     // "Buyurtmani qabul qildim": yetkazilayotgan yoki admin "yetkazildi" degan, mijoz hali tasdiqlamagan buyurtma
     receivedAt: o.receivedAt,
     canConfirmReceipt: canConfirmReceipt(o),
+    // Holat oxirgi marta qachon o'zgargan (sex ichidagi PRINTING → QUALITY_CHECK ham) — "Yangilandi" vaqti
+    statusChangedAt: o.statusLogs.reduce<Date>((a, l) => (l.createdAt > a ? l.createdAt : a), o.createdAt),
     createdAt: o.createdAt,
   };
 }

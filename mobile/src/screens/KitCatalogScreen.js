@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import { Pressable, ScrollView, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, Text, TextInput, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, fonts, radii, spacing, themedStyles } from '../constants/theme';
 import { EmptyState, Header, Screen } from '../components/ui/Common';
@@ -8,6 +8,31 @@ import KitTile from '../components/ui/KitTile';
 import Skeleton from '../components/ui/Skeleton';
 import { useCategories } from '../features/products';
 import { matchesSearch, mixKits, useBestSellingKits } from '../features/products/kits';
+
+// Liga logolari (kategoriya slug bo'yicha); ro'yxatda yo'q liga — kubok ikonkasi bilan qoladi
+const LEAGUE_LOGOS = {
+  laliga: require('../../assets/leagues/laliga.png'),
+  'premier-league': require('../../assets/leagues/premier-league.png'),
+  'ligue-1': require('../../assets/leagues/ligue-1.png'),
+  'serie-a': require('../../assets/leagues/serie-a.png'),
+};
+// Admin slug/nomni boshqacha yozgan bo'lsa ham topiladi: "La Liga", "Série A", "EPL", "Ligue1" ...
+const LEAGUE_ALIASES = { 'la-liga': 'laliga', epl: 'premier-league', 'english-premier-league': 'premier-league', ligue1: 'ligue-1', seriea: 'serie-a' };
+const normalizeLeague = (s) =>
+  String(s || '')
+    .normalize('NFKD')
+    .replace(/[̀-ͯ]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+const leagueLogo = (c) => {
+  for (const raw of [c.slug, c.name]) {
+    const key = normalizeLeague(raw);
+    const logo = LEAGUE_LOGOS[key] || LEAGUE_LOGOS[LEAGUE_ALIASES[key]];
+    if (logo) return logo;
+  }
+  return undefined;
+};
 
 const SEASONS = [
   { key: 'all', label: 'seasonAll', icon: 'calendar-blank-outline' },
@@ -35,12 +60,13 @@ export default function KitCatalogScreen({ t, favorites, onOpenKit }) {
   const chips = useMemo(() => {
     const clubCats = new Set(kits.filter((k) => k.kind === 'club' && k.categoryId != null).map((k) => String(k.categoryId)));
     return [
-      { key: 'all', label: t('all'), icon: 'view-grid-outline' },
-      { key: 'fav', label: t('favorites'), icon: 'heart-outline' },
-      { key: 'national', label: t('nationalTeams'), icon: 'flag-outline' },
+      // Liga logolari bilan bir xil ko'rinsin — rangli doira ichida ikonka
+      { key: 'all', label: t('all'), icon: 'tshirt-crew', badge: { bg: '#2F6BFF', fg: '#FFFFFF' } },
+      { key: 'fav', label: t('favorites'), icon: 'heart', badge: { bg: '#FF3B5C', fg: '#FFFFFF' } },
+      { key: 'national', label: t('nationalTeams'), icon: 'earth', badge: { bg: '#12B886', fg: '#FFFFFF' } },
       ...categories
         .filter((c) => clubCats.has(String(c.id)))
-        .map((c) => ({ key: `cat:${c.id}`, label: c.name, icon: 'trophy-outline' })),
+        .map((c) => ({ key: `cat:${c.id}`, label: c.name, icon: 'trophy-outline', logo: leagueLogo(c) })),
     ];
   }, [categories, kits, t]);
 
@@ -128,11 +154,21 @@ export default function KitCatalogScreen({ t, favorites, onOpenKit }) {
               accessibilityRole="tab"
               accessibilityState={{ selected: active }}
             >
-              <MaterialCommunityIcons
-                name={active && chip.key === 'fav' ? 'heart' : chip.icon}
-                size={20}
-                color={active ? colors.primaryDark : colors.accent}
-              />
+              {chip.logo ? (
+                <View style={[styles.logoBadge, active && styles.logoBadgeActive]}>
+                  <Image source={chip.logo} style={styles.logo} resizeMode="contain" accessibilityIgnoresInvertColors />
+                </View>
+              ) : chip.badge ? (
+                <View style={[styles.logoBadge, { backgroundColor: chip.badge.bg }, active && styles.logoBadgeActive]}>
+                  <MaterialCommunityIcons name={chip.icon} size={20} color={chip.badge.fg} />
+                </View>
+              ) : (
+                <MaterialCommunityIcons
+                  name={chip.icon}
+                  size={20}
+                  color={active ? colors.primaryDark : colors.accent}
+                />
+              )}
               <Text style={[styles.chipText, active && styles.chipTextActive]} numberOfLines={1}>
                 {chip.label}
               </Text>
@@ -186,7 +222,7 @@ const styles = themedStyles(() => ({
   rail: { paddingHorizontal: spacing.lg, gap: 10, paddingBottom: spacing.md },
   chip: {
     minWidth: 96,
-    height: 70,
+    height: 80,
     paddingHorizontal: 14,
     borderRadius: radii.md,
     backgroundColor: colors.surface,
@@ -196,6 +232,24 @@ const styles = themedStyles(() => ({
     gap: 6,
   },
   chipActive: { backgroundColor: colors.accent, borderColor: colors.accent },
+  // Qora/binafsha logolar qorong'i fonda ham ko'rinsin — oq doira ichida
+  logoBadge: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.35)',
+    shadowColor: '#000',
+    shadowOpacity: 0.25,
+    shadowRadius: 4,
+    shadowOffset: { width: 0, height: 2 },
+    elevation: 3,
+  },
+  logoBadgeActive: { borderColor: colors.primaryDark, borderWidth: 2 },
+  logo: { width: 25, height: 25 },
   chipText: { color: colors.text, fontSize: 12, fontFamily: fonts.bodySemi, maxWidth: 150 },
   chipTextActive: { color: colors.primaryDark },
   seasons: {
