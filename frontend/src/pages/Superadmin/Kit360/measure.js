@@ -587,6 +587,9 @@ function pantsRight(img, y) {
 // Tana yarim kengligi (180° kadr, y = 300): 12 jamoada 45–62 px; undan kattasi — o'lchov xatosi
 const MAX_TORSO_HALF = 75;
 const MEDIAN_TORSO_HALF = 55;
+// Uzun yengli (l*) yo'l-yo'l formalarda (juv, atm) qo'llar tanaga yopishgan — o'lchov qo'llar bilan birga (~115–130 px)
+// chiqadi va ism/raqam ikki baravar kattalashib, shalvarga tushardi. Bunday o'lchov o'rniga jamoalar medianasi olinadi.
+const torsoHalfOf = (half) => (half <= MAX_TORSO_HALF ? half : MEDIAN_TORSO_HALF);
 // Shalvar oyog'i shortik o'lchovisiz: o'ng chet — son o'rtasidagi qatordan, yarim kenglik — tana o'lchamidan
 function pantsLeg(img, legA, theta) {
   const x = pantsRight(img, PANTS_Y);
@@ -602,9 +605,7 @@ export function printLayout(frame, img, backImg, scale = 1) {
   if (frame in FRONT_FRAMES) {
     const theta = FRONT_FRAMES[frame];
     const straight = backImg && measureTorso(backImg);
-    // Uzun yengli (l*) 180° kadrda qo'llar tanaga yopishgan — o'lchov tana o'rniga qo'llar bilan birga (juv, atm: ~115 px)
-    // chiqadi va raqam ikki baravar kattalashardi. Bunday o'lchov o'rniga jamoalar medianasi olinadi.
-    const torsoHalf = straight ? (straight.half <= MAX_TORSO_HALF ? straight.half : MEDIAN_TORSO_HALF) : null;
+    const torsoHalf = straight ? torsoHalfOf(straight.half) : null;
     // Oyoq radiusi ≈ 0.64 × tana yarim kengligi (10 jamoaning 0° kadrlari medianasi)
     const legA = torsoHalf ? torsoHalf * 0.64 : null;
     const pants = isPants(img);
@@ -665,14 +666,14 @@ export function printLayout(frame, img, backImg, scale = 1) {
   const straight = frame === 4 ? measureTorso(img) : (backImg && measureTorso(backImg));
   let surface;
   if (straight) {
-    const a = straight.half;
+    const a = torsoHalfOf(straight.half);
     surface = { mid: straight.mid, a, b: a * TORSO_DEPTH, theta };
     if (frame !== 4) surface.mid = fitTorso(img, projectedHalf(surface)) ?? measureTorso(img)?.mid ?? straight.mid;
   } else {
     // 180° kadr hali yuklanmagan yoki xato — joriy kadrning o'zidan (taxminan)
     const torso = measureTorso(img);
     if (!torso) return [];
-    const a = torso.half / Math.hypot(Math.cos(theta), TORSO_DEPTH * Math.sin(theta));
+    const a = torsoHalfOf(torso.half / Math.hypot(Math.cos(theta), TORSO_DEPTH * Math.sin(theta)));
     surface = { mid: torso.mid, a, b: a * TORSO_DEPTH, theta };
   }
   const { a, b } = surface;

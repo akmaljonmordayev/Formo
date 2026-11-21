@@ -140,6 +140,17 @@ describe('Forma 360° — suratdan bosma joyini o\'lchash', () => {
     expect(printLayout(4, img)).toHaveLength(2); // ism va raqam chiziladi
   });
 
+  it("uzun yengli orqa (atm, juv l*): qo'llar tanaga yopishib o'lchov ~125 px — ism/raqam ikki baravar kattalashmaydi", () => {
+    const img = frame();
+    // futbolka + yopishgan yenglar: x 175–425 (yarim kenglik 125 > MAX_TORSO_HALF)
+    for (let y = 150; y < 400; y += 1) for (let x = 175; x <= 425; x += 1) img.data.set(WHITE, (y * img.width + x) * 4);
+    for (const frameNo of [4, 3]) {
+      const [name, number] = printLayout(frameNo, img, img);
+      expect(name.surface.a).toBeLessThanOrEqual(55 * 1.15 + 1e-9);
+      expect(number.size).toBe(Math.round(55 * 0.95));
+    }
+  });
+
   it("shortikning o'ng oyog'i va pastki cheti", () => {
     expect(measureShorts(frame())).toMatchObject({ cx: 329.5, half: 45.5, hem: 505 });
   });
