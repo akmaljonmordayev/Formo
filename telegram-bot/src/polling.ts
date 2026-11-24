@@ -32,10 +32,17 @@ export async function processBatch(updates: TgUpdate[], process: (u: TgUpdate) =
  * jarayon qulasa update qayta keladi (dedupe/idempotentlik ushlaydi).
  * Tarmoq uzilsa to'xtamaydi: kutish vaqti oshib boradi (5s → 60s) va ulanish tiklanganda davom etadi.
  */
-/** Oxirgi muvaffaqiyatli getUpdates vaqti — watchdog va /health uchun */
+/**
+ * Polling tsikli oxirgi marta "tirik" bo'lgan vaqt — watchdog va /health uchun. Muvaffaqiyatli getUpdates,
+ * qayta ishlangan update va xato kutish (backoff) tugagandagi navbatdagi urinish — hammasi tiriklik belgisi.
+ */
 export const pollingState: { lastOkAt: number; conflictSince: number | null } = { lastOkAt: Date.now(), conflictSince: null };
 
-/** Polling shuncha vaqt muvaffaqiyatsiz/osilgan bo'lsa — jarayon o'zini o'ldiradi, Railway qayta ishga tushiradi */
+/**
+ * Polling tsikli shuncha vaqt umuman aylanmasa (osilib qolgan) — jarayon o'zini o'ldiradi, Railway qayta ishga tushiradi.
+ * Telegram'ga tarmoq ulanmay turgani bunga kirmaydi: restart tarmoqni tuzatmaydi, faqat crash-loop (va Railway
+ * restart limiti tugab CRASHED) keltiradi — tsikl backoff bilan qayta urinib, ulanish tiklanishi bilan davom etadi.
+ */
 export const POLL_STALE_MS = 5 * 60_000;
 export const pollingStale = (now = Date.now()) => now - pollingState.lastOkAt > POLL_STALE_MS;
 
@@ -87,6 +94,8 @@ export async function runPolling(api: TelegramApi, process: (u: TgUpdate) => Pro
       log.warn(conflict ? 'boshqa bot nusxasi yoki webhook ishlayapti (409)' : 'getUpdates xatosi', { error: errorMessage(err), failures });
       const pause = Math.min(MAX_ERROR_PAUSE_MS, ERROR_PAUSE_MS * 2 ** Math.min(failures - 1, 4));
       await new Promise((r) => setTimeout(r, pause));
+      // Tsikl tirik va qayta urinyapti — tarmoq uzilishi watchdog'ni ishga tushirmasin
+      pollingState.lastOkAt = Date.now();
     }
   }
   log.info('polling to‘xtadi');
