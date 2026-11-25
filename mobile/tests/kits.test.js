@@ -37,6 +37,7 @@ test('toKitCard: forma + klub → karta (Forma 360° surati, turi, kategoriya, s
       clubId: 3,
       name: 'Real Madrid',
       label: 'Uy',
+      colorsLabel: null,
       price: 189000,
       kit360Id: 'rm',
       sleeve: 'SHORT',

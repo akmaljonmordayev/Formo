@@ -1,8 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ChevronRight, CreditCard, Inbox, MessagesSquare, PackageCheck, Scissors, ShoppingBag, Truck, Wallet } from 'lucide-react';
+import { ChevronRight, Inbox, MessagesSquare, PackageCheck, Scissors, ShoppingBag, Truck, Wallet } from 'lucide-react';
 import { useAuth } from '../../../hooks/useAuth';
-import { dashboardApi, ordersApi, supportApi, topupsApi, ORDER_STATUS, formatDateTime } from '../../../features/platform/platformApi';
+import { dashboardApi, ordersApi, supportApi, ORDER_STATUS, formatDateTime } from '../../../features/platform/platformApi';
 import { useCompactNumber, useDayLabel, useLang, useMoney } from '../i18n';
 import { loadAdminPrefs } from '../prefs';
 import RangePicker, { RANGES, rangeParams, todayKey } from '../RangePicker';
@@ -65,7 +65,6 @@ export default function SuperadminDashboard() {
   // Hozirgi holat: so'nggi buyurtmalar, holatlar bo'yicha sonlar, tekshiruvdagi cheklar, o'qilmagan xabarlar
   const [recent, setRecent] = useState(null);
   const [byStatus, setByStatus] = useState(null);
-  const [receipts, setReceipts] = useState(null);
   const [unread, setUnread] = useState(null);
 
   const name = (user?.fullName || 'Super admin').split(' ')[0];
@@ -97,10 +96,6 @@ export default function SuperadminDashboard() {
         setByStatus(d.byStatus ?? {});
       })
       .catch(() => setRecent((r) => r ?? []));
-    topupsApi
-      .list({ status: 'REVIEW', limit: 1 })
-      .then((d) => setReceipts(d.byStatus?.REVIEW ?? 0))
-      .catch(() => {});
     supportApi
       .unread()
       .then((d) => setUnread(d.unread ?? 0))
@@ -152,15 +147,6 @@ export default function SuperadminDashboard() {
           hint={t('Sexga yuborish kerak')}
           done={t("Yangi buyurtma yo'q")}
           color="var(--sa-accent)"
-        />
-        <Todo
-          to={`${BASE}/topups`}
-          icon={CreditCard}
-          label={t("To'lov cheklari")}
-          count={receipts}
-          hint={t('Tekshirib, tasdiqlash kerak')}
-          done={t("Tekshiriladigan chek yo'q")}
-          color="var(--sa-teal)"
         />
         <Todo
           to={`${BASE}/messages`}

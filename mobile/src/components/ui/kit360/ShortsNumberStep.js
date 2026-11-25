@@ -4,14 +4,14 @@ import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing, themedStyles } from '../../../constants/theme';
 
 /**
- * 3-bosqich: shortikka raqam. Toggle yoqilgan bo'lsa formaning orqasidagi raqam (2-bosqich) shortikka ham
+ * Ism/raqam bosqichida shortikka raqam tanlovi. Toggle yoqilgan bo'lsa formaning orqasidagi raqam shortikka ham
  * bosiladi; o'chirilsa shortik raqamsiz. Raqam alohida kiritilmaydi — 2-bosqichdagi raqamning o'zi.
  *
  * pants — uzun yengli forma: shortik o'rniga shalvar (matnlar shunga mos).
  *
  * Props: t, enabled, onToggle(bool), number (formaning orqasidagi raqam), pants?
  */
-export default function ShortsNumberStep({ t, enabled, onToggle, number, pants = false }) {
+export default function ShortsNumberStep({ t, enabled, onToggle, number, pants = false, disabled = false }) {
   const toggleLabel = t(pants ? 'pantsNumberToggle' : 'shortsNumberToggle');
   const offHint = t(pants ? 'pantsNumberOffHint' : 'shortsNumberOffHint');
   return (
@@ -27,6 +27,7 @@ export default function ShortsNumberStep({ t, enabled, onToggle, number, pants =
         <Switch
           value={enabled}
           onValueChange={onToggle}
+          disabled={disabled}
           trackColor={{ false: colors.switchOff, true: colors.accent }}
           thumbColor="#FFFFFF"
           accessibilityLabel={toggleLabel}

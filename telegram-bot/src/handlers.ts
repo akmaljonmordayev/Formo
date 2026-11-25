@@ -1,4 +1,4 @@
-import { Backend, CodeResult, HelloResult, TopUpMethods } from './backend';
+import { Backend, CodeResult, HelloResult } from './backend';
 import { RecentIds } from './dedupe';
 import { esc, FIRST_LANGUAGE_PROMPT, isLang, Lang, langFromCode, menuAction, money, ORDER_EMOJI, shortDate, T } from './i18n';
 import { errorMessage, Logger } from './log';
@@ -7,16 +7,10 @@ import { RateLimiter } from './ratelimit';
 import { UserSessions } from './session';
 import { SendOptions, TelegramError, TgCallbackQuery, TgMessage, TgUpdate, TgUser } from './telegram';
 import {
-  amountKeyboard,
-  cancelTopUpKeyboard,
   CB,
-  confirmKeyboard,
   languageKeyboard,
   mainMenu,
-  parseAmount,
-  parseIntData,
   parseLangData,
-  receiptFile,
 } from './wallet';
 
 export interface TelegramSender {
@@ -38,7 +32,6 @@ class Handled extends Error {}
 
 const START = /^\/start(?:@\w+)?(?:\s+(\S+))?\s*$/;
 const COMMAND = (name: string) => new RegExp(`^/${name}(?:@\\w+)?\\s*$`);
-const LIMITS_TTL_MS = 5 * 60_000;
 
 const fromId = (update: TgUpdate) => update.message?.from?.id ?? update.callback_query?.from.id;
 
@@ -101,30 +94,19 @@ async function onMessage(msg: TgMessage, deps: Deps) {
 
   const lang = await langOf(deps, msg.from);
   const reply = (text: string, options?: SendOptions) => send(deps, chatId, text, options);
-  if (msg.photo || msg.document) return onReceipt(msg, deps, lang);
+  if (msg.photo || msg.document) return replyWithMenu(deps, userId, chatId, lang, T[lang].menuHint);
 
   if (COMMAND('stop').test(body)) {
-    deps.sessions.clearAmount(userId);
     const { linked } = await guarded(deps, chatId, lang, () => deps.backend.stop(userId));
     return reply(linked ? T[lang].stopped : T[lang].notLinked);
   }
 
   const action = menuAction(body) ?? commandAction(body);
   if (action) {
-    deps.sessions.clearAmount(userId);
     if (action === 'balance') return showBalance(deps, userId, chatId, lang);
-    if (action === 'topup') return startTopUp(deps, userId, chatId, lang);
     if (action === 'orders') return showOrders(deps, userId, chatId, lang);
     if (action === 'help') return replyWithMenu(deps, userId, chatId, lang, T[lang].help);
     return reply(T[lang].chooseLanguage, { reply_markup: languageKeyboard });
-  }
-
-  if (deps.sessions.isAwaitingAmount(userId)) {
-    const limits = await topUpLimits(deps, chatId, lang);
-    const amount = parseAmount(body, limits);
-    if (amount === null) return reply(T[lang].invalidAmount(limits.min, limits.max));
-    deps.sessions.clearAmount(userId);
-    return reply(T[lang].confirmAmount(amount), { parse_mode: 'HTML', reply_markup: confirmKeyboard(lang, amount) });
   }
 
   // Tushunarsiz matn: ulangan mijozga — menyu tugmalari, ulanmaganga — qanday kirish
@@ -147,9 +129,8 @@ async function replyWithMenu(deps: Deps, userId: string, chatId: string, lang: L
  */
 async function onStart(deps: Deps, from: TgUser, chatId: string, payload: string) {
   const userId = String(from.id);
-  deps.sessions.clearAmount(userId);
   // Payload shakli noto'g'ri bo'lsa backend'ga yubormaymiz
-  if (payload && payload !== 'topup' && !START_TOKEN.test(payload)) return send(deps, chatId, LOGIN[quickLang(deps, from)].invalidLink);
+  if (payload && !START_TOKEN.test(payload)) return send(deps, chatId, LOGIN[quickLang(deps, from)].invalidLink);
 
   let lang = deps.sessions.lang(userId);
   let hello: HelloResult | undefined;
@@ -180,8 +161,6 @@ async function continueStart(deps: Deps, userId: string, chatId: string, lang: L
       ? send(deps, chatId, T[lang].welcomeLinked, { reply_markup: mainMenu(lang) })
       : send(deps, chatId, T[lang].welcome);
   }
-  // Ilovadagi "Balansni to'ldirish" tugmasi: t.me/<bot>?start=topup
-  if (payload === 'topup') return startTopUp(deps, userId, chatId, lang);
   const res = await guarded(deps, chatId, lang, () => deps.backend.claim(payload, userId, chatId, lang));
   if (res.result === 'CONTACT_REQUIRED') {
     return send(deps, chatId, LOGIN[lang].askContact(res.maskedPhone), { parse_mode: 'HTML', reply_markup: await loginKeyboard(deps, userId, lang) });
@@ -191,7 +170,6 @@ async function continueStart(deps: Deps, userId: string, chatId: string, lang: L
 
 function commandAction(body: string) {
   if (COMMAND('balance').test(body)) return 'balance' as const;
-  if (COMMAND('topup').test(body)) return 'topup' as const;
   if (COMMAND('orders').test(body)) return 'orders' as const;
   if (COMMAND('language').test(body)) return 'language' as const;
   if (COMMAND('help').test(body) || COMMAND('menu').test(body)) return 'help' as const;
@@ -211,23 +189,6 @@ async function onContact(msg: TgMessage, deps: Deps) {
   const userId = String(msg.from!.id);
   const res = await guarded(deps, chatId, lang, () => deps.backend.contact(userId, chatId, contact.phone_number));
   return replyCode(deps, userId, chatId, lang, res);
-}
-
-/**
- * Chek rasmi: faqat ochiq so'rovga biriktiriladi va holati "tekshiruvda" bo'ladi.
- * Pul qo'shilmaydi — buni faqat admin tasdig'i qiladi.
- */
-async function onReceipt(msg: TgMessage, deps: Deps, lang: Lang) {
-  const userId = String(msg.from!.id);
-  const chatId = String(msg.chat.id);
-  const file = receiptFile(msg);
-  if (!file) return send(deps, chatId, T[lang].sendPhoto);
-  const res = await guarded(deps, chatId, lang, () => deps.backend.attachReceipt(userId, file.fileId, file.uniqueId));
-  if (res.result === 'NOT_LINKED') return send(deps, chatId, T[lang].notLinked);
-  if (res.result === 'NO_OPEN_TOPUP') return send(deps, chatId, T[lang].noOpenTopUp, { reply_markup: amountKeyboard(lang) });
-  if (res.result === 'ALREADY_IN_REVIEW') return send(deps, chatId, T[lang].receiptInReview);
-  if (res.result === 'DUPLICATE_RECEIPT') return send(deps, chatId, T[lang].duplicateReceipt);
-  return send(deps, chatId, T[lang].receiptReceived(res.topUp.code, res.topUp.amount));
 }
 
 async function onCallback(query: TgCallbackQuery, deps: Deps) {
@@ -256,39 +217,9 @@ async function onCallback(query: TgCallbackQuery, deps: Deps) {
     return replyCode(deps, userId, chatId, lang, res);
   }
 
-  if (data === CB.abort) {
-    deps.sessions.clearAmount(userId);
-    return send(deps, chatId, T[lang].cancelled);
-  }
-
-  if (data.startsWith(CB.amount)) {
-    const limits = await topUpLimits(deps, chatId, lang);
-    if (data === `${CB.amount}other`) {
-      deps.sessions.awaitAmount(userId);
-      return send(deps, chatId, T[lang].enterAmount(limits.min, limits.max));
-    }
-    const amount = parseIntData(data, CB.amount);
-    if (amount === null || amount < limits.min || amount > limits.max) return send(deps, chatId, T[lang].invalidAmount(limits.min, limits.max));
-    return send(deps, chatId, T[lang].confirmAmount(amount), { parse_mode: 'HTML', reply_markup: confirmKeyboard(lang, amount) });
-  }
-
-  if (data.startsWith(CB.confirm)) {
-    const amount = parseIntData(data, CB.confirm);
-    if (amount === null) return;
-    return createTopUp(deps, userId, chatId, lang, amount);
-  }
-
-  if (data.startsWith(CB.cancelTopUp)) {
-    const id = parseIntData(data, CB.cancelTopUp);
-    if (id === null || id < 1) return;
-    const res = await guarded(deps, chatId, lang, () => deps.backend.cancelTopUp(userId, id));
-    if (res.result === 'NOT_LINKED') return send(deps, chatId, T[lang].notLinked);
-    if (res.result === 'NOT_CANCELLABLE') return send(deps, chatId, T[lang].notCancellable);
-    return send(deps, chatId, T[lang].requestCancelled(res.topUp.code));
-  }
 }
 
-// ---- Balans va to'ldirish ----
+// ---- Balansni ko'rish ----
 
 /** Ulangan akkauntda saqlangan til xotiradagi tildan ustun emas, lekin xotira bo'sh bo'lsa tiklanadi */
 function rememberLang(deps: Deps, userId: string, stored: string | null | undefined, fallback: Lang): Lang {
@@ -307,47 +238,7 @@ async function showBalance(deps: Deps, userId: string, chatId: string, lang: Lan
   lang = rememberLang(deps, userId, status.language, lang);
   const res = await guarded(deps, chatId, lang, () => deps.backend.balance(userId));
   if (!res.linked) return send(deps, chatId, T[lang].notLinked);
-  const t = T[lang];
-  const lines = [t.balance(res.balance, lang)];
-  if (res.topUps.length) {
-    lines.push('', t.recentTopUps);
-    for (const tu of res.topUps) lines.push(`• ${tu.code} · ${money(tu.amount, lang)} — ${t.status[tu.status]}`);
-  }
-  const open = res.topUps.find((tu) => tu.status === 'PENDING' && tu.method === 'MANUAL_CARD');
-  return send(deps, chatId, lines.join('\n'), {
-    parse_mode: 'HTML',
-    reply_markup: open ? cancelTopUpKeyboard(lang, open.id) : amountKeyboard(lang),
-  });
-}
-
-async function startTopUp(deps: Deps, userId: string, chatId: string, lang: Lang) {
-  const status = await guarded(deps, chatId, lang, () => deps.backend.status(userId));
-  if (!status.linked) return send(deps, chatId, T[lang].notLinked);
-  lang = rememberLang(deps, userId, status.language, lang);
-  const limits = await topUpLimits(deps, chatId, lang);
-  return send(deps, chatId, T[lang].chooseAmount(limits.min, limits.max), { reply_markup: amountKeyboard(lang) });
-}
-
-async function createTopUp(deps: Deps, userId: string, chatId: string, lang: Lang, amount: number) {
-  const res = await guarded(deps, chatId, lang, () => deps.backend.createTopUp(userId, amount));
-  const t = T[lang];
-  switch (res.result) {
-    case 'OK':
-      return send(deps, chatId, t.payment(res.topUp.amount, res.topUp.instructions), {
-        parse_mode: 'HTML',
-        reply_markup: cancelTopUpKeyboard(lang, res.topUp.id),
-      });
-    case 'NOT_LINKED':
-      return send(deps, chatId, t.notLinked);
-    case 'TOO_MANY_OPEN':
-      return send(deps, chatId, t.tooManyOpen);
-    case 'INVALID_AMOUNT': {
-      const limits = await topUpLimits(deps, chatId, lang);
-      return send(deps, chatId, t.invalidAmount(limits.min, limits.max));
-    }
-    default:
-      return send(deps, chatId, t.methodUnavailable);
-  }
+  return send(deps, chatId, T[lang].balance(res.balance, lang), { parse_mode: 'HTML', reply_markup: mainMenu(lang) });
 }
 
 async function showOrders(deps: Deps, userId: string, chatId: string, lang: Lang) {
@@ -364,21 +255,6 @@ async function showOrders(deps: Deps, userId: string, chatId: string, lang: Lang
   lines.push('', `<i>${T[lang].ordersHint}</i>`);
   return send(deps, chatId, lines.join('\n'), { parse_mode: 'HTML', ...menu });
 }
-
-let limitsCache: { value: TopUpMethods['limits']; at: number } | null = null;
-
-/** Summa chegaralari backend'dan (5 daqiqa keshlanadi) */
-async function topUpLimits(deps: Deps, chatId: string, lang: Lang) {
-  if (limitsCache && Date.now() - limitsCache.at < LIMITS_TTL_MS) return limitsCache.value;
-  const { limits } = await guarded(deps, chatId, lang, () => deps.backend.topUpMethods());
-  limitsCache = { value: limits, at: Date.now() };
-  return limits;
-}
-
-/** Faqat testlar uchun */
-export const resetLimitsCache = () => {
-  limitsCache = null;
-};
 
 const isLinked = async (deps: Deps, userId: string) => (await deps.backend.me(userId).catch(() => null))?.linked === true;
 

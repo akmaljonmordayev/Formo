@@ -9,8 +9,6 @@ interface Entry {
   pendingStart?: string;
   /** Backend'dan saqlangan til allaqachon so'ralgan (qayta ishga tushgandan keyin bir marta) */
   langLookedUp?: boolean;
-  /** "Boshqa summa" bosilgan — keyingi matn summa sifatida o'qiladi (shu vaqtgacha) */
-  awaitingAmountUntil?: number;
   touched: number;
 }
 
@@ -62,20 +60,6 @@ export class UserSessions {
     const payload = e?.pendingStart;
     if (e) e.pendingStart = undefined;
     return payload;
-  }
-
-  awaitAmount(userId: string) {
-    this.entry(userId).awaitingAmountUntil = this.now() + TTL_MS;
-  }
-
-  isAwaitingAmount(userId: string) {
-    const until = this.map.get(userId)?.awaitingAmountUntil;
-    return until !== undefined && until > this.now();
-  }
-
-  clearAmount(userId: string) {
-    const e = this.map.get(userId);
-    if (e) e.awaitingAmountUntil = undefined;
   }
 
   private prune() {

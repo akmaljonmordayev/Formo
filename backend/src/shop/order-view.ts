@@ -35,14 +35,14 @@ export async function retrySerializable<T>(run: () => Promise<T>, attempts = 3):
 }
 
 /**
- * Naqd faqat Toshkent shahri ichiga (kuryer); viloyatlarga (pochta) — faqat shaxsiy hisobdan.
+ * Naqd faqat Toshkent shahri ichiga (kuryer); viloyatlarga (pochta) — faqat kartadan.
  * Viloyat ko'rsatilgan manzilda — viloyat bo'yicha, eski manzilda — xarita nuqtasi bo'yicha (isPostalDelivery).
  * Checkout'da ham, keyin "to'lov usulini o'zgartirish"da ham (Click → naqd) bir xil tekshiriladi.
  */
 export function assertCashArea(a: { region?: string | null; latitude?: number | null; longitude?: number | null }) {
   const outside = !a.region ? !inTashkentCity(a.latitude, a.longitude) : isPostalDelivery(a);
   if (outside) {
-    throw new BadRequestException("Naqd to'lov faqat Toshkent shahri ichida. Shahardan tashqariga yetkazishda balansdan yoki kartadan to'lang");
+    throw new BadRequestException("Naqd to'lov faqat Toshkent shahri ichida. Shahardan tashqariga yetkazishda karta orqali to'lang");
   }
 }
 

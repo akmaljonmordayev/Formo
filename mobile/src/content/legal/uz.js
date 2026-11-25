@@ -42,7 +42,6 @@ export default function uz({ rules, general }) {
           items: [
             'Tovar narxi buyurtma berilgan paytda ilovada ko‘rsatilgan narx bo‘yicha belgilanadi. Narx forma, shortik va bosma narxlaridan, yetkazib berish narxidan va promokod chegirmasidan tashkil topadi.',
             `To‘lov ${payment} amalga oshiriladi.`,
-            'Balans Formo Telegram boti orqali to‘ldiriladi: Xaridor ko‘rsatilgan kartaga pul o‘tkazadi va chekni yuboradi, administrator tekshirgach summa balansga qo‘shiladi.',
           ],
         },
         {
@@ -105,7 +104,7 @@ export default function uz({ rules, general }) {
           title: '2. Ma’lumotlardan foydalanish',
           items: [
             'Buyurtmani tayyorlash, yetkazish va holati haqida xabar berish.',
-            'Balansni to‘ldirish so‘rovlarini tekshirish va hisob xavfsizligini ta’minlash.',
+            'Hisob va tranzaksiya yozuvlarini xavfsiz saqlash.',
             'Xizmat sifatini yaxshilash. Ma’lumotlar sotilmaydi va reklama uchun uchinchi shaxslarga berilmaydi.',
           ],
         },

@@ -27,27 +27,10 @@ type NotLinked = { linked: false };
  * login — shu foydalanuvchi uchun ochiq kirish so'rovi (bo'lsa raqam so'raladi va kod beriladi)
  */
 export type HelloResult = { linked: boolean; language?: string | null; login?: { maskedPhone: string } | null };
-export type TopUpStatus = 'PENDING' | 'REVIEW' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
-
-export interface TopUpView {
-  id: number;
-  code: string;
-  amount: number;
-  method: 'MANUAL_CARD' | 'CLICK' | 'PAYME';
-  status: TopUpStatus;
-  hasReceipt: boolean;
-  rejectReason: string | null;
-  createdAt: string;
-}
-
-export interface ManualTopUp extends TopUpView {
-  instructions: { type: 'MANUAL'; cardNumber: string; cardHolder: string; bankName: string | null; note: string | null; comment: string };
-}
-
 export type MeResult = NotLinked | { linked: true; firstName: string | null; balance: number; activeOrders: number; language: string | null };
 /** `me()`ning yengil versiyasi — faqat menyu/til uchun (buyurtmalar sonisiz) */
 export type StatusResult = NotLinked | { linked: true; language: string | null };
-export type BalanceResult = NotLinked | { linked: true; balance: number; topUps: TopUpView[] };
+export type BalanceResult = NotLinked | { linked: true; balance: number };
 export type OrdersResult =
   | NotLinked
   | { linked: true; orders: OrderView[] };
@@ -59,20 +42,6 @@ export interface OrderView {
   totalSum: number;
   createdAt: string;
 }
-export interface TopUpMethods {
-  limits: { min: number; max: number };
-  methods: { method: string; enabled: boolean }[];
-}
-export type CreateTopUpResult =
-  | { result: 'OK'; topUp: ManualTopUp }
-  | { result: 'NOT_LINKED' | 'TOO_MANY_OPEN' | 'INVALID_AMOUNT' | 'METHOD_UNAVAILABLE' };
-export type ReceiptResult =
-  | { result: 'OK'; topUp: TopUpView }
-  | { result: 'NOT_LINKED' }
-  | { result: 'NO_OPEN_TOPUP' }
-  | { result: 'ALREADY_IN_REVIEW' }
-  | { result: 'DUPLICATE_RECEIPT' };
-export type CancelTopUpResult = { result: 'OK'; topUp: TopUpView } | { result: 'NOT_LINKED' } | { result: 'NOT_CANCELLABLE' };
 
 export interface Backend {
   claim(startToken: string, telegramUserId: string, chatId: string, language: string): Promise<ClaimResult>;
@@ -87,10 +56,6 @@ export interface Backend {
   setLanguage(telegramUserId: string, language: string): Promise<{ linked: boolean }>;
   balance(telegramUserId: string): Promise<BalanceResult>;
   orders(telegramUserId: string): Promise<OrdersResult>;
-  topUpMethods(): Promise<TopUpMethods>;
-  createTopUp(telegramUserId: string, amount: number): Promise<CreateTopUpResult>;
-  attachReceipt(telegramUserId: string, fileId: string, fileUniqueId?: string): Promise<ReceiptResult>;
-  cancelTopUp(telegramUserId: string, topUpId: number): Promise<CancelTopUpResult>;
 }
 
 export class BackendError extends Error {
@@ -197,21 +162,4 @@ export class BackendClient implements Backend {
     return this.request<OrdersResult>('POST', '/internal/telegram/orders', { telegramUserId }, true);
   }
 
-  topUpMethods() {
-    return this.request<TopUpMethods>('GET', '/internal/telegram/topup-methods', undefined, true);
-  }
-
-  // Backend bir daqiqa ichidagi bir xil summali so'rovni qayta qaytaradi — takror yuborish ikkinchi so'rov ochmaydi
-  createTopUp(telegramUserId: string, amount: number) {
-    return this.request<CreateTopUpResult>('POST', '/internal/telegram/topups', { telegramUserId, amount, method: 'MANUAL_CARD' }, true);
-  }
-
-  // Chek oxirgi ochiq so'rovga yoziladi (qayta yuborilsa almashtiriladi) — pul qo'shilmaydi
-  attachReceipt(telegramUserId: string, fileId: string, fileUniqueId?: string) {
-    return this.request<ReceiptResult>('POST', '/internal/telegram/topups/receipt', { telegramUserId, fileId, fileUniqueId }, true);
-  }
-
-  cancelTopUp(telegramUserId: string, topUpId: number) {
-    return this.request<CancelTopUpResult>('POST', '/internal/telegram/topups/cancel', { telegramUserId, topUpId }, true);
-  }
 }

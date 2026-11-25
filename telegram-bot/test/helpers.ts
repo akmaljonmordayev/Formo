@@ -1,15 +1,12 @@
 import {
   Backend,
   BalanceResult,
-  CancelTopUpResult,
   ClaimResult,
   CodeResult,
-  CreateTopUpResult,
   MeResult,
   OrdersResult,
   OutboxMessage,
   OutboxResult,
-  ReceiptResult,
   StatusResult,
 } from '../src/backend';
 import { RecentIds } from '../src/dedupe';
@@ -71,24 +68,8 @@ export class FakeBackend implements Backend {
   }
 
   meResult: MeResult = { linked: true, firstName: 'Aziz', balance: 0, activeOrders: 0, language: null };
-  balanceResult: BalanceResult = { linked: true, balance: 0, topUps: [] };
+  balanceResult: BalanceResult = { linked: true, balance: 0 };
   ordersResult: OrdersResult = { linked: true, orders: [] };
-  createResult: CreateTopUpResult = {
-    result: 'OK',
-    topUp: {
-      id: 7,
-      code: 'TOP-000007',
-      amount: 50000,
-      method: 'MANUAL_CARD',
-      status: 'PENDING',
-      hasReceipt: false,
-      rejectReason: null,
-      createdAt: '2026-10-25T10:00:00.000Z',
-      instructions: { type: 'MANUAL', cardNumber: '9860 0112 0207 4545', cardHolder: 'Abdulla Yakubov', bankName: null, note: null, comment: 'TOP-000007' },
-    },
-  };
-  receiptResult: ReceiptResult = { result: 'NO_OPEN_TOPUP' };
-  cancelResult: CancelTopUpResult = { result: 'NOT_CANCELLABLE' };
 
   me(...args: [string]) {
     return this.rec('me', args, this.meResult);
@@ -107,18 +88,6 @@ export class FakeBackend implements Backend {
   }
   orders(...args: [string]) {
     return this.rec('orders', args, this.ordersResult);
-  }
-  topUpMethods() {
-    return this.rec('topUpMethods', [], { limits: { min: 10000, max: 10000000 }, methods: [{ method: 'MANUAL_CARD', enabled: true }] });
-  }
-  createTopUp(...args: [string, number]) {
-    return this.rec('createTopUp', args, this.createResult);
-  }
-  attachReceipt(...args: [string, string, string?]) {
-    return this.rec('attachReceipt', args, this.receiptResult);
-  }
-  cancelTopUp(...args: [string, number]) {
-    return this.rec('cancelTopUp', args, this.cancelResult);
   }
 }
 

@@ -1,24 +1,28 @@
 import React, { useState } from 'react';
 import { Pressable, Text, TextInput, View } from 'react-native';
 import { colors, radii, spacing, themedStyles } from '../../../constants/theme';
-import { formatMoney } from '../Common';
 
 /**
- * Forma 360° o'lcham bosqichi: sotuvdagi o'lchamlar tugmalari. O'lcham tanlangach shu o'lchamdagi komplekt
- * narxi chiqadi (har o'lchamning o'z narxi bo'lishi mumkin) — tanlanmaguncha narx ko'rsatilmaydi.
+ * Forma 360° o'lcham bosqichi: sotuvdagi o'lchamlar tugmalari. Tanlangan o'lcham narxi shu bosqichda ko'rsatiladi.
  *
  * Omborda tugagan o'lcham (soldOut) tanlanmaydi: tugma o'chiq, ostida qizil "Tugagan"; hammasi tugagan bo'lsa —
  * qizil "Bu forma tugagan".
  *
  * Tugagan o'lcham bosilsa — onSoldOut(size) (ekran katta toast ko'rsatadi).
  *
- * Props: t, sizes ([{ size, soldOut }]), value, onChange(size), onSoldOut(size), hint, price (tanlangan o'lcham narxi | null), priceLabel
+ * Props: t, sizes ([{ size, soldOut }]), value, onChange(size), onSoldOut(size)
  */
-export function SizeStep({ t, sizes, value, onChange, onSoldOut, hint, price, priceLabel }) {
+export function SizeStep({ t, sizes, value, price, onChange, onSoldOut }) {
   const allSoldOut = sizes.length > 0 && sizes.every((s) => s.soldOut);
   const someSoldOut = sizes.some((s) => s.soldOut);
   return (
     <>
+      {value && price ? (
+        <View style={styles.selectedSizePrice}>
+          <Text style={styles.selectedSizeLabel}>{t('kitSizePrice')}</Text>
+          <Text style={styles.selectedSizeAmount}>{price}</Text>
+        </View>
+      ) : null}
       <View style={styles.sizesGrid}>
         {sizes.map(({ size, soldOut }) => (
           <Pressable
@@ -39,13 +43,6 @@ export function SizeStep({ t, sizes, value, onChange, onSoldOut, hint, price, pr
       ) : someSoldOut ? (
         <Text style={styles.soldOutNote}>{t('sizeSoldOutHint')}</Text>
       ) : null}
-      {value && price != null ? (
-        <View style={styles.priceRow}>
-          <Text style={styles.priceLabel} numberOfLines={1}>{`${value} · ${priceLabel}`}</Text>
-          <Text style={styles.priceValue}>{formatMoney(price)}</Text>
-        </View>
-      ) : null}
-      <Text style={styles.hint}>{hint}</Text>
     </>
   );
 }
@@ -53,9 +50,9 @@ export function SizeStep({ t, sizes, value, onChange, onSoldOut, hint, price, pr
 /**
  * Forma 360° ism va raqam bosqichi (ixtiyoriy). Maydonga bosilsa forma orqasiga buriladi (onFocus).
  *
- * Props: t, name, number, onName, onNumber, onFocus, nameMaxLength, printPrice
+ * Props: t, name, number, onName, onNumber, onFocus, nameMaxLength
  */
-export function PrintStep({ t, name, number, onName, onNumber, onFocus, nameMaxLength = 30, printPrice }) {
+export function PrintStep({ t, name, number, onName, onNumber, onFocus, nameMaxLength = 30 }) {
   // Qaysi maydon faol — faol maydon to'liq sariq ramka va yengil nur bilan ajralib turadi
   const [focused, setFocused] = useState(null);
   const focus = (field) => () => {
@@ -102,9 +99,7 @@ export function PrintStep({ t, name, number, onName, onNumber, onFocus, nameMaxL
           />
         </View>
       </View>
-      <Text style={styles.hint}>
-        {t('printHint')} · +{formatMoney(printPrice)}
-      </Text>
+      <Text style={styles.hint}>{t('printHint')}</Text>
     </View>
   );
 }
@@ -114,6 +109,9 @@ const PLACEHOLDER = 'rgba(242, 163, 58, 0.6)';
 
 const styles = themedStyles(() => ({
   sizesGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: spacing.sm, marginTop: spacing.xs },
+  selectedSizePrice: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: spacing.sm, paddingHorizontal: spacing.md, paddingVertical: spacing.sm, borderRadius: radii.md, backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border },
+  selectedSizeLabel: { color: colors.textSecondary, fontSize: 13, fontWeight: '800' },
+  selectedSizeAmount: { color: colors.accent, fontSize: 17, fontWeight: '900' },
   sizeChip: {
     width: '31.5%',
     paddingVertical: 13,
@@ -130,21 +128,6 @@ const styles = themedStyles(() => ({
   sizeTextSoldOut: { color: colors.dim, textDecorationLine: 'line-through' },
   soldOutText: { color: colors.danger, fontSize: 11, fontWeight: '800', marginTop: 1 },
   soldOutNote: { color: colors.danger, fontSize: 12, fontWeight: '700', marginTop: spacing.sm },
-  priceRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: spacing.md,
-    marginTop: spacing.md,
-    paddingHorizontal: spacing.md,
-    paddingVertical: 12,
-    borderRadius: radii.md,
-    backgroundColor: colors.accentGlow,
-    borderWidth: 1,
-    borderColor: colors.accent,
-  },
-  priceLabel: { flex: 1, color: colors.text, fontSize: 13, fontWeight: '800' },
-  priceValue: { color: colors.accent, fontSize: 18, fontWeight: '900' },
   inputsRow: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   inputLabel: { color: colors.accent, fontSize: 11, fontWeight: '800', letterSpacing: 0.6, marginBottom: 6, textTransform: 'uppercase' },
   // Sariq ramka: maydon fonda ham aniq ko'rinadi (avval kulrang ramka deyarli ko'rinmasdi)

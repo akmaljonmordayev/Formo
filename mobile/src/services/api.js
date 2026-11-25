@@ -359,7 +359,7 @@ export const orders = {
 
 /**
  * Ichki balans — server yagona manba (ilova balansni hech qachon o'zi hisoblamaydi).
- * { balance, transactions: [{ id, type, amount, balanceAfter, note, createdAt }], topUps: [{ id, code, amount, status, rejectReason, createdAt }] }
+ * { balance, transactions: [{ id, type, amount, balanceAfter, note, createdAt }] }
  * To'ldirish faqat Telegram bot orqali (summa → Humo karta → chek → admin tasdig'i).
  */
 export const wallet = {

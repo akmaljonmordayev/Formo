@@ -41,7 +41,6 @@ export default function en({ rules, general }) {
           items: [
             'The price is fixed when the order is placed and consists of the kit, shorts, print and delivery prices minus any promo code discount.',
             `Payment is made ${payment}.`,
-            'The balance is topped up through the Formo Telegram bot: the Buyer transfers money to the given card and sends the receipt; after an administrator checks it, the amount is added to the balance.',
           ],
         },
         {
@@ -104,7 +103,7 @@ export default function en({ rules, general }) {
           title: '2. How we use it',
           items: [
             'To make and deliver orders and notify you about their status.',
-            'To check balance top-up requests and keep your account secure.',
+            'To keep account and transaction records secure.',
             'To improve the service. Data is not sold or shared with third parties for advertising.',
           ],
         },

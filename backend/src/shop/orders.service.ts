@@ -60,7 +60,6 @@ export const MAX_UNPAID_ONLINE_ORDERS = 3;
 /** Muddati o'tgan to'lanmagan buyurtmalar shu oraliqda fonda ham tozalanadi (mijoz ilovani ochmasa ham) */
 const EXPIRE_SWEEP_MS = 10 * 60 * 1000;
 
-const ONLINE: PaymentMethod[] = [PaymentMethod.CLICK, PaymentMethod.PAYME];
 const FINAL: OrderStatus[] = [OrderStatus.DELIVERED, OrderStatus.CANCELLED, OrderStatus.RETURNED];
 export { STATUS_LABEL };
 export {
@@ -186,14 +185,16 @@ export class ShopOrdersService implements OnModuleInit, OnModuleDestroy {
   }
 
   async checkout(user: AuthUser, dto: CheckoutDto) {
+    if (dto.paymentMethod !== PaymentMethod.CARD && dto.paymentMethod !== PaymentMethod.CASH) {
+      throw new BadRequestException('To‘lov usuli karta yoki naqd bo‘lishi kerak');
+    }
     await this.rules.assertAccepting();
     await this.expireStale();
     const [customer, address] = await Promise.all([
       this.prisma.user.findUniqueOrThrow({ where: { id: user.id }, select: { fullName: true, phone: true } }),
       this.addresses.get(user.id, dto.addressId),
     ]);
-    const online = ONLINE.includes(dto.paymentMethod);
-    const fromBalance = dto.paymentMethod === PaymentMethod.BALANCE;
+    const card = dto.paymentMethod === PaymentMethod.CARD;
     if (dto.paymentMethod === PaymentMethod.CASH) assertCashArea(address);
 
     // Viloyatlarga — pochta bo'limigacha; Toshkent shahri ichida — kuryer uygacha 2–3 kunda. Kun/vaqt tanlanmaydi;
@@ -208,7 +209,7 @@ export class ShopOrdersService implements OnModuleInit, OnModuleDestroy {
         const lines = await this.cart.lines(user.id, tx);
         if (!lines.length) throw new BadRequestException("Savat bo'sh");
         // To'lanmagan onlayn va karta buyurtmalar zaxira, slot va promokodni band qiladi — bitta mijoz ko'p ocholmasin
-        if (online || dto.paymentMethod === PaymentMethod.CARD) {
+        if (card) {
           const unpaid = await tx.order.count({ where: unpaidOf(user.id) });
           if (unpaid >= MAX_UNPAID_ONLINE_ORDERS) {
             throw new HttpException("To'lanmagan buyurtmalaringiz ko'p — avval ularni to'lang yoki bekor qiling", HttpStatus.TOO_MANY_REQUESTS);
@@ -284,11 +285,9 @@ export class ShopOrdersService implements OnModuleInit, OnModuleDestroy {
             totalSum: summary.total,
             channel: OrderChannel.APP,
             paymentMethod: dto.paymentMethod,
-            // Naqd, balans va karta — darhol adminga tushadi; Click/Payme — to'lovdan keyin.
-            // Karta: to'lov PENDING qoladi — admin "Kartadan to'lovchilar" sahifasida mijozga qo'ng'iroq qilib, pul tushgach "to'landi" qiladi
-            status: online ? OrderStatus.PENDING_PAYMENT : OrderStatus.NEW,
-            paymentExpiresAt: online ? new Date(Date.now() + PAYMENT_HOLD_MS) : null,
-            ...(fromBalance && { paymentStatus: PaymentStatus.PAID, paidAt: new Date() }),
+            // Karta va naqd buyurtmalar admin navbatiga tushadi; karta pul tushgani tasdiqlanguncha PENDING qoladi.
+            status: OrderStatus.NEW,
+            paymentExpiresAt: null,
             promocodeId: promo?.id,
             deliveryDate: deliveryDate ? new Date(`${deliveryDate}T00:00:00Z`) : null,
             deliverySlot,
@@ -327,16 +326,6 @@ export class ShopOrdersService implements OnModuleInit, OnModuleDestroy {
           },
         });
         await tx.order.update({ where: { id: order.id }, data: { code: orderCode(order.id) } });
-        // Balans yetmasa InsufficientBalanceError — butun buyurtma (slot, promokod, savat) qaytadi
-        if (fromBalance && summary.total > 0) {
-          await this.wallet.debit(tx, {
-            userId: user.id,
-            amount: summary.total,
-            type: BalanceTxType.ORDER_PAYMENT,
-            orderId: order.id,
-            note: orderCode(order.id),
-          });
-        }
         await this.history.record({ orderId: order.id, from: null, to: order.status, actor: user }, tx);
         await tx.cartItem.deleteMany({ where: { userId: user.id } });
         return order.id;
@@ -458,6 +447,9 @@ export class ShopOrdersService implements OnModuleInit, OnModuleDestroy {
     await this.expireStale(user.id);
     const order = await this.own(user.id, id);
     if (order.status !== OrderStatus.PENDING_PAYMENT) throw new ConflictException("Buyurtma to'lov kutmayapti");
+    if (order.paymentMethod !== PaymentMethod.BALANCE) {
+      throw new BadRequestException('Yangi buyurtmalar faqat karta yoki naqd orqali to‘lanadi');
+    }
 
     await this.prisma.$transaction(async (tx) => {
       const { count } = await tx.order.updateMany({
@@ -487,16 +479,17 @@ export class ShopOrdersService implements OnModuleInit, OnModuleDestroy {
 
   /** "Boshqa usulni tanlash" */
   async changePaymentMethod(user: AuthUser, id: number, dto: ChangePaymentMethodDto) {
-    // Balansga o'tish — faqat haqiqiy yechish bilan (aks holda to'lanmagan buyurtma operatorga tushib qolardi)
-    if (dto.paymentMethod === PaymentMethod.BALANCE) return this.payWithBalance(user, id);
+    if (dto.paymentMethod !== PaymentMethod.CARD && dto.paymentMethod !== PaymentMethod.CASH) {
+      throw new BadRequestException('To‘lov usuli karta yoki naqd bo‘lishi kerak');
+    }
     await this.expireStale(user.id);
     const order = await this.own(user.id, id);
     if (order.status !== OrderStatus.PENDING_PAYMENT) throw new ConflictException("To'lov usulini endi o'zgartirib bo'lmaydi");
 
-    const online = ONLINE.includes(dto.paymentMethod);
     const card = dto.paymentMethod === PaymentMethod.CARD;
+    const cash = dto.paymentMethod === PaymentMethod.CASH;
     // Karta — istalgan hududga (admin qo'ng'iroq qiladi); naqd — faqat Toshkent shahri ichida
-    if (!online && !card) {
+    if (cash) {
       await this.rules.assertCheckout({ subtotal: Number.MAX_SAFE_INTEGER, totalQty: 0, cash: true });
       // Click/Payme bilan berilgan viloyat (pochta) buyurtmasi naqdga o'tib, to'lovsiz operatorga tushmasin
       assertCashArea({ region: order.deliveryRegion, latitude: order.deliveryLat, longitude: order.deliveryLng });
@@ -506,14 +499,12 @@ export class ShopOrdersService implements OnModuleInit, OnModuleDestroy {
         where: { id, status: OrderStatus.PENDING_PAYMENT },
         data: {
           paymentMethod: dto.paymentMethod,
-          // Naqd — kuryerga to'lanadi, karta — admin qo'ng'iroq qiladi: buyurtma darhol adminga tushadi
-          status: online ? OrderStatus.PENDING_PAYMENT : OrderStatus.NEW,
-          // Onlayn usullar orasida almashtirish muddatni uzaytirmaydi — aks holda slot va promokodni
-          // cheksiz band qilib turish mumkin edi (har 25 daqiqada CLICK↔PAYME)
-          paymentExpiresAt: online ? (order.paymentExpiresAt ?? new Date(Date.now() + PAYMENT_HOLD_MS)) : null,
+          // Naqd va karta buyurtmalari adminga tushadi; karta puli kelgach admin to'lovni belgilaydi.
+          status: OrderStatus.NEW,
+          paymentExpiresAt: null,
         },
       });
-      if (count && !online) {
+      if (count) {
         await this.history.record({ orderId: id, from: OrderStatus.PENDING_PAYMENT, to: OrderStatus.NEW, actor: user }, tx);
       }
       return count;

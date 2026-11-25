@@ -58,31 +58,6 @@ export class TelegramContactDto extends TelegramChatDto {
   phone: string;
 }
 
-export class BotTopUpDto extends TelegramUserDto {
-  @Type(() => Number)
-  @IsInt()
-  amount: number;
-
-  @IsIn(['MANUAL_CARD', 'CLICK', 'PAYME'])
-  method: 'MANUAL_CARD' | 'CLICK' | 'PAYME';
-}
-
-export class BotReceiptDto extends TelegramUserDto {
-  // Telegram file_id: harf, raqam, _ va - dan iborat
-  @Matches(/^[A-Za-z0-9_-]{10,200}$/) fileId: string;
-  // Telegram file_unique_id — bir xil rasmni qayta yuborishni aniqlash uchun (eski bot yubormasa ham ishlaydi)
-  @IsOptional()
-  @Matches(/^[A-Za-z0-9_-]{6,100}$/)
-  fileUniqueId?: string;
-}
-
-export class BotCancelTopUpDto extends TelegramUserDto {
-  @Type(() => Number)
-  @IsInt()
-  @Min(1)
-  topUpId: number;
-}
-
 export class OutboxLeaseQueryDto {
   @ApiPropertyOptional({ default: 20 })
   @IsOptional()

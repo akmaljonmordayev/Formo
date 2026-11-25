@@ -5,6 +5,7 @@ const RU = {
   Dashboard: 'Дашборд',
   Asosiy: 'Главное',
   Buyurtmalar: 'Заказы',
+  "Naqd to'lov faqat Toshkent shahrida, boshqa hududlarda karta orqali.": 'Оплата наличными доступна только в Ташкенте, в остальных регионах — картой.',
   'Ishlab chiqarish': 'Производство',
   Katalog: 'Каталог',
   'Forma 360°': 'Форма 360°',

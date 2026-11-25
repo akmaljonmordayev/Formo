@@ -56,13 +56,13 @@ describe('til: birinchi /start va barcha xabarlar bir tilda', () => {
   it('qayta ishga tushgandan keyin: til akkauntdan tiklanadi (Telegram tili emas)', async () => {
     const { deps, backend, sent } = fakeDeps();
     backend.meResult = { linked: true, firstName: 'Aziz', balance: 0, activeOrders: 0, language: 'uz' };
-    await handleUpdate(textUpdate('/topup', { lang: 'ru' }), deps);
-    assert.match(sent[0].text, /Qancha summaga/);
+    await handleUpdate(textUpdate('/balance', { lang: 'ru' }), deps);
+    assert.match(sent[0].text, /balans/i);
 
     // backend'dan faqat bir marta so'raladi
     await handleUpdate(textUpdate('salom', { lang: 'ru' }), deps);
     assert.equal(sent[1].text, T.uz.menuHint);
-    // langOf (bir marta) + startTopUp + menyu (ulanganligini tekshirish)
+    // langOf va /balance holatni tekshiradi, menyu bir marta qayta ko'rsatiladi.
     assert.equal(backend.calls.filter((c) => c.name === 'status').length, 3);
   });
 });
