@@ -3,10 +3,8 @@ import { Pressable, Text, View } from 'react-native';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, radii, spacing, themedStyles } from '../constants/theme';
 import { useTabBarSpace } from '../components/ui/BottomTabs';
-import { Button, Header, Screen, Segment, formatMoney } from '../components/ui/Common';
-import AddedToCart from '../components/ui/AddedToCart';
+import { Header, Screen, Segment, formatMoney } from '../components/ui/Common';
 import Kit360Viewer from '../components/ui/Kit360Viewer';
-import { ConfirmModal } from '../components/ui/Modals';
 import KitTypeStep from '../components/ui/kit360/KitTypeStep';
 import { PrintStep, SizeStep } from '../components/ui/kit360/PrintSteps';
 import ShortsNumberStep from '../components/ui/kit360/ShortsNumberStep';
@@ -22,8 +20,6 @@ const SIZES = ['S', 'M', 'L', 'XL', 'XXL', '3XL'];
 const STEP_TYPE = { id: 'type', label: 'tabType' };
 const STEP_SIZE = { id: 'size', label: 'tabSize' };
 const STEP_PRINT = { id: 'print', label: 'tabPrint' };
-const STEP_SHORTS = { id: 'bottom', label: 'tabShorts' };
-const STEP_PANTS = { id: 'bottom', label: 'tabPants' };
 
 const sleeveOf = (kit) => (kit?.sleeve === 'LONG' ? 'LONG' : 'SHORT');
 
@@ -31,10 +27,9 @@ const sleeveOf = (kit) => (kit?.sleeve === 'LONG' ? 'LONG' : 'SHORT');
  * Forma 360°: katalogda tanlangan jamoa formasi (bu yerda boshqa jamoaga o'tilmaydi), bosqichma-bosqich:
  *   1) forma turi — qishki (uzun yeng + shalvar) yoki yozgi (kalta yeng + shortik), suratlari bilan;
  *      jamoada faqat bitta tur bo'lsa bu bosqich ko'rsatilmaydi;
- *   2) o'lcham (majburiy) → 3) ism va raqam (ixtiyoriy, lekin ismsiz o'tishdan oldin tasdiq so'raladi) →
- *   4) shortik/shalvarga raqam (toggle) → savatga.
+ *   2) o'lcham (majburiy) → 3) ism/raqam va shortik raqami (ixtiyoriy) → savatga.
  * Komplekt (futbolka + shortik/shalvar) bitta narx: pastki qism o'lchami futbolka bilan bir xil.
- * Savatga qo'shilganda ekrandan chiqilmaydi — forma savatga "uchadi" va "Savatga o'tish" kartasi chiqadi.
+ * Savatga qo'shilganda savat sahifasi ochiladi.
  *
  * Props: t, initialTeam, initialSleeve ('SHORT' | 'LONG' — katalogda bosilgan forma), rules, cart, onBack, onOpenCart()
  */
@@ -55,10 +50,6 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
   const [adding, setAdding] = useState(false);
   const addingRef = useRef(false);
   const [feedback, setFeedback] = useState(null);
-  const [addedEvent, setAddedEvent] = useState(null);
-  // Ism yozilmagan: tasdiqlansa o'tiladigan bosqich raqami (null — so'ralmayapti); bir marta tasdiqlangach qayta so'ralmaydi
-  const [skipAsk, setSkipAsk] = useState(null);
-  const skipOk = useRef(false);
 
   // Backend klublarini yuklaymiz (aniq kitId va narxlar uchun)
   const { clubs, isLoading: clubsLoading, refetch: refetchClubs } = useClubs();
@@ -122,7 +113,7 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
   const kitPending = clubsLoading || (matchedClub && kitLoading);
   const variant = kit360Variant(team.id, sleeve || 'SHORT');
 
-  const steps = useMemo(() => [...(hasChoice ? [STEP_TYPE] : []), STEP_SIZE, STEP_PRINT, long ? STEP_PANTS : STEP_SHORTS], [hasChoice, long]);
+  const steps = useMemo(() => [...(hasChoice ? [STEP_TYPE] : []), STEP_SIZE, STEP_PRINT], [hasChoice]);
   const current = steps[Math.min(step, steps.length) - 1].id;
 
   // Turlar yuklanib "Turi" bosqichi paydo bo'lsa/yo'qolsa — raqamlar siljimasin, boshidan
@@ -137,10 +128,12 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
   // (Superadmin har o'lchamga o'z narxini qo'yadi); eski API'da yo'q bo'lsa — umumiy narx
   const priceKit = matchedKit || clubKits[0];
   const pb = priceKit?.priceBreakdown || {};
-  const printPrice = pb.print ?? 30000;
   const sizeRow = (priceKit?.sizes || []).find((s) => typeof s === 'object' && s.size === shirtSize);
-  // O'lcham tanlanmaguncha narx ko'rsatilmaydi (hamma o'lchamda narx har xil)
-  const kitPrice = shirtSize ? (sizeRow?.price ?? (pb.shirt ?? 159000) + (pb.shorts ?? 0)) : null;
+  // Narx faqat tanlangan o'lcham uchun, server yuborgan qiymat bilan ko'rsatiladi.
+  const baseKitPrice = pb.shirt ?? priceKit?.price;
+  const kitPrice = shirtSize
+    ? (sizeRow?.price ?? (baseKitPrice != null ? baseKitPrice + (pb.shorts ?? 0) : null))
+    : null;
 
   // "Keyingi"da serverdan olingan eng yangi o'lchamlar (zaxira shu orada tugagan bo'lishi mumkin) — katalog keshidan ustun
   const [liveSizes, setLiveSizes] = useState(null); // { kitId, sizes }
@@ -192,7 +185,6 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
   const maxNumber = rules.printNumberMax || 99;
   const printName = cleanPrintName(name, rules.printNameMaxLength || 30);
   const printNum = cleanPrintNumber(number, maxNumber);
-  const hasPrint = Boolean(printName.trim() || printNum);
   // Shortik/shalvar raqami — formaning orqasidagi raqamning o'zi
   const shortsNum = printNum;
   const numberOnShorts = shortsOn && Boolean(shortsNum);
@@ -208,13 +200,12 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
     fn();
   };
 
-  const totalPrice = kitPrice == null ? null : kitPrice + (hasPrint ? printPrice : 0);
   const paused = Boolean(rules && rules.acceptOrders === false);
 
   const goStep = (next) => {
     setFeedback(null);
     setStep(next);
-    setSide(steps[next - 1].id === 'bottom' ? 'front' : 'back');
+    setSide('back');
   };
 
   // Joriy bosqichni o'tkazmaydigan sabab (yoki null)
@@ -224,10 +215,6 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
     return null;
   };
 
-  // Ism yozilmagan bo'lsa "Ism va raqam" bosqichidan faqat tasdiq bilan o'tiladi
-  const printAt = steps.findIndex((s) => s.id === 'print') + 1;
-  const needsPrintConfirm = !printName.trim() && !skipOk.current;
-
   const onNext = async () => {
     if (stockChecking) return;
     const why = blocker(current);
@@ -236,10 +223,6 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
       return;
     }
     if (current === 'size' && !(await confirmStock())) return;
-    if (current === 'print' && needsPrintConfirm) {
-      setSkipAsk(step + 1);
-      return;
-    }
     goStep(step + 1);
   };
 
@@ -255,8 +238,6 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
     // O'lcham bosqichidan oldinga sakralsa ham zaxira tekshiriladi
     const sizeAt = steps.findIndex((s) => s.id === 'size') + 1;
     if (step <= sizeAt && n > sizeAt && !(await confirmStock())) return goStep(sizeAt);
-    // Ism bosqichini sakrab o'tib bo'lmaydi: avval o'sha bosqich ochiladi, undan keyin — tasdiq
-    if (n > printAt && needsPrintConfirm) return step === printAt ? setSkipAsk(n) : goStep(printAt);
     return goStep(n);
   };
 
@@ -265,7 +246,6 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
     setStep(1);
     setSide('back');
     shortsTouched.current = false;
-    skipOk.current = false;
     setShortsOn(Boolean(printNum));
   };
 
@@ -276,10 +256,6 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
     if (missing !== -1) {
       goStep(missing + 1);
       setFeedback({ ok: false, text: blocker(steps[missing].id) });
-      return;
-    }
-    if (shortsOn && !shortsNum) {
-      setFeedback({ ok: false, text: t('shortsNumberEmpty') });
       return;
     }
     if (!kitId) {
@@ -302,15 +278,8 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
         numberOnShorts,
         shortsNumber: numberOnShorts ? shortsNum : null,
       });
-      setAddedEvent({
-        key: Date.now(),
-        team: team.id,
-        variant,
-        summary: [team.name, long ? t('sleeveLong') : null, shirtSize, [printName.trim(), printNum].filter(Boolean).join(' ')]
-          .filter(Boolean)
-          .join(' · '),
-      });
       resetSelection();
+      onOpenCart?.();
     } catch (err) {
       setFeedback({ ok: false, text: errorText(err, t) });
     } finally {
@@ -319,13 +288,11 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
     }
   };
 
-  const stepTitles = { type: 'kitStepType', size: 'kitStepSize', print: 'kitStepPrint', bottom: long ? 'pantsNumberAsk' : 'shortsNumberAsk' };
-  const bottomLabel = t(long ? 'kitStepPants' : 'kitStepShorts');
+  const stepTitles = { type: 'kitStepType', size: 'kitStepSize', print: 'kitStepPrint' };
   const summary = [
     hasChoice && sleeve ? t(long ? 'sleeveLong' : 'sleeveShort') : null,
     shirtSize,
     [printName.trim(), printNum].filter(Boolean).join(' '),
-    current === 'bottom' || shortsTouched.current ? `${bottomLabel}: ${numberOnShorts ? shortsNum : t('noNumber')}` : null,
   ].filter(Boolean);
   const isLast = step >= steps.length;
 
@@ -337,43 +304,34 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
         footerStyle={{ bottom: tabSpace - 14, paddingBottom: 14 }}
         footer={
           <View style={styles.footerBar}>
-            <View>
-              <Text style={styles.footerLabel}>{t(totalPrice == null ? 'priceWord' : 'total')}</Text>
-              {totalPrice == null ? (
-                <Text style={styles.footerPending}>{t('priceAfterSize')}</Text>
-              ) : (
-                <Text style={styles.footerPrice}>{formatMoney(totalPrice)}</Text>
-              )}
-              <Text style={styles.footerSub}>{t(long ? 'kitSetIncludesLong' : 'kitSetIncludes')}</Text>
-            </View>
-            <View style={styles.footerAction}>
-              {paused ? (
-                <Text style={[styles.feedback, styles.errorFeedback]} numberOfLines={2}>
-                  {rules.pausedMessage || t('ordersPaused')}
-                </Text>
-              ) : feedback ? (
-                <Text style={[styles.feedback, !feedback.ok && styles.errorFeedback]} numberOfLines={2}>
-                  {feedback.text}
-                </Text>
-              ) : null}
-              {!isLast ? (
-                <Button onPress={onNext} disabled={Boolean(blocker(current)) || stockChecking} style={styles.footerButton}>
-                  {stockChecking ? t('stockChecking') : `${t('nextStep')} →`}
-                </Button>
-              ) : (
-                <Button disabled={paused || adding || (kitPending && !kitId)} onPress={addToCart} style={styles.footerButton}>
-                  {adding ? t('adding') : t('addToCart')}
-                </Button>
-              )}
-            </View>
+            {step > 1 ? (
+              <Pressable onPress={() => goStep(step - 1)} style={styles.iconButton} accessibilityRole="button" accessibilityLabel={t('back')}>
+                <MaterialCommunityIcons name="chevron-left" size={38} color={colors.text} />
+              </Pressable>
+            ) : null}
+            {!isLast ? (
+              <Pressable onPress={onNext} disabled={Boolean(blocker(current)) || stockChecking} style={[styles.iconButton, styles.nextIcon, (Boolean(blocker(current)) || stockChecking) && styles.iconDisabled]} accessibilityRole="button" accessibilityLabel={t('nextStep')}>
+                <MaterialCommunityIcons name={stockChecking ? 'loading' : 'chevron-right'} size={40} color={colors.primaryDark} />
+              </Pressable>
+            ) : (
+              <Pressable disabled={paused || adding || (kitPending && !kitId)} onPress={addToCart} style={[styles.iconButton, styles.nextIcon, (paused || adding || (kitPending && !kitId)) && styles.iconDisabled]} accessibilityRole="button" accessibilityLabel={t('addToCart')}>
+                <MaterialCommunityIcons name="cart-plus" size={28} color={colors.primaryDark} />
+              </Pressable>
+            )}
           </View>
         }
       >
-        <Header cart title={t('forma360')} subtitle={t('forma360Sub')} onBack={onBack} />
+        <Header cart title={team.name} onBack={onBack} />
 
         {/* 360° ko'rinish: tanlangan turdagi suratlar (uzun yeng — l0..l7) */}
         <View style={styles.previewBox}>
           <View style={styles.glow} />
+          {current === 'size' ? (
+            <View style={styles.sizePrompt} pointerEvents="none">
+              <MaterialCommunityIcons name="format-size" size={16} color={colors.primaryDark} />
+              <Text style={styles.sizePromptText}>{t('kitStepSize')}</Text>
+            </View>
+          ) : null}
           <Kit360Viewer
             t={t}
             team={team.id}
@@ -399,13 +357,11 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
         {/* Joriy bosqich */}
         <View style={styles.panelBox}>
           <View style={styles.panelHead}>
-            {step > 1 ? (
-              <Pressable onPress={() => goStep(step - 1)} hitSlop={8} style={styles.panelBack} accessibilityRole="button" accessibilityLabel={t('back')}>
-                <MaterialCommunityIcons name="chevron-left" size={22} color={colors.accent} />
-              </Pressable>
-            ) : null}
             <Text style={styles.stepTitle}>{t(stepTitles[current])}</Text>
           </View>
+          {paused || feedback ? (
+            <Text style={[styles.feedback, styles.errorFeedback]}>{paused ? (rules.pausedMessage || t('ordersPaused')) : feedback.text}</Text>
+          ) : null}
 
           {current === 'type' ? (
             <KitTypeStep
@@ -422,9 +378,7 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
               t={t}
               sizes={sizeOptions}
               value={shirtSize}
-              hint={t(long ? 'sameSizeHintLong' : 'sameSizeHint')}
-              price={kitPrice}
-              priceLabel={t('shirtPrice')}
+              price={kitPrice == null ? null : formatMoney(kitPrice)}
               onSoldOut={soldOutToast}
               onChange={(size) => {
                 setShirtSize(size);
@@ -440,17 +394,18 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
               onNumber={setNumber}
               onFocus={() => setSide('back')}
               nameMaxLength={rules.printNameMaxLength || 30}
-              printPrice={printPrice}
             />
-          ) : (
+          ) : null}
+          {current === 'print' ? (
             <ShortsNumberStep
               t={t}
               pants={long}
               enabled={shortsOn}
+              disabled={!printNum}
               onToggle={(on) => touchShorts(() => setShortsOn(on))}
               number={printNum}
             />
-          )}
+          ) : null}
 
           {/* Tanlov xulosasi */}
           {summary.length ? (
@@ -467,26 +422,6 @@ export default function Kit360Screen({ t, initialTeam = null, initialSleeve = nu
         </View>
       </Screen>
 
-      <AddedToCart
-        event={addedEvent}
-        t={t}
-        bottom={tabSpace + 82}
-        onOpenCart={onOpenCart}
-        onDismiss={() => setAddedEvent(null)}
-      />
-
-      <ConfirmModal
-        visible={skipAsk != null}
-        title={t('printSkipTitle')}
-        message={t(printNum ? 'printSkipName' : 'printSkipBoth')}
-        confirmText={t('printSkipYes')}
-        cancelText={t('cancel')}
-        onClose={() => setSkipAsk(null)}
-        onConfirm={() => {
-          skipOk.current = true;
-          goStep(skipAsk);
-        }}
-      />
     </View>
   );
 }
@@ -518,7 +453,6 @@ const styles = themedStyles(() => ({
     borderColor: colors.border,
   },
   panelHead: { flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: spacing.sm },
-  panelBack: { marginLeft: -6 },
   stepTitle: { flex: 1, color: colors.text, fontSize: 16, fontWeight: '900' },
   summaryRow: {
     flexDirection: 'row',
@@ -539,13 +473,35 @@ const styles = themedStyles(() => ({
     maxWidth: '100%',
   },
   summaryText: { color: colors.textSecondary, fontSize: 11, fontWeight: '800' },
-  footerBar: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  footerAction: { flex: 1, alignItems: 'stretch', gap: 4, marginLeft: spacing.md },
-  footerButton: { alignSelf: 'stretch' },
-  footerLabel: { color: colors.muted, fontSize: 11, fontWeight: '800', letterSpacing: 0.8, textTransform: 'uppercase' },
-  footerPrice: { color: colors.accent, fontSize: 18, fontWeight: '900', marginTop: 2 },
-  footerPending: { color: colors.textSecondary, fontSize: 13, fontWeight: '800', marginTop: 3, maxWidth: 150 },
-  footerSub: { color: colors.muted, fontSize: 10, fontWeight: '700', marginTop: 1 },
-  feedback: { color: colors.tealLight, fontSize: 12, fontWeight: '800', textAlign: 'right' },
+  footerBar: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'flex-end', gap: spacing.md },
+  iconButton: { width: 62, height: 58, borderRadius: radii.md, backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.border, alignItems: 'center', justifyContent: 'center' },
+  nextIcon: {
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
+    borderWidth: 2,
+    shadowColor: colors.accent,
+    shadowOpacity: 0.42,
+    shadowRadius: 10,
+    shadowOffset: { width: 0, height: 3 },
+    elevation: 5,
+  },
+  iconDisabled: { opacity: 0.45 },
+  sizePrompt: {
+    position: 'absolute',
+    zIndex: 2,
+    top: spacing.md,
+    left: spacing.md,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.xs,
+    paddingHorizontal: spacing.md,
+    paddingVertical: spacing.sm,
+    borderRadius: radii.round,
+    backgroundColor: colors.accent,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
+  sizePromptText: { color: colors.primaryDark, fontSize: 12, fontWeight: '900' },
+  feedback: { color: colors.danger, fontSize: 12, fontWeight: '800', marginBottom: spacing.sm },
   errorFeedback: { color: colors.danger },
 }));

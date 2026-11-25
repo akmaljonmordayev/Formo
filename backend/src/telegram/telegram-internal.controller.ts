@@ -3,11 +3,7 @@ import { ApiExcludeController } from '@nestjs/swagger';
 import { SkipThrottle } from '@nestjs/throttler';
 import { Public } from '../common/decorators/public.decorator';
 import { ParseIdPipe } from '../common/pipes/parse-id.pipe';
-import { TopUpMethod } from '@prisma/client';
 import {
-  BotCancelTopUpDto,
-  BotReceiptDto,
-  BotTopUpDto,
   OutboxLeaseQueryDto,
   OutboxReportDto,
   TelegramChatDto,
@@ -69,7 +65,7 @@ export class TelegramInternalController {
     return this.auth.stop(dto.telegramUserId);
   }
 
-  // ---- Hisob, balans, buyurtmalar, to'ldirish (faqat ulangan mijoz) ----
+  // ---- Hisob, balansni ko'rish va buyurtmalar (faqat ulangan mijoz) ----
 
   @Post('me')
   @HttpCode(HttpStatus.OK)
@@ -100,29 +96,6 @@ export class TelegramInternalController {
   @HttpCode(HttpStatus.OK)
   orders(@Body() dto: TelegramUserDto) {
     return this.account.orders(dto.telegramUserId);
-  }
-
-  @Get('topup-methods')
-  methods() {
-    return this.account.methods();
-  }
-
-  @Post('topups')
-  @HttpCode(HttpStatus.OK)
-  createTopUp(@Body() dto: BotTopUpDto) {
-    return this.account.createTopUp(dto.telegramUserId, dto.amount, dto.method as TopUpMethod);
-  }
-
-  @Post('topups/receipt')
-  @HttpCode(HttpStatus.OK)
-  receipt(@Body() dto: BotReceiptDto) {
-    return this.account.attachReceipt(dto.telegramUserId, dto.fileId, dto.fileUniqueId);
-  }
-
-  @Post('topups/cancel')
-  @HttpCode(HttpStatus.OK)
-  cancelTopUp(@Body() dto: BotCancelTopUpDto) {
-    return this.account.cancelTopUp(dto.telegramUserId, dto.topUpId);
   }
 
   @Get('support')

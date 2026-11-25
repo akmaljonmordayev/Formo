@@ -1,7 +1,6 @@
 import { Suspense, lazy } from 'react';
 import {
   BarChart3,
-  CreditCard,
   Factory,
   HandCoins,
   LayoutDashboard,
@@ -30,7 +29,6 @@ import Pricing from './Pricing';
 import Promocodes from './Promocodes';
 import Campaigns from './Campaigns';
 import Finance from './Finance';
-import TopUps from './TopUps';
 import Reports from './Reports';
 import SettingsPage from './Settings';
 
@@ -80,7 +78,6 @@ export const superadminRoutes = [
   { path: 'campaigns', element: <Campaigns /> },
   { path: 'factories', element: legacy(Factories_) },
   { path: 'finance', element: <Finance /> },
-  { path: 'topups', element: <TopUps /> },
   { path: 'reports', element: <Reports /> },
   { path: 'settings', element: <SettingsPage /> },
 ];
@@ -92,7 +89,6 @@ export const superadminMenu = [
   // Kartadan to'lash tanlangan buyurtmalar: admin qo'ng'iroq qiladi, pul tushgach sexga yuboradi
   { to: `${BASE}/card-payments`, label: "Kartadan to'lovchilar", icon: HandCoins, group: 'Asosiy' },
   { to: `${BASE}/messages`, label: 'Xabarlar', icon: MessagesSquare, group: 'Asosiy' },
-  { to: `${BASE}/topups`, label: "Balans to'ldirish", icon: CreditCard, group: 'Asosiy' },
 
   { to: `${BASE}/kit-360`, label: 'Forma 360°', icon: Rotate3d, group: 'Formalar' },
   { to: `${BASE}/forms`, label: 'Formalar', icon: Shirt, group: 'Formalar' },

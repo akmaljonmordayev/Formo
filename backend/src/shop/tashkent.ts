@@ -1,6 +1,6 @@
 /**
  * Toshkent shahri chegarasi (taxminiy ko'pburchak, [kenglik, uzunlik]). Naqd to'lov faqat shahar ichiga
- * yetkazishda ruxsat etiladi; shahardan tashqariga — faqat shaxsiy hisob (balans) orqali.
+ * yetkazishda ruxsat etiladi; shahardan tashqariga — faqat karta orqali.
  * Mobil ilovadagi nusxa: mobile/src/features/location/tashkent.js — ikkalasi bir xil bo'lsin.
  */
 export const TASHKENT_CITY_POLYGON: ReadonlyArray<readonly [number, number]> = [

@@ -354,7 +354,6 @@ export default function AppNavigator({ store, t, auth, push }) {
         }}
         onPickOnMap={() => openPicker(null, 'checkout')}
         onEditAddress={(address) => openPicker(address, 'checkout')}
-        onWallet={() => openWallet('checkout')}
         initialAddressId={checkoutAddressId}
       />
     ) : route === 'orders' ? (

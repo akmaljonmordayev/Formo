@@ -11,28 +11,13 @@ export const asBotLang = (value?: string | null): BotLang => (value === 'ru' || 
 const CURRENCY: Record<BotLang, string> = { uz: "so'm", ru: 'сум', en: 'UZS' };
 export const botMoney = (amount: number, lang: BotLang) => `${amount.toLocaleString('ru-RU')} ${CURRENCY[lang]}`;
 
-export const topUpTexts = {
-  approved: (lang: BotLang, code: string, amount: number, balance: number) =>
-    ({
-      uz: `✅ ${code}: ${botMoney(amount, lang)} balansingizga qo'shildi.\nJoriy balans: ${botMoney(balance, lang)}`,
-      ru: `✅ ${code}: ${botMoney(amount, lang)} зачислено на ваш баланс.\nТекущий баланс: ${botMoney(balance, lang)}`,
-      en: `✅ ${code}: ${botMoney(amount, lang)} has been added to your balance.\nCurrent balance: ${botMoney(balance, lang)}`,
-    })[lang],
-  rejected: (lang: BotLang, code: string, reason: string) =>
-    ({
-      uz: `❌ ${code} rad etildi.\nSabab: ${reason}`,
-      ru: `❌ ${code} отклонён.\nПричина: ${reason}`,
-      en: `❌ ${code} was rejected.\nReason: ${reason}`,
-    })[lang],
-};
-
 /** Ilovaga Telegram orqali kirilgach — botda pastki menyu bilan birga keladi */
 export const loginTexts = {
   linked: (lang: BotLang) =>
     ({
-      uz: "✅ Formo ilovasiga kirdingiz!\n\nEndi shu yerda pastdagi tugmalar orqali:\n💰 balansni ko'rasiz\n➕ hisobni to'ldirasiz\n📦 buyurtmalaringizni kuzatasiz\n🌐 tilni o'zgartirasiz\n\nBuyurtma holati haqidagi xabarlar ham shu yerga keladi.",
-      ru: '✅ Вы вошли в приложение Formo!\n\nТеперь кнопками ниже вы можете:\n💰 смотреть баланс\n➕ пополнять счёт\n📦 следить за заказами\n🌐 менять язык\n\nУведомления о статусе заказов тоже придут сюда.',
-      en: '✅ You are signed in to Formo!\n\nUse the buttons below to:\n💰 check your balance\n➕ top up\n📦 track your orders\n🌐 change the language\n\nOrder status updates will arrive here too.',
+      uz: "✅ Formo ilovasiga kirdingiz!\n\nEndi shu yerda pastdagi tugmalar orqali:\n💰 balansni ko'rasiz\n📦 buyurtmalaringizni kuzatasiz\n🌐 tilni o'zgartirasiz\n\nBuyurtma holati haqidagi xabarlar ham shu yerga keladi.",
+      ru: '✅ Вы вошли в приложение Formo!\n\nТеперь кнопками ниже вы можете:\n💰 смотреть баланс\n📦 следить за заказами\n🌐 менять язык\n\nУведомления о статусе заказов тоже придут сюда.',
+      en: '✅ You are signed in to Formo!\n\nUse the buttons below to:\n💰 check your balance\n📦 track your orders\n🌐 change the language\n\nOrder status updates will arrive here too.',
     })[lang],
 };
 

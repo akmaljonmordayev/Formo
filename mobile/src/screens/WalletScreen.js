@@ -1,13 +1,12 @@
 import React, { useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
 import MaterialCommunityIcons from '@expo/vector-icons/MaterialCommunityIcons';
 import { colors, fonts, radii, screenStyles, spacing, themedStyles } from '../constants/theme';
-import { Badge, Button, EmptyState, Header, Overline, formatMoney } from '../components/ui/Common';
+import { EmptyState, Header, Overline, formatMoney } from '../components/ui/Common';
 import ErrorView from '../components/ui/ErrorView';
 import LoadingSpinner from '../components/ui/LoadingSpinner';
-import useWallet, { TOPUP_STATUS, TX_META, openTopUpBot } from '../features/wallet';
+import useWallet, { TX_META } from '../features/wallet';
 import { errorText } from '../utils/errors';
 
 const dateOf = (iso) => {
@@ -21,16 +20,9 @@ const dateOf = (iso) => {
  * bot summani so'raydi (30 000 / 50 000 / 100 000 yoki boshqa), Humo karta rekvizitlarini beradi,
  * chek rasmini qabul qiladi; pul faqat superadmin chekni tasdiqlagach qo'shiladi.
  */
-export default function WalletScreen({ t, telegramBot, onBack }) {
+export default function WalletScreen({ t, onBack }) {
   const wallet = useWallet();
-  const [openError, setOpenError] = useState(null);
   const [refreshing, setRefreshing] = useState(false);
-
-  const topUp = async () => {
-    setOpenError(null);
-    const ok = await openTopUpBot(telegramBot);
-    if (!ok) setOpenError(t(telegramBot ? 'tgOpenFailed' : 'topupUnavailable'));
-  };
 
   const refresh = async () => {
     setRefreshing(true);
@@ -45,55 +37,12 @@ export default function WalletScreen({ t, telegramBot, onBack }) {
     }
     return (
       <>
-        <LinearGradient colors={colors.cardGradient} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={styles.balanceCard}>
-          <View style={styles.balanceGlow} />
+        <View style={styles.balanceCard}>
           <Text style={styles.balanceLabel}>{t('walletBalance')}</Text>
           <Text style={styles.balance} adjustsFontSizeToFit numberOfLines={1}>
             {formatMoney(wallet.balance)}
           </Text>
-          <Button
-            style={styles.topUpBtn}
-            disabled={!telegramBot}
-            onPress={topUp}
-            icon={<MaterialCommunityIcons name="send" size={16} color={colors.primaryDark} />}
-          >
-            {t('topUpViaTelegram')}
-          </Button>
-          {openError ? <Text style={styles.openError}>{openError}</Text> : null}
-        </LinearGradient>
-
-        <View style={styles.steps}>
-          {['topupStep1', 'topupStep2', 'topupStep3'].map((key, i) => (
-            <View key={key} style={styles.step}>
-              <Text style={styles.stepNo}>{i + 1}</Text>
-              <Text style={styles.stepText}>{t(key)}</Text>
-            </View>
-          ))}
         </View>
-
-        {wallet.topUps.length ? (
-          <>
-            <Overline style={styles.sectionGap}>{t('topupRequests')}</Overline>
-            <View style={styles.list}>
-              {wallet.topUps.map((x, i) => {
-                const meta = TOPUP_STATUS[x.status] || TOPUP_STATUS.PENDING;
-                return (
-                  <View key={x.id} style={[styles.row, i === wallet.topUps.length - 1 && styles.rowLast]}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={styles.rowTitle}>{formatMoney(x.amount)}</Text>
-                      <Text style={styles.rowSub}>
-                        {x.code} · {dateOf(x.createdAt)}
-                      </Text>
-                      {x.status === 'REJECTED' && x.rejectReason ? <Text style={styles.reject}>{x.rejectReason}</Text> : null}
-                      {x.status === 'PENDING' ? <Text style={styles.rowSub}>{t('topupPendingHint')}</Text> : null}
-                    </View>
-                    <Badge label={t(meta.key)} variant={meta.tone} />
-                  </View>
-                );
-              })}
-            </View>
-          </>
-        ) : null}
 
         <Overline style={styles.sectionGap}>{t('walletHistory')}</Overline>
         {wallet.transactions.length ? (
@@ -152,7 +101,7 @@ export function WalletChip({ t, balance, onPress }) {
         <Text style={styles.chipLabel}>{t('walletBalance')}</Text>
         <Text style={styles.chipValue}>{balance == null ? '…' : formatMoney(balance)}</Text>
       </View>
-      <Text style={styles.chipAction}>{t('topUp')}</Text>
+      <Text style={styles.chipAction}>{t('walletHistory')}</Text>
       <MaterialCommunityIcons name="chevron-right" size={18} color={colors.accent} />
     </Pressable>
   );
@@ -166,40 +115,15 @@ const styles = themedStyles(() => ({
     borderBottomColor: colors.tabBarBorder,
   },
   balanceCard: {
+    backgroundColor: colors.surfaceRaised,
     borderRadius: radii.xl,
     padding: spacing.xl,
     overflow: 'hidden',
     borderWidth: 1,
     borderColor: colors.borderLight,
   },
-  balanceGlow: {
-    position: 'absolute',
-    right: -60,
-    top: -60,
-    width: 200,
-    height: 200,
-    borderRadius: 100,
-    backgroundColor: 'rgba(242,163,58,0.14)',
-  },
   balanceLabel: { color: colors.textSecondary, fontSize: 12, fontFamily: fonts.bodyMedium, letterSpacing: 0.6, textTransform: 'uppercase' },
   balance: { color: colors.text, fontSize: 38, fontFamily: fonts.numeric, marginTop: 4, letterSpacing: 0.5 },
-  topUpBtn: { marginTop: spacing.lg },
-  openError: { color: colors.danger, fontSize: 12, marginTop: spacing.sm },
-  steps: { marginTop: spacing.lg, gap: spacing.sm },
-  step: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
-  stepNo: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    textAlign: 'center',
-    lineHeight: 24,
-    overflow: 'hidden',
-    backgroundColor: colors.surfaceRaised,
-    color: colors.accent,
-    fontSize: 12,
-    fontWeight: '900',
-  },
-  stepText: { flex: 1, color: colors.textSecondary, fontSize: 13, lineHeight: 18 },
   sectionGap: { marginTop: spacing.xxl },
   list: { backgroundColor: colors.surface, borderRadius: radii.lg, borderWidth: 1, borderColor: colors.border, paddingHorizontal: spacing.md },
   row: {

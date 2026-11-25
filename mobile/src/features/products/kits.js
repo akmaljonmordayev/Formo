@@ -24,6 +24,7 @@ export function toKitCard(kit) {
     clubId: club.id ?? kit.clubId,
     name,
     label: kit.label,
+    colorsLabel: kit.colorsLabel ?? null,
     price: kit.price ?? null,
     kit360Id: club.kit360Id ?? null,
     // Kalta yeng (yozgi) yoki uzun yeng (qishki); variant — karta surati ('l' — uzun yeng suratlari)
@@ -36,7 +37,7 @@ export function toKitCard(kit) {
     categoryName: club.category?.name ?? null,
     categoryId: club.category?.id ?? null,
     soldCount: kit.soldCount ?? 0,
-    search: norm([name, club.code, team?.name, team?.code].filter(Boolean).join(' ')),
+    search: norm([name, club.code, team?.name, team?.code, kit.colorsLabel].filter(Boolean).join(' ')),
   };
 }
 

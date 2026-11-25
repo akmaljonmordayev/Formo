@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Check, CreditCard, Globe, HandCoins, MessagesSquare, ShoppingBag, X } from 'lucide-react';
-import { chatApi, ordersApi, supportApi, topupsApi } from '../../features/platform/platformApi';
+import { Check, Globe, HandCoins, MessagesSquare, ShoppingBag, X } from 'lucide-react';
+import { chatApi, ordersApi, supportApi } from '../../features/platform/platformApi';
 import SuperadminLayout from '../../components/layout/SuperadminLayout';
 import { LANGS, LangProvider, useLang } from './i18n';
 import { CHAT_READ_EVENT, COUNTS_EVENT, usePolling } from './ui';
@@ -79,7 +79,6 @@ const ALERTS = {
     // Navbatda qo'ng'iroq kutayotganlar ham, to'langan-u sex tanlanmaganlar ham bor
     text: "{n} ta kartadan to'lov buyurtmasi kutmoqda",
   },
-  topups: { path: '/topups', to: '/superadmin/topups', icon: CreditCard, title: "Balans to'ldirish cheki keldi", text: '{n} ta chek tekshiruvda' },
   messages: { path: '/messages', to: '/superadmin/messages', icon: MessagesSquare, title: 'Yangi xabar keldi', text: "{n} ta o'qilmagan xabar" },
 };
 
@@ -87,7 +86,7 @@ const ALERTS = {
 function TranslatedLayout({ menu }) {
   const { t, lang } = useLang();
   const navigate = useNavigate();
-  // { orders, topups, messages } — har biri alohida yuklanadi; hali kelmagani undefined
+  // { orders, cardPayments, messages } — har biri alohida yuklanadi; hali kelmagani undefined
   const [counts, setCounts] = useState({});
   const [toasts, setToasts] = useState([]);
   const known = useRef({});
@@ -115,7 +114,7 @@ function TranslatedLayout({ menu }) {
         .catch(() => {}), // xato bo'lsa keyingi poll
     [setCount],
   );
-  // Yangi (sexga yuborilmagan) buyurtmalar va tekshiruvdagi cheklar
+  // Yangi buyurtmalar va kartadan to'lov navbati
   const loadCounts = useCallback(() => {
     // Shu so'rovning o'zi kartadan to'lov navbatini ham qaytaradi (cardQueue)
     ordersApi
@@ -125,7 +124,6 @@ function TranslatedLayout({ menu }) {
         setCount('cardPayments', d.cardQueue ?? 0);
       })
       .catch(() => {});
-    topupsApi.list({ status: 'REVIEW', limit: 1 }).then((d) => setCount('topups', d.byStatus?.REVIEW ?? 0)).catch(() => {});
   }, [setCount]);
   useEffect(() => {
     loadCounts();

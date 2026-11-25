@@ -6,7 +6,7 @@ import { RateLimiter } from '../src/ratelimit';
 import { callbackUpdate, chooseLang, contactUpdate, fakeDeps, Sent, textUpdate, USER_ID } from './helpers';
 
 const START_TOKEN = 'AbCdEfGhIjKlMnOpQrStUvWxYz0123456789_-abcde';
-const FULL_MENU = ['💰 Balans', '➕ Balansni to‘ldirish', '📦 Buyurtmalar', '🌐 Til', '❓ Yordam', '📱 Raqamni yuborish'];
+const FULL_MENU = ['💰 Balans', '📦 Buyurtmalar', '🌐 Til', '❓ Yordam', '📱 Raqamni yuborish'];
 
 type Keyboard = { keyboard: { text: string; request_contact?: boolean }[][] };
 const menuButtons = (m: Sent) => (m.options?.reply_markup as Keyboard).keyboard.flat().map((b) => b.text);

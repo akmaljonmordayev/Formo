@@ -114,44 +114,6 @@ export default function AccountScreen({ t, auth, onBack }) {
     }
   };
 
-  // ─── Parol ───────────────────────────────────────────────────────────────
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [passwordSaving, setPasswordSaving] = useState(false);
-  const [passwordError, setPasswordError] = useState(null);
-  const [passwordSaved, setPasswordSaved] = useState(false);
-
-  const savePassword = async () => {
-    setPasswordError(null);
-    setPasswordSaved(false);
-    if (newPassword.length < 6) {
-      setPasswordError(t('passwordShort'));
-      return;
-    }
-    if (newPassword.length > 64) {
-      setPasswordError(t('passwordTooLong'));
-      return;
-    }
-    if (newPassword !== confirmPassword) {
-      setPasswordError(t('passwordMismatch'));
-      return;
-    }
-    setPasswordSaving(true);
-    try {
-      await api.auth.changePassword(currentPassword, newPassword);
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmPassword('');
-      setPasswordSaved(true);
-      setTimeout(() => setPasswordSaved(false), 1500);
-    } catch (err) {
-      setPasswordError(errorText(err, t));
-    } finally {
-      setPasswordSaving(false);
-    }
-  };
-
   // ─── Telefon raqami (Telegram orqali qayta tasdiqlash bilan) ───────────────
   const [newPhoneDigits, setNewPhoneDigits] = useState('');
   const [phoneChallenge, setPhoneChallenge] = useState(null);
@@ -272,48 +234,10 @@ export default function AccountScreen({ t, auth, onBack }) {
         </Button>
       </View>
 
-      <Overline style={styles.sectionGap}>{t('changePasswordBtn')}</Overline>
-      <View style={styles.card}>
-        <View style={styles.field}>
-          <Text style={styles.label}>{t('currentPassword')}</Text>
-          <TextInput
-            value={currentPassword}
-            onChangeText={setCurrentPassword}
-            secureTextEntry
-            placeholderTextColor={colors.muted}
-            style={styles.input}
-            selectionColor={colors.accent}
-          />
-        </View>
-        <View style={styles.field}>
-          <Text style={styles.label}>{t('newPassword')}</Text>
-          <TextInput
-            value={newPassword}
-            onChangeText={setNewPassword}
-            secureTextEntry
-            maxLength={64}
-            placeholderTextColor={colors.muted}
-            style={styles.input}
-            selectionColor={colors.accent}
-          />
-        </View>
-        <View style={styles.field}>
-          <Text style={styles.label}>{t('confirmPassword')}</Text>
-          <TextInput
-            value={confirmPassword}
-            onChangeText={setConfirmPassword}
-            secureTextEntry
-            maxLength={64}
-            placeholderTextColor={colors.muted}
-            style={styles.input}
-            selectionColor={colors.accent}
-          />
-        </View>
-        {passwordError ? <Text style={styles.errorText}>{passwordError}</Text> : null}
-        {passwordSaved ? <Text style={styles.savedText}>{t('passwordChanged')}</Text> : null}
-        <Button style={styles.saveBtn} onPress={savePassword} disabled={passwordSaving || !currentPassword || !newPassword}>
-          {passwordSaving ? '…' : t('changePasswordBtn')}
-        </Button>
+      <Overline style={styles.sectionGap}>{t('accountSection')}</Overline>
+      <View style={styles.securityNotice}>
+        <MaterialCommunityIcons name="shield-check-outline" size={20} color={colors.tealLight} />
+        <Text style={styles.securityText}>{t('loginPrivacy')}</Text>
       </View>
 
       <Overline style={styles.sectionGap}>{t('phoneChangeTitle')}</Overline>
@@ -465,6 +389,18 @@ const styles = themedStyles(() => ({
     gap: spacing.sm,
     marginBottom: spacing.md,
   },
+  securityNotice: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: spacing.sm,
+    padding: spacing.md,
+    marginBottom: spacing.md,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    borderColor: colors.tealGlow,
+    backgroundColor: colors.surface,
+  },
+  securityText: { flex: 1, color: colors.textSecondary, fontSize: 12, lineHeight: 18, fontWeight: '600' },
   row2: { flexDirection: 'row', gap: spacing.sm },
   field: { flex: 1, gap: 6 },
   label: { color: colors.muted, fontSize: 11, fontWeight: '700', textTransform: 'uppercase', letterSpacing: 0.4 },

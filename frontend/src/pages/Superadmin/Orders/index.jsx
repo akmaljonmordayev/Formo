@@ -10,7 +10,7 @@ import { COUNTS_EVENT, Pager } from '../ui';
 import OrderModal from './OrderModal';
 
 const TABS = [
-  { label: 'Yangi', status: 'NEW' }, // naqd/balans buyurtmalari shu holatda keladi
+  { label: 'Yangi', status: 'NEW' }, // naqd va karta buyurtmalari shu navbatga tushadi
   { label: 'Sexga yuborildi', status: 'SENT_TO_WORKSHOP' },
   { label: "To'lov kutilmoqda", status: 'PENDING_PAYMENT' },
   { label: 'Qabul qilindi', status: 'ACCEPTED' },
@@ -117,6 +117,7 @@ export default function SuperadminOrders() {
         <div>
           <h1>{t("Buyurtmalar")}</h1>
           <p>{t("Barcha buyurtmalar. Qatorni bosib tafsilot va amallarni oching.")}</p>
+          <p>{t("Naqd to'lov faqat Toshkent shahrida, boshqa hududlarda karta orqali.")}</p>
         </div>
       </div>
 

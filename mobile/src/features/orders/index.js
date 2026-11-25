@@ -19,11 +19,8 @@ export const canCancelOrder = (order) => Boolean(order?.canCancel) && CUSTOMER_C
 export const toCustomerOrder = (order) =>
   order?.status === 'RETURNED' ? { ...order, status: 'CANCELLED', statusLabel: null, canCancel: false } : order;
 
-// Backend `PaymentMethod`: BALANCE | CASH | CARD | CLICK | PAYME (prisma/schema.prisma).
-// Mijoz ilovasida: balans (asosiy), kartadan va naqd — naqd faqat Toshkent shahri ichida kuryerga (Superadmin allowCash).
-// Kartadan — O'zbekistonning istalgan joyiga: admin mijozga qo'ng'iroq qilib karta raqamini beradi, pul tushgach
-// buyurtma qabul qilinadi. Click/Payme ko'rsatilmaydi, balans Telegram bot orqali to'ldiriladi.
-export const CHECKOUT_METHODS = ['BALANCE', 'CARD', 'CASH'];
+// Checkout'da karta yoki naqd; naqd faqat Toshkent shahri ichida kuryerga (Superadmin allowCash).
+export const CHECKOUT_METHODS = ['CARD', 'CASH'];
 
 /** Kartadan to'lov: admin hali pul tushganini tasdiqlamagan — "siz bilan bog'lanamiz" kartasi */
 export const awaitingCardCall = (order) =>

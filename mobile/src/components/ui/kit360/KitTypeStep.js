@@ -5,20 +5,19 @@ import { colors, radii, spacing, themedStyles } from '../../../constants/theme';
 import Kit360Thumb from '../Kit360Thumb';
 
 const OPTIONS = [
-  { sleeve: 'LONG', variant: 'l', title: 'sleeveLong', sub: 'sleeveLongSub', icon: 'snowflake' },
-  { sleeve: 'SHORT', variant: 'f', title: 'sleeveShort', sub: 'sleeveShortSub', icon: 'white-balance-sunny' },
+  { sleeve: 'LONG', variant: 'l', title: 'sleeveLong', icon: 'tshirt-crew' },
+  { sleeve: 'SHORT', variant: 'f', title: 'sleeveShort', icon: 'tshirt-crew-outline' },
 ];
 
 /**
- * 1-bosqich (jamoaning ikkala turi bo'lsa): qishki — uzun yeng + shalvar, yozgi — kalta yeng + shortik.
- * Har kartada shu jamoaning o'sha turdagi surati. Narx bu yerda ko'rsatilmaydi — o'lcham tanlangach chiqadi.
+ * 1-bosqich (jamoaning ikkala turi bo'lsa): uzun yeng yoki kalta yeng.
+ * Har kartada shu jamoaning o'sha yeng turidagi surati. Narx o'lcham tanlangach ko'rsatiladi.
  *
  * Props: t, team (kit360Id), value ('SHORT' | 'LONG' | null), onChange(sleeve)
  */
 export default function KitTypeStep({ t, team, value, onChange }) {
   return (
     <View>
-      <Text style={styles.sub}>{t('kitStepTypeSub')}</Text>
       <View style={styles.row}>
         {OPTIONS.map((o) => {
           const active = value === o.sleeve;
@@ -45,9 +44,6 @@ export default function KitTypeStep({ t, team, value, onChange }) {
                   {t(o.title)}
                 </Text>
               </View>
-              <Text style={styles.cardSub} numberOfLines={2}>
-                {t(o.sub)}
-              </Text>
             </Pressable>
           );
         })}
@@ -57,7 +53,6 @@ export default function KitTypeStep({ t, team, value, onChange }) {
 }
 
 const styles = themedStyles(() => ({
-  sub: { color: colors.muted, fontSize: 12, marginTop: 2 },
   row: { flexDirection: 'row', gap: spacing.sm, marginTop: spacing.sm },
   card: {
     flex: 1,
@@ -83,5 +78,4 @@ const styles = themedStyles(() => ({
   titleRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },
   title: { flex: 1, color: colors.text, fontSize: 14, fontWeight: '900' },
   titleActive: { color: colors.accent },
-  cardSub: { color: colors.muted, fontSize: 11, marginTop: 3, lineHeight: 15 },
 }));

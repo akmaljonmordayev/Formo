@@ -11,7 +11,6 @@ import { ConfirmModal } from '../components/ui/Modals';
 import { placeOrder, useAddresses, useDeliverySlots } from '../features/checkout';
 import { formatFullAddress } from '../features/location/address';
 import { isPostalDelivery } from '../features/location/tashkent';
-import useWallet, { canPayFromBalance } from '../features/wallet';
 import { errorText } from '../utils/errors';
 
 /**
@@ -20,11 +19,10 @@ import { errorText } from '../utils/errors';
  *   2) Qachon? — kun/vaqt tanlanmaydi, faqat muddat ko'rsatiladi. Toshkent shahri: kuryer uygacha 2–3 kunda;
  *      viloyatlar: pochta bo'limigacha (topshirish punkti) 2–5 ish kunida, viloyat bo'yicha pochta narxi
  *      (GET /api/checkout/delivery-slots).
- *   3) To'lov — balans (asosiy), kartadan (istalgan hudud: admin qo'ng'iroq qilib karta raqamini beradi);
- *      Toshkent shahri ichida kuryerga naqd ham (Superadmin allowCash). Balans yetmasa "To'ldirish".
+ *   3) To'lov — kartadan yoki Toshkent shahri ichida kuryerga naqd (Superadmin allowCash).
  * Narx serverda qayta hisoblanadi; savatdagi promokod buyurtmaga uzatiladi.
  */
-export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPickOnMap, onEditAddress, onWallet, initialAddressId }) {
+export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPickOnMap, onEditAddress, initialAddressId }) {
   const { addresses, isLoading: addrLoading, error: addrError, refetch: refetchAddresses } = useAddresses();
 
   // Xaritadan yangi manzil saqlab qaytilganda — o'sha manzil tanlanadi
@@ -44,10 +42,8 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
 
   // Naqd — faqat Toshkent shahri ichida (kuryer) va Superadmin yoqib qo'ygan bo'lsa; server ham tekshiradi
   const cashAllowed = Boolean(rules.allowCash && selectedAddress && !postal);
-  const [paymentMethod, setPaymentMethod] = useState('BALANCE');
-  const method = paymentMethod === 'CASH' && !cashAllowed ? 'BALANCE' : paymentMethod;
-  // Balans serverdan; ilovaga (Telegram'dan) qaytganda yangilanadi
-  const wallet = useWallet();
+  const [paymentMethod, setPaymentMethod] = useState('CARD');
+  const method = paymentMethod === 'CASH' && !cashAllowed ? 'CARD' : paymentMethod;
   const [comment, setComment] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const inFlight = useRef(false);
@@ -72,11 +68,7 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
   const { summary } = cart;
   const paused = !rules.acceptOrders;
   const total = summary?.total ?? 0;
-  const balanceKnown = wallet.balance != null;
-  const byBalance = method === 'BALANCE';
-  const balanceShort = byBalance && balanceKnown && !canPayFromBalance(wallet.balance, total);
-  const ready =
-    Boolean(addressId && addressOk && cart.items.length) && !submitting && !paused && (!byBalance || (balanceKnown && !balanceShort));
+  const ready = Boolean(addressId && addressOk && cart.items.length) && !submitting && !paused;
 
   const submit = async () => {
     // Tez ikki marta bosish: `submitting` holati keyingi render'gacha o'zgarmaydi — ref darhol
@@ -95,11 +87,9 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
       });
       // Server savatni tozaladi — lokal holat va promokod ham tozalanadi
       cart.afterOrder();
-      wallet.refetch({ silent: true });
       onPlaced(order);
     } catch (err) {
       setSubmitError(errorText(err, t));
-      wallet.refetch({ silent: true });
     } finally {
       inFlight.current = false;
       setSubmitting(false);
@@ -113,9 +103,7 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
       ? t('checkoutNeedAddress')
       : !addressOk
         ? t('addrIncomplete')
-        : balanceShort
-          ? t('balanceShort')
-          : null;
+        : null;
 
   return (
     <Screen
@@ -170,17 +158,9 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
         />
       )}
 
-      {/* ── 3. To'lov: faqat shaxsiy hisob ── */}
-      <StepHead n={3} title={t('checkoutStepPay')} done={!byBalance || (balanceKnown && !balanceShort)} style={styles.sectionGap} />
+      {/* ── 3. To'lov ── */}
+      <StepHead n={3} title={t('checkoutStepPay')} done={Boolean(method)} style={styles.sectionGap} />
       <View style={styles.payList}>
-        <PayOption
-          icon="wallet"
-          title={t('pay_BALANCE')}
-          sub={balanceKnown ? `${t('walletBalance')}: ${formatMoney(wallet.balance)}` : wallet.error ? errorText(wallet.error, t) : '…'}
-          selected={byBalance}
-          warn={balanceShort}
-          onPress={() => setPaymentMethod('BALANCE')}
-        />
         <PayOption
           icon="credit-card-outline"
           title={t('pay_CARD')}
@@ -196,17 +176,6 @@ export default function CheckoutScreen({ t, cart, rules, onBack, onPlaced, onPic
         <View style={styles.cardNote}>
           <MaterialCommunityIcons name="phone-in-talk-outline" size={20} color={colors.accent} />
           <Text style={styles.cardNoteText}>{t('payCardNote')}</Text>
-        </View>
-      ) : null}
-      {postal && rules.allowCash ? <Text style={[styles.note, styles.payNote]}>{t('cashCityOnly')}</Text> : null}
-      {balanceShort ? (
-        <View style={styles.short}>
-          <Text style={styles.shortText}>
-            {t('balanceShort')} · {t('balanceNeed')} {formatMoney(total - wallet.balance)}
-          </Text>
-          <Button small onPress={onWallet}>
-            {t('topUp')}
-          </Button>
         </View>
       ) : null}
 
@@ -265,13 +234,13 @@ function StepHead({ n, title, done, style }) {
   );
 }
 
-function PayOption({ icon, title, sub, selected, warn, onPress }) {
+function PayOption({ icon, title, sub, selected, onPress }) {
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="radio"
       accessibilityState={{ selected }}
-      style={({ pressed }) => [styles.pay, selected && styles.payOn, warn && styles.payShort, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.pay, selected && styles.payOn, pressed && styles.pressed]}
     >
       <View style={[styles.payIcon, !selected && styles.payIconOff]}>
         <MaterialCommunityIcons name={icon} size={22} color={selected ? colors.primaryDark : colors.muted} />
@@ -321,10 +290,8 @@ const styles = themedStyles(() => ({
     backgroundColor: colors.surface,
   },
   payOn: { borderColor: colors.accent, backgroundColor: colors.surfaceRaised },
-  payShort: { borderColor: colors.danger },
   payIconOff: { backgroundColor: colors.surfaceRaised },
   payList: { gap: spacing.sm },
-  payNote: { marginTop: spacing.sm },
   pressed: { opacity: 0.85 },
   payIcon: { width: 44, height: 44, borderRadius: 14, backgroundColor: colors.accent, alignItems: 'center', justifyContent: 'center' },
   payTitle: { color: colors.text, fontSize: 15, fontWeight: '900' },
